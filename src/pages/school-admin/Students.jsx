@@ -139,8 +139,12 @@ const StudentManager = () => {
                 <tr key={student.id} className="group hover:bg-white/5 transition-all">
                   <td className="py-5 px-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-dark-hover flex items-center justify-center text-primary-500 font-bold border border-dark-border group-hover:border-primary-500/30 transition-all uppercase">
-                        {student.name?.charAt(0)}
+                      <div className="w-10 h-10 rounded-xl bg-dark-hover flex items-center justify-center text-primary-500 font-bold border border-dark-border group-hover:border-primary-500/30 transition-all uppercase overflow-hidden">
+                        {student.photoUrl ? (
+                          <img src={student.photoUrl} alt={student.name} className="w-full h-full object-cover" />
+                        ) : (
+                          student.name?.charAt(0)
+                        )}
                       </div>
                       <div>
                         <p className="font-bold text-dark-text group-hover:text-primary-500 transition-colors">

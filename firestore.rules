@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===== HELPER FUNCTIONS =====
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Get the user's profile document
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Check if user has a specific role
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+    
+    // Check if user belongs to a specific school
+    function belongsToSchool(schoolId) {
+      return isAuthenticated() && getUserData().schoolId == schoolId;
+    }
+    
+    // Check if user is super admin
+    function isSuperAdmin() {
+      return hasRole('super-admin');
+    }
+    
+    // Check if user is school admin of this school
+    function isSchoolAdmin(schoolId) {
+      return hasRole('school-admin') && belongsToSchool(schoolId);
+    }
+    
+    // Check if user is a teacher at this school
+    function isTeacher(schoolId) {
+      return hasRole('teacher') && belongsToSchool(schoolId);
+    }
+    
+    // Check if user has any admin-level access to this school
+    function hasSchoolAccess(schoolId) {
+      return isSuperAdmin() || isSchoolAdmin(schoolId) || isTeacher(schoolId);
+    }
+    
+    // ===== USER PROFILES =====
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      // Super admin can read all users
+      allow read: if isSuperAdmin();
+      // School admin can read users of their school
+      allow read: if isAuthenticated() && resource.data.schoolId == getUserData().schoolId;
+      // Users can update their own profile (except role)
+      allow update: if isAuthenticated() && request.auth.uid == userId 
+                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+      // Super admin and school admin can create users
+      allow create: if isSuperAdmin() || hasRole('school-admin');
+      // Only super admin can delete users
+      allow delete: if isSuperAdmin();
+    }
+    
+    // ===== SCHOOLS =====
+    match /schools/{schoolId} {
+      // Anyone authenticated can read their school
+      allow read: if isAuthenticated() && (belongsToSchool(schoolId) || isSuperAdmin());
+      // School admin or super admin can update
+      allow write: if isSuperAdmin() || isSchoolAdmin(schoolId);
+    }
+    
+    // ===== MULTI-TENANT SCHOOL DATA =====
+    // All collections that use schoolId for multi-tenancy
+    
+    match /students/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
+      allow update: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
+    match /staff/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId));
+      allow update: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+      allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
+    match /attendance/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create, update: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
+      allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
+    match /challans/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId));
+      allow update: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
+    match /exams/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create, update: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
+      allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
+    match /results/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create, update: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
+      allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
+    match /inquiries/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
+    match /notifications/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
+      allow update: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
+    match /promotion_history/{docId} {
+      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow create: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId));
+    }
+    
+    // Cloudinary deletion queue (internal)
+    match /cloudinary_deletions/{docId} {
+      allow create: if isAuthenticated();
+      allow read, update, delete: if isSuperAdmin();
+    }
+    
+    // ===== CATCH-ALL: Deny everything else =====
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
