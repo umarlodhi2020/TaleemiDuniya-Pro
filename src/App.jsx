@@ -57,7 +57,12 @@ import StudentHomework from './pages/student/Homework';
 import StudentTimetable from './pages/student/Timetable';
 import StudentMaterial from './pages/student/StudyMaterial';
 import ParentDashboard from './pages/parent/Dashboard';
+import ParentAttendance from './pages/parent/Attendance';
+import ParentFees from './pages/parent/Fees';
+import ParentExams from './pages/parent/Exams';
 import SchoolSettings from './pages/school-admin/Settings';
+import LibraryManager from './pages/school-admin/LibraryManager';
+import TransportManager from './pages/school-admin/TransportManager';
 import RolesManager from './pages/school-admin/RolesManager';
 import Collection from './pages/school-admin/Collection';
 import PeriodBell from './pages/school-admin/PeriodBell';
@@ -205,6 +210,8 @@ const AppRoutes = () => {
         <Route path="exams/mark/:examId" element={<MarkResults />} />
         <Route path="accounts" element={<AccountsManager />} />
         <Route path="inventory" element={<InventoryManager />} />
+        <Route path="library" element={<LibraryManager />} />
+        <Route path="transport" element={<TransportManager />} />
         <Route path="sms" element={<SMSPanel />} />
         <Route path="e-services" element={<EServices />} />
         <Route path="settings" element={<SchoolSettings />} />
@@ -266,6 +273,9 @@ const AppRoutes = () => {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<ParentDashboard />} />
+        <Route path="attendance" element={<ParentAttendance />} />
+        <Route path="fees" element={<ParentFees />} />
+        <Route path="exams" element={<ParentExams />} />
       </Route>
 
       <Route path="/" element={<Navigate to="/login" replace />} />

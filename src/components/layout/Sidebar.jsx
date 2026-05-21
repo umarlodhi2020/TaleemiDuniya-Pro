@@ -27,7 +27,8 @@ import {
   Smartphone,
   Share2,
   Bot,
-  ArrowLeft
+  ArrowLeft,
+  Bus
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -92,6 +93,8 @@ const Sidebar = ({ role }) => {
     {
       title: 'Resources',
       links: [
+        { name: 'Library', icon: BookOpen, path: '/school-admin/library' },
+        { name: 'Transport', icon: Bus, path: '/school-admin/transport' },
         { name: 'Inventory', icon: Archive, path: '/school-admin/inventory' },
         { name: 'E-Certificates', icon: Award, path: '/school-admin/certificates' },
         { name: 'Assign Role', icon: ShieldCheck, path: '/school-admin/roles' },
@@ -172,6 +175,9 @@ const Sidebar = ({ role }) => {
             title: 'Parent Portal',
             links: [
               { name: 'Dashboard', icon: LayoutDashboard, path: '/parent/dashboard' },
+              { name: 'Attendance', icon: CalendarCheck, path: '/parent/attendance' },
+              { name: 'Fees & Challans', icon: CreditCard, path: '/parent/fees' },
+              { name: 'Exams & Results', icon: ClipboardCheck, path: '/parent/exams' },
             ]
           }
         ];
