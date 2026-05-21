@@ -17,6 +17,7 @@ import Revenue from './pages/super-admin/Revenue';
 import NotificationsCenter from './pages/super-admin/Notifications';
 import SupportCenter from './pages/super-admin/Support';
 import SuperAdminSettings from './pages/super-admin/SuperAdminSettings';
+import SuperAdminAiAgent from './pages/super-admin/AiAgent';
 import EServices from './pages/school-admin/EServices';
 import SchoolAdminDashboard from './pages/school-admin/Dashboard';
 import InquiryManager from './pages/school-admin/InquiryManager';
@@ -166,6 +167,7 @@ const AppRoutes = () => {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<SuperAdminDashboard />} />
+        <Route path="ai-agent" element={<SuperAdminAiAgent />} />
         <Route path="schools" element={<SchoolsManager />} />
         <Route path="schools/add" element={<AddSchool />} />
         <Route path="schools/edit/:schoolId" element={<EditSchool />} />

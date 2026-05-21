@@ -124,6 +124,7 @@ const Sidebar = ({ role }) => {
             title: 'Core',
             links: [
               { name: 'Dashboard', icon: LayoutDashboard, path: '/super-admin/dashboard' },
+              { name: 'SaaS AI Agent', icon: Bot, path: '/super-admin/ai-agent' },
               { name: 'Manage Schools', icon: School, path: '/super-admin/schools' },
               { name: 'Subscriptions', icon: CreditCard, path: '/super-admin/subscriptions' },
             ]
