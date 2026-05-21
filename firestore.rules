@@ -39,9 +39,24 @@ service cloud.firestore {
       return hasRole('teacher') && belongsToSchool(schoolId);
     }
     
+    // Check if user is a parent at this school
+    function isParent(schoolId) {
+      return hasRole('parent') && belongsToSchool(schoolId);
+    }
+    
+    // Check if user is a student at this school
+    function isStudent(schoolId) {
+      return hasRole('student') && belongsToSchool(schoolId);
+    }
+    
     // Check if user has any admin-level access to this school
     function hasSchoolAccess(schoolId) {
       return isSuperAdmin() || isSchoolAdmin(schoolId) || isTeacher(schoolId);
+    }
+    
+    // Check if user has read access (includes parents and students)
+    function hasReadAccess(schoolId) {
+      return hasSchoolAccess(schoolId) || isParent(schoolId) || isStudent(schoolId);
     }
     
     // ===== USER PROFILES =====
@@ -73,40 +88,48 @@ service cloud.firestore {
     // All collections that use schoolId for multi-tenancy
     
     match /students/{docId} {
-      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow read: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
       allow create: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
       allow update: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
     }
     
     match /staff/{docId} {
-      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow read: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
       allow create: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId));
       allow update: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
       allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
     }
     
+    // ===== CLASSES =====
+    match /classes/{docId} {
+      allow read: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
+      allow create: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId));
+      allow update: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
+    }
+    
     match /attendance/{docId} {
-      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow read: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
       allow create, update: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
     }
     
     match /challans/{docId} {
-      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow read: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
       allow create: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId));
       allow update: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
     }
     
     match /exams/{docId} {
-      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow read: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
       allow create, update: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
     }
     
     match /results/{docId} {
-      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow read: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
       allow create, update: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
     }
@@ -118,9 +141,9 @@ service cloud.firestore {
     }
     
     match /notifications/{docId} {
-      allow read: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow read: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
       allow create: if isAuthenticated() && hasSchoolAccess(request.resource.data.schoolId);
-      allow update: if isAuthenticated() && hasSchoolAccess(resource.data.schoolId);
+      allow update: if isAuthenticated() && hasReadAccess(resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSuperAdmin() || isSchoolAdmin(resource.data.schoolId));
     }
     

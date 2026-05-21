@@ -276,6 +276,7 @@ const AppRoutes = () => {
 };
 
 import { SchoolProvider } from './context/SchoolContext';
+import NetworkStatusBar from './components/common/NetworkStatusBar';
 
 function App() {
   return (
@@ -283,6 +284,7 @@ function App() {
       <SchoolProvider>
         <Router>
           <AppRoutes />
+          <NetworkStatusBar />
         </Router>
       </SchoolProvider>
     </AuthProvider>
