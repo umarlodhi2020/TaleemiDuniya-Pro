@@ -11,11 +11,17 @@ const Navbar = () => {
 
         {/* Web App Brand Title */}
         <div className="flex flex-col">
-          <h1 className="text-lg font-extrabold bg-premium-gradient bg-clip-text text-transparent tracking-wide leading-none">
-            TaleemiDunya
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-extrabold bg-premium-gradient bg-clip-text text-transparent tracking-wide leading-none">
+              TaleemiDunya
+            </h1>
+            <span className="px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-[10px] font-black tracking-wider flex items-center gap-1 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              v2.5.0-PRO
+            </span>
+          </div>
           <span className="text-[9px] text-dark-muted font-bold uppercase tracking-widest mt-1">
-            {userData?.role === 'super-admin' ? 'Super Admin Portal' : 'School Admin Portal'}
+            {userData?.role === 'super-admin' ? 'Super Admin Portal' : 'School Admin Portal'} • Dual WhatsApp Engine Active
           </span>
         </div>
 

@@ -243,8 +243,15 @@ const Sidebar = ({ role }) => {
           ))}
         </nav>
 
-        {/* Logout Footer */}
-        <div className="p-2 border-t border-dark-border bg-dark-card">
+        {/* Version Badge & Logout Footer */}
+        <div className="p-2 border-t border-dark-border bg-dark-card space-y-2">
+          <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-dark-border flex flex-col items-start justify-center">
+            <span className="text-[10px] font-black tracking-wider uppercase text-green-400 flex items-center gap-1.5 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              v2.5.0 (PRO BUILD)
+            </span>
+            <span className="text-[9px] text-dark-muted font-medium truncate w-full">Dual WhatsApp & Bulk Import</span>
+          </div>
           <button
             onClick={logout}
             className="w-full flex items-center rounded-xl text-red-500 hover:bg-red-500/10 transition-all font-semibold cursor-pointer px-3 py-2.5 gap-2 justify-start"
