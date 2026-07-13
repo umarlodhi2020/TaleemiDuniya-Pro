@@ -137,6 +137,7 @@ const Sidebar = ({ role }) => {
               { name: 'Revenue', icon: BookOpen, path: '/super-admin/revenue' },
               { name: 'Notifications', icon: BellRing, path: '/super-admin/notifications' },
               { name: 'Support Center', icon: MessageSquare, path: '/super-admin/support' },
+              { name: 'Bulk Data Import', icon: UploadCloud, path: '/school-admin/import' },
               { name: 'Settings', icon: Settings, path: '/super-admin/settings' },
             ]
           }
