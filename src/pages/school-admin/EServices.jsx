@@ -472,12 +472,23 @@ const EServices = () => {
                 </div>
               </GlassCard>
 
-              {/* TEST ALERT TRIGGER */}
+              {/* TEST ALERT TRIGGER & DIRECT WHATSAPP WEB */}
               <GlassCard className="p-8 space-y-6">
                 <h3 className="text-lg font-bold flex items-center gap-2">
-                  <Send className="text-primary-500" size={18} /> Test Alert Delivery Simulator
+                  <Send className="text-primary-500" size={18} /> Test & Direct Delivery Hub
                 </h3>
-                <p className="text-xs text-dark-muted">Verify the active integration by dispatching a simulated message structure immediately.</p>
+                
+                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2 text-green-400 font-bold text-xs">
+                    <MessageCircle size={16} />
+                    <span>Dual WhatsApp Engine Active</span>
+                  </div>
+                  <p className="text-[11px] text-dark-muted leading-relaxed">
+                    <strong className="text-white">Mode 1 (API Gateway):</strong> Automatically sends alerts in background.<br/>
+                    <strong className="text-white">Mode 2 (Direct WhatsApp Web):</strong> One-click instant chat (STASU style) right from your browser without needing any API token!
+                  </p>
+                </div>
+
                 <form onSubmit={handleSendTestMessage} className="space-y-4">
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-widest text-dark-muted">Target Phone Number</label>
@@ -493,13 +504,29 @@ const EServices = () => {
                       />
                     </div>
                   </div>
-                  <button 
-                    type="submit"
-                    disabled={testSent}
-                    className="w-full premium-button-primary disabled:opacity-50"
-                  >
-                    {testSent ? 'Sending SMS...' : 'Trigger Test Message'}
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <button 
+                      type="submit"
+                      disabled={testSent}
+                      className="w-full premium-button-primary disabled:opacity-50 flex items-center justify-center gap-2 text-xs py-3.5"
+                    >
+                      <Send size={16} />
+                      <span>{testSent ? 'Sending...' : 'Mode 1: Trigger API Alert'}</span>
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if (!testNumber) return alert('Please enter a Target Phone Number (+92...) first!');
+                        const cleanPhone = testNumber.replace(/[^0-9]/g, '');
+                        const msg = encodeURIComponent(`Assalam-o-Alaikum! This is a test alert directly from ${websiteConfig.brandName} WhatsApp Center.`);
+                        window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+                      }}
+                      className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2 text-xs"
+                    >
+                      <MessageCircle size={16} />
+                      <span>Mode 2: Open WhatsApp Web</span>
+                    </button>
+                  </div>
                 </form>
 
                 {testSent && (
