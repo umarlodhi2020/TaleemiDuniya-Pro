@@ -19,7 +19,8 @@ import {
   Layout,
   Bot,
   Smartphone,
-  Globe
+  Globe,
+  UploadCloud
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { Link } from 'react-router-dom';
@@ -28,6 +29,7 @@ const modules = [
   // Student Management
   { name: 'Add Student', icon: UserPlus, color: 'text-green-400', path: '/school-admin/students/add', category: 'Students' },
   { name: 'Student Manager', icon: GraduationCap, color: 'text-green-500', path: '/school-admin/students', category: 'Students' },
+  { name: 'Bulk Data Import', icon: UploadCloud, color: 'text-cyan-400', path: '/school-admin/import', category: 'Students' },
   { name: 'Student Portal', icon: Layout, color: 'text-green-600', path: '/student/dashboard', category: 'Portals' },
   
   // Inquiry Management

@@ -5,7 +5,8 @@ import {
   CreditCard, 
   CalendarCheck,
   ArrowUpRight,
-  UserPlus
+  UserPlus,
+  UploadCloud
 } from 'lucide-react';
 import StatCard from '../../components/common/StatCard';
 import GlassCard from '../../components/common/GlassCard';
@@ -97,7 +98,14 @@ const SchoolAdminDashboard = () => {
           <p className="text-dark-muted mt-1">Manage your school operations efficiently.</p>
         </div>
         
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-3">
+          <button 
+            onClick={() => navigate('/school-admin/import')}
+            className="premium-button-secondary border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500 hover:text-white"
+          >
+            <UploadCloud size={20} />
+            Bulk Data Import
+          </button>
           <button className="premium-button-secondary">
             Generate Report
           </button>
