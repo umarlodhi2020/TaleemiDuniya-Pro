@@ -28,7 +28,8 @@ import {
   Share2,
   Bot,
   ArrowLeft,
-  Bus
+  Bus,
+  UploadCloud
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -66,6 +67,7 @@ const Sidebar = ({ role }) => {
         { name: 'Staff', icon: UserSquare2, path: '/school-admin/staff' },
         { name: 'Attendance', icon: CalendarCheck, path: '/school-admin/attendance' },
         { name: 'ID Cards Generator', icon: Award, path: '/school-admin/students/id-cards' },
+        { name: 'Bulk Data Import', icon: UploadCloud, path: '/school-admin/import' },
       ]
     },
     {

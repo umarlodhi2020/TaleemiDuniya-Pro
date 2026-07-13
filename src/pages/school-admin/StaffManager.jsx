@@ -8,7 +8,8 @@ import {
   Trash2, 
   Edit2, 
   ShieldCheck,
-  UserSquare2
+  UserSquare2,
+  UploadCloud
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords } from '../../services/db';
@@ -50,7 +51,11 @@ const StaffManager = () => {
           <p className="text-dark-muted mt-1">Manage all employees and teachers.</p>
         </div>
         
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-3">
+          <button onClick={() => navigate('/school-admin/import')} className="premium-button-secondary">
+            <UploadCloud size={18} />
+            Import Excel/CSV
+          </button>
           <button 
             onClick={() => navigate('/school-admin/staff/add')}
             className="premium-button-primary"

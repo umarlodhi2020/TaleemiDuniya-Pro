@@ -72,6 +72,7 @@ import Reminders from './pages/school-admin/Reminders';
 import CallLog from './pages/school-admin/CallLog';
 import Social from './pages/school-admin/Social';
 import AiAgent from './pages/school-admin/AiAgent';
+import DataImport from './pages/school-admin/DataImport';
 import ComingSoon from './pages/school-admin/ComingSoon';
 import GlassCard from './components/common/GlassCard';
 
@@ -109,8 +110,8 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   }
 
   if (requiredRole && userData?.role !== requiredRole) {
-    // 🔥 UPDATE: Allow school-admin full access to bypass ALL role checks for sandbox previews
-    if (userData?.role === 'school-admin') {
+    // 🔥 UPDATE: Allow school-admin & super-admin full access to bypass ALL role checks for sandbox previews
+    if (userData?.role === 'school-admin' || userData?.role === 'super-admin') {
       return children;
     }
     // Redirect to correct dashboard instead of unauthorized page
@@ -226,6 +227,7 @@ const AppRoutes = () => {
         <Route path="call-log" element={<CallLog />} />
         <Route path="social" element={<Social />} />
         <Route path="ai-agent" element={<AiAgent />} />
+        <Route path="import" element={<DataImport />} />
       </Route>
 
       <Route

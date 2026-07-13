@@ -10,7 +10,8 @@ import {
   Phone,
   Trash2,
   Edit2,
-  Eye
+  Eye,
+  UploadCloud
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { useNavigate } from 'react-router-dom';
@@ -65,7 +66,11 @@ const StudentManager = () => {
           <p className="text-dark-muted mt-1">Total {students.length} students enrolled.</p>
         </div>
         
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-3">
+          <button onClick={() => navigate('/school-admin/import')} className="premium-button-secondary">
+            <UploadCloud size={18} />
+            Import Excel/CSV
+          </button>
           <button className="premium-button-secondary">
             <Download size={18} />
             Export
