@@ -11,7 +11,8 @@ import {
   Trash2,
   Edit2,
   Eye,
-  UploadCloud
+  UploadCloud,
+  MessageSquare
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { useNavigate } from 'react-router-dom';
@@ -182,6 +183,18 @@ const StudentManager = () => {
                   </td>
                   <td className="py-5 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => {
+                          const cleanPhone = (student.phone || student.parentPhone || '').replace(/[^0-9]/g, '');
+                          const msg = encodeURIComponent(`Assalam-o-Alaikum, regarding student ${student.name} (Roll # ${student.rollNumber}) in class ${student.class}...`);
+                          window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+                        }}
+                        className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all flex items-center gap-1 text-xs font-bold"
+                        title="Direct WhatsApp Web Chat"
+                      >
+                        <MessageSquare size={16} />
+                        <span className="hidden xl:inline">WhatsApp</span>
+                      </button>
                       <button
                         onClick={() => navigate(`/school-admin/students/edit/${student.id}`)}
                         className="p-2 hover:bg-primary-500/10 text-dark-muted hover:text-primary-500 rounded-lg transition-all"

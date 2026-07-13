@@ -137,9 +137,23 @@ const InquiryManager = () => {
                     </span>
                   </td>
                   <td className="py-4 px-4 text-right">
-                    <button className="p-2 hover:bg-dark-hover rounded-lg text-dark-muted">
-                      <MoreVertical size={18} />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => {
+                          const cleanPhone = (inq.phone || '').replace(/[^0-9]/g, '');
+                          const msg = encodeURIComponent(`Hello ${inq.name}, regarding your admission inquiry for ${inq.classInterest} Grade at TaleemiDunya Pro school...`);
+                          window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+                        }}
+                        className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold"
+                        title="Direct WhatsApp Web Chat"
+                      >
+                        <MessageSquare size={16} />
+                        <span>WhatsApp</span>
+                      </button>
+                      <button className="p-2 hover:bg-dark-hover rounded-lg text-dark-muted">
+                        <MoreVertical size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
