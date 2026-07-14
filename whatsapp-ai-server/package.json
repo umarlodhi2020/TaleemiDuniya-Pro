@@ -1,0 +1,22 @@
+{
+  "name": "taleemidunya-whatsapp-ai-server",
+  "version": "1.0.0",
+  "description": "24/7 Free Baileys WhatsApp & Gemini AI Microservice Gateway for TaleemiDunya Pro SaaS",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@google/genai": "latest",
+    "@whiskeysockets/baileys": "^6.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "firebase-admin": "^12.1.0",
+    "qrcode": "^1.5.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
