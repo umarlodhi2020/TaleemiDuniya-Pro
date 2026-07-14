@@ -6,7 +6,8 @@ import path from 'path';
 import { 
   makeWASocket, 
   useMultiFileAuthState, 
-  DisconnectReason 
+  DisconnectReason,
+  Browsers 
 } from '@whiskeysockets/baileys';
 import { GoogleGenAI } from '@google/genai';
 import admin from 'firebase-admin';
@@ -94,7 +95,7 @@ async function startWhatsAppSession(schoolId = 'default_school') {
   const sock = makeWASocket({
     auth: state,
     printQRInTerminal: true,
-    browser: ['TaleemiDunya Pro SaaS', 'Chrome', '2.5.0'],
+    browser: Browsers.ubuntu('Chrome'),
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -121,7 +122,9 @@ async function startWhatsAppSession(schoolId = 'default_school') {
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       console.log(`🔴 [DISCONNECTED] Connection closed for "${schoolId}". Reconnecting: ${shouldReconnect}`);
       if (shouldReconnect) {
-        startWhatsAppSession(schoolId);
+        setTimeout(() => {
+          startWhatsAppSession(schoolId);
+        }, 4000);
       } else {
         sessions.delete(schoolId);
         qrCodes.delete(schoolId);
