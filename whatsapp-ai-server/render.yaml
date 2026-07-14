@@ -2,18 +2,12 @@ services:
   - type: web
     name: taleemidunya-whatsapp-ai-bot
     runtime: node
-    plan: starter  # $7/month — always-on (free tier sleeps after 15min = WhatsApp disconnects!)
+    plan: free
     buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /api/session/status?schoolId=default_school
-    disk:
-      name: whatsapp-sessions
-      mountPath: /opt/render/project/src/auth_sessions
-      sizeGB: 1
     envVars:
       - key: GEMINI_API_KEY
-        sync: false  # Set this manually in Render Dashboard
+        sync: false
       - key: NODE_VERSION
         value: "20"
-      - key: GOOGLE_APPLICATION_CREDENTIALS
-        sync: false  # Optional: Firebase Admin service account JSON path
