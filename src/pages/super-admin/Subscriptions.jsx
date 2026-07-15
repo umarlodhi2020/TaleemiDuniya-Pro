@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import GlassCard from '../../components/common/GlassCard';
 import {
   CreditCard, CheckCircle2, XCircle, Plus, Edit2,
-  Zap, Building2, Star, Crown, Users, Save, X, ToggleLeft, ToggleRight, RefreshCw
+  Zap, Building2, Star, Crown, Users, Save, X, ToggleLeft, ToggleRight, RefreshCw,
+  Clock, Check, AlertCircle, DollarSign
 } from 'lucide-react';
 import { collection, getDocs, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -36,6 +37,7 @@ const Subscriptions = () => {
   const [newPlan, setNewPlan] = useState({ name: '', priceMonthly: '', priceYearly: '', maxStudents: '', maxStaff: '' });
   const [plans, setPlans] = useState(defaultPlans);
   const [schools, setSchools] = useState([]);
+  const [rechargeRequests, setRechargeRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editForm, setEditForm] = useState({});
 
@@ -54,8 +56,41 @@ const Subscriptions = () => {
       if (plansSnap.docs.length > 0) {
         setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       }
+
+      // Fetch pending recharge/upgrade requests
+      const reqSnap = await getDocs(collection(db, 'saas_recharge_requests'));
+      setRechargeRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || '')));
     } catch (err) { console.error('Fetch error:', err); }
     finally { setLoading(false); }
+  };
+
+  const approveRecharge = async (req) => {
+    try {
+      await updateDoc(doc(db, 'saas_recharge_requests', req.id), { status: 'approved', verifiedAt: serverTimestamp() });
+      const daysToAdd = req.billingCycle === 'yearly' ? 365 : 30;
+      const newExpiry = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+      await updateDoc(doc(db, 'schools', req.schoolId), {
+        plan: req.requestedPlan,
+        subscriptionPlan: req.requestedPlan,
+        subscriptionStatus: 'active',
+        expiryDate: newExpiry,
+        updatedAt: serverTimestamp()
+      });
+      alert(`✅ Recharge Approved!\nSchool: ${req.schoolName}\nPlan activated: ${req.planName} (${req.billingCycle})\nValid till: ${new Date(newExpiry).toLocaleDateString()}`);
+      fetchData();
+    } catch (e) {
+      alert(`❌ Error approving recharge: ${e.message}`);
+    }
+  };
+
+  const rejectRecharge = async (req) => {
+    try {
+      await updateDoc(doc(db, 'saas_recharge_requests', req.id), { status: 'rejected', verifiedAt: serverTimestamp() });
+      alert(`❌ Recharge request from ${req.schoolName} rejected.`);
+      fetchData();
+    } catch (e) {
+      alert(`Error: ${e.message}`);
+    }
   };
 
   const savePlanToFirestore = async (plan) => {
@@ -237,10 +272,14 @@ const Subscriptions = () => {
       </GlassCard>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-dark-border">
-        {[{ id: 'plans', label: '📋 Manage Plans' }, { id: 'schools', label: '🏫 School Assignments' }].map(tab => (
+      <div className="flex gap-1 border-b border-dark-border overflow-x-auto">
+        {[
+          { id: 'plans', label: '📋 Manage Plans' },
+          { id: 'schools', label: '🏫 School Assignments' },
+          { id: 'requests', label: `⚡ Recharge / Upgrade Proofs (${rechargeRequests.filter(r => r.status === 'pending_verification').length})` }
+        ].map(tab => (
           <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-            className={`px-6 py-3 text-sm font-bold transition-all rounded-t-xl ${
+            className={`px-6 py-3 text-sm font-bold transition-all rounded-t-xl whitespace-nowrap ${
               activeTab === tab.id ? 'bg-primary-500/10 text-primary-400 border-b-2 border-primary-500 -mb-px' : 'text-dark-muted hover:text-dark-text'
             }`}>{tab.label}</button>
         ))}
@@ -409,6 +448,107 @@ const Subscriptions = () => {
                               );
                             })}
                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </GlassCard>
+      )}
+
+      {/* REQUESTS TAB */}
+      {activeTab === 'requests' && (
+        <GlassCard className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Zap className="text-amber-400" size={20} /> Pending Online Recharge & Plan Upgrade Proofs
+            </h2>
+            <button onClick={fetchData} className="premium-button-secondary py-1.5 text-xs">
+              <RefreshCw size={14} /> Refresh Requests
+            </button>
+          </div>
+
+          {rechargeRequests.length === 0 ? (
+            <div className="text-center py-12 text-dark-muted">
+              <CreditCard size={44} className="mx-auto opacity-30 mb-3" />
+              <p className="font-bold text-base">No online recharge requests found</p>
+              <p className="text-xs mt-1">When schools recharge or upgrade online, their payment proofs (TID) will appear here for 1-click verification.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-dark-border text-dark-muted text-[10px] uppercase tracking-widest font-black">
+                    <th className="pb-4 px-4">School Name</th>
+                    <th className="pb-4 px-4">Requested Plan</th>
+                    <th className="pb-4 px-4">Billing & Amount</th>
+                    <th className="pb-4 px-4">TID / Payment Proof</th>
+                    <th className="pb-4 px-4">Submitted At</th>
+                    <th className="pb-4 px-4">Status</th>
+                    <th className="pb-4 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-dark-border">
+                  {rechargeRequests.map(req => {
+                    const isPending = req.status === 'pending_verification';
+                    return (
+                      <tr key={req.id} className="hover:bg-white/5 transition-all">
+                        <td className="py-4 px-4">
+                          <p className="font-bold text-sm text-white">{req.schoolName || req.schoolId}</p>
+                          <p className="text-[11px] text-dark-muted font-mono">{req.schoolId}</p>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
+                            req.requestedPlan === 'enterprise' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                            req.requestedPlan === 'premium' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
+                            'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                          }`}>
+                            {req.planName || req.requestedPlan}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <p className="font-black text-sm text-green-400">Rs. {Number(req.amount || 0).toLocaleString()}</p>
+                          <p className="text-[10px] text-dark-muted uppercase font-bold">{req.billingCycle || 'monthly'} ({req.payMethod || 'JAZZCASH'})</p>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-3 py-1 rounded-xl bg-[#151926] border border-white/10 font-mono text-xs text-yellow-300 font-black">
+                            {req.tid || 'Screenshot Attached'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-xs text-dark-muted">
+                          {req.createdAt ? new Date(req.createdAt).toLocaleString() : 'Just now'}
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
+                            req.status === 'approved' ? 'bg-green-500/20 text-green-400 border border-green-500/40' :
+                            req.status === 'rejected' ? 'bg-red-500/20 text-red-400 border border-red-500/40' :
+                            'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 animate-pulse'
+                          }`}>
+                            {req.status === 'approved' ? '✓ Activated' : req.status === 'rejected' ? '✗ Rejected' : '⏳ Pending'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          {isPending ? (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => approveRecharge(req)}
+                                className="px-4 py-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1 shadow-lg shadow-green-600/20"
+                              >
+                                <Check size={14} /> Approve & Activate
+                              </button>
+                              <button
+                                onClick={() => rejectRecharge(req)}
+                                className="px-3 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-xs"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-dark-muted font-bold">Processed ✓</span>
+                          )}
                         </td>
                       </tr>
                     );

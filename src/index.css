@@ -53,6 +53,91 @@
     background-color: var(--color-dark-bg);
     color: var(--color-dark-text);
   }
+
+}
+
+/* ==========================================================================
+   DUAL THEME ENGINE (CLEAN WHITE / LIGHT MODE GUARANTEED OVERRIDES)
+   ========================================================================== */
+html.light-mode, body.light-mode, .light-mode {
+  color-scheme: light !important;
+  color: #0f172a !important;
+  background-color: #f8fafc !important;
+  --color-dark-bg: #f8fafc !important;
+  --color-dark-card: #ffffff !important;
+  --color-dark-border: #e2e8f0 !important;
+  --color-dark-hover: #f1f5f9 !important;
+  --color-dark-text: #0f172a !important;
+  --color-dark-muted: #64748b !important;
+}
+
+/* Override utility classes directly when inside .light-mode */
+.light-mode [class*="bg-dark-bg"],
+.light-mode .bg-dark-bg {
+  background-color: #f8fafc !important;
+}
+
+.light-mode [class*="bg-dark-card"],
+.light-mode .bg-dark-card {
+  background-color: #ffffff !important;
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.03) !important;
+}
+
+.light-mode [class*="border-dark-border"],
+.light-mode .border-dark-border {
+  border-color: #e2e8f0 !important;
+}
+
+.light-mode [class*="text-dark-text"],
+.light-mode .text-dark-text {
+  color: #0f172a !important;
+}
+
+.light-mode [class*="text-dark-muted"],
+.light-mode .text-dark-muted {
+  color: #64748b !important;
+}
+
+/* Ensure any hardcoded text-white inside cards, sidebar or header turns dark charcoal in light mode */
+.light-mode .bg-dark-card .text-white,
+.light-mode header .text-white,
+.light-mode aside .text-white,
+.light-mode .glass-card .text-white,
+.light-mode [class*="bg-white/5"] .text-white {
+  color: #0f172a !important;
+}
+
+/* Glass Card & input/button overrides in Light Mode */
+.light-mode .glass-card {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.07), 0 8px 10px -6px rgba(15, 23, 42, 0.03) !important;
+  color: #0f172a !important;
+}
+
+.light-mode .glass-card-hover:hover {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 20px 35px -10px rgba(15, 23, 42, 0.12) !important;
+}
+
+.light-mode [class*="bg-white/5"],
+.light-mode .bg-white\/5 {
+  background-color: rgba(241, 245, 249, 0.8) !important;
+  border-color: #e2e8f0 !important;
+}
+
+.light-mode .premium-input {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.light-mode .premium-button-secondary {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
 }
 
 @layer components {
@@ -184,4 +269,77 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-dark-muted);
+}
+
+/* ==========================================================================
+   UNIVERSAL WHITE-PAPER PRINT ENGINE (@media print)
+   Ensure clean, high-contrast black & white printing across all printable modules
+   ========================================================================== */
+@media print {
+  @page {
+    margin: 1cm;
+    size: auto;
+  }
+
+  html, body, .min-h-screen, [class*="bg-dark-bg"] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide navigation, sidebars, floating AI widget, and non-printable elements */
+  header,
+  aside,
+  .no-print,
+  button:not(.print-allow),
+  [class*="fixed"],
+  [class*="sticky"] {
+    display: none !important;
+  }
+
+  /* Force main container to use 100% width cleanly without margin offset */
+  main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Force all glass cards, grids, and containers to render as crisp white boxes with thin borders */
+  .glass-card,
+  [class*="bg-dark-card"],
+  [class*="bg-white/5"],
+  [class*="bg-slate"] {
+    background-color: #ffffff !important;
+    backdrop-filter: none !important;
+    border: 1px solid #cccccc !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+
+  /* Force all typography and text colors inside print view to pure black */
+  p, h1, h2, h3, h4, h5, h6, span, div, td, th, label {
+    color: #000000 !important;
+    text-shadow: none !important;
+  }
+
+  /* Keep table borders crisp and distinct */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    border: 1px solid #999999 !important;
+    padding: 6px 8px !important;
+  }
+
+  /* Ensure page breaks don't split cards or table rows awkwardly */
+  .glass-card,
+  tr,
+  .print-page-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
 }

@@ -1,0 +1,36 @@
+{
+  "appId": "com.taleemidunya.pocketapp",
+  "appName": "TaleemiDunya Pro",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://taleemidunya-pro-ed44e.web.app/#/school-admin/pocket-app",
+    "cleartext": true,
+    "allowNavigation": [
+      "taleemidunya-pro-ed44e.web.app",
+      "*.firebaseapp.com",
+      "*.googleapis.com"
+    ]
+  },
+  "android": {
+    "backgroundColor": "#090b10",
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2500,
+      "launchAutoHide": true,
+      "backgroundColor": "#090b10",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": true,
+      "spinnerColor": "#9333ea"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#090b10"
+    }
+  }
+}

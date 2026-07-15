@@ -26,14 +26,6 @@ const SUBJECTS = [
   'Physical Education', 'Social Studies', 'Library Hour'
 ];
 
-const defaultMockStaff = [
-  { id: 't1', name: 'Sir Umar Hayat', role: 'teacher' },
-  { id: 't2', name: 'Miss Ayesha Malik', role: 'teacher' },
-  { id: 't3', name: 'Miss Imama', role: 'teacher' },
-  { id: 't4', name: 'Sir Ahmed Raza', role: 'teacher' },
-  { id: 't5', name: 'Sir Malik Sajid', role: 'teacher' }
-];
-
 const TimetableBuilder = () => {
   const { userData } = useAuth();
   const schoolId = userData?.schoolId || 'default-school';
@@ -51,7 +43,6 @@ const TimetableBuilder = () => {
   const [startTime, setStartTime] = useState('08:00');
 
   // Timetable schedule database object
-  // Structure: { [classId]: { [day]: { [periodIndex]: { subject, teacherId, room } } } }
   const [masterSchedule, setMasterSchedule] = useState({});
 
   // Active Period Editor Modal state
@@ -68,48 +59,27 @@ const TimetableBuilder = () => {
   const fetchStaffAndTimetables = async () => {
     setLoading(true);
     try {
-      // Fetch Staff
       const staffData = await getRecords('staff', schoolId);
       if (staffData && staffData.length > 0) {
         setStaff(staffData);
       } else {
-        setStaff(defaultMockStaff);
+        setStaff([]);
       }
 
-      // Fetch existing Timetables from settings or sub-collection
       const timetableData = await getRecords('timetables', schoolId);
       if (timetableData && timetableData.length > 0) {
-        // Hydrate Master Schedule
         const scheduleObj = {};
         timetableData.forEach(t => {
           scheduleObj[t.classId] = t.schedule;
         });
         setMasterSchedule(scheduleObj);
       } else {
-        // Fallback mock assignments
-        setMasterSchedule({
-          'PREP': {
-            'Monday': {
-              '0': { subject: 'Mathematics', teacherId: 't1', room: 'Room 101' },
-              '1': { subject: 'English', teacherId: 't2', room: 'Room 101' },
-              '2': { subject: 'Urdu', teacherId: 't3', room: 'Room 101' }
-            },
-            'Tuesday': {
-              '0': { subject: 'Science', teacherId: 't4', room: 'Room 101' },
-              '1': { subject: 'Mathematics', teacherId: 't1', room: 'Room 101' }
-            }
-          },
-          'Nursery': {
-            'Monday': {
-              '0': { subject: 'Urdu', teacherId: 't3', room: 'Room 102' },
-              '2': { subject: 'Mathematics', teacherId: 't1', room: 'Room 102' } // Double booking conflict candidate for t1
-            }
-          }
-        });
+        setMasterSchedule({});
       }
     } catch (e) {
       console.error("Error fetching timetable details:", e);
-      setStaff(defaultMockStaff);
+      setStaff([]);
+      setMasterSchedule({});
     } finally {
       setLoading(false);
     }

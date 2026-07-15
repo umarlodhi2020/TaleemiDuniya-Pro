@@ -135,6 +135,17 @@ const AddStudent = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      if (!isEditMode) {
+        const existingStudents = await getRecords('students', schoolId);
+        const plan = userData?.subscriptionPlan || 'Basic';
+        const limit = plan === 'Enterprise' ? 999999 : (plan === 'Pro' ? 1000 : 200);
+        if (existingStudents.length >= limit) {
+          alert(`⚠️ SAAS PLAN LIMIT REACHED (${existingStudents.length}/${limit} students on ${plan} Plan)!\n\nPlease ask Super Admin to upgrade your school plan to add unlimited students.`);
+          setLoading(false);
+          return;
+        }
+      }
+
       let photoData = {};
       
       // Upload new photo if selected

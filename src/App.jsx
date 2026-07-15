@@ -30,6 +30,15 @@ import FeeManager from './pages/school-admin/FeeManager';
 import AddFee from './pages/school-admin/AddFee';
 import GenerateChallan from './pages/school-admin/GenerateChallan';
 import AttendanceManager from './pages/school-admin/AttendanceManager';
+import AttendanceRegister from './pages/school-admin/AttendanceRegister';
+import FeeDefaulters from './pages/school-admin/FeeDefaulters';
+import DailyDiary from './pages/school-admin/DailyDiary';
+import PayrollManager from './pages/school-admin/PayrollManager';
+import AdmissionCRM from './pages/school-admin/AdmissionCRM';
+import OnlineQuizEngine from './pages/school-admin/OnlineQuizEngine';
+import GatePassManager from './pages/school-admin/GatePassManager';
+import MiniPocketApp from './pages/school-admin/MiniPocketApp';
+import SchoolSubscriptionPortal from './pages/school-admin/SchoolSubscriptionPortal';
 import Academics from './pages/school-admin/Academics';
 import CustomReportCard from './pages/school-admin/CustomReportCard';
 import ReportCardTemplates from './pages/school-admin/ReportCardTemplates';
@@ -42,6 +51,7 @@ import AccountsManager from './pages/school-admin/AccountsManager';
 import InventoryManager from './pages/school-admin/InventoryManager';
 import SMSPanel from './pages/school-admin/SMSPanel';
 import MarkResults from './pages/school-admin/MarkResults';
+import FamilyTree from './pages/school-admin/FamilyTree';
 import TeacherDashboard from './pages/teacher/Dashboard';
 import TeacherStudents from './pages/teacher/Students';
 import TeacherAttendance from './pages/teacher/Attendance';
@@ -62,17 +72,23 @@ import ParentAttendance from './pages/parent/Attendance';
 import ParentFees from './pages/parent/Fees';
 import ParentExams from './pages/parent/Exams';
 import SchoolSettings from './pages/school-admin/Settings';
-import LibraryManager from './pages/school-admin/LibraryManager';
+import DigitalLibrary from './pages/school-admin/DigitalLibrary';
 import TransportManager from './pages/school-admin/TransportManager';
 import RolesManager from './pages/school-admin/RolesManager';
 import Collection from './pages/school-admin/Collection';
 import PeriodBell from './pages/school-admin/PeriodBell';
-import Certificates from './pages/school-admin/Certificates';
+import CertificateGenerator from './pages/school-admin/CertificateGenerator';
+import HostelManager from './pages/school-admin/HostelManager';
+import GatePassScanner from './pages/school-admin/GatePassScanner';
 import Reminders from './pages/school-admin/Reminders';
 import CallLog from './pages/school-admin/CallLog';
 import Social from './pages/school-admin/Social';
 import AiAgent from './pages/school-admin/AiAgent';
 import DataImport from './pages/school-admin/DataImport';
+import GoogleDriveBackupVault from './pages/school-admin/GoogleDriveBackupVault';
+import WhatsAppCronAutomation from './pages/school-admin/WhatsAppCronAutomation';
+import MobileAppPwaOffline from './pages/school-admin/MobileAppPwaOffline';
+import CommercialLaunchAudit from './pages/school-admin/CommercialLaunchAudit';
 import ComingSoon from './pages/school-admin/ComingSoon';
 import GlassCard from './components/common/GlassCard';
 
@@ -190,19 +206,30 @@ const AppRoutes = () => {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<SchoolAdminDashboard />} />
+        <Route path="pocket-app" element={<MiniPocketApp />} />
+        <Route path="subscription" element={<SchoolSubscriptionPortal />} />
         <Route path="inquiries" element={<InquiryManager />} />
         <Route path="inquiries/add" element={<AddInquiry />} />
+        <Route path="admissions/crm" element={<AdmissionCRM />} />
         <Route path="students" element={<StudentManager />} />
         <Route path="students/add" element={<AddStudent />} />
         <Route path="students/edit/:studentId" element={<AddStudent />} />
+        <Route path="family-tree" element={<FamilyTree />} />
         <Route path="staff" element={<StaffManager />} />
         <Route path="staff/add" element={<AddStaff />} />
+        <Route path="staff/payroll" element={<PayrollManager />} />
         <Route path="attendance" element={<AttendanceManager />} />
+        <Route path="attendance-register" element={<AttendanceRegister />} />
+        <Route path="security/gate-pass" element={<GatePassManager />} />
+        <Route path="security/gate-scanner" element={<GatePassScanner />} />
         <Route path="fees" element={<FeeManager />} />
         <Route path="fees/add" element={<AddFee />} />
         <Route path="fees/generate" element={<GenerateChallan />} />
+        <Route path="fees/defaulters" element={<FeeDefaulters />} />
         <Route path="fees/challan-book" element={<ChallanBook />} />
         <Route path="academics" element={<Academics />} />
+        <Route path="academics/daily-diary" element={<DailyDiary />} />
+        <Route path="academics/online-quiz" element={<OnlineQuizEngine />} />
         <Route path="academics/report-templates" element={<ReportCardTemplates />} />
         <Route path="academics/report-card/:studentId" element={<CustomReportCard />} />
         <Route path="academics/report-card" element={<CustomReportCard />} />
@@ -213,8 +240,9 @@ const AppRoutes = () => {
         <Route path="exams/mark/:examId" element={<MarkResults />} />
         <Route path="accounts" element={<AccountsManager />} />
         <Route path="inventory" element={<InventoryManager />} />
-        <Route path="library" element={<LibraryManager />} />
+        <Route path="library" element={<DigitalLibrary />} />
         <Route path="transport" element={<TransportManager />} />
+        <Route path="hostel" element={<HostelManager />} />
         <Route path="sms" element={<SMSPanel />} />
         <Route path="e-services" element={<EServices />} />
         <Route path="settings" element={<SchoolSettings />} />
@@ -222,12 +250,16 @@ const AppRoutes = () => {
         {/* Dynamic features implemented */}
         <Route path="collection" element={<Collection />} />
         <Route path="period-bell" element={<PeriodBell />} />
-        <Route path="certificates" element={<Certificates />} />
+        <Route path="certificates" element={<CertificateGenerator />} />
         <Route path="reminders" element={<Reminders />} />
         <Route path="call-log" element={<CallLog />} />
         <Route path="social" element={<Social />} />
         <Route path="ai-agent" element={<AiAgent />} />
         <Route path="import" element={<DataImport />} />
+        <Route path="cloud-backup" element={<GoogleDriveBackupVault />} />
+        <Route path="whatsapp-automation" element={<WhatsAppCronAutomation />} />
+        <Route path="pwa-offline" element={<MobileAppPwaOffline />} />
+        <Route path="system-health-audit" element={<CommercialLaunchAudit />} />
       </Route>
 
       <Route
@@ -290,18 +322,21 @@ const AppRoutes = () => {
 };
 
 import { SchoolProvider } from './context/SchoolContext';
+import { ThemeProvider } from './context/ThemeContext';
 import NetworkStatusBar from './components/common/NetworkStatusBar';
 
 function App() {
   return (
-    <AuthProvider>
-      <SchoolProvider>
-        <Router>
-          <AppRoutes />
-          <NetworkStatusBar />
-        </Router>
-      </SchoolProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <SchoolProvider>
+          <Router>
+            <AppRoutes />
+            <NetworkStatusBar />
+          </Router>
+        </SchoolProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

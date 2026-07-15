@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import { useAuth } from '../../context/AuthContext';
-import { Bot, Send, Sparkles, X, Copy, Check, Save, RefreshCw } from 'lucide-react';
+import { Bot, Send, Sparkles, X, Copy, Check, Save, RefreshCw, AlertTriangle, Crown, Zap, Clock, CreditCard } from 'lucide-react';
 import { collection, addDoc, doc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { addRecord } from '../../services/db';
@@ -28,6 +28,31 @@ const MainLayout = () => {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // SaaS Expiry Warning & Feature Lock Popups State
+  const [showExpiryWarning, setShowExpiryWarning] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [lockedFeatureName, setLockedFeatureName] = useState('AI WhatsApp Assistant & IoT Security');
+
+  useEffect(() => {
+    // Check if School Admin rent is expiring or simulation requested
+    if (userData?.role === 'school-admin') {
+      const isDismissed = sessionStorage.getItem('saas_expiry_popup_shown');
+      if (!isDismissed && (userData?.subscriptionStatus === 'expiring_soon' || userData?.subscriptionStatus === 'expired')) {
+        setTimeout(() => setShowExpiryWarning(true), 2000);
+      }
+    }
+
+    // Attach global window trigger so any component can pop up the upgrade / expiry modal
+    window.triggerSaaSExpiryPopup = () => {
+      setShowExpiryWarning(true);
+    };
+    window.triggerSaaSFeatureLock = (featName = 'Premium Pro Feature') => {
+      setLockedFeatureName(featName);
+      setShowUpgradeModal(true);
+    };
+  }, [userData]);
+
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -281,6 +306,120 @@ const MainLayout = () => {
           </button>
         </form>
       </div>
+
+      {/* ============================================================== */}
+      {/* 🚨 POPUP 1: SAAS RENT / SUBSCRIPTION EXPIRY WARNING MODAL */}
+      {/* ============================================================== */}
+      {showExpiryWarning && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div className="bg-gradient-to-b from-[#1c142c] to-[#110e1a] border-2 border-red-500/70 rounded-3xl p-7 max-w-md w-full shadow-2xl text-center space-y-5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
+              <AlertTriangle size={140} className="text-red-500" />
+            </div>
+
+            <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto text-red-400 animate-bounce shadow-lg shadow-red-500/20">
+              <Clock size={36} />
+            </div>
+
+            <div>
+              <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest border border-red-500/30">
+                SaaS Subscription Alert
+              </span>
+              <h3 className="text-2xl font-black text-white mt-2">Portal Rent Expiring Soon!</h3>
+              <p className="text-xs text-gray-300 mt-2 font-medium leading-relaxed">
+                Dear Principal (<strong className="text-white">{userData?.schoolName || 'Your School'}</strong>), your TaleemiDunya monthly portal subscription / rent period is nearing completion.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-500/30 text-left text-xs space-y-1.5 text-red-200">
+              <div className="flex items-center gap-2 font-bold text-white">
+                <Zap size={14} className="text-yellow-400" /> Why Recharge On Time?
+              </div>
+              <p className="text-[11px] text-gray-300">
+                • Continuous 24/7 AI WhatsApp automated notices to parents<br/>
+                • Uninterrupted biometric IoT attendance & salary payroll engine<br/>
+                • Instant cloud data backup & multi-branch synchronization
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  setShowExpiryWarning(false);
+                  sessionStorage.setItem('saas_expiry_popup_shown', 'true');
+                  window.location.hash = '#/school-admin/subscription';
+                }}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <CreditCard size={17} /> Pay Online / Recharge Now
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowExpiryWarning(false);
+                  sessionStorage.setItem('saas_expiry_popup_shown', 'true');
+                }}
+                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-bold transition-all"
+              >
+                Remind Me Later Today
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 💎 POPUP 2: LOCKED FEATURE SAAS PLAN UPGRADE MODAL */}
+      {/* ============================================================== */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <div className="bg-gradient-to-b from-[#1e1535] to-[#120f20] border-2 border-purple-500/70 rounded-3xl p-7 max-w-md w-full shadow-2xl text-center space-y-5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
+              <Crown size={140} className="text-purple-400" />
+            </div>
+
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center mx-auto text-white shadow-lg shadow-purple-600/30 animate-pulse">
+              <Crown size={36} />
+            </div>
+
+            <div>
+              <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-black uppercase tracking-widest border border-purple-500/30">
+                SaaS Feature Gate
+              </span>
+              <h3 className="text-2xl font-black text-white mt-2">Upgrade to Pro Plan</h3>
+              <p className="text-xs text-gray-300 mt-2 font-medium leading-relaxed">
+                The feature <strong className="text-purple-400 font-bold">"{lockedFeatureName}"</strong> is restricted on your current <span className="underline decoration-purple-400">Basic Starter Plan</span>.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#151926] border border-purple-500/30 text-left text-xs space-y-2 text-gray-300">
+              <span className="font-black text-purple-300 uppercase tracking-wider block text-[10px]">What You Unlock in Premium Pro:</span>
+              <div className="flex items-center gap-2"><Check size={14} className="text-green-400" /> <span>Automated WhatsApp AI Assistant & IoT Gate Pass</span></div>
+              <div className="flex items-center gap-2"><Check size={14} className="text-green-400" /> <span>Online Quiz Engine & Student/Parent Mobile Portal</span></div>
+              <div className="flex items-center gap-2"><Check size={14} className="text-green-400" /> <span>Up to 1,000 Active Students + Priority Support</span></div>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  setShowUpgradeModal(false);
+                  window.location.hash = '#/school-admin/subscription';
+                }}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <Sparkles size={17} /> Upgrade Plan Online (Rs. 8,000/mo)
+              </button>
+
+              <button
+                onClick={() => setShowUpgradeModal(false)}
+                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-bold transition-all"
+              >
+                Keep Current Basic Plan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

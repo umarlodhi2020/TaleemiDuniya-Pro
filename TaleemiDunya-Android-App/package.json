@@ -1,0 +1,23 @@
+{
+  "name": "taleemidunya-pocket-app",
+  "version": "2.5.0",
+  "description": "TaleemiDunya Pro Mini Android Pocket Companion App for Google Play Store",
+  "main": "www/index.html",
+  "scripts": {
+    "start": "npx serve www",
+    "init:android": "npm install && npx cap init TaleemiDunya com.taleemidunya.pocketapp --web-dir=www && npx cap add android",
+    "sync": "npx cap sync android",
+    "open:android": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  },
+  "author": "Umar Hayat / Lodhi School System",
+  "license": "MIT"
+}

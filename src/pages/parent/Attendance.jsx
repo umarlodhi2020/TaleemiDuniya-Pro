@@ -1,33 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '../../components/common/GlassCard';
 import { Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { getRecords } from '../../services/db';
 
 const ParentAttendance = () => {
+  const { userData } = useAuth();
+  const schoolId = userData?.schoolId || 'default-school';
+  const childName = userData?.childName || userData?.studentName || userData?.name || 'Active Student';
+  
   const [selectedChild, setSelectedChild] = useState('child-1');
+  const [attendanceData, setAttendanceData] = useState([]);
 
-  // Dummy data
-  const attendanceData = [
-    { date: '2026-05-20', status: 'present' },
-    { date: '2026-05-19', status: 'absent' },
-    { date: '2026-05-18', status: 'present' },
-    { date: '2026-05-17', status: 'present' },
-  ];
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        const data = await getRecords('attendance', schoolId);
+        if (data && data.length > 0) {
+          setAttendanceData(data);
+        } else {
+          setAttendanceData([]);
+        }
+      } catch (e) {
+        setAttendanceData([]);
+      }
+    };
+    fetchAttendance();
+  }, [schoolId]);
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-black text-white">Student Attendance</h1>
-          <p className="text-dark-muted mt-1">Track your child's daily presence</p>
+          <p className="text-dark-muted mt-1">Track daily presence and logs</p>
         </div>
-        <select 
-          className="premium-input bg-dark-bg/50 border-dark-border"
-          value={selectedChild}
-          onChange={(e) => setSelectedChild(e.target.value)}
-        >
-          <option value="child-1">Ali Khan (Class 5)</option>
-          <option value="child-2">Sara Khan (Class 3)</option>
-        </select>
+        <div className="px-4 py-2 rounded-xl bg-dark-card border border-dark-border text-cyan-400 font-bold text-xs flex items-center gap-2">
+          <span>👤 Student:</span>
+          <span className="text-white">{childName}</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

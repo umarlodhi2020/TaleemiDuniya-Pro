@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#090b10">
+    <title>TaleemiDunya Pro Android Pocket App</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: #090b10;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+        #splash-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #090b10 0%, #151926 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            transition: opacity 0.5s ease-out;
+            color: #ffffff;
+        }
+        .logo-box {
+            width: 80px;
+            height: 80px;
+            border-radius: 24px;
+            background: linear-gradient(135deg, #9333ea 0%, #6366f1 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(147, 51, 234, 0.4);
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .app-title {
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+        }
+        .badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 8px;
+        }
+        .spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: #9333ea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-top: 30px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #090b10;
+        }
+        .offline-banner {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #090b10;
+            color: #ffffff;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            text-align: center;
+            z-index: 100000;
+        }
+        .retry-btn {
+            background: #9333ea;
+            color: white;
+            border: none;
+            padding: 12px 28px;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 14px;
+            margin-top: 20px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Android Native Splash Screen -->
+    <div id="splash-screen">
+        <div class="logo-box">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: white;">
+                <rect width="14" height="20" x="5" y="2" rx="2" ry="2"/>
+                <path d="M12 18h.01"/>
+            </svg>
+        </div>
+        <div class="app-title">TaleemiDunya Pro</div>
+        <div class="badge">Role-Secured Pocket App</div>
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Offline Check -->
+    <div id="offline-screen" class="offline-banner">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color: #f87171; margin-bottom: 16px;">
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+            <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+        <h2 style="font-size: 20px; font-weight: 800; margin-bottom: 8px;">No Internet Connection</h2>
+        <p style="font-size: 13px; color: #9ca3af; max-w: 280px; line-height: 1.5;">TaleemiDunya Cloud requires an active mobile data or Wi-Fi connection to sync live attendance and fee records.</p>
+        <button class="retry-btn" onclick="retryConnection()">Retry Connection</button>
+    </div>
+
+    <!-- Live App Frame -->
+    <iframe id="app-frame" src="https://taleemidunya-pro-ed44e.web.app/#/school-admin/pocket-app" allow="camera; microphone; geolocation; clipboard-write; clipboard-read"></iframe>
+
+    <script>
+        const splash = document.getElementById('splash-screen');
+        const frame = document.getElementById('app-frame');
+        const offlineScreen = document.getElementById('offline-screen');
+
+        function checkOnline() {
+            if (!navigator.onLine) {
+                offlineScreen.style.display = 'flex';
+                splash.style.display = 'none';
+            } else {
+                offlineScreen.style.display = 'none';
+            }
+        }
+
+        function retryConnection() {
+            if (navigator.onLine) {
+                offlineScreen.style.display = 'none';
+                splash.style.display = 'flex';
+                frame.src = frame.src;
+            } else {
+                alert('Please enable Wi-Fi or Mobile Data to continue.');
+            }
+        }
+
+        window.addEventListener('offline', checkOnline);
+        window.addEventListener('online', checkOnline);
+
+        frame.onload = function() {
+            setTimeout(() => {
+                splash.style.opacity = '0';
+                setTimeout(() => {
+                    splash.style.display = 'none';
+                }, 500);
+            }, 1200);
+        };
+
+        checkOnline();
+    </script>
+</body>
+</html>

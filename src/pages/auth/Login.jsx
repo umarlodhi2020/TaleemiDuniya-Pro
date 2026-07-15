@@ -12,7 +12,7 @@ const Login = () => {
   const [showReset, setShowReset] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetSent, setResetSent] = useState(false);
-  const { login, resetPassword } = useAuth();
+  const { login, loginWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -51,6 +51,35 @@ const Login = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const authenticatedUser = await loginWithGoogle();
+      const role = authenticatedUser.role;
+      if (role === 'super-admin') {
+        navigate('/super-admin/dashboard');
+      } else if (role === 'school-admin') {
+        navigate('/school-admin/dashboard');
+      } else if (role === 'teacher') {
+        navigate('/teacher/dashboard');
+      } else if (role === 'student') {
+        navigate('/student/dashboard');
+      } else if (role === 'parent') {
+        navigate('/parent/dashboard');
+      } else {
+        navigate('/super-admin/dashboard');
+      }
+    } catch (err) {
+      console.error(err);
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError('Google Sign In failed. Please try again.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleResetPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -72,14 +101,20 @@ const Login = () => {
 
       <GlassCard className="max-w-md w-full p-10 relative z-10">
         {/* Logo / Brand */}
-        <div className="text-center mb-10">
-          <div className="w-16 h-16 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mx-auto mb-4">
+        <div className="text-center mb-8 flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/10">
             <KeyRound className="text-primary-500" size={28} />
           </div>
           <h1 className="text-4xl font-bold bg-premium-gradient bg-clip-text text-transparent">
             TaleemiDunya
           </h1>
-          <p className="text-dark-muted mt-2 font-medium">SaaS-based School Management Pro</p>
+          <p className="text-dark-muted mt-1.5 font-medium text-sm">SaaS-based School Management Pro</p>
+          <div className="mt-2.5 flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-[10px] font-black tracking-wider flex items-center gap-1 shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              v2.5.0 PRO BUILD
+            </span>
+          </div>
         </div>
 
         {!showReset ? (
@@ -158,6 +193,26 @@ const Login = () => {
                     Sign In
                   </>
                 )}
+              </button>
+
+              <div className="relative my-6 flex items-center justify-center">
+                <div className="border-t border-dark-border w-full"></div>
+                <span className="bg-dark-bg px-3 text-xs font-semibold text-dark-muted absolute uppercase tracking-wider">or</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg hover:border-primary-500/40"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.3 8.9 5 12 5z"/>
+                  <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
+                  <path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.5.4-2.3L1.6 7.4C.6 9.4 0 11.6 0 14s.6 4.6 1.6 6.6l3.7-2.8z"/>
+                  <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/>
+                </svg>
+                Sign in with Google
               </button>
             </form>
           </>

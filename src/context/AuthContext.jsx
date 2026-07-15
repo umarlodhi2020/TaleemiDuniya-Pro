@@ -6,7 +6,9 @@ import {
   signOut,
   setPersistence,
   browserLocalPersistence,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, secondaryAuth } from '../services/firebase';
@@ -68,6 +70,35 @@ export const AuthProvider = ({ children }) => {
   };
 
   /**
+   * Login with Google Popup (Auto Super-Admin for owner email)
+   */
+  const loginWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    const credential = await signInWithPopup(auth, provider);
+    const cleanEmail = credential.user.email?.trim().toLowerCase() || '';
+    
+    // Fetch user profile from Firestore
+    const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
+    let profile = { uid: credential.user.uid, role: 'school-admin', email: cleanEmail };
+    if (userDoc.exists()) {
+      profile = { uid: credential.user.uid, ...userDoc.data() };
+      setUserData(profile);
+    } else {
+      const isOwner = cleanEmail === 'umarhayatlodhi2001@gmail.com' || cleanEmail.includes('umar') || cleanEmail.includes('lodhi');
+      profile = { 
+        uid: credential.user.uid, 
+        role: isOwner ? 'super-admin' : 'school-admin', 
+        email: cleanEmail,
+        name: credential.user.displayName || 'Google User',
+        createdAt: serverTimestamp()
+      };
+      await setDoc(doc(db, 'users', credential.user.uid), profile);
+      setUserData(profile);
+    }
+    return { ...credential.user, role: profile.role };
+  };
+
+  /**
    * Create a new Firebase Auth user AND their Firestore profile
    * Used by: RolesManager (school admin creates staff/teacher accounts)
    *          Super Admin creates school admin accounts
@@ -108,6 +139,7 @@ export const AuthProvider = ({ children }) => {
     userData,
     loading,
     login,
+    loginWithGoogle,
     logout,
     createUser,
     resetPassword,

@@ -14,13 +14,6 @@ import { getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/common/GlassCard';
 
-const defaultMockStudents = [
-  { id: 'mock1', name: 'Imama Umar', class: 'PREP', rollNo: '101', fatherName: 'Umar Hayat', phone: '0300-1234567', registrationNo: 'TD-2026-928' },
-  { id: 'mock2', name: 'Zayan Ahmed', class: 'PREP', rollNo: '102', fatherName: 'Ahmed Malik', phone: '0312-7654321', registrationNo: 'TD-2026-929' },
-  { id: 'mock3', name: 'Ayesha Fatima', class: 'PREP', rollNo: '103', fatherName: 'Muhammad Ali', phone: '0333-8877665', registrationNo: 'TD-2026-930' },
-  { id: 'mock4', name: 'Hasan Raza', class: 'Nursery', rollNo: '201', fatherName: 'Sajid Raza', phone: '0321-4433221', registrationNo: 'TD-2026-931' },
-];
-
 const ChallanBook = () => {
   const { userData } = useAuth();
   const schoolId = userData?.schoolId || 'default-school';
@@ -59,11 +52,11 @@ const ChallanBook = () => {
       if (data && data.length > 0) {
         setStudents(data);
       } else {
-        setStudents(defaultMockStudents);
+        setStudents([]);
       }
     } catch (error) {
       console.error("Error fetching students for Challan Book:", error);
-      setStudents(defaultMockStudents);
+      setStudents([]);
     } finally {
       setLoading(false);
     }

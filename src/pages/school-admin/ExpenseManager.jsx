@@ -12,7 +12,8 @@ import {
   X,
   CreditCard,
   Layers,
-  Award
+  Award,
+  RefreshCw
 } from 'lucide-react';
 import { getRecords, addRecord, deleteRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
@@ -27,14 +28,6 @@ const CATEGORIES = {
   maintenance: { label: 'School Maintenance', color: 'bg-purple-500', text: 'text-purple-400', border: 'border-purple-500/20' },
   others: { label: 'General / Miscellaneous', color: 'bg-gray-500', text: 'text-gray-400', border: 'border-gray-500/20' }
 };
-
-const defaultMockExpenses = [
-  { id: 'exp1', description: 'Electric Bill June 2026', category: 'utilities', amount: 18500, payMethod: 'Bank Transfer', date: '2026-06-12', refNo: 'INV-9938' },
-  { id: 'exp2', description: 'Whiteboard markers and copy papers', category: 'stationery', amount: 3200, payMethod: 'Cash', date: '2026-06-14', refNo: 'REF-201' },
-  { id: 'exp3', description: 'Generator diesel refilling', category: 'fuel', amount: 4500, payMethod: 'Cash', date: '2026-06-15', refNo: 'INV-4012' },
-  { id: 'exp4', description: 'Monthly school tea club and cookies', category: 'entertainment', amount: 2800, payMethod: 'Cash', date: '2026-06-16', refNo: 'REF-103' },
-  { id: 'exp5', description: 'Plumbing repair in ground floor washroom', category: 'maintenance', amount: 1500, payMethod: 'Cash', date: '2026-06-18', refNo: 'REF-884' }
-];
 
 const ExpenseManager = () => {
   const { userData } = useAuth();
@@ -71,11 +64,11 @@ const ExpenseManager = () => {
       if (data && data.length > 0) {
         setExpenses(data);
       } else {
-        setExpenses(defaultMockExpenses);
+        setExpenses([]);
       }
     } catch (e) {
       console.error("Error loading expenses ledger:", e);
-      setExpenses(defaultMockExpenses);
+      setExpenses([]);
     } finally {
       setLoading(false);
     }

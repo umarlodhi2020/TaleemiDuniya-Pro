@@ -55,13 +55,6 @@ const THEMES = {
   }
 };
 
-const defaultMockStudents = [
-  { id: 'mock1', name: 'Imama Umar', class: 'PREP', rollNo: '101', fatherName: 'Umar Hayat', phone: '0300-1234567', registrationNo: 'TD-2026-928' },
-  { id: 'mock2', name: 'Zayan Ahmed', class: 'PREP', rollNo: '102', fatherName: 'Ahmed Malik', phone: '0312-7654321', registrationNo: 'TD-2026-929' },
-  { id: 'mock3', name: 'Ayesha Fatima', class: 'PREP', rollNo: '103', fatherName: 'Muhammad Ali', phone: '0333-8877665', registrationNo: 'TD-2026-930' },
-  { id: 'mock4', name: 'Hasan Raza', class: 'Nursery', rollNo: '201', fatherName: 'Sajid Raza', phone: '0321-4433221', registrationNo: 'TD-2026-931' },
-];
-
 const StudentIdCards = () => {
   const { userData } = useAuth();
   const schoolId = userData?.schoolId || 'default-school';
@@ -75,7 +68,7 @@ const StudentIdCards = () => {
   const [cardSubtitle, setCardSubtitle] = useState('Student Identity Card');
   const [cardTheme, setCardTheme] = useState('blue');
   const [validity, setValidity] = useState('2026 - 2027');
-  const [principalName, setPrincipalName] = useState('Sir Umar Hayat');
+  const [principalName, setPrincipalName] = useState('Principal Office');
   const [disclaimer, setDisclaimer] = useState('This card is non-transferable and remains the property of the school. If found, please return to the school administration office.');
   
   // Custom stamp upload
@@ -93,11 +86,11 @@ const StudentIdCards = () => {
       if (data && data.length > 0) {
         setStudents(data);
       } else {
-        setStudents(defaultMockStudents);
+        setStudents([]);
       }
     } catch (error) {
       console.error("Error fetching students for ID Cards:", error);
-      setStudents(defaultMockStudents);
+      setStudents([]);
     } finally {
       setLoading(false);
     }

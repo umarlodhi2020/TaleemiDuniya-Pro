@@ -29,7 +29,17 @@ import {
   Bot,
   ArrowLeft,
   Bus,
-  UploadCloud
+  UploadCloud,
+  ChevronDown,
+  AlertTriangle,
+  Briefcase,
+  FileText,
+  UserPlus,
+  Laptop,
+  QrCode,
+  Bed,
+  Home,
+  HardDrive
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -37,6 +47,7 @@ const Sidebar = ({ role }) => {
   const { logout } = useAuth();
   const location = useLocation();
   const currentPath = location.pathname;
+  const [expanded, setExpanded] = React.useState({ 'Student Attendance': true });
 
   // Dynamic preview detection so school-admin can sandbox other portals
   let displayRole = role;
@@ -48,11 +59,21 @@ const Sidebar = ({ role }) => {
 
   const isPreview = role === 'school-admin' && displayRole !== role;
 
+  const getHomePath = () => {
+    if (displayRole === 'super-admin') return '/super-admin/dashboard';
+    if (displayRole === 'teacher') return '/teacher/dashboard';
+    if (displayRole === 'student') return '/student/dashboard';
+    if (displayRole === 'parent') return '/parent/dashboard';
+    return '/school-admin/dashboard';
+  };
+
   const schoolAdminLinks = [
     {
       title: 'Main',
       links: [
         { name: 'Dashboard', icon: LayoutDashboard, path: '/school-admin/dashboard' },
+        { name: 'Android Pocket App (Mini)', icon: Smartphone, path: '/school-admin/pocket-app' },
+        { name: 'SaaS Plan & Recharge', icon: CreditCard, path: '/school-admin/subscription' },
         { name: 'AI Assistant', icon: Bot, path: '/school-admin/ai-agent' },
         { name: 'Add Inquiry', icon: PlusCircle, path: '/school-admin/inquiries/add' },
         { name: 'Inquiries', icon: MessageSquare, path: '/school-admin/inquiries' },
@@ -61,18 +82,30 @@ const Sidebar = ({ role }) => {
     {
       title: 'Users',
       links: [
+        { name: 'Online Admission CRM', icon: UserPlus, path: '/school-admin/admissions/crm' },
         { name: 'Add Student', icon: PlusCircle, path: '/school-admin/students/add' },
         { name: 'Students', icon: GraduationCap, path: '/school-admin/students' },
+        { name: 'Family Tree / Siblings', icon: Users, path: '/school-admin/family-tree' },
         { name: 'Add Staff', icon: PlusCircle, path: '/school-admin/staff/add' },
         { name: 'Staff', icon: UserSquare2, path: '/school-admin/staff' },
-        { name: 'Attendance', icon: CalendarCheck, path: '/school-admin/attendance' },
+        { name: 'Staff Salary & Payroll', icon: Briefcase, path: '/school-admin/staff/payroll' },
+        { 
+          name: 'Student Attendance', 
+          icon: CalendarCheck, 
+          sublinks: [
+            { name: '1 Take Attendance', path: '/school-admin/attendance' },
+            { name: '2 Attendance Register', path: '/school-admin/attendance-register' }
+          ]
+        },
         { name: 'ID Cards Generator', icon: Award, path: '/school-admin/students/id-cards' },
         { name: 'Bulk Data Import', icon: UploadCloud, path: '/school-admin/import' },
+        { name: 'Google Drive & Cloud Vault', icon: HardDrive, path: '/school-admin/cloud-backup' },
       ]
     },
     {
       title: 'Finance',
       links: [
+        { name: 'Fee Defaulters & Recovery', icon: AlertTriangle, path: '/school-admin/fees/defaulters' },
         { name: 'Add Fee', icon: PlusCircle, path: '/school-admin/fees/add' },
         { name: 'Generate Challan', icon: Receipt, path: '/school-admin/fees/generate' },
         { name: 'Challan Manager', icon: CreditCard, path: '/school-admin/fees' },
@@ -85,6 +118,8 @@ const Sidebar = ({ role }) => {
     {
       title: 'Academic',
       links: [
+        { name: 'Online MCQ Quiz Engine', icon: Laptop, path: '/school-admin/academics/online-quiz' },
+        { name: 'Daily Homework Diary', icon: FileText, path: '/school-admin/academics/daily-diary' },
         { name: 'Academics', icon: BookOpen, path: '/school-admin/academics' },
         { name: 'Exams', icon: ClipboardCheck, path: '/school-admin/exams' },
         { name: 'Period Bell', icon: Clock, path: '/school-admin/period-bell' },
@@ -93,15 +128,22 @@ const Sidebar = ({ role }) => {
       ]
     },
     {
-      title: 'Resources',
+      title: 'Resources & Facilities',
       links: [
-        { name: 'Library', icon: BookOpen, path: '/school-admin/library' },
-        { name: 'Transport', icon: Bus, path: '/school-admin/transport' },
-        { name: 'Inventory', icon: Archive, path: '/school-admin/inventory' },
-        { name: 'E-Certificates', icon: Award, path: '/school-admin/certificates' },
-        { name: 'Assign Role', icon: ShieldCheck, path: '/school-admin/roles' },
-        { name: 'Reminder', icon: Bell, path: '/school-admin/reminders' },
-        { name: 'Call Log', icon: PhoneCall, path: '/school-admin/call-log' },
+        { name: 'Google Drive & Cloud Vault', icon: HardDrive, path: '/school-admin/cloud-backup' },
+        { name: 'WhatsApp Cron Automation', icon: Bot, path: '/school-admin/whatsapp-automation' },
+        { name: 'Mobile PWA & Offline Engine', icon: Smartphone, path: '/school-admin/pwa-offline' },
+        { name: 'Launch Security & Audit Hub', icon: ShieldCheck, path: '/school-admin/system-health-audit' },
+        { name: 'Live ID Card Gate Scanner', icon: QrCode, path: '/school-admin/security/gate-scanner' },
+        { name: 'Bus & Van Transport Fleet', icon: Bus, path: '/school-admin/transport' },
+        { name: 'Digital Library & Notes Hub', icon: BookOpen, path: '/school-admin/library' },
+        { name: 'Official Certificate Press', icon: Award, path: '/school-admin/certificates' },
+        { name: 'Hostel & Dormitory Manager', icon: Bed, path: '/school-admin/hostel' },
+        { name: 'Security Gate Pass Logs', icon: ShieldCheck, path: '/school-admin/security/gate-pass' },
+        { name: 'Inventory & Stock Store', icon: Archive, path: '/school-admin/inventory' },
+        { name: 'Assign Role & Access', icon: ShieldCheck, path: '/school-admin/roles' },
+        { name: 'Reminders & Tasks', icon: Bell, path: '/school-admin/reminders' },
+        { name: 'Official Call Log', icon: PhoneCall, path: '/school-admin/call-log' },
       ]
     },
     {
@@ -110,7 +152,7 @@ const Sidebar = ({ role }) => {
         { name: 'Student Portal', icon: UserCircle, path: '/student/dashboard' },
         { name: 'Teacher Portal', icon: UserCircle, path: '/teacher/dashboard' },
         { name: 'Parent Portal', icon: UserCircle, path: '/parent/dashboard' },
-        { name: 'SMS', icon: Smartphone, path: '/school-admin/sms' },
+        { name: 'WhatsApp & SMS Bot', icon: Smartphone, path: '/school-admin/sms' },
         { name: 'E-Services', icon: Globe, path: '/school-admin/e-services' },
         { name: 'Social Post', icon: Share2, path: '/school-admin/social' },
         { name: 'Settings', icon: Settings, path: '/school-admin/settings' },
@@ -197,13 +239,24 @@ const Sidebar = ({ role }) => {
       {/* Permanent Static Sidebar Body */}
       <div className="h-screen bg-dark-card border-r border-dark-border flex flex-col fixed left-0 top-0 z-40 transition-all duration-300 w-52">
         
-        {/* Sleek Sidebar Header Emblem (Fixed h-20 to match Navbar) */}
-        <div className="h-20 border-b border-dark-border flex items-center justify-center flex-shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-600 flex items-center justify-center text-white relative">
+        {/* Sleek Sidebar Header Emblem (Clickable to navigate Home) */}
+        <NavLink to={getHomePath()} className="h-20 border-b border-dark-border flex items-center px-3 gap-2.5 flex-shrink-0 hover:bg-white/5 transition-colors cursor-pointer" title="Go to Dashboard Home">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-600 flex items-center justify-center text-white relative shrink-0">
             <span className="absolute inset-0 rounded-full bg-cyan-400/20 animate-pulse" />
-            <GraduationCap size={22} className="relative z-10 text-white animate-pulse" />
+            <GraduationCap size={20} className="relative z-10 text-white animate-pulse" />
           </div>
-        </div>
+          <div className="flex flex-col overflow-hidden">
+            <h2 className="text-sm font-black text-white tracking-wide leading-tight truncate">
+              TaleemiDunya
+            </h2>
+            <div className="flex items-center mt-0.5">
+              <span className="px-1 py-[1px] rounded bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-[8px] font-black tracking-wider flex items-center gap-1 shadow-sm">
+                <span className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                v2.5.0 PRO
+              </span>
+            </div>
+          </div>
+        </NavLink>
 
         {/* Return to Admin Button if Sandbox Mode */}
         {isPreview && (
@@ -227,31 +280,55 @@ const Sidebar = ({ role }) => {
                 {section.title}
               </p>
 
-              {section.links.map((link) => (
-                <NavLink
-                  key={link.path}
-                  to={link.path}
-                  className={({ isActive }) =>
-                    `${isActive ? 'sidebar-item-active' : 'sidebar-item'} flex items-center transition-all duration-300 px-3 py-2 gap-2 justify-start`
-                  }
-                >
-                  <link.icon size={16} className="flex-shrink-0" />
-                  <span className="text-xs font-semibold transition-all duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[130px] ml-2">{link.name}</span>
-                </NavLink>
-              ))}
+              {section.links.map((link) => 
+                link.sublinks ? (
+                  <div key={link.name} className="space-y-1">
+                    <div
+                      onClick={() => setExpanded(prev => ({ ...prev, [link.name]: !prev[link.name] }))}
+                      className="sidebar-item flex items-center justify-between cursor-pointer px-3 py-2 gap-2 transition-all hover:bg-white/5 rounded-xl"
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        <link.icon size={16} className="flex-shrink-0 text-primary-400" />
+                        <span className="text-xs font-semibold whitespace-nowrap overflow-hidden max-w-[130px] ml-2 text-white">{link.name}</span>
+                      </div>
+                      <ChevronDown size={14} className={`flex-shrink-0 transition-transform duration-300 ${expanded[link.name] ? 'rotate-180 text-primary-400' : 'text-dark-muted'}`} />
+                    </div>
+                    {expanded[link.name] && (
+                      <div className="ml-5 pl-3 border-l border-primary-500/30 space-y-1 mt-1">
+                        {link.sublinks.map((sub) => (
+                          <NavLink
+                            key={sub.path}
+                            to={sub.path}
+                            className={({ isActive }) =>
+                              `${isActive ? 'text-primary-400 font-bold bg-primary-500/10 border border-primary-500/20' : 'text-dark-muted hover:text-white hover:bg-white/5'} flex items-center transition-all duration-200 px-3 py-1.5 text-xs gap-2 rounded-lg`
+                            }
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
+                            <span className="truncate">{sub.name}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <NavLink
+                    key={link.path}
+                    to={link.path}
+                    className={({ isActive }) =>
+                      `${isActive ? 'sidebar-item-active' : 'sidebar-item'} flex items-center transition-all duration-300 px-3 py-2 gap-2 justify-start`
+                    }
+                  >
+                    <link.icon size={16} className="flex-shrink-0" />
+                    <span className="text-xs font-semibold transition-all duration-300 whitespace-nowrap overflow-hidden opacity-100 max-w-[130px] ml-2">{link.name}</span>
+                  </NavLink>
+                )
+              )}
             </div>
           ))}
         </nav>
 
-        {/* Version Badge & Logout Footer */}
-        <div className="p-2 border-t border-dark-border bg-dark-card space-y-2">
-          <div className="px-3 py-1.5 rounded-lg bg-white/5 border border-dark-border flex flex-col items-start justify-center">
-            <span className="text-[10px] font-black tracking-wider uppercase text-green-400 flex items-center gap-1.5 font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              v2.5.0 (PRO BUILD)
-            </span>
-            <span className="text-[9px] text-dark-muted font-medium truncate w-full">Dual WhatsApp & Bulk Import</span>
-          </div>
+        {/* Logout Footer */}
+        <div className="p-2 border-t border-dark-border bg-dark-card">
           <button
             onClick={logout}
             className="w-full flex items-center rounded-xl text-red-500 hover:bg-red-500/10 transition-all font-semibold cursor-pointer px-3 py-2.5 gap-2 justify-start"
