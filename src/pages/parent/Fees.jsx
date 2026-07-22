@@ -3,6 +3,8 @@ import GlassCard from '../../components/common/GlassCard';
 import { CreditCard, Download, ExternalLink, CheckCircle, RefreshCw, ShieldCheck, DollarSign, FileText, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getRecords, updateRecord, addRecord } from '../../services/db';
+import StripeCheckoutUI from '../../components/payments/StripeCheckoutUI';
+import LocalWalletCheckoutUI from '../../components/payments/LocalWalletCheckoutUI';
 
 const ParentFees = () => {
   const { userData } = useAuth();
@@ -21,8 +23,9 @@ const ParentFees = () => {
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [selectedChallanToPay, setSelectedChallanToPay] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('JazzCash / EasyPaisa');
-  const [transactionId, setTransactionId] = useState('');
+  const [transactionId, setTransactionId] = useState('TD-PAY-' + Math.floor(100000 + Math.random() * 900000));
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [checkoutMode, setCheckoutMode] = useState(null);
   const [toastMsg, setToastMsg] = useState('');
 
   useEffect(() => {
@@ -76,29 +79,40 @@ const ParentFees = () => {
     setIsPayModalOpen(true);
   };
 
-  const handleConfirmPayment = async (e) => {
+  const handleProceedToGateway = (e) => {
     e.preventDefault();
-    if (!selectedChallanToPay) return;
+    if (paymentMethod.includes('Visa')) {
+      setCheckoutMode('stripe');
+    } else {
+      setCheckoutMode('wallet');
+    }
+  };
 
+  const handleGatewaySuccess = async (txnId) => {
+    setCheckoutMode(null);
+    if (!selectedChallanToPay) return;
+    
     try {
       if (selectedChallanToPay.id && !selectedChallanToPay.id.startsWith('ch-')) {
         await updateRecord('challans', selectedChallanToPay.id, { status: 'Paid', paidOn: new Date().toISOString().split('T')[0] });
       }
+      
+      setChallans(prev => prev.map(c => 
+        c.id === selectedChallanToPay.id ? { ...c, status: 'Paid', paidOn: new Date().toISOString().split('T')[0] } : c
+      ));
+      
+      setPaymentSuccess(true);
+      
+      setTimeout(() => {
+        setIsPayModalOpen(false);
+        setPaymentSuccess(false);
+        showToast(`✅ Fee payment verified & cleared online for ${selectedChild}!`);
+      }, 3000);
+      
     } catch (err) {
-      console.warn('Sandbox local update');
+      console.error(err);
+      showToast('error', 'Failed to update payment status');
     }
-
-    const updated = challans.map(c => 
-      c.id === selectedChallanToPay.id ? { ...c, status: 'Paid', paidOn: new Date().toISOString().split('T')[0] } : c
-    );
-    setChallans(updated);
-    setPaymentSuccess(true);
-
-    setTimeout(() => {
-      setIsPayModalOpen(false);
-      setPaymentSuccess(false);
-      showToast(`💳 Fee payment verified & cleared online for ${selectedChild}!`);
-    }, 1800);
   };
 
   const handleDownloadChallan = (challan) => {
@@ -340,7 +354,7 @@ Payment verification token: TD-PAY-${Math.floor(100000 + Math.random() * 900000)
                 <p className="text-xs text-dark-muted max-w-xs mx-auto">Challan {selectedChallanToPay.challanNo} marked as PAID. Official receipt is now ready for download.</p>
               </div>
             ) : (
-              <form onSubmit={handleConfirmPayment} className="space-y-4">
+              <form onSubmit={handleProceedToGateway} className="space-y-4">
                 <div className="p-4 rounded-xl bg-dark-hover border border-dark-border space-y-2">
                   <div className="flex justify-between text-xs text-dark-muted">
                     <span>Student Name:</span>
@@ -409,6 +423,23 @@ Payment verification token: TD-PAY-${Math.floor(100000 + Math.random() * 900000)
             )}
           </GlassCard>
         </div>
+      )}
+      {/* The Actual Gateway Checkout UIs */}
+      {checkoutMode === 'stripe' && (
+        <StripeCheckoutUI 
+          amount={selectedChallanToPay?.amount || 0}
+          onSuccess={handleGatewaySuccess}
+          onCancel={() => setCheckoutMode(null)}
+        />
+      )}
+
+      {checkoutMode === 'wallet' && (
+        <LocalWalletCheckoutUI 
+          amount={selectedChallanToPay?.amount || 0}
+          provider={paymentMethod.includes('JazzCash') ? 'JazzCash / EasyPaisa' : 'Bank Transfer'}
+          onSuccess={handleGatewaySuccess}
+          onCancel={() => setCheckoutMode(null)}
+        />
       )}
     </div>
   );
