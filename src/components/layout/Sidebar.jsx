@@ -46,8 +46,8 @@ import {
   DollarSign,
   Search,
   Sparkles,
-  Command,
   ChevronRight,
+  Database,
   Zap,
   Lock
 } from 'lucide-react';
