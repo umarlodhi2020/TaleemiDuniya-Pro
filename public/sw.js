@@ -1,4 +1,4 @@
-const CACHE_NAME = "taleemi-dunya-cache-v5"; // Version 5: Network-First Strategy
+const CACHE_NAME = "taleemi-dunya-cache-v6"; // Version 6: Network-First Strategy, Fixed Bug
 
 // Zaroori files jo offline ke liye pehle se save honi chahiye
 const ASSETS_TO_CACHE = [
