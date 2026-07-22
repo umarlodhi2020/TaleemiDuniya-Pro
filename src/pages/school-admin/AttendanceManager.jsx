@@ -9,7 +9,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
-  Save
+  Save,
+  Fingerprint,
+  Activity
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, addRecord } from '../../services/db';
@@ -24,6 +26,8 @@ const AttendanceManager = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [syncMode, setSyncMode] = useState('manual'); // 'manual' | 'live'
+  const [lastScanned, setLastScanned] = useState(null);
 
   useEffect(() => {
     fetchStudents();
@@ -151,69 +155,128 @@ const AttendanceManager = () => {
                 <ChevronRight size={20} />
               </button>
             </div>
+            
             <div className="flex gap-2">
-              <button 
-                onClick={() => setStudents(students.map(s => ({ ...s, status: 'present' })))}
-                className="px-4 py-2 bg-green-500/10 text-green-500 text-xs font-black uppercase rounded-lg border border-green-500/20"
-              >
-                Mark All Present
-              </button>
+              <div className="bg-black/30 border border-dark-border rounded-xl p-1 flex">
+                <button 
+                  onClick={() => setSyncMode('manual')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${syncMode === 'manual' ? 'bg-dark-hover text-white' : 'text-dark-muted hover:text-white'}`}
+                >
+                  Manual Entry
+                </button>
+                <button 
+                  onClick={() => setSyncMode('live')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${syncMode === 'live' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-dark-muted hover:text-white'}`}
+                >
+                  <Fingerprint size={14} /> Live Biometric Sync
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            {loading ? (
-              <div className="text-center py-20 text-dark-muted">Loading students...</div>
-            ) : students.length === 0 ? (
-              <div className="text-center py-20 text-dark-muted">No students found in this class.</div>
-            ) : (
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[10px] text-dark-muted uppercase font-black border-b border-dark-border">
-                    <th className="pb-4 px-4">Roll No</th>
-                    <th className="pb-4 px-4">Student Name</th>
-                    <th className="pb-4 px-4 text-center">Status</th>
-                    <th className="pb-4 px-4 text-right">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-dark-border">
-                  {students.map((student) => (
-                    <tr key={student.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="py-4 px-4 font-mono text-sm">{student.rollNumber}</td>
-                      <td className="py-4 px-4">
-                        <p className="font-bold text-sm">{student.name}</p>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center justify-center gap-3">
-                          <button 
-                            onClick={() => updateStatus(student.id, 'present')}
-                            className={`p-2 rounded-xl transition-all ${student.status === 'present' ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-white/5 text-dark-muted hover:bg-green-500/10'}`}
-                          >
-                            <UserCheck size={20} />
-                          </button>
-                          <button 
-                            onClick={() => updateStatus(student.id, 'absent')}
-                            className={`p-2 rounded-xl transition-all ${student.status === 'absent' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-white/5 text-dark-muted hover:bg-red-500/10'}`}
-                          >
-                            <XCircle size={20} />
-                          </button>
-                          <button 
-                            onClick={() => updateStatus(student.id, 'late')}
-                            className={`p-2 rounded-xl transition-all ${student.status === 'late' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white/5 text-dark-muted hover:bg-orange-500/10'}`}
-                          >
-                            <Clock size={20} />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <span className="text-xs font-mono text-dark-muted italic">{student.time}</span>
-                      </td>
+          {syncMode === 'live' ? (
+            <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-blue-500/30 rounded-2xl bg-blue-500/5 relative overflow-hidden">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+              
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-24 h-24 bg-blue-500/20 rounded-full flex items-center justify-center mb-6 relative border border-blue-500/30">
+                  <div className="absolute inset-0 rounded-full border-2 border-blue-400 border-t-transparent animate-spin"></div>
+                  <Fingerprint size={48} className="text-blue-400 animate-pulse" />
+                </div>
+                
+                <h3 className="text-2xl font-black text-white mb-2 flex items-center gap-2">
+                  <Activity className="text-blue-400 animate-pulse" size={24} /> Listening to ADMS Server...
+                </h3>
+                <p className="text-sm text-blue-200 max-w-md text-center">
+                  Waiting for biometric scans from ZKTeco/Hardware devices. Attendance will be marked automatically as soon as a student scans.
+                </p>
+
+                <div className="mt-8 p-4 bg-black/40 rounded-xl border border-white/10 w-full max-w-md">
+                  <div className="flex items-center justify-between text-xs font-bold text-dark-muted mb-3 uppercase tracking-wider">
+                    <span>Recent Scans</span>
+                    <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div> Live</span>
+                  </div>
+                  {lastScanned ? (
+                    <div className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg animate-fade-in">
+                      <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400">
+                        <CheckCircle2 size={20} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-white">{lastScanned.name}</p>
+                        <p className="text-xs text-emerald-400">Marked Present at {lastScanned.time}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 text-dark-muted italic text-xs">
+                      No scans received in current session.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="flex justify-end mb-4">
+                <button 
+                  onClick={() => setStudents(students.map(s => ({ ...s, status: 'present' })))}
+                  className="px-4 py-2 bg-green-500/10 text-green-500 text-xs font-black uppercase rounded-lg border border-green-500/20 hover:bg-green-500 hover:text-white transition-colors"
+                >
+                  Mark All Present
+                </button>
+              </div>
+              {loading ? (
+                <div className="text-center py-20 text-dark-muted">Loading students...</div>
+              ) : students.length === 0 ? (
+                <div className="text-center py-20 text-dark-muted">No students found in this class.</div>
+              ) : (
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-[10px] text-dark-muted uppercase font-black border-b border-dark-border">
+                      <th className="pb-4 px-4">Roll No</th>
+                      <th className="pb-4 px-4">Student Name</th>
+                      <th className="pb-4 px-4 text-center">Status</th>
+                      <th className="pb-4 px-4 text-right">Time</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-dark-border">
+                    {students.map((student) => (
+                      <tr key={student.id} className="hover:bg-white/5 transition-colors group">
+                        <td className="py-4 px-4 font-mono text-sm">{student.rollNumber}</td>
+                        <td className="py-4 px-4">
+                          <p className="font-bold text-sm">{student.name}</p>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="flex items-center justify-center gap-3">
+                            <button 
+                              onClick={() => updateStatus(student.id, 'present')}
+                              className={`p-2 rounded-xl transition-all ${student.status === 'present' ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-white/5 text-dark-muted hover:bg-green-500/10'}`}
+                            >
+                              <UserCheck size={20} />
+                            </button>
+                            <button 
+                              onClick={() => updateStatus(student.id, 'absent')}
+                              className={`p-2 rounded-xl transition-all ${student.status === 'absent' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-white/5 text-dark-muted hover:bg-red-500/10'}`}
+                            >
+                              <XCircle size={20} />
+                            </button>
+                            <button 
+                              onClick={() => updateStatus(student.id, 'late')}
+                              className={`p-2 rounded-xl transition-all ${student.status === 'late' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white/5 text-dark-muted hover:bg-orange-500/10'}`}
+                            >
+                              <Clock size={20} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <span className="text-xs font-mono text-dark-muted italic">{student.time}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </GlassCard>
       </div>
     </div>

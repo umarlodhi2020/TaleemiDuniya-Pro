@@ -92,6 +92,7 @@ import PeriodBell from './pages/school-admin/PeriodBell';
 import CertificateGenerator from './pages/school-admin/CertificateGenerator';
 import HostelManager from './pages/school-admin/HostelManager';
 import GatePassScanner from './pages/school-admin/GatePassScanner';
+import BiometricSetup from './pages/school-admin/BiometricSetup';
 import Reminders from './pages/school-admin/Reminders';
 import CallLog from './pages/school-admin/CallLog';
 import Social from './pages/school-admin/Social';
@@ -242,9 +243,9 @@ const AppRoutes = () => {
         <Route path="staff/add" element={<AddStaff />} />
         <Route path="staff/payroll" element={<PayrollManager />} />
         <Route path="attendance" element={<AttendanceManager />} />
-        <Route path="attendance-register" element={<AttendanceRegister />} />
-        <Route path="attendance/register" element={<AttendanceRegister />} />
         <Route path="attendance/take" element={<AttendanceManager />} />
+        <Route path="attendance-register" element={<AttendanceRegister />} />
+        <Route path="biometric-setup" element={<BiometricSetup />} />
         <Route path="security/gate-pass" element={<GatePassManager />} />
         <Route path="security/gate-scanner" element={<GatePassScanner />} />
         <Route path="fees" element={<FeeManager />} />
