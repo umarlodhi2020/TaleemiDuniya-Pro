@@ -4,6 +4,12 @@ import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
 import { getAllowedFeaturesForPlan, isFeatureAllowedByMap, getFeatureCatalogItem, SAAS_FEATURE_CATALOG } from '../config/saasFeaturesConfig';
 
+// Helper to convert hex to RGB
+const hexToRgb = (hex) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}` : '14 165 233'; // default sky-500
+};
+
 const SchoolContext = createContext();
 
 export const useSchool = () => useContext(SchoolContext);
@@ -25,7 +31,24 @@ export const SchoolProvider = ({ children }) => {
       // Use real-time listener for school settings
       unsubscribe = onSnapshot(schoolRef, async (docSnap) => {
         if (docSnap.exists()) {
-          setSchoolData({ id: docSnap.id, ...docSnap.data() });
+          const data = docSnap.data();
+          setSchoolData({ id: docSnap.id, ...data });
+          
+          // Apply White-label Theme
+          if (data.branding?.primaryColor) {
+            const rgb = hexToRgb(data.branding.primaryColor);
+            // Override 500, 600 (hover), 400 (light) shades with the same color for simplicity or calculate shades
+            // Since tailwind opacity relies on `r g b` format, we inject the RGB string
+            document.documentElement.style.setProperty('--color-primary-400', rgb);
+            document.documentElement.style.setProperty('--color-primary-500', rgb);
+            document.documentElement.style.setProperty('--color-primary-600', rgb);
+          } else {
+            // Revert to default
+            document.documentElement.style.removeProperty('--color-primary-400');
+            document.documentElement.style.removeProperty('--color-primary-500');
+            document.documentElement.style.removeProperty('--color-primary-600');
+          }
+          
           setLoading(false);
         } else {
           // Auto-create default school document so that school admin panel never fails

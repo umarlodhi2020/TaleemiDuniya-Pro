@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -68,7 +68,27 @@ const Sidebar = ({ role }) => {
     'Resources & Facilities': false,
     'Portals & Services': false
   });
-  const [isSearchOpen, setIsSearchOpen] = React.useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
+
   const [navMode, setNavMode] = React.useState(() => {
     return localStorage.getItem('taleemidunya_sidebar_mode') || 'smart';
   });
@@ -181,6 +201,7 @@ const Sidebar = ({ role }) => {
               { name: 'Student Inquiry & CRM', icon: Users, path: '/school-admin/inquiries', featureKey: 'inquiry-student' },
               { name: 'Certificate & Document Hub', icon: FileText, path: '/school-admin/certificates', featureKey: 'certificates' },
               { name: 'Other Income Manager', icon: DollarSign, path: '/school-admin/other-income?tab=invoices', featureKey: 'other-income' },
+              { name: 'Generate Demo Data', icon: Database, path: '/school-admin/demo-data' },
             ]
           },
           {
@@ -494,6 +515,19 @@ const Sidebar = ({ role }) => {
             >
               <span>⚡ Online Pay & Add-ons</span>
             </NavLink>
+          </div>
+        )}
+
+        {/* PWA Install Button */}
+        {installPrompt && (
+          <div className="mx-2 mb-2 p-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/30 text-emerald-400 shrink-0 shadow-lg text-center">
+            <p className="text-[10px] font-bold mb-2 text-white">Get the Mobile App!</p>
+            <button 
+              onClick={handleInstallClick}
+              className="w-full py-1.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition-all active:scale-95"
+            >
+              <Smartphone size={12} /> Install TaleemiDunya
+            </button>
           </div>
         )}
 

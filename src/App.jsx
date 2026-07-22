@@ -97,6 +97,7 @@ import CallLog from './pages/school-admin/CallLog';
 import Social from './pages/school-admin/Social';
 import AiAgent from './pages/school-admin/AiAgent';
 import DataImport from './pages/school-admin/DataImport';
+import DemoDataInjector from './pages/school-admin/DemoDataInjector';
 import GoogleDriveBackupVault from './pages/school-admin/GoogleDriveBackupVault';
 import WhatsAppCronAutomation from './pages/school-admin/WhatsAppCronAutomation';
 import MobileAppPwaOffline from './pages/school-admin/MobileAppPwaOffline';
@@ -286,6 +287,7 @@ const AppRoutes = () => {
         <Route path="social" element={<Social />} />
         <Route path="ai-agent" element={<AiAgent />} />
         <Route path="import" element={<DataImport />} />
+        <Route path="demo-data" element={<DemoDataInjector />} />
         <Route path="cloud-backup" element={<GoogleDriveBackupVault />} />
         <Route path="whatsapp-automation" element={<WhatsAppCronAutomation />} />
         <Route path="pwa-offline" element={<MobileAppPwaOffline />} />
