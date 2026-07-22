@@ -48,6 +48,7 @@ import {
   Sparkles,
   ChevronRight,
   Database,
+  Command,
   Zap,
   Lock
 } from 'lucide-react';
