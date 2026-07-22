@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   PhoneCall,
   Fingerprint,
+  Wand2,
   UserCircle,
   Smartphone,
   Share2,
@@ -280,6 +281,7 @@ const Sidebar = ({ role }) => {
               { name: 'Period Bell IoT', icon: Clock, path: '/school-admin/period-bell', featureKey: 'period-bell' },
               { name: 'Report Card Templates', icon: Award, path: '/school-admin/academics/report-templates', featureKey: 'report-templates' },
               { name: 'Timetable Builder', icon: Clock, path: '/school-admin/academics/timetable-builder', featureKey: 'timetable-builder' },
+              { name: 'AI Homework Grader', icon: Wand2, path: '/school-admin/academics/ai-grader', featureKey: 'ai-grader' },
             ]
           },
           {
