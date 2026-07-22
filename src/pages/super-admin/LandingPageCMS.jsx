@@ -3,6 +3,7 @@ import { Save, Loader2, CheckCircle2, AlertCircle, Layout, MessageSquare, Phone,
 import GlassCard from '../../components/common/GlassCard';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { SAAS_FEATURE_CATALOG } from '../../config/saasFeaturesConfig';
 
 const LandingPageCMS = () => {
   const [gateways, setGateways] = useState({
@@ -20,7 +21,8 @@ const LandingPageCMS = () => {
       jazzcash: { accountTitle: '', accountNumber: '' },
       easypaisa: { accountTitle: '', accountNumber: '' },
       bank: { bankName: '', accountTitle: '', accountNumber: '' }
-    }
+    },
+    landingFeatures: []
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,6 +90,21 @@ const LandingPageCMS = () => {
         [name]: type === 'checkbox' ? checked : value
       }
     }));
+  };
+
+  const toggleLandingFeature = (featureKey) => {
+    setGateways(s => {
+      const current = s.landingFeatures || [];
+      if (current.includes(featureKey)) {
+        return { ...s, landingFeatures: current.filter(k => k !== featureKey) };
+      } else {
+        if (current.length >= 6) {
+          alert('You can only select a maximum of 6 highlighted features for the Landing Page.');
+          return s;
+        }
+        return { ...s, landingFeatures: [...current, featureKey] };
+      }
+    });
   };
 
   const handleSave = async () => {
@@ -303,6 +320,41 @@ const LandingPageCMS = () => {
                 <p className="text-xs text-dark-muted">The text changes you make here will instantly appear on your main website once saved.</p>
               </div>
             </div>
+          </div>
+        </GlassCard>
+
+        {/* Featured Modules Configuration */}
+        <GlassCard className="p-8 border border-primary-500/20">
+          <div className="mb-8 pb-4 border-b border-dark-border">
+            <h2 className="text-xl font-bold flex items-center gap-3 text-purple-400">
+              <Layout size={24} /> Highlighted Website Features
+            </h2>
+            <p className="text-xs text-dark-muted mt-2">Select exactly 6 top features to display on the public Landing Page features grid.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {SAAS_FEATURE_CATALOG.map(feature => {
+              const isSelected = (gateways?.landingFeatures || []).includes(feature.key);
+              return (
+                <label 
+                  key={feature.key} 
+                  className={`flex flex-col gap-2 p-4 rounded-xl cursor-pointer border transition-all ${
+                    isSelected ? 'bg-purple-500/10 border-purple-500 text-white' : 'bg-dark-bg/50 border-dark-border text-dark-muted hover:border-purple-500/50'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-sm truncate pr-2">{feature.title}</span>
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-dark-border bg-dark-bg text-purple-500 focus:ring-purple-500"
+                      checked={isSelected}
+                      onChange={() => toggleLandingFeature(feature.key)}
+                    />
+                  </div>
+                  <p className="text-xs line-clamp-2 opacity-80">{feature.description}</p>
+                </label>
+              );
+            })}
           </div>
         </GlassCard>
       </div>

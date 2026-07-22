@@ -161,6 +161,7 @@ const Sidebar = ({ role }) => {
               { name: 'Child Attendance', icon: CalendarCheck, path: '/parent/attendance' },
               { name: 'Fee Challans', icon: Receipt, path: '/parent/fees' },
               { name: 'Exam Reports', icon: ClipboardCheck, path: '/parent/exams' },
+              { name: 'AI Assistant', icon: Bot, path: '/parent/ai-chatbot' },
             ]
           }
         ];

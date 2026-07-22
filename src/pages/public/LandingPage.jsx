@@ -265,34 +265,60 @@ const LandingPage = () => {
             <h3 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">Everything you need to run your school</h3>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">Powerful tools designed specifically for administrators, teachers, students, and parents.</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-            {featureCategories.map((category, idx) => (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: idx * 0.1 }}
-                key={idx} 
-                className="bg-white border border-gray-100 rounded-3xl p-8 hover:shadow-2xl hover:border-indigo-100 transition-all duration-300 relative overflow-hidden group"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-50 to-violet-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
-                    {category.icon}
+          {gateways?.landingFeatures && gateways.landingFeatures.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+              {gateways.landingFeatures.map((fId, idx) => {
+                const feature = SAAS_FEATURE_CATALOG.find(c => c.key === fId);
+                if (!feature) return null;
+                return (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: idx * 0.1 }}
+                    key={fId} 
+                    className="bg-white border border-gray-100 rounded-3xl p-8 hover:shadow-2xl hover:border-indigo-100 transition-all duration-300 relative overflow-hidden group"
+                  >
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-50 to-violet-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300 mb-6">
+                      <Zap className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-xl font-bold text-gray-900 mb-3">{feature.title}</h4>
+                    <p className="text-gray-600">{feature.description}</p>
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+              {featureCategories.map((category, idx) => (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
+                  key={idx} 
+                  className="bg-white border border-gray-100 rounded-3xl p-8 hover:shadow-2xl hover:border-indigo-100 transition-all duration-300 relative overflow-hidden group"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-50 to-violet-50 rounded-bl-full -z-10 group-hover:scale-110 transition-transform"></div>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner group-hover:bg-indigo-600 group-hover:text-white transition-colors duration-300">
+                      {category.icon}
+                    </div>
+                    <h4 className="text-2xl font-bold text-gray-900">{category.title}</h4>
                   </div>
-                  <h4 className="text-2xl font-bold text-gray-900">{category.title}</h4>
-                </div>
-                <ul className="space-y-4">
-                  {category.items.map((item, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
-                      <span className="text-gray-700 font-medium">{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            ))}
-          </div>
+                  <ul className="space-y-4">
+                    {category.items.map((item, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                        <span className="text-gray-700 font-medium">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

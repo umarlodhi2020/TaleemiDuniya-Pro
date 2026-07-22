@@ -82,6 +82,7 @@ import ParentDashboard from './pages/parent/Dashboard';
 import ParentAttendance from './pages/parent/Attendance';
 import ParentFees from './pages/parent/Fees';
 import ParentExams from './pages/parent/Exams';
+import ParentAiChatbot from './pages/parent/AiChatbot';
 import SchoolSettings from './pages/school-admin/Settings';
 import DigitalLibrary from './pages/school-admin/DigitalLibrary';
 import TransportManager from './pages/school-admin/TransportManager';
@@ -348,6 +349,7 @@ const AppRoutes = () => {
         <Route path="attendance" element={<ParentAttendance />} />
         <Route path="fees" element={<ParentFees />} />
         <Route path="exams" element={<ParentExams />} />
+        <Route path="ai-chatbot" element={<ParentAiChatbot />} />
         <Route path="*" element={<ComingSoon />} />
       </Route>
 
