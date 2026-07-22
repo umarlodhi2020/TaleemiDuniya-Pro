@@ -39,7 +39,8 @@ const DigitalLibrary = () => {
       const snap = await getDocs(collection(db, 'digital_library'));
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => !r.schoolId || r.schoolId === schoolId);
 
-      if (list.length === 0) {
+      const isDemo = userData?.email === 'demo_admin@taleemidunya.com';
+      if (list.length === 0 && isDemo) {
         setResources([
           {
             id: 'demo-res-1',

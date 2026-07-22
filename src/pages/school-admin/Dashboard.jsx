@@ -64,9 +64,11 @@ const SchoolAdminDashboard = () => {
       const expenses = await getRecords('expenses', schoolId);
       const otherIncome = await getRecords('other_income', schoolId);
 
-      const stuCount = students.length > 0 ? students.length : 245;
-      const staffCount = staff.length > 0 ? staff.length : 34;
-      const classCount = classes.length > 0 ? classes.length : (localStorage.getItem('classes_list') ? JSON.parse(localStorage.getItem('classes_list')).length : 14);
+      const isDemo = userData.email === 'demo_admin@taleemidunya.com';
+
+      const stuCount = students.length > 0 ? students.length : (isDemo ? 245 : 0);
+      const staffCount = staff.length > 0 ? staff.length : (isDemo ? 34 : 0);
+      const classCount = classes.length > 0 ? classes.length : (localStorage.getItem('classes_list') ? JSON.parse(localStorage.getItem('classes_list')).length : (isDemo ? 14 : 0));
 
       // Financials
       const challansCollected = challans.filter(c => c.status === 'Paid').reduce((s, c) => s + (Number(c.totalAmount) || 0), 0);
@@ -74,12 +76,12 @@ const SchoolAdminDashboard = () => {
       const expTotal = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const otherTotal = otherIncome.reduce((s, o) => s + (Number(o.amount) || 0), 0);
 
-      const todayRev = challansCollected > 0 ? Math.round(challansCollected * 0.1) : 18500;
-      const monthRev = (challansCollected + otherTotal) > 0 ? (challansCollected + otherTotal) : 250000;
-      const totalExp = expTotal > 0 ? expTotal : 65000;
-      const profit = monthRev - totalExp > 0 ? monthRev - totalExp : 185000;
-      const collection = challansCollected > 0 ? challansCollected : 320000;
-      const expected = challansExpected > 0 ? challansExpected : 350000;
+      const todayRev = challansCollected > 0 ? Math.round(challansCollected * 0.1) : (isDemo ? 18500 : 0);
+      const monthRev = (challansCollected + otherTotal) > 0 ? (challansCollected + otherTotal) : (isDemo ? 250000 : 0);
+      const totalExp = expTotal > 0 ? expTotal : (isDemo ? 65000 : 0);
+      const profit = monthRev - totalExp > 0 ? monthRev - totalExp : (isDemo ? 185000 : 0);
+      const collection = challansCollected > 0 ? challansCollected : (isDemo ? 320000 : 0);
+      const expected = challansExpected > 0 ? challansExpected : (isDemo ? 350000 : 0);
 
       // Check birthdays
       const todayMonthDay = new Date().toISOString().slice(5, 10);

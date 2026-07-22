@@ -36,9 +36,11 @@ const GatePassScanner = () => {
 
       // Fetch today's logs from local cache or firestore
       const savedLogs = localStorage.getItem(`gate_logs_${schoolId}`);
+      const isDemo = userData?.email === 'demo_admin@taleemidunya.com';
+
       if (savedLogs) {
         setLogs(JSON.parse(savedLogs));
-      } else {
+      } else if (isDemo) {
         setLogs([
           {
             id: 'demo-1',
