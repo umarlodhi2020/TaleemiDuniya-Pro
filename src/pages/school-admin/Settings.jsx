@@ -23,7 +23,8 @@ import {
   Check,
   Search,
   AlertTriangle,
-  Key
+  Key,
+  Upload
 } from 'lucide-react';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
@@ -31,6 +32,7 @@ import { db, auth } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, updateRecord, deleteRecord } from '../../services/db';
+import { uploadSchoolLogo } from '../../services/cloudinary';
 
 const SchoolSettings = () => {
   const location = useLocation();
@@ -443,16 +445,40 @@ const SchoolSettings = () => {
                   <div>
                     <h4 className="font-bold">School Logo</h4>
                     <p className="text-xs text-dark-muted mb-3">Upload a high resolution logo for challans and reports.</p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
+                      <label className="premium-button-secondary cursor-pointer shrink-0 text-xs px-3 py-2 flex items-center gap-2">
+                        <Upload size={14} />
+                        Upload File
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          className="hidden" 
+                          onChange={async (e) => {
+                            const file = e.target.files[0];
+                            if (file) {
+                              try {
+                                showToast('info', 'Uploading logo...');
+                                const url = await uploadSchoolLogo(file, userData?.schoolId);
+                                setBranding({ ...branding, logo: url });
+                                showToast('success', 'Logo uploaded successfully. Save settings to apply.');
+                              } catch (err) {
+                                console.error('Logo upload failed:', err);
+                                showToast('error', 'Failed to upload logo.');
+                              }
+                            }
+                          }} 
+                        />
+                      </label>
+                      <span className="text-xs text-dark-muted mx-1">OR</span>
                       <input 
                         type="text" 
                         placeholder="Logo image URL" 
                         value={branding.logo} 
                         onChange={(e) => setBranding({ ...branding, logo: e.target.value })}
-                        className="premium-input text-xs w-64"
+                        className="premium-input text-xs w-48"
                       />
                       {branding.logo && (
-                        <button onClick={() => setBranding({ ...branding, logo: '' })} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg">
+                        <button onClick={() => setBranding({ ...branding, logo: '' })} className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg shrink-0">
                           <Trash2 size={16} />
                         </button>
                       )}

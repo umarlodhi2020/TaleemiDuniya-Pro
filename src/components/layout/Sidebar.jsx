@@ -58,7 +58,7 @@ import GlobalSearchModal from '../common/GlobalSearchModal';
 
 const Sidebar = ({ role }) => {
   const { logout, userData } = useAuth();
-  const { isFeatureAllowed, allowedFeaturesMap, currentSaaSPlan } = useSchool();
+  const { isFeatureAllowed, allowedFeaturesMap, currentSaaSPlan, schoolData } = useSchool();
   const location = useLocation();
   const currentPath = location.pathname;
   const [expanded, setExpanded] = React.useState({ 'Student Attendance': true });
@@ -368,12 +368,16 @@ const Sidebar = ({ role }) => {
         {/* Sleek Sidebar Header Emblem (Clickable to navigate Home) */}
         <div className="flex items-center justify-between border-b border-dark-border px-3 h-16 flex-shrink-0 bg-dark-card/95">
           <NavLink to={getHomePath()} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity flex-1 overflow-hidden" title="Go to Dashboard Home">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-600 flex items-center justify-center text-white relative shrink-0 shadow-md shadow-cyan-500/20">
-              <GraduationCap size={18} className="text-white" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-600 flex items-center justify-center text-white relative shrink-0 shadow-md shadow-cyan-500/20 overflow-hidden">
+              {schoolData?.branding?.logo ? (
+                <img src={schoolData.branding.logo} alt="School Logo" className="w-full h-full object-cover bg-white" />
+              ) : (
+                <GraduationCap size={18} className="text-white" />
+              )}
             </div>
             <div className="flex flex-col overflow-hidden">
               <h2 className="text-xs font-black text-white tracking-wide leading-tight truncate">
-                TaleemiDunya
+                {schoolData?.name || 'TaleemiDunya'}
               </h2>
               <span className="text-[9px] font-bold text-cyan-400 tracking-wider font-mono">
                 v2.5.0 PRO
