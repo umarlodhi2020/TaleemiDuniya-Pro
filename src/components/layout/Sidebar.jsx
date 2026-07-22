@@ -27,6 +27,7 @@ import {
   Wand2,
   Video,
   UserPlus,
+  Calculator,
   UserCircle,
   Smartphone,
   Share2,
@@ -266,10 +267,10 @@ const Sidebar = ({ role }) => {
               { name: 'Add Fee', icon: PlusCircle, path: '/school-admin/fees/add', featureKey: 'challan-manager' },
               { name: 'Generate Challan', icon: Receipt, path: '/school-admin/fees/generate', featureKey: 'challan-generate' },
               { name: 'Challan Manager', icon: CreditCard, path: '/school-admin/fees', featureKey: 'challan-manager' },
-              { name: 'Collection', icon: BookOpen, path: '/school-admin/collection', featureKey: 'collection-tracker' },
-              { name: 'Accounts & Ledger', icon: BookOpen, path: '/school-admin/accounts', featureKey: 'accounts-ledger' },
-              { name: 'Multi-part Challan Book', icon: Receipt, path: '/school-admin/fees/challan-book', featureKey: 'challan-book' },
-              { name: 'Expense Cashbook', icon: CreditCard, path: '/school-admin/accounts/expenses', featureKey: 'expense-cashbook' },
+              { name: 'Fee Collection', icon: CreditCard, path: '/school-admin/accounts/collection', featureKey: 'fee-collection' },
+              { name: 'Expense Manager', icon: TrendingDown, path: '/school-admin/accounts/expenses', featureKey: 'expense-manager' },
+              { name: 'HR & Payroll', icon: Calculator, path: '/school-admin/accounts/payroll', featureKey: 'payroll' },
+              { name: 'Financial Reports', icon: PieChart, path: '/school-admin/accounts/reports', featureKey: 'financial-reports' }
             ]
           },
           {

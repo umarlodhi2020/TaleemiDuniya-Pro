@@ -90,6 +90,7 @@ import RolesManager from './pages/school-admin/RolesManager';
 import Collection from './pages/school-admin/Collection';
 import PeriodBell from './pages/school-admin/PeriodBell';
 import CertificateGenerator from './pages/school-admin/CertificateGenerator';
+import PayrollManager from './pages/school-admin/PayrollManager';
 import HostelManager from './pages/school-admin/HostelManager';
 import GatePassScanner from './pages/school-admin/GatePassScanner';
 import BiometricSetup from './pages/school-admin/BiometricSetup';
@@ -268,6 +269,7 @@ const AppRoutes = () => {
         <Route path="academics/proxy-engine" element={<StaffSubstitution />} />
         <Route path="students/id-cards" element={<StudentIdCards />} />
         <Route path="accounts/expenses" element={<ExpenseManager />} />
+        <Route path="accounts/payroll" element={<PayrollManager />} />
         <Route path="expenses" element={<ExpenseManager />} />
         <Route path="exams" element={<Exams />} />
         <Route path="exams/mark/:examId" element={<MarkResults />} />
