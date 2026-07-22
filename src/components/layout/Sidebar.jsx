@@ -94,6 +94,29 @@ const Sidebar = ({ role }) => {
     return localStorage.getItem('taleemidunya_sidebar_mode') || 'smart';
   });
 
+  // Cycle: Show for 5 mins, Hide for 30 mins (Total cycle 35 mins)
+  const [showPlanBanner, setShowPlanBanner] = useState(true);
+
+  useEffect(() => {
+    // Initial 5 minutes (300,000 ms)
+    const initialHideTimer = setTimeout(() => {
+      setShowPlanBanner(false);
+    }, 5 * 60 * 1000);
+
+    // 35-minute cycle (2,100,000 ms)
+    const cycleInterval = setInterval(() => {
+      setShowPlanBanner(true);
+      setTimeout(() => {
+        setShowPlanBanner(false);
+      }, 5 * 60 * 1000);
+    }, 35 * 60 * 1000);
+
+    return () => {
+      clearTimeout(initialHideTimer);
+      clearInterval(cycleInterval);
+    };
+  }, []);
+
   const toggleNavMode = (mode) => {
     setNavMode(mode);
     localStorage.setItem('taleemidunya_sidebar_mode', mode);
@@ -494,7 +517,7 @@ const Sidebar = ({ role }) => {
         </nav>
 
         {/* Dynamic SaaS Plan & Active Features Badge for School Admin */}
-        {displayRole === 'school-admin' && (
+        {displayRole === 'school-admin' && showPlanBanner && (
           <div className="mx-2 mb-2 p-2.5 rounded-2xl bg-gradient-to-tr from-cyan-950/40 via-blue-950/30 to-purple-950/40 border border-cyan-500/30 text-white shrink-0 shadow-lg relative overflow-hidden">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1">
