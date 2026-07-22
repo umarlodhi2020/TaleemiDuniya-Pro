@@ -218,10 +218,18 @@ const LandingPage = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="text-5xl lg:text-7xl font-extrabold text-gray-900 tracking-tight leading-tight mb-8"
             >
-              Manage Your School <br className="hidden lg:block"/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500">
-                Like Never Before
-              </span>
+              {gateways?.hero?.title ? (
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-950 to-indigo-600">
+                  {gateways.hero.title}
+                </span>
+              ) : (
+                <>
+                  Manage Your School <br className="hidden lg:block"/>
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500">
+                    Like Never Before
+                  </span>
+                </>
+              )}
             </motion.h1>
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
@@ -229,7 +237,7 @@ const LandingPage = () => {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto"
             >
-              All-in-one cloud-based software to automate admissions, fees, attendance, exams, and communication.
+              {gateways?.hero?.subtitle || 'All-in-one cloud-based software to automate admissions, fees, attendance, exams, and communication.'}
             </motion.p>
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
@@ -238,7 +246,7 @@ const LandingPage = () => {
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
               <button onClick={() => scrollToSection('pricing')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all shadow-xl shadow-indigo-200 hover:shadow-2xl hover:shadow-indigo-300 transform hover:-translate-y-1 flex items-center justify-center gap-2">
-                View Plans
+                {gateways?.hero?.ctaText || 'View Plans'}
               </button>
               <button onClick={() => scrollToSection('demo')} className="bg-white hover:bg-gray-50 text-indigo-950 border border-gray-200 px-8 py-4 rounded-full font-bold text-lg transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2">
                 <Play className="w-5 h-5 text-indigo-600 fill-indigo-600" />

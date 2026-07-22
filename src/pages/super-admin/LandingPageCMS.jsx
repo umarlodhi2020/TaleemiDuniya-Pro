@@ -11,6 +11,11 @@ const LandingPageCMS = () => {
       number: '+923000000000',
       message: 'Hello, I want to know more about TaleemiDunya Pro plans!'
     },
+    hero: {
+      title: 'Modern Management for Forward-Thinking Schools',
+      subtitle: 'Streamline your school operations, automate fee collection, and engage parents with our all-in-one SaaS platform.',
+      ctaText: 'Start Free Trial'
+    },
     manualPayments: {
       jazzcash: { accountTitle: '', accountNumber: '' },
       easypaisa: { accountTitle: '', accountNumber: '' },
@@ -63,7 +68,19 @@ const LandingPageCMS = () => {
       }));
       return;
     }
-    
+    // Check if it's a hero field
+    if (name.startsWith('hero_')) {
+      const field = name.split('_')[1];
+      setGateways(s => ({
+        ...s,
+        hero: {
+          ...s.hero,
+          [field]: value
+        }
+      }));
+      return;
+    }
+
     setGateways(s => ({
       ...s,
       developerWhatsapp: {
@@ -234,12 +251,58 @@ const LandingPageCMS = () => {
           </div>
         </GlassCard>
 
-        {/* Future Placeholder for Hero/Pricing edits */}
-        <GlassCard className="p-8 border border-dashed border-dark-border bg-dark-bg/50">
-          <div className="text-center opacity-50">
-            <Layout size={40} className="mx-auto mb-4 text-dark-muted" />
-            <h3 className="text-lg font-bold text-white mb-2">More Controls Coming Soon</h3>
-            <p className="text-sm text-dark-muted">Future updates will allow you to edit Hero Banner Text, Pricing Plans, and Features List directly from here.</p>
+        {/* Hero Section Configuration */}
+        <GlassCard className="p-8 border border-primary-500/20">
+          <div className="mb-8 pb-4 border-b border-dark-border">
+            <h2 className="text-xl font-bold flex items-center gap-3 text-cyan-400">
+              <Layout size={24} /> Hero Section Settings
+            </h2>
+            <p className="text-xs text-dark-muted mt-2">Customize the main text that appears at the top of your public landing page.</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-dark-muted uppercase tracking-widest">Main Title</label>
+                <input 
+                  name="hero_title" 
+                  type="text" 
+                  placeholder="e.g. Modern Management for Forward-Thinking Schools" 
+                  value={gateways?.hero?.title || ''} 
+                  onChange={handleChange} 
+                  className="w-full premium-input focus:ring-cyan-500/50" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-dark-muted uppercase tracking-widest">Subtitle / Description</label>
+                <textarea 
+                  name="hero_subtitle" 
+                  rows="3"
+                  placeholder="e.g. Streamline your school operations..." 
+                  value={gateways?.hero?.subtitle || ''} 
+                  onChange={handleChange} 
+                  className="w-full premium-input focus:ring-cyan-500/50 resize-none" 
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-dark-muted uppercase tracking-widest">Primary Button Text</label>
+                <input 
+                  name="hero_ctaText" 
+                  type="text" 
+                  placeholder="e.g. Start Free Trial" 
+                  value={gateways?.hero?.ctaText || ''} 
+                  onChange={handleChange} 
+                  className="w-full premium-input focus:ring-cyan-500/50" 
+                />
+              </div>
+              <div className="p-5 rounded-2xl bg-cyan-950/20 border border-cyan-500/20 flex flex-col items-center justify-center text-center mt-6">
+                <h3 className="text-cyan-400 font-bold mb-2">Live Preview Area</h3>
+                <p className="text-xs text-dark-muted">The text changes you make here will instantly appear on your main website once saved.</p>
+              </div>
+            </div>
           </div>
         </GlassCard>
       </div>

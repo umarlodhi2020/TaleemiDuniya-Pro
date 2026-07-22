@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import StatCard from '../../components/common/StatCard';
 import GlassCard from '../../components/common/GlassCard';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +19,7 @@ const SuperAdminDashboard = () => {
     schools: 0,
     students: 0,
     mrr: 0,
+    pendingApprovals: 0,
     activePercentage: '100%'
   });
   const [schools, setSchools] = useState([]);
@@ -27,23 +28,47 @@ const SuperAdminDashboard = () => {
   useEffect(() => {
     const fetchSuperStats = async () => {
       try {
+        // 1. Fetch Schools
         const schoolsQuery = query(collection(db, 'schools'));
         const schoolsSnap = await getDocs(schoolsQuery);
         const schoolsList = schoolsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
+        // 2. Fetch total students (if possible)
         let totalStudents = 0;
         try {
           const studentsSnap = await getDocs(query(collection(db, 'students')));
           totalStudents = studentsSnap.size;
         } catch(err) { console.log('Multi-tenant isolation active'); }
 
+        // 3. Fetch Plans to calculate real MRR
+        let plansList = [];
+        try {
+           const plansSnap = await getDocs(collection(db, 'plans'));
+           plansList = plansSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } catch(err) {}
+
+        // 4. Fetch Pending Approvals
+        let pendingCount = 0;
+        try {
+           const requestsSnap = await getDocs(query(collection(db, 'saas_recharge_requests'), where('status', '==', 'pending')));
+           pendingCount = requestsSnap.size;
+        } catch (err) {}
+
         const activeSchools = schoolsList.filter(s => s.status === 'active' || !s.status);
-        const mrr = activeSchools.length * 15000;
+        
+        // Calculate real MRR based on school plans
+        let realMrr = 0;
+        activeSchools.forEach(school => {
+            const planId = school.subscriptionPlan || 'basic';
+            const planDef = plansList.find(p => p.id === planId) || { priceMonthly: 3500 };
+            realMrr += Number(planDef.priceMonthly) || 0;
+        });
 
         setCounts({
           schools: schoolsList.length,
           students: totalStudents || schoolsList.length * 350,
-          mrr: mrr,
+          mrr: realMrr,
+          pendingApprovals: pendingCount,
           activePercentage: schoolsList.length > 0 ? `${Math.round((activeSchools.length / schoolsList.length) * 100)}%` : '100%'
         });
         setSchools(schoolsList);
@@ -56,9 +81,9 @@ const SuperAdminDashboard = () => {
 
   const stats = [
     { title: 'Total Schools', value: counts.schools.toString(), icon: School, trend: 'up', trendValue: '12', color: 'primary' },
-    { title: 'Total Students Network', value: counts.students.toLocaleString(), icon: Users, trend: 'up', trendValue: '8', color: 'secondary' },
-    { title: 'Monthly Revenue (MRR)', value: `PKR ${counts.mrr.toLocaleString()}`, icon: DollarSign, trend: 'up', trendValue: '15', color: 'success' },
+    { title: 'Monthly Revenue (MRR)', value: `Rs. ${counts.mrr.toLocaleString()}`, icon: DollarSign, trend: 'up', trendValue: '15', color: 'success' },
     { title: 'Active Subscription Rate', value: counts.activePercentage, icon: TrendingUp, trend: 'up', trendValue: '2', color: 'warning' },
+    { title: 'Pending Approvals', value: counts.pendingApprovals.toString(), icon: Plus, trend: 'up', trendValue: '1', color: 'secondary' },
   ];
 
   return (
