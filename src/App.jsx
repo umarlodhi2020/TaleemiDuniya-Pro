@@ -94,6 +94,8 @@ import HostelManager from './pages/school-admin/HostelManager';
 import GatePassScanner from './pages/school-admin/GatePassScanner';
 import BiometricSetup from './pages/school-admin/BiometricSetup';
 import AIGrader from './pages/school-admin/AIGrader';
+import LiveClasses from './pages/school-admin/LiveClasses';
+import StaffSubstitution from './pages/school-admin/StaffSubstitution';
 import Reminders from './pages/school-admin/Reminders';
 import CallLog from './pages/school-admin/CallLog';
 import Social from './pages/school-admin/Social';
@@ -262,6 +264,8 @@ const AppRoutes = () => {
         <Route path="academics/report-card" element={<CustomReportCard />} />
         <Route path="academics/timetable-builder" element={<TimetableBuilder />} />
         <Route path="academics/ai-grader" element={<AIGrader />} />
+        <Route path="academics/live-classes" element={<LiveClasses />} />
+        <Route path="academics/proxy-engine" element={<StaffSubstitution />} />
         <Route path="students/id-cards" element={<StudentIdCards />} />
         <Route path="accounts/expenses" element={<ExpenseManager />} />
         <Route path="expenses" element={<ExpenseManager />} />
