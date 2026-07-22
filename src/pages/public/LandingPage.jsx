@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { SAAS_FEATURE_CATALOG } from '../../config/saasFeaturesConfig';
 import { motion } from 'framer-motion';
 import { 
   CheckCircle, Play, Monitor, Users, BookOpen, 
@@ -60,58 +61,44 @@ const featureCategories = [
   }
 ];
 
-const plans = [
+const defaultPlans = [
   {
+    id: "basic",
     name: "Basic",
-    price: "₹999",
-    period: "/month",
+    priceMonthly: 3500,
+    priceYearly: 35000,
     description: "Perfect for small schools getting started.",
     features: [
       "Up to 500 Students",
       "Basic Attendance",
       "Fee Management",
-      "SMS Integration (Add-on)",
       "Standard Support"
     ],
     recommended: false,
     cta: "Start Free Trial"
   },
   {
+    id: "pro",
     name: "Pro",
-    price: "₹2,499",
-    period: "/month",
+    priceMonthly: 7500,
+    priceYearly: 75000,
     description: "Ideal for growing schools with advanced needs.",
     features: [
       "Up to 2000 Students",
       "Advanced Academics & Exams",
       "WhatsApp Automation",
-      "Custom Report Cards",
       "Parent & Student Portals",
       "Priority Support"
     ],
     recommended: true,
     cta: "Get Pro Plan"
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    description: "For large institutions or multiple branches.",
-    features: [
-      "Unlimited Students",
-      "Multi-Branch Management",
-      "Custom Feature Development",
-      "Dedicated Account Manager",
-      "On-Premise Deployment Option",
-      "24/7 Premium Support"
-    ],
-    recommended: false,
-    cta: "Contact Sales"
   }
 ];
 
 const LandingPage = () => {
   const [gateways, setGateways] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const navigate = useNavigate();
 
   const scrollToSection = (id) => {
@@ -122,19 +109,63 @@ const LandingPage = () => {
   };
 
   useEffect(() => {
-    const fetchGateways = async () => {
+    const fetchData = async () => {
       try {
         const snap = await getDoc(doc(db, 'system', 'gateways'));
         if (snap.exists()) setGateways(snap.data());
+
+        const plansSnap = await getDocs(collection(db, 'plans'));
+        if (!plansSnap.empty) {
+          const plansList = plansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          plansList.sort((a, b) => (a.priceMonthly || 0) - (b.priceMonthly || 0));
+          
+          if(plansList.length > 1 && plansList.length <= 3) {
+             plansList[1].recommended = true;
+          } else if (plansList.length > 3) {
+             plansList[Math.floor(plansList.length/2)].recommended = true;
+          }
+
+          const formattedPlans = plansList.map(p => {
+            const mappedFeatures = (p.allowedFeatures || [])
+              .map(fId => {
+                const catalogItem = SAAS_FEATURE_CATALOG.find(c => c.key === fId);
+                return catalogItem ? catalogItem.title : null;
+              })
+              .filter(Boolean)
+              .slice(0, 6);
+
+            return {
+              id: p.id,
+              name: p.name || p.id,
+              price: `Rs. ${p.priceMonthly?.toLocaleString() || 'Custom'}`,
+              period: "/month",
+              description: `Perfect for ${p.maxStudents || 'unlimited'} students.`,
+              features: mappedFeatures.length > 0 ? mappedFeatures : ["Core Features", "Updates", "Support"],
+              recommended: p.recommended || false,
+              cta: p.recommended ? "Get Pro Plan" : "Start Now"
+            };
+          });
+
+          setPlans(formattedPlans);
+        } else {
+          setPlans(defaultPlans.map(p => ({
+            ...p, price: `Rs. ${p.priceMonthly.toLocaleString()}`
+          })));
+        }
       } catch (err) {
-        console.error("Error fetching gateways:", err);
+        console.error("Error fetching data:", err);
+        setPlans(defaultPlans.map(p => ({
+            ...p, price: `Rs. ${p.priceMonthly.toLocaleString()}`
+        })));
+      } finally {
+        setIsLoadingPlans(false);
       }
     };
-    fetchGateways();
+    fetchData();
   }, []);
 
-  const handleBuyPlan = (planName) => {
-    navigate(`/checkout?plan=${planName.toLowerCase()}`);
+  const handleBuyPlan = (planId) => {
+    navigate(`/checkout?plan=${planId.toLowerCase()}`);
   };
 
   return (
@@ -342,11 +373,14 @@ const LandingPage = () => {
                     </li>
                   ))}
                 </ul>
-                <button onClick={() => handleBuyPlan(plan.name)} className={`w-full py-4 rounded-xl font-bold transition-all ${plan.recommended ? 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'}`}>
-                  {plan.cta}
+                <button onClick={() => handleBuyPlan(plan.id || plan.name)} className={`w-full py-4 rounded-xl font-bold transition-all ${plan.recommended ? 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'}`}>
+                  {plan.cta || 'Get Started'}
                 </button>
               </motion.div>
             ))}
+            {isLoadingPlans && (
+              <div className="col-span-3 text-center py-12 text-indigo-500 font-bold">Loading live pricing...</div>
+            )}
           </div>
         </div>
       </div>
