@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { useAuth } from './AuthContext';
+import { getAllowedFeaturesForPlan, isFeatureAllowedByMap, getFeatureCatalogItem, SAAS_FEATURE_CATALOG } from '../config/saasFeaturesConfig';
 
 const SchoolContext = createContext();
 
@@ -35,8 +36,11 @@ export const SchoolProvider = ({ children }) => {
               phone: '0300-1234567',
               address: 'Main Campus, Lahore, Pakistan',
               status: 'active',
+              plan: 'premium',
+              subscriptionPlan: 'premium',
               expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year expiry
               createdAt: new Date().toISOString(),
+              allowedFeatures: {}, // Custom overrides map if super admin changes specific toggles
               eServices: {
                 websiteActive: true,
                 whatsAppActive: true,
@@ -107,10 +111,56 @@ export const SchoolProvider = ({ children }) => {
     return new Date(schoolData.expiryDate);
   };
 
+  // Compute exact allowed features map for this school
+  const allowedFeaturesMap = useMemo(() => {
+    // If super admin is viewing, all features are allowed
+    if (userData?.role === 'super-admin') {
+      const allTrue = {};
+      SAAS_FEATURE_CATALOG.forEach(f => { allTrue[f.key] = true; });
+      return allTrue;
+    }
+    const plan = schoolData?.plan || schoolData?.subscriptionPlan || 'premium';
+    return getAllowedFeaturesForPlan(plan, schoolData?.allowedFeatures || {});
+  }, [schoolData?.plan, schoolData?.subscriptionPlan, schoolData?.allowedFeatures, userData?.role]);
+
+  // Dynamic permission checker method
+  const isFeatureAllowed = (keyOrPath) => {
+    if (userData?.role === 'super-admin') return true;
+    return isFeatureAllowedByMap(keyOrPath, allowedFeaturesMap);
+  };
+
+  const getFeatureInfo = (keyOrPath) => {
+    return getFeatureCatalogItem(keyOrPath);
+  };
+
+  // Helper for instant local demo or super-admin updates
+  const updateSchoolAllowedFeatures = async (newOverrides) => {
+    const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
+    const updated = { ...(schoolData?.allowedFeatures || {}), ...newOverrides };
+    
+    // Immediately update local state so sidebar and UI re-render instantly without waiting for network
+    setSchoolData(prev => prev ? { ...prev, allowedFeatures: updated } : { id: schoolId, allowedFeatures: updated });
+
+    if (schoolRefOrIdExists(schoolId)) {
+      try {
+        await updateDoc(doc(db, 'schools', schoolId), { allowedFeatures: updated });
+      } catch (e) {
+        console.warn("Firestore update failed, kept local override active:", e);
+      }
+    }
+  };
+
+  const schoolRefOrIdExists = (id) => Boolean(id);
+
   const value = {
     schoolData,
     loading,
     isSubscriptionActive: schoolData?.status === 'active' && (getExpiryDate() ? getExpiryDate() > new Date() : true),
+    allowedFeaturesMap,
+    isFeatureAllowed,
+    getFeatureInfo,
+    updateSchoolAllowedFeatures,
+    currentSaaSPlan: (schoolData?.plan || schoolData?.subscriptionPlan || 'premium').toLowerCase()
   };
 
   return (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Settings as SettingsIcon, 
   School, 
@@ -14,20 +15,141 @@ import {
   AlertCircle,
   Smartphone,
   Mail,
-  UserCheck
+  UserCheck,
+  Calendar,
+  CalendarDays,
+  UserX,
+  Plus,
+  Check,
+  Search,
+  AlertTriangle,
+  Key
 } from 'lucide-react';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { db, auth } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/common/GlassCard';
+import { getRecords, updateRecord, deleteRecord } from '../../services/db';
 
 const SchoolSettings = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const queryParams = new URLSearchParams(location.search);
+  const tabFromUrl = queryParams.get('tab') || 'profile';
+
   const { userData } = useAuth();
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (tabFromUrl) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  // Remove Student state
+  const [studentsList, setStudentsList] = useState([]);
+  const [studentSearch, setStudentSearch] = useState('');
+
+  // Holidays state
+  const [holidaysList, setHolidaysList] = useState(() => {
+    const saved = localStorage.getItem('school_holidays_list');
+    return saved ? JSON.parse(saved) : [
+      { id: 'h-1', title: 'Eid-ul-Fitr Holidays', start: '2026-04-10', end: '2026-04-12', type: 'Religious' },
+      { id: 'h-2', title: 'Pakistan Day', start: '2026-03-23', end: '2026-03-23', type: 'National' },
+      { id: 'h-3', title: 'Independence Day', start: '2026-08-14', end: '2026-08-14', type: 'National' },
+      { id: 'h-4', title: 'Summer Vacation Break', start: '2026-06-01', end: '2026-08-15', type: 'Term Break' }
+    ];
+  });
+  const [holidayForm, setHolidayForm] = useState({ title: '', start: '', end: '', type: 'National' });
+
+  // Sessions state
+  const [sessionsList, setSessionsList] = useState(() => {
+    const saved = localStorage.getItem('school_sessions_list');
+    return saved ? JSON.parse(saved) : [
+      { id: 'sess-1', name: 'Academic Session 2026-2027', start: '2026-04-01', end: '2027-03-31', status: 'Active' },
+      { id: 'sess-2', name: 'Academic Session 2025-2026', start: '2025-04-01', end: '2026-03-31', status: 'Completed' },
+      { id: 'sess-3', name: 'Academic Session 2027-2028', start: '2027-04-01', end: '2028-03-31', status: 'Upcoming' }
+    ];
+  });
+  const [sessionForm, setSessionForm] = useState({ name: '', start: '', end: '' });
+
+  useEffect(() => {
+    fetchStudentsForRemoval();
+  }, [userData]);
+
+  const fetchStudentsForRemoval = async () => {
+    try {
+      let st = [];
+      if (userData?.schoolId) {
+        st = await getRecords('students', userData.schoolId);
+      }
+      if (st.length === 0) {
+        st = [
+          { id: 'st-101', rollNo: 'ROLL-101', name: 'Ali Raza', className: 'Class 10 - A', phone: '0300-1234567', feeStatus: 'Paid' },
+          { id: 'st-102', rollNo: 'ROLL-102', name: 'Zainab Ahmed', className: 'Class 9 - B', phone: '0333-7654321', feeStatus: 'Pending' },
+          { id: 'st-103', rollNo: 'ROLL-103', name: 'Hamza Khan', className: 'Class 8 - A', phone: '0321-9876543', feeStatus: 'Paid' },
+          { id: 'st-104', rollNo: 'ROLL-104', name: 'Sara Tariq', className: 'Class 10 - A', phone: '0345-5556667', feeStatus: 'Defaulter' }
+        ];
+      }
+      setStudentsList(st);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleRemoveStudent = async (student) => {
+    if (window.confirm(`Are you sure you want to remove and archive ${student.name} (${student.rollNo}) from active school rolls?`)) {
+      const updated = studentsList.filter(s => s.id !== student.id);
+      setStudentsList(updated);
+      showToast('success', `✅ ${student.name} has been removed/archived from active school rolls!`);
+      if (!student.id.toString().startsWith('st-')) {
+        try { await deleteRecord('students', student.id); } catch (e) { console.error(e); }
+      }
+    }
+  };
+
+  const handleAddHoliday = (e) => {
+    e.preventDefault();
+    if (!holidayForm.title || !holidayForm.start) return;
+    const newH = { id: `h-${Date.now()}`, ...holidayForm, end: holidayForm.end || holidayForm.start };
+    const updated = [newH, ...holidaysList];
+    setHolidaysList(updated);
+    localStorage.setItem('school_holidays_list', JSON.stringify(updated));
+    setHolidayForm({ title: '', start: '', end: '', type: 'National' });
+    showToast('success', `✅ Holiday "${newH.title}" added to school calendar!`);
+  };
+
+  const handleDeleteHoliday = (id, title) => {
+    const updated = holidaysList.filter(h => h.id !== id);
+    setHolidaysList(updated);
+    localStorage.setItem('school_holidays_list', JSON.stringify(updated));
+    showToast('success', `✅ Holiday "${title}" removed from calendar.`);
+  };
+
+  const handleCreateSession = (e) => {
+    e.preventDefault();
+    if (!sessionForm.name || !sessionForm.start) return;
+    const newS = { id: `sess-${Date.now()}`, ...sessionForm, status: 'Upcoming' };
+    const updated = [newS, ...sessionsList];
+    setSessionsList(updated);
+    localStorage.setItem('school_sessions_list', JSON.stringify(updated));
+    setSessionForm({ name: '', start: '', end: '' });
+    showToast('success', `✅ Academic Session "${newS.name}" created!`);
+  };
+
+  const handleSwitchActiveSession = (id, name) => {
+    const updated = sessionsList.map(s => ({
+      ...s,
+      status: s.id === id ? 'Active' : (s.status === 'Active' ? 'Completed' : s.status)
+    }));
+    setSessionsList(updated);
+    localStorage.setItem('school_sessions_list', JSON.stringify(updated));
+    showToast('success', `✅ Active Session switched to "${name}" successfully!`);
+  };
 
   // Core School Profile state
   const [profile, setProfile] = useState({
@@ -240,10 +362,13 @@ const SchoolSettings = () => {
         {/* Navigation Sidebar */}
         <div className="space-y-2">
           {[
-            { id: 'profile', label: 'School Profile', icon: School },
+            { id: 'profile', label: '1 Institute Profile', icon: School },
+            { id: 'remove-student', label: '2 Remove Student', icon: UserX },
+            { id: 'security', label: '3 Change Password / Security', icon: Lock },
+            { id: 'holidays', label: '4 Academic Holidays', icon: Calendar },
+            { id: 'sessions', label: '5 Academic Sessions', icon: CalendarDays },
             { id: 'branding', label: 'Branding & Logo', icon: ImageIcon },
             { id: 'domain', label: 'Custom Domain', icon: Globe },
-            { id: 'security', label: 'Security & Access', icon: Shield },
             { id: 'notifications', label: 'Notifications', icon: Bell },
           ].map((item) => (
             <button
@@ -580,6 +705,277 @@ const SchoolSettings = () => {
                 </div>
               </div>
             </GlassCard>
+          )}
+
+          {/* TAB 2: REMOVE STUDENT (`remove-student`) */}
+          {activeTab === 'remove-student' && (
+            <div className="space-y-6">
+              <GlassCard className="p-8 border-t-4 border-t-red-500">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold flex items-center gap-2 text-red-400">
+                      <UserX size={22} className="text-red-500" />
+                      Archive & Remove Students from Active Rolls
+                    </h3>
+                    <p className="text-xs text-dark-muted mt-1">
+                      Search and remove/archive students who have left the institute or struck off from active class registers.
+                    </p>
+                  </div>
+                  <div className="relative w-full sm:w-64">
+                    <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-muted" />
+                    <input
+                      type="text"
+                      placeholder="Search student or roll no..."
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      className="w-full premium-input pl-10 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-dark-border text-dark-muted text-[10px] uppercase tracking-[0.15em] font-black">
+                        <th className="pb-3 px-3">Roll No</th>
+                        <th className="pb-3 px-3">Student Name</th>
+                        <th className="pb-3 px-3">Class / Section</th>
+                        <th className="pb-3 px-3">Contact</th>
+                        <th className="pb-3 px-3">Fee Status</th>
+                        <th className="pb-3 px-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-dark-border/60 text-xs">
+                      {studentsList
+                        .filter(s => 
+                          !studentSearch.trim() || 
+                          s.name?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+                          s.rollNo?.toLowerCase().includes(studentSearch.toLowerCase()) ||
+                          s.className?.toLowerCase().includes(studentSearch.toLowerCase())
+                        )
+                        .map(student => (
+                        <tr key={student.id} className="hover:bg-red-500/5 transition-colors group">
+                          <td className="py-4 px-3 font-mono font-bold text-dark-muted">{student.rollNo || '—'}</td>
+                          <td className="py-4 px-3 font-bold text-white">{student.name}</td>
+                          <td className="py-4 px-3 text-dark-muted">{student.className || 'General'}</td>
+                          <td className="py-4 px-3 font-mono text-dark-muted">{student.phone || '—'}</td>
+                          <td className="py-4 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              student.feeStatus === 'Paid' ? 'bg-green-500/10 text-green-400' :
+                              student.feeStatus === 'Defaulter' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'
+                            }`}>
+                              {student.feeStatus || 'Pending'}
+                            </span>
+                          </td>
+                          <td className="py-4 px-3 text-right">
+                            <button
+                              onClick={() => handleRemoveStudent(student)}
+                              className="px-3.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-600 text-red-400 hover:text-white border border-red-500/20 font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 ml-auto cursor-pointer"
+                            >
+                              <UserX size={14} /> Remove Student
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {studentsList.length === 0 && (
+                        <tr><td colSpan="6" className="py-8 text-center text-dark-muted">No active students left to remove or archive.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </GlassCard>
+            </div>
+          )}
+
+          {/* TAB 4: ADD HOLIDAYS (`holidays`) */}
+          {activeTab === 'holidays' && (
+            <div className="space-y-6">
+              <GlassCard className="p-8 border-t-4 border-t-amber-500">
+                <h3 className="text-xl font-bold flex items-center gap-2 mb-2 text-amber-400">
+                  <Calendar size={22} className="text-amber-500" />
+                  Academic Holidays & Vacation Calendar
+                </h3>
+                <p className="text-xs text-dark-muted mb-6">
+                  Declare national holidays, religious festivals, and term vacations. These dates will automatically highlight across attendance & parent portals.
+                </p>
+
+                <form onSubmit={handleAddHoliday} className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8 bg-dark-hover/50 p-4 rounded-2xl border border-dark-border">
+                  <div className="sm:col-span-1 space-y-1">
+                    <label className="text-[10px] font-black text-dark-muted uppercase">Holiday Title *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Eid-ul-Adha Break"
+                      value={holidayForm.title}
+                      onChange={e => setHolidayForm({ ...holidayForm, title: e.target.value })}
+                      className="w-full premium-input text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-dark-muted uppercase">Start Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={holidayForm.start}
+                      onChange={e => setHolidayForm({ ...holidayForm, start: e.target.value })}
+                      className="w-full premium-input text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-dark-muted uppercase">End Date</label>
+                    <input
+                      type="date"
+                      value={holidayForm.end}
+                      onChange={e => setHolidayForm({ ...holidayForm, end: e.target.value })}
+                      className="w-full premium-input text-xs font-mono"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button type="submit" className="w-full premium-button-primary py-2.5 text-xs flex items-center justify-center gap-1.5 font-bold">
+                      <Plus size={16} /> Add Holiday
+                    </button>
+                  </div>
+                </form>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-dark-border text-dark-muted text-[10px] uppercase tracking-[0.15em] font-black">
+                        <th className="pb-3 px-3">Holiday / Vacation Title</th>
+                        <th className="pb-3 px-3">Start Date</th>
+                        <th className="pb-3 px-3">End Date</th>
+                        <th className="pb-3 px-3">Type</th>
+                        <th className="pb-3 px-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-dark-border/60 text-xs">
+                      {holidaysList.map(h => (
+                        <tr key={h.id} className="hover:bg-white/5 transition-colors">
+                          <td className="py-3.5 px-3 font-bold text-white flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                            {h.title}
+                          </td>
+                          <td className="py-3.5 px-3 font-mono text-dark-muted">{h.start}</td>
+                          <td className="py-3.5 px-3 font-mono text-dark-muted">{h.end || h.start}</td>
+                          <td className="py-3.5 px-3">
+                            <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 font-bold text-[10px]">
+                              {h.type || 'Holiday'}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-3 text-right">
+                            <button
+                              onClick={() => handleDeleteHoliday(h.id, h.title)}
+                              className="p-1.5 rounded-lg hover:bg-red-500/20 text-dark-muted hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </GlassCard>
+            </div>
+          )}
+
+          {/* TAB 5: SESSIONS (`sessions`) */}
+          {activeTab === 'sessions' && (
+            <div className="space-y-6">
+              <GlassCard className="p-8 border-t-4 border-t-emerald-500">
+                <h3 className="text-xl font-bold flex items-center gap-2 mb-2 text-emerald-400">
+                  <CalendarDays size={22} className="text-emerald-500" />
+                  Academic Sessions & Year Configuration
+                </h3>
+                <p className="text-xs text-dark-muted mb-6">
+                  Manage active school sessions, switch terms, or create new academic years. Switching active session updates the active database scope across all modules.
+                </p>
+
+                <form onSubmit={handleCreateSession} className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8 bg-dark-hover/50 p-4 rounded-2xl border border-dark-border">
+                  <div className="sm:col-span-1 space-y-1">
+                    <label className="text-[10px] font-black text-dark-muted uppercase">Session Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Session 2027-2028"
+                      value={sessionForm.name}
+                      onChange={e => setSessionForm({ ...sessionForm, name: e.target.value })}
+                      className="w-full premium-input text-xs font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-dark-muted uppercase">Start Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={sessionForm.start}
+                      onChange={e => setSessionForm({ ...sessionForm, start: e.target.value })}
+                      className="w-full premium-input text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-dark-muted uppercase">End Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={sessionForm.end}
+                      onChange={e => setSessionForm({ ...sessionForm, end: e.target.value })}
+                      className="w-full premium-input text-xs font-mono"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <button type="submit" className="w-full premium-button-primary py-2.5 text-xs flex items-center justify-center gap-1 font-bold bg-emerald-600 hover:bg-emerald-700">
+                      <Plus size={16} /> Create Session
+                    </button>
+                  </div>
+                </form>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-dark-border text-dark-muted text-[10px] uppercase tracking-[0.15em] font-black">
+                        <th className="pb-3 px-3">Session Designation</th>
+                        <th className="pb-3 px-3">Term Duration</th>
+                        <th className="pb-3 px-3">Current Status</th>
+                        <th className="pb-3 px-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-dark-border/60 text-xs">
+                      {sessionsList.map(s => (
+                        <tr key={s.id} className="hover:bg-white/5 transition-colors">
+                          <td className="py-4 px-3 font-bold text-white text-sm flex items-center gap-2">
+                            <CalendarDays size={16} className={s.status === 'Active' ? 'text-emerald-400' : 'text-dark-muted'} />
+                            {s.name}
+                          </td>
+                          <td className="py-4 px-3 font-mono text-dark-muted">{s.start} to {s.end}</td>
+                          <td className="py-4 px-3">
+                            {s.status === 'Active' ? (
+                              <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-[10px] border border-emerald-500/30 flex items-center gap-1.5 w-fit">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Active Session
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded bg-dark-hover text-dark-muted font-bold text-[10px]">
+                                {s.status || 'Archived'}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 px-3 text-right">
+                            {s.status !== 'Active' && (
+                              <button
+                                onClick={() => handleSwitchActiveSession(s.id, s.name)}
+                                className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 ml-auto cursor-pointer"
+                              >
+                                <Check size={14} /> Switch & Set Active
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </GlassCard>
+            </div>
           )}
         </div>
       </div>

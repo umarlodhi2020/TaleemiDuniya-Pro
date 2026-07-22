@@ -27,14 +27,15 @@ import { Link } from 'react-router-dom';
 
 const modules = [
   // Student Management
+  { name: 'Inquiry Student', icon: UserPlus, color: 'text-blue-400', path: '/school-admin/inquiry-student', category: 'Students' },
   { name: 'Add Student', icon: UserPlus, color: 'text-green-400', path: '/school-admin/students/add', category: 'Students' },
   { name: 'Student Manager', icon: GraduationCap, color: 'text-green-500', path: '/school-admin/students', category: 'Students' },
   { name: 'Bulk Data Import', icon: UploadCloud, color: 'text-cyan-400', path: '/school-admin/import', category: 'Students' },
   { name: 'Student Portal', icon: Layout, color: 'text-green-600', path: '/student/dashboard', category: 'Portals' },
   
   // Inquiry Management
+  { name: 'Inquiry Student', icon: Archive, color: 'text-blue-500', path: '/school-admin/inquiry-student', category: 'Inquiries' },
   { name: 'Add Inquiry', icon: PlusCircle, color: 'text-blue-400', path: '/school-admin/inquiries/add', category: 'Inquiries' },
-  { name: 'Inquiry Manager', icon: Archive, color: 'text-blue-500', path: '/school-admin/inquiries', category: 'Inquiries' },
   
   // Staff Management
   { name: 'Add Staff', icon: UserPlus, color: 'text-purple-400', path: '/school-admin/staff/add', category: 'Staff' },

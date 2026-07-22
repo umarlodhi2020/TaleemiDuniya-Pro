@@ -132,7 +132,7 @@ const FamilyTree = () => {
 
       const messageText = `👨‍👩‍👧‍👦 *COMBINED FAMILY FEE LEDGER & CHALLAN*\n\nAssalam-o-Alaikum *${family.fatherName}* Sb!\nBelow is the combined fee statement for your children studying at *${userData?.schoolName || 'Our School'}*:\n\n${childrenDetails}\n\n━━━━━━━━━━━━━━━━━━━━\n💰 *Subtotal Fee:* Rs. ${totalFee.toLocaleString()}\n🎁 *Sibling Discount (${siblingDiscountPercent}%):* -Rs. ${discountAmount.toLocaleString()}\n💵 *NET PAYABLE AMOUNT:* *Rs. ${finalAmount.toLocaleString()}* /-\n━━━━━━━━━━━━━━━━━━━━\n📅 *Due Date:* 10th of this Month\n\nBaraye meherbani time par fee jama karwayein. Sukriya!\nSchool Administration`;
 
-      const res = await fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+      let res = await fetch('https://umarhayat.alwaysdata.net/api/message/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,12 +141,26 @@ const FamilyTree = () => {
           message: messageText
         })
       });
-      const data = await res.json();
+      let data = await res.json();
+
+      if (!data.success && (userData?.schoolId && userData.schoolId !== 'default_school')) {
+        res = await fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schoolId: 'default_school',
+            phone: family.phone,
+            message: messageText
+          })
+        });
+        data = await res.json();
+      }
+
       if (data.success && data.results?.[0]?.status === 'sent') {
-        alert(`✅ Combined Family Challan sent to ${family.fatherName} (${family.phone}) via WhatsApp!`);
+        alert(`✅ Combined Family Challan sent AUTOMATICALLY to ${family.fatherName} (${family.phone}) via WhatsApp Cloud AI Bot Server!`);
         setSelectedFamilyForChallan(null);
       } else {
-        alert(`❌ WhatsApp delivery failed: ${data.results?.[0]?.error || 'WhatsApp Bot might be offline or disconnected.'}`);
+        alert(`❌ WhatsApp delivery failed: ${data.error || data.results?.[0]?.error || 'WhatsApp Bot might be offline or disconnected.'}`);
       }
     } catch (err) {
       alert(`❌ Error connecting to server: ${err.message}`);

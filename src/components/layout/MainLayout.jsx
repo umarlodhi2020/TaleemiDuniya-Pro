@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
+import ErrorBoundary from '../common/ErrorBoundary';
 import { useAuth } from '../../context/AuthContext';
-import { Bot, Send, Sparkles, X, Copy, Check, Save, RefreshCw, AlertTriangle, Crown, Zap, Clock, CreditCard } from 'lucide-react';
+import { useSchool } from '../../context/SchoolContext';
+import { Bot, Send, Sparkles, X, Copy, Check, Save, RefreshCw, AlertTriangle, Crown, Zap, Clock, CreditCard, Lock, ArrowRight } from 'lucide-react';
 import { collection, addDoc, doc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { addRecord } from '../../services/db';
 
 const MainLayout = () => {
   const { userData } = useAuth();
+  const { isFeatureAllowed, getFeatureInfo, currentSaaSPlan } = useSchool();
+  const location = useLocation();
+  const navigate = useNavigate();
   const schoolId = userData?.schoolId || 'default-school';
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -155,14 +160,14 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg flex">
+    <div className="min-h-screen bg-dark-bg flex overflow-x-hidden">
       <Sidebar role={userData?.role} />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 pl-56 w-full max-w-full overflow-x-hidden">
         <Navbar />
 
-        <main className="p-8 flex-1 transition-all duration-300 ml-52">
-          <div className="max-w-7xl mx-auto">
+        <main className="py-6 px-4 sm:px-6 lg:px-8 flex-1 transition-all duration-300 max-w-full overflow-x-hidden">
+          <div className="max-w-6xl mx-auto">
             {/* Elegant Offline Banner */}
             {!isOnline && (
               <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between text-amber-400 text-xs animate-pulse">
@@ -176,7 +181,59 @@ const MainLayout = () => {
                 </div>
               </div>
             )}
-            <Outlet />
+            <ErrorBoundary>
+              {(() => {
+                const isCurrentAllowed = isFeatureAllowed(location.pathname);
+                const featInfo = getFeatureInfo(location.pathname);
+                if (userData?.role === 'school-admin' && !isCurrentAllowed) {
+                  return (
+                    <div className="py-12 px-6 bg-gradient-to-br from-[#1b1e32] to-[#121422] rounded-3xl border-2 border-purple-500/50 shadow-2xl text-center max-w-2xl mx-auto space-y-6 animate-fade-in my-8 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                        <Lock size={160} className="text-purple-400" />
+                      </div>
+                      <div className="w-20 h-20 rounded-3xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center mx-auto text-purple-400 shadow-lg shadow-purple-500/20">
+                        <Lock size={38} className="animate-bounce" />
+                      </div>
+                      <div>
+                        <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-black uppercase tracking-widest border border-purple-500/30">
+                          SaaS Plan Permission Gate
+                        </span>
+                        <h2 className="text-2xl md:text-3xl font-black text-white mt-3">
+                          {featInfo?.title || 'Restricted Advanced Feature'}
+                        </h2>
+                        <p className="text-sm text-gray-300 mt-2 max-w-lg mx-auto font-medium leading-relaxed">
+                          {featInfo?.description || 'This advanced module is not included in your current subscription tier.'}
+                        </p>
+                        <p className="text-xs text-purple-300 font-bold mt-2">
+                          Your Current Plan: <span className="uppercase tracking-wider underline">{currentSaaSPlan || 'Basic Starter'}</span>
+                        </p>
+                      </div>
+                      <div className="p-4 rounded-2xl bg-dark-card/80 border border-dark-border text-left text-xs text-gray-300 space-y-2 max-w-md mx-auto">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-purple-300 block">Why Upgrade?</span>
+                        <div className="flex items-center gap-2"><Check size={14} className="text-green-400 shrink-0" /> <span>Unlock all 45+ specialized school management modules</span></div>
+                        <div className="flex items-center gap-2"><Check size={14} className="text-green-400 shrink-0" /> <span>Real-time WhatsApp bots, IoT gate pass & online fee gateways</span></div>
+                        <div className="flex items-center gap-2"><Check size={14} className="text-green-400 shrink-0" /> <span>Instant activation with online payment or bank transfer</span></div>
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                        <button
+                          onClick={() => navigate('/school-admin/billing')}
+                          className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+                        >
+                          <Zap size={16} /> Upgrade Plan / Online Pay Now
+                        </button>
+                        <button
+                          onClick={() => navigate('/school-admin/dashboard')}
+                          className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs transition-all"
+                        >
+                          Return to Dashboard
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+                return <Outlet />;
+              })()}
+            </ErrorBoundary>
           </div>
         </main>
       </div>

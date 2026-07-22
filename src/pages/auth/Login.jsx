@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, LogIn, ShieldAlert, KeyRound, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/common/GlassCard';
@@ -14,6 +14,15 @@ const Login = () => {
   const [resetSent, setResetSent] = useState(false);
   const { login, loginWithGoogle, resetPassword } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('demo') === 'true') {
+      setEmail('demo_admin@taleemidunya.com');
+      setPassword('passworddemo2121');
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -164,11 +173,14 @@ const Login = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end text-xs">
+              <div className="flex items-center justify-between text-xs">
+                {new URLSearchParams(location.search).get('demo') === 'true' && (
+                  <span className="text-green-400 font-bold px-2 py-1 bg-green-500/10 rounded-lg">Demo credentials pre-filled</span>
+                )}
                 <button 
                   type="button"
                   onClick={() => { setShowReset(true); setError(''); }}
-                  className="text-primary-500 hover:text-primary-400 font-semibold transition-colors"
+                  className="text-primary-500 hover:text-primary-400 font-semibold transition-colors ml-auto"
                 >
                   Forgot password?
                 </button>

@@ -44,6 +44,7 @@
     color-scheme: dark;
     color: #ffffff;
     background-color: #0a0a0c;
+    font-size: 14.5px; /* Sleek Executive Compact Scaling (~90% of default 16px) */
   }
 
   body {
@@ -52,9 +53,16 @@
     min-height: 100vh;
     background-color: var(--color-dark-bg);
     color: var(--color-dark-text);
+    zoom: 0.90; /* Global Compact Zoom Out (`zoom in kam kro`) so full UI is visible on screen without scrolling! */
   }
-
 }
+
+/* Dynamic UI Zoom / Display Density Overrides */
+html[data-ui-zoom="80"] body { zoom: 0.80 !important; }
+html[data-ui-zoom="85"] body { zoom: 0.85 !important; }
+html[data-ui-zoom="90"] body { zoom: 0.90 !important; }
+html[data-ui-zoom="95"] body { zoom: 0.95 !important; }
+html[data-ui-zoom="100"] body { zoom: 1.0 !important; }
 
 /* ==========================================================================
    DUAL THEME ENGINE (CLEAN WHITE / LIGHT MODE GUARANTEED OVERRIDES)

@@ -41,35 +41,7 @@ const TransportManager = () => {
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(v => !v.schoolId || v.schoolId === schoolId);
 
-      if (list.length === 0) {
-        // Demo default vans
-        setVans([
-          {
-            id: 'demo-van-1',
-            vanNumber: 'LHR-402 (Bus #1)',
-            routeName: 'Johar Town / Model Town Route',
-            driverName: 'Ustad Aslam',
-            driverPhone: '0300-4455667',
-            capacity: '20',
-            monthlyFee: 3000,
-            stops: 'Barkat Market, Model Town Link Road, Johar Town G-Block',
-            allocatedCount: 16
-          },
-          {
-            id: 'demo-van-2',
-            vanNumber: 'LEA-908 (Van #2)',
-            routeName: 'DHA / Cantt Express Route',
-            driverName: 'Muhammad Tariq',
-            driverPhone: '0321-9988776',
-            capacity: '16',
-            monthlyFee: 4500,
-            stops: 'DHA Phase 3, Phase 5, Cavalry Ground',
-            allocatedCount: 14
-          }
-        ]);
-      } else {
-        setVans(list);
-      }
+      setVans(list);
 
       // Fetch students for allocation view
       const stSnap = await getDocs(collection(db, 'students'));

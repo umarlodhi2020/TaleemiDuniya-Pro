@@ -1,11 +1,16 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Layouts
 import MainLayout from './components/layout/MainLayout';
 
 // Pages
+import LandingPage from './pages/public/LandingPage';
+import Checkout from './pages/public/Checkout';
+import PrivacyPolicy from './pages/public/PrivacyPolicy';
+import TermsOfService from './pages/public/TermsOfService';
 import Login from './pages/auth/Login';
 import SuperAdminSetup from './pages/auth/SuperAdminSetup';
 import SuperAdminDashboard from './pages/super-admin/Dashboard';
@@ -18,6 +23,7 @@ import NotificationsCenter from './pages/super-admin/Notifications';
 import SupportCenter from './pages/super-admin/Support';
 import SuperAdminSettings from './pages/super-admin/SuperAdminSettings';
 import SuperAdminAiAgent from './pages/super-admin/AiAgent';
+import LandingPageCMS from './pages/super-admin/LandingPageCMS';
 import EServices from './pages/school-admin/EServices';
 import SchoolAdminDashboard from './pages/school-admin/Dashboard';
 import InquiryManager from './pages/school-admin/InquiryManager';
@@ -52,6 +58,11 @@ import InventoryManager from './pages/school-admin/InventoryManager';
 import SMSPanel from './pages/school-admin/SMSPanel';
 import MarkResults from './pages/school-admin/MarkResults';
 import FamilyTree from './pages/school-admin/FamilyTree';
+import SingleStudent360 from './pages/school-admin/SingleStudent360';
+import SpeakerPASystem from './pages/school-admin/SpeakerPASystem';
+import StaffAttendanceHub from './pages/school-admin/StaffAttendanceHub';
+import OtherIncomeManager from './pages/school-admin/OtherIncomeManager';
+import ComprehensiveReportsHub from './pages/school-admin/ComprehensiveReportsHub';
 import TeacherDashboard from './pages/teacher/Dashboard';
 import TeacherStudents from './pages/teacher/Students';
 import TeacherAttendance from './pages/teacher/Attendance';
@@ -89,6 +100,8 @@ import GoogleDriveBackupVault from './pages/school-admin/GoogleDriveBackupVault'
 import WhatsAppCronAutomation from './pages/school-admin/WhatsAppCronAutomation';
 import MobileAppPwaOffline from './pages/school-admin/MobileAppPwaOffline';
 import CommercialLaunchAudit from './pages/school-admin/CommercialLaunchAudit';
+import MultiBranchHub from './pages/school-admin/MultiBranchHub';
+import FranchiseManager from './pages/school-admin/FranchiseManager';
 import ComingSoon from './pages/school-admin/ComingSoon';
 import GlassCard from './components/common/GlassCard';
 
@@ -168,9 +181,14 @@ const UnauthorizedPage = () => {
 };
 
 const AppRoutes = () => {
+  const isFirebaseHosting = window.location.hostname.includes('web.app') || window.location.hostname.includes('firebaseapp.com');
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/checkout" element={<Checkout />} />
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/setup" element={<SuperAdminSetup />} />
 
       {/* Super Admin Routes */}
@@ -193,6 +211,7 @@ const AppRoutes = () => {
         <Route path="notifications" element={<NotificationsCenter />} />
         <Route path="support" element={<SupportCenter />} />
         <Route path="settings" element={<SuperAdminSettings />} />
+        <Route path="landing-page" element={<LandingPageCMS />} />
       </Route>
 
       {/* School Admin Routes */}
@@ -209,6 +228,8 @@ const AppRoutes = () => {
         <Route path="pocket-app" element={<MiniPocketApp />} />
         <Route path="subscription" element={<SchoolSubscriptionPortal />} />
         <Route path="inquiries" element={<InquiryManager />} />
+        <Route path="inquiry-student" element={<InquiryManager />} />
+        <Route path="inquiry" element={<InquiryManager />} />
         <Route path="inquiries/add" element={<AddInquiry />} />
         <Route path="admissions/crm" element={<AdmissionCRM />} />
         <Route path="students" element={<StudentManager />} />
@@ -220,6 +241,8 @@ const AppRoutes = () => {
         <Route path="staff/payroll" element={<PayrollManager />} />
         <Route path="attendance" element={<AttendanceManager />} />
         <Route path="attendance-register" element={<AttendanceRegister />} />
+        <Route path="attendance/register" element={<AttendanceRegister />} />
+        <Route path="attendance/take" element={<AttendanceManager />} />
         <Route path="security/gate-pass" element={<GatePassManager />} />
         <Route path="security/gate-scanner" element={<GatePassScanner />} />
         <Route path="fees" element={<FeeManager />} />
@@ -236,6 +259,7 @@ const AppRoutes = () => {
         <Route path="academics/timetable-builder" element={<TimetableBuilder />} />
         <Route path="students/id-cards" element={<StudentIdCards />} />
         <Route path="accounts/expenses" element={<ExpenseManager />} />
+        <Route path="expenses" element={<ExpenseManager />} />
         <Route path="exams" element={<Exams />} />
         <Route path="exams/mark/:examId" element={<MarkResults />} />
         <Route path="accounts" element={<AccountsManager />} />
@@ -248,6 +272,11 @@ const AppRoutes = () => {
         <Route path="settings" element={<SchoolSettings />} />
         <Route path="roles" element={<RolesManager />} />
         {/* Dynamic features implemented */}
+        <Route path="single-student" element={<SingleStudent360 />} />
+        <Route path="speaker" element={<SpeakerPASystem />} />
+        <Route path="staff-attendance" element={<StaffAttendanceHub />} />
+        <Route path="other-income" element={<OtherIncomeManager />} />
+        <Route path="reports-hub" element={<ComprehensiveReportsHub />} />
         <Route path="collection" element={<Collection />} />
         <Route path="period-bell" element={<PeriodBell />} />
         <Route path="certificates" element={<CertificateGenerator />} />
@@ -260,6 +289,11 @@ const AppRoutes = () => {
         <Route path="whatsapp-automation" element={<WhatsAppCronAutomation />} />
         <Route path="pwa-offline" element={<MobileAppPwaOffline />} />
         <Route path="system-health-audit" element={<CommercialLaunchAudit />} />
+        <Route path="branches" element={<MultiBranchHub />} />
+        <Route path="franchise-manager" element={<FranchiseManager />} />
+        <Route path="copilot" element={<AiAgent />} />
+        <Route path="billing" element={<SchoolSubscriptionPortal />} />
+        <Route path="*" element={<ComingSoon />} />
       </Route>
 
       <Route
@@ -280,6 +314,7 @@ const AppRoutes = () => {
         <Route path="communication" element={<TeacherCommunication />} />
         <Route path="leave" element={<TeacherLeave />} />
         <Route path="material" element={<TeacherMaterial />} />
+        <Route path="*" element={<ComingSoon />} />
       </Route>
 
       <Route
@@ -297,6 +332,7 @@ const AppRoutes = () => {
         <Route path="homework" element={<StudentHomework />} />
         <Route path="timetable" element={<StudentTimetable />} />
         <Route path="material" element={<StudentMaterial />} />
+        <Route path="*" element={<ComingSoon />} />
       </Route>
 
       <Route
@@ -312,9 +348,10 @@ const AppRoutes = () => {
         <Route path="attendance" element={<ParentAttendance />} />
         <Route path="fees" element={<ParentFees />} />
         <Route path="exams" element={<ParentExams />} />
+        <Route path="*" element={<ComingSoon />} />
       </Route>
 
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={isFirebaseHosting ? <Navigate to="/login" replace /> : <LandingPage />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
@@ -331,7 +368,9 @@ function App() {
       <AuthProvider>
         <SchoolProvider>
           <Router>
-            <AppRoutes />
+            <ErrorBoundary>
+              <AppRoutes />
+            </ErrorBoundary>
             <NetworkStatusBar />
           </Router>
         </SchoolProvider>

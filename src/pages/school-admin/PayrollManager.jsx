@@ -49,20 +49,20 @@ const PayrollManager = () => {
     setLoading(true);
     try {
       const staffRecords = await getRecords('staff', schoolId);
-      if (staffRecords && staffRecords.length > 0) {
+      if (Array.isArray(staffRecords) && staffRecords.length > 0) {
         const mapped = staffRecords.map(s => {
-          const basicPay = Number(s.salary || s.basicPay || 50000);
-          const absents = Number(s.absents || 0);
-          const advanceTaken = Number(s.advanceTaken || 0);
-          const allowance = Number(s.allowance || 2000);
-          const perDay = Math.round(basicPay / 26);
+          const basicPay = Number(s?.salary || s?.basicPay || 50000) || 50000;
+          const absents = Number(s?.absents || 0) || 0;
+          const advanceTaken = Number(s?.advanceTaken || 0) || 0;
+          const allowance = Number(s?.allowance || 2000) || 2000;
+          const perDay = Math.round(basicPay / 26) || 0;
           const deduction = absents * perDay + advanceTaken;
           const netPay = Math.max(0, basicPay + allowance - deduction);
 
           return {
-            id: s.id,
-            name: s.name || 'Staff Member',
-            role: s.designation || s.role || 'Teacher',
+            id: s?.id || Math.random().toString(36).substring(2, 9),
+            name: String(s?.name || s?.fullName || 'Staff Member'),
+            role: String(s?.designation || s?.role || 'Teacher'),
             basicPay,
             absents,
             advanceTaken,
@@ -70,7 +70,7 @@ const PayrollManager = () => {
             perDay,
             deduction,
             netPay,
-            status: s.payrollStatus || 'unpaid'
+            status: s?.payrollStatus || 'unpaid'
           };
         });
         setStaffList(mapped);
@@ -78,7 +78,7 @@ const PayrollManager = () => {
         setStaffList([]);
       }
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching staff payroll:', e);
       setStaffList([]);
     } finally {
       setLoading(false);
@@ -90,13 +90,14 @@ const PayrollManager = () => {
     setStaffList(staffList.map(s => s.id === id ? { ...s, status: nextStatus } : s));
   };
 
-  const filteredStaff = staffList.filter(s => 
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    s.role.toLowerCase().includes(searchQuery.toLowerCase())
+  const safeSearch = String(searchQuery || '').toLowerCase().trim();
+  const filteredStaff = (Array.isArray(staffList) ? staffList : []).filter(s => 
+    String(s?.name || '').toLowerCase().includes(safeSearch) || 
+    String(s?.role || '').toLowerCase().includes(safeSearch)
   );
 
-  const totalPayrollAmount = filteredStaff.reduce((acc, curr) => acc + curr.netPay, 0);
-  const totalPaidAmount = filteredStaff.filter(s => s.status === 'paid').reduce((acc, curr) => acc + curr.netPay, 0);
+  const totalPayrollAmount = filteredStaff.reduce((acc, curr) => acc + (Number(curr?.netPay) || 0), 0);
+  const totalPaidAmount = filteredStaff.filter(s => s?.status === 'paid').reduce((acc, curr) => acc + (Number(curr?.netPay) || 0), 0);
   const totalPendingAmount = totalPayrollAmount - totalPaidAmount;
 
   const handlePrintPayrollSheet = () => {
@@ -342,25 +343,25 @@ const PayrollManager = () => {
               <div className="flex-1 my-3 text-[11px] space-y-1.5 font-semibold">
                 <div className="flex justify-between border-b border-gray-100 pb-1">
                   <span>Basic Salary</span>
-                  <span className="font-mono font-bold">Rs. {selectedSlip.basicPay.toLocaleString()}</span>
+                  <span className="font-mono font-bold">Rs. {Number(selectedSlip?.basicPay || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between border-b border-gray-100 pb-1 text-green-700">
                   <span>+ Monthly Allowances</span>
-                  <span className="font-mono font-bold">Rs. {selectedSlip.allowance.toLocaleString()}</span>
+                  <span className="font-mono font-bold">Rs. {Number(selectedSlip?.allowance || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between border-b border-gray-100 pb-1 text-red-600">
-                  <span>- Absents Deduction ({selectedSlip.absents} Days)</span>
-                  <span className="font-mono font-bold">Rs. {(selectedSlip.absents * selectedSlip.perDay).toLocaleString()}</span>
+                  <span>- Absents Deduction ({Number(selectedSlip?.absents || 0)} Days)</span>
+                  <span className="font-mono font-bold">Rs. {Number((selectedSlip?.absents || 0) * (selectedSlip?.perDay || 0)).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between border-b border-gray-100 pb-1 text-orange-600">
                   <span>- Advance / Loan Deduction</span>
-                  <span className="font-mono font-bold">Rs. {selectedSlip.advanceTaken.toLocaleString()}</span>
+                  <span className="font-mono font-bold">Rs. {Number(selectedSlip?.advanceTaken || 0).toLocaleString()}</span>
                 </div>
               </div>
 
               <div className="bg-gray-100 border border-gray-300 p-3 rounded-xl flex justify-between items-center text-xs font-black text-gray-900">
                 <span className="uppercase text-[10px]">Net Payable Amount:</span>
-                <span className="text-sm text-emerald-700 font-sans font-black">Rs. {selectedSlip.netPay.toLocaleString()}</span>
+                <span className="text-sm text-emerald-700 font-sans font-black">Rs. {Number(selectedSlip?.netPay || 0).toLocaleString()}</span>
               </div>
 
               <div className="mt-8 pt-4 border-t border-gray-300 flex justify-between text-[8px] font-black text-gray-500 uppercase">
@@ -425,25 +426,25 @@ const PayrollManager = () => {
             <div className="flex-1 my-4 text-[11px] space-y-2 font-semibold">
               <div className="flex justify-between border-b border-gray-100 pb-1">
                 <span>Basic Salary</span>
-                <span className="font-mono font-bold">Rs. {selectedSlip.basicPay.toLocaleString()}</span>
+                <span className="font-mono font-bold">Rs. {Number(selectedSlip?.basicPay || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between border-b border-gray-100 pb-1 text-green-700">
                 <span>+ Monthly Allowances</span>
-                <span className="font-mono font-bold">Rs. {selectedSlip.allowance.toLocaleString()}</span>
+                <span className="font-mono font-bold">Rs. {Number(selectedSlip?.allowance || 0).toLocaleString()}</span>
               </div>
               <div className="flex justify-between border-b border-gray-100 pb-1 text-red-600">
-                <span>- Absents Deduction ({selectedSlip.absents} Days)</span>
-                <span className="font-mono font-bold">Rs. {(selectedSlip.absents * selectedSlip.perDay).toLocaleString()}</span>
+                <span>- Absents Deduction ({Number(selectedSlip?.absents || 0)} Days)</span>
+                <span className="font-mono font-bold">Rs. {Number((selectedSlip?.absents || 0) * (selectedSlip?.perDay || 0)).toLocaleString()}</span>
               </div>
               <div className="flex justify-between border-b border-gray-100 pb-1 text-orange-600">
                 <span>- Advance / Loan Deduction</span>
-                <span className="font-mono font-bold">Rs. {selectedSlip.advanceTaken.toLocaleString()}</span>
+                <span className="font-mono font-bold">Rs. {Number(selectedSlip?.advanceTaken || 0).toLocaleString()}</span>
               </div>
             </div>
 
             <div className="bg-gray-100 border border-gray-300 p-3.5 rounded-xl flex justify-between items-center text-xs font-black text-gray-900">
               <span className="uppercase text-[10px]">Net Payable Amount:</span>
-              <span className="text-sm text-emerald-700 font-sans font-black">Rs. {selectedSlip.netPay.toLocaleString()}</span>
+              <span className="text-sm text-emerald-700 font-sans font-black">Rs. {Number(selectedSlip?.netPay || 0).toLocaleString()}</span>
             </div>
 
             <div className="mt-8 pt-4 border-t border-gray-300 flex justify-between text-[8px] font-black text-gray-500 uppercase">

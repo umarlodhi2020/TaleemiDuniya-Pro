@@ -4,6 +4,17 @@ Yeh folder (`TaleemiDunya-Android-App/`) aap ke **TaleemiDunya Mini Pocket App**
 
 ---
 
+## ⚠️ Important Checklist (Missing Items)
+
+App build karne se pehle ye cheezein lazmi check karein:
+
+1.  **App Icon (`icon.png`):** `www/` folder mein ek **512x512** pixels ki `icon.png` file rakhein. Is ke baghair app default icon ke saath banegi jo Play Store reject kar sakta hai.
+2.  **Splash Screen:** `www/` mein ek achi quality ki image rakhein taake launch ke waqt app professional lagay.
+3.  **Android Folder:** Agar aap ke folder mein `android/` folder nahi hai, toh upar diye gaye **Step 1** ke commands lazmi chalayein.
+4.  **Internet Permission:** Capacitor khud hi basic permissions handle karta hai, lekin agar `iframe` load na ho toh `AndroidManifest.xml` mein `INTERNET` permission check karein.
+
+---
+
 ## 🛠️ Option 1: Capacitor ke zariye Android Studio Project & Play Store App banana (Recommended)
 
 Agar aap ke PC par **Node.js** aur **Android Studio** install hai, toh niche diye gaye 3 aasan commands se poora Native Android Studio Project taiyar ho jayega:

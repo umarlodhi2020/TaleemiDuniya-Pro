@@ -71,11 +71,16 @@ const Students = () => {
     }
   };
 
-  const filtered = students.filter(s =>
-    (s.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.rollNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.class || '').toString().includes(searchTerm)
-  );
+  const filtered = students.filter(s => {
+    const q = (searchTerm || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      String(s.name || '').toLowerCase().includes(q) ||
+      String(s.rollNumber || '').toLowerCase().includes(q) ||
+      String(s.class || '').toLowerCase().includes(q) ||
+      String(s.section || '').toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">

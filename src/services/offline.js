@@ -57,16 +57,34 @@ export const initOfflineSync = () => {
   // Periodic connectivity check (every 30s)
   setInterval(async () => {
     const wasOnline = isOnline;
-    try {
-      const res = await fetch('https://www.gstatic.com/firebasejs/releases.json', {
-        method: 'HEAD',
-        cache: 'no-cache',
-        signal: AbortSignal.timeout(5000),
-      });
-      isOnline = res.ok;
-    } catch {
+
+    // 1. If browser/OS explicitly reports offline, trust it immediately
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
       isOnline = false;
+    } else {
+      // 2. If navigator.onLine is true, perform a safe same-origin check to verify real internet/router connectivity
+      // without CORS, AdBlocker, or gstatic tracking restrictions.
+      try {
+        const res = await fetch(window.location.origin + '/favicon.ico?_chk=' + Date.now(), {
+          method: 'HEAD',
+          cache: 'no-store',
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok || res.status === 200 || res.status === 304 || res.status === 404) {
+          isOnline = true;
+        }
+      } catch {
+        // If same-origin fetch fails (e.g. temporary timeout or local dev restart),
+        // only mark offline if navigator explicitly says offline. Do not override
+        // true navigator.onLine due to adblockers or transient timeouts.
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          isOnline = false;
+        } else {
+          isOnline = true;
+        }
+      }
     }
+
     if (isOnline !== wasOnline) {
       notifyListeners();
       if (isOnline) processOfflineQueue();

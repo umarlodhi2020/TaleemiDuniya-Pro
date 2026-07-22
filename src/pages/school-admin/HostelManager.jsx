@@ -39,32 +39,7 @@ const HostelManager = () => {
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(r => !r.schoolId || r.schoolId === schoolId);
 
-      if (list.length === 0) {
-        setRooms([
-          {
-            id: 'demo-room-1',
-            roomNumber: 'Room #101 (Ground Floor)',
-            hostelName: 'Boys Hostel Block A',
-            totalBeds: 4,
-            occupiedBeds: 3,
-            roomFeeMonthly: 4500,
-            messFeeMonthly: 7000,
-            wardenName: 'Sir Rizwan (Hostel Warden)'
-          },
-          {
-            id: 'demo-room-2',
-            roomNumber: 'Room #204 (First Floor)',
-            hostelName: 'Girls Boarding House Block B',
-            totalBeds: 4,
-            occupiedBeds: 4,
-            roomFeeMonthly: 5000,
-            messFeeMonthly: 7000,
-            wardenName: 'Madam Shamim'
-          }
-        ]);
-      } else {
-        setRooms(list);
-      }
+      setRooms(list);
 
       const stSnap = await getDocs(collection(db, 'students'));
       setStudents(stSnap.docs.map(d => ({ id: d.id, ...d.data() })));

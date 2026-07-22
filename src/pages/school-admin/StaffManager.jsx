@@ -38,10 +38,16 @@ const StaffManager = () => {
     }
   };
 
-  const filteredStaff = staff.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStaff = staff.filter(s => {
+    const q = (searchTerm || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      String(s.name || '').toLowerCase().includes(q) ||
+      String(s.role || '').toLowerCase().includes(q) ||
+      String(s.phone || '').toLowerCase().includes(q) ||
+      String(s.email || '').toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">

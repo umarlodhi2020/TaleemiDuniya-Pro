@@ -25,6 +25,7 @@ const StudentManager = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sendingWaId, setSendingWaId] = useState(null);
 
   useEffect(() => {
     fetchStudents();
@@ -41,6 +42,61 @@ const StudentManager = () => {
     }
   };
 
+  const handleSendStudentWhatsApp = async (student) => {
+    const cleanPhone = (student.phone || student.parentPhone || '').replace(/[^0-9]/g, '');
+    if (!cleanPhone) {
+      alert('Please update student profile with a valid WhatsApp phone number first.');
+      return;
+    }
+    const schoolName = userData?.schoolName || 'TaleemiDunya School';
+    const messageText = `Assalam-o-Alaikum Respected Parent of *${student.name}* (Roll: ${student.rollNumber || 'N/A'}, Grade: ${student.class || 'N/A'}).\n\nThis is an official communication from *${schoolName}*. Please check your Parent Portal for recent attendance logs, examination reports, and fee challans.\n\nThank you for your cooperation!\n*Administration - ${schoolName}*`;
+
+    setSendingWaId(student.id || 'temp');
+    try {
+      let res = await fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schoolId: userData?.schoolId || 'default_school',
+          phone: cleanPhone,
+          message: messageText
+        })
+      });
+      let data = await res.json();
+
+      // If school's personal session is not paired or offline, automatically fallback to Universal TaleemiDunya Central AI Bot ('default_school')
+      if (!data.success && (userData?.schoolId && userData.schoolId !== 'default_school')) {
+        res = await fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schoolId: 'default_school',
+            phone: cleanPhone,
+            message: messageText
+          })
+        });
+        data = await res.json();
+      }
+
+      if (data.success && data.results?.[0]?.status === 'sent') {
+        alert(`✅ Official Notice sent AUTOMATICALLY to ${student.name}'s parent (${cleanPhone}) via WhatsApp Cloud AI Bot Server!`);
+      } else {
+        const fallback = window.confirm(`ℹ️ WhatsApp Cloud Server (` + (data.error || data.results?.[0]?.error || 'Session offline / Not scanned yet') + `).\n\nWould you like to open WhatsApp Web/App right now to send this message directly?`);
+        if (fallback) {
+          window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`, '_blank');
+        }
+      }
+    } catch (err) {
+      console.warn('Server error:', err);
+      const fallback = window.confirm(`🌐 WhatsApp Cloud Server offline/unreachable. Would you like to send directly via WhatsApp Web/App right now?`);
+      if (fallback) {
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageText)}`, '_blank');
+      }
+    } finally {
+      setSendingWaId(null);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this student?')) {
       try {
@@ -52,11 +108,19 @@ const StudentManager = () => {
     }
   };
 
-  const filteredStudents = students.filter(student => 
-    student.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.rollNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.class?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStudents = students.filter(student => {
+    const q = (searchTerm || '').toLowerCase().trim();
+    if (!q) return true;
+    return (
+      String(student.name || '').toLowerCase().includes(q) ||
+      String(student.rollNumber || '').toLowerCase().includes(q) ||
+      String(student.class || '').toLowerCase().includes(q) ||
+      String(student.section || '').toLowerCase().includes(q) ||
+      String(student.fatherName || '').toLowerCase().includes(q) ||
+      String(student.phone || '').toLowerCase().includes(q) ||
+      String(student.id || '').toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -184,15 +248,16 @@ const StudentManager = () => {
                   <td className="py-5 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
-                        onClick={() => {
-                          const cleanPhone = (student.phone || student.parentPhone || '').replace(/[^0-9]/g, '');
-                          const msg = encodeURIComponent(`Assalam-o-Alaikum, regarding student ${student.name} (Roll # ${student.rollNumber}) in class ${student.class}...`);
-                          window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
-                        }}
-                        className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all flex items-center gap-1 text-xs font-bold"
-                        title="Direct WhatsApp Web Chat"
+                        onClick={() => handleSendStudentWhatsApp(student)}
+                        disabled={sendingWaId === student.id}
+                        className="p-2 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all flex items-center gap-1 text-xs font-bold disabled:opacity-50"
+                        title="Send Automatic WhatsApp via Cloud AI Bot Server"
                       >
-                        <MessageSquare size={16} />
+                        {sendingWaId === student.id ? (
+                          <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <MessageSquare size={16} />
+                        )}
                         <span className="hidden xl:inline">WhatsApp</span>
                       </button>
                       <button

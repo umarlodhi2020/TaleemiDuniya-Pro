@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, Shield, Bell, Globe, Database, Palette, Key, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Settings, Save, Shield, Bell, Globe, Database, Palette, Key, Loader2, CheckCircle2, AlertCircle, CreditCard, ExternalLink, ShieldCheck, Activity } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { useNavigate } from 'react-router-dom';
 
 const SuperAdminSettings = () => {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState({
     platformName: 'TaleemiDunya Pro',
     supportEmail: 'support@taleemidunya.pro',
@@ -181,6 +183,35 @@ const SuperAdminSettings = () => {
                 </button>
               </div>
             ))}
+          </div>
+        </GlassCard>
+
+        {/* Payment Gateways Center Link & Status */}
+        <GlassCard className="p-8 lg:col-span-2 bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-dark-card border border-primary-500/30 relative overflow-hidden">
+          <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-primary-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+            <div className="space-y-2 max-w-2xl">
+              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-primary-500/20 text-primary-400 border border-primary-500/30 inline-flex items-center gap-1.5">
+                <ShieldCheck size={13} /> Integrated Billing Hub
+              </span>
+              <h2 className="text-2xl font-black text-white flex items-center gap-3">
+                <CreditCard className="text-green-400" size={26} /> SaaS Payment Gateways & API Credentials
+              </h2>
+              <p className="text-sm text-dark-muted leading-relaxed">
+                Manage live API keys, Webhook signing secrets, and direct bank account Raast/IBFT QR settings for Stripe, JazzCash, and EasyPaisa across all SaaS tenant schools.
+              </p>
+              <div className="flex items-center gap-4 pt-2 text-xs font-bold text-dark-muted">
+                <span className="flex items-center gap-1.5 text-green-400"><CheckCircle2 size={15} /> Stripe Cards (Active)</span>
+                <span className="flex items-center gap-1.5 text-green-400"><CheckCircle2 size={15} /> JazzCash Wallet (Active)</span>
+                <span className="flex items-center gap-1.5 text-amber-400"><Activity size={15} /> Raast IBFT QR (Active)</span>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/super-admin/subscriptions')}
+              className="px-6 py-4 rounded-2xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-2xl shadow-primary-600/30 flex items-center gap-2 shrink-0 transform transition active:scale-95"
+            >
+              Configure API Gateways <ExternalLink size={16} />
+            </button>
           </div>
         </GlassCard>
       </div>
