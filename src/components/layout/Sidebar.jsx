@@ -39,7 +39,6 @@ import {
   AlertTriangle,
   Briefcase,
   FileText,
-  UserPlus,
   Laptop,
   QrCode,
   Bed,
@@ -55,13 +54,14 @@ import {
   Database,
   Command,
   Zap,
-  Lock
+  Lock,
+  TrendingDown
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import GlobalSearchModal from '../common/GlobalSearchModal';
 
-const Sidebar = ({ role }) => {
+const Sidebar = ({ role, isOpen, setIsOpen }) => {
   const { logout, userData } = useAuth();
   const { isFeatureAllowed, allowedFeaturesMap, currentSaaSPlan, schoolData } = useSchool();
   const location = useLocation();
@@ -156,6 +156,7 @@ const Sidebar = ({ role }) => {
               { name: 'SaaS AI Agent', icon: Bot, path: '/super-admin/ai-agent' },
               { name: 'Manage Schools', icon: School, path: '/super-admin/schools' },
               { name: 'Subscriptions & Matrix', icon: CreditCard, path: '/super-admin/subscriptions' },
+              { name: 'WhatsApp Bot Hub', icon: Smartphone, path: '/school-admin/sms' },
             ]
           },
           {
@@ -370,9 +371,15 @@ const Sidebar = ({ role }) => {
   const totalCatalogFeatures = 36;
   const activeFeaturesCount = Object.keys(allowedFeaturesMap || {}).filter(k => allowedFeaturesMap[k] === true).length || 24;
 
+  const handleItemClick = () => {
+    if (window.innerWidth < 768 && setIsOpen) {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <>
-      <div className="fixed inset-y-0 left-0 top-0 bottom-0 z-40 w-56 bg-dark-card border-r border-dark-border flex flex-col transition-all duration-300 h-full min-h-screen">
+      <div className={`fixed inset-y-0 left-0 top-0 bottom-0 z-40 w-56 bg-dark-card border-r border-dark-border flex flex-col transition-transform duration-300 h-full min-h-screen ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
         
         {/* Sleek Sidebar Header Emblem (Clickable to navigate Home) */}
         <div className="flex items-center justify-between border-b border-dark-border px-3 h-16 flex-shrink-0 bg-dark-card/95">
@@ -494,16 +501,17 @@ const Sidebar = ({ role }) => {
                           </div>
                           {expanded[link.name] && (
                             <div className="ml-5 pl-2.5 border-l border-cyan-500/30 space-y-0.5 mt-0.5">
-                              {link.sublinks.map((sub) => (
+                              {link.sublinks.map((subLink) => (
                                 <NavLink
-                                  key={sub.path}
-                                  to={sub.path}
+                                  key={subLink.name}
+                                  to={subLink.path}
+                                  onClick={handleItemClick}
                                   className={({ isActive }) =>
                                     `${isActive ? 'text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/20 shadow-sm' : 'text-dark-muted hover:text-white hover:bg-white/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg`
                                   }
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
-                                  <span className="truncate">{sub.name}</span>
+                                  <span className="truncate">{subLink.name}</span>
                                 </NavLink>
                               ))}
                             </div>
@@ -511,8 +519,9 @@ const Sidebar = ({ role }) => {
                         </div>
                       ) : (
                         <NavLink
-                          key={link.path}
+                          key={link.name}
                           to={link.path}
+                          onClick={handleItemClick}
                           className={({ isActive }) =>
                             `${isActive ? 'sidebar-item-active !bg-gradient-to-r !from-cyan-500/20 !to-blue-500/10 !border-cyan-500/30 !text-cyan-400 font-bold shadow-sm' : 'sidebar-item text-dark-muted hover:text-white'} flex items-center transition-all duration-200 px-2.5 py-1.5 gap-2 justify-start rounded-xl`
                           }

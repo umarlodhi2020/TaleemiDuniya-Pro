@@ -48,7 +48,7 @@ export const SAAS_FEATURE_CATALOG = [
     title: 'AI School Copilot & Smart Assistant',
     path: '/school-admin/copilot',
     module: 'automation',
-    defaultPlans: ['premium', 'enterprise'],
+    defaultPlans: ['basic', 'standard', 'premium', 'enterprise'],
     addonPriceMonthly: 2500,
     description: 'Intelligent AI voice & text assistant to query school data, generate letters, draft reports, and analyze performance.'
   },
@@ -402,7 +402,7 @@ export const SAAS_FEATURE_CATALOG = [
     title: 'WhatsApp Cron Automation Engine',
     path: '/school-admin/whatsapp-automation',
     module: 'automation',
-    defaultPlans: ['premium', 'enterprise'],
+    defaultPlans: ['basic', 'standard', 'premium', 'enterprise'],
     addonPriceMonthly: 3000,
     description: 'Schedule automated daily attendance notifications, birthday wishes, fee reminders, and result announcements via WhatsApp.'
   },
@@ -411,7 +411,7 @@ export const SAAS_FEATURE_CATALOG = [
     title: 'WhatsApp & SMS AI Bot Hub',
     path: '/school-admin/sms',
     module: 'automation',
-    defaultPlans: ['premium', 'enterprise'],
+    defaultPlans: ['basic', 'standard', 'premium', 'enterprise'],
     addonPriceMonthly: 2500,
     description: 'Interactive SMS & WhatsApp broadcast campaigns with two-way AI conversational auto-replies.'
   },

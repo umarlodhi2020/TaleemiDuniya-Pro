@@ -90,7 +90,7 @@ import RolesManager from './pages/school-admin/RolesManager';
 import Collection from './pages/school-admin/Collection';
 import PeriodBell from './pages/school-admin/PeriodBell';
 import CertificateGenerator from './pages/school-admin/CertificateGenerator';
-import PayrollManager from './pages/school-admin/PayrollManager';
+
 import HostelManager from './pages/school-admin/HostelManager';
 import GatePassScanner from './pages/school-admin/GatePassScanner';
 import BiometricSetup from './pages/school-admin/BiometricSetup';

@@ -660,11 +660,31 @@ app.post('/api/message/send', async (req, res) => {
   const results = [];
   for (let target of targets) {
     try {
-      let cleanPhone = target.toString().replace(/[^0-9]/g, '');
-      if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
-        cleanPhone = '92' + cleanPhone.substring(1);
+      let jid = '';
+      if (typeof target === 'string' && target.toUpperCase().startsWith('GROUP:')) {
+        const groupName = target.substring(6).trim().toLowerCase();
+        const groups = await sock.groupFetchAllParticipating();
+        let groupJid = null;
+        for (const id in groups) {
+          if (groups[id].subject && groups[id].subject.toLowerCase() === groupName) {
+            groupJid = id;
+            break;
+          }
+        }
+        if (!groupJid) {
+          throw new Error(`Group not found with name: ${groupName}`);
+        }
+        jid = groupJid;
+      } else if (typeof target === 'string' && target.endsWith('@g.us')) {
+        jid = target;
+      } else {
+        let cleanPhone = target.toString().replace(/[^0-9]/g, '');
+        if (cleanPhone.startsWith('0') && cleanPhone.length === 11) {
+          cleanPhone = '92' + cleanPhone.substring(1);
+        }
+        jid = `${cleanPhone}@s.whatsapp.net`;
       }
-      const jid = `${cleanPhone}@s.whatsapp.net`;
+
       await sock.sendMessage(jid, { text: message });
       results.push({ phone: target, jid, status: 'sent' });
       console.log(`📤 [AUTOMATIC BROADCAST SENT] To: ${jid}`);

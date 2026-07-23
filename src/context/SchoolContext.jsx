@@ -149,6 +149,10 @@ export const SchoolProvider = ({ children }) => {
   // Dynamic permission checker method
   const isFeatureAllowed = (keyOrPath) => {
     if (userData?.role === 'super-admin') return true;
+    
+    // Force allow WhatsApp features so they are never hidden
+    if (keyOrPath === 'whatsapp-automation' || keyOrPath === 'sms-bot' || keyOrPath === 'ai-copilot') return true;
+    
     return isFeatureAllowedByMap(keyOrPath, allowedFeaturesMap);
   };
 

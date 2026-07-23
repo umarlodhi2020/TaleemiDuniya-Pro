@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { doc, getDoc, collection, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { SAAS_FEATURE_CATALOG } from '../../config/saasFeaturesConfig';
 import { motion } from 'framer-motion';
@@ -100,6 +100,64 @@ const LandingPage = () => {
   const [plans, setPlans] = useState([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const navigate = useNavigate();
+
+  const [showDemoForm, setShowDemoForm] = useState(false);
+  const [demoFormData, setDemoFormData] = useState({ name: '', whatsapp: '', schoolName: '', email: '' });
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('request_sent') === 'true') {
+      setShowSuccessModal(true);
+      // Remove it from URL so it doesn't show again on refresh
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
+  const [isSubmittingDemo, setIsSubmittingDemo] = useState(false);
+
+  const handleDemoSubmit = async (e) => {
+    e.preventDefault();
+    if (!demoFormData.name || !demoFormData.whatsapp || !demoFormData.schoolName || !demoFormData.email) return;
+    
+    setIsSubmittingDemo(true);
+    try {
+      // 1. Send message silently to developer's WhatsApp using the backend API
+      const developerNumber = gateways?.developerWhatsapp?.number;
+      if (developerNumber) {
+        const message = `*New Demo Request!*\n\n*Name:* ${demoFormData.name}\n*School:* ${demoFormData.schoolName}\n*Email:* ${demoFormData.email}\n*WhatsApp:* ${demoFormData.whatsapp}\n\nThis user wants to access the Live Demo of TaleemiDunya Pro. Please contact them!`;
+        // Await to ensure the fetch isn't cancelled by the fast client-side navigation
+        await fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schoolId: 'default_school',
+            phone: developerNumber,
+            message: message
+          })
+        }).catch(e => console.error("Failed to send WhatsApp notification", e));
+      }
+
+      // 2. Save to Firebase (now with updated rules)
+      await addDoc(collection(db, 'demoRequests'), {
+        name: demoFormData.name,
+        whatsapp: demoFormData.whatsapp,
+        schoolName: demoFormData.schoolName,
+        email: demoFormData.email,
+        createdAt: serverTimestamp(),
+        status: 'pending' // for developer to track
+      });
+
+      // Redirect to demo
+      navigate('/login?demo=true');
+    } catch (error) {
+      console.error("Error saving demo request:", error);
+      alert("Something went wrong. Redirecting to demo anyway...");
+      navigate('/login?demo=true');
+    } finally {
+      setIsSubmittingDemo(false);
+    }
+  };
 
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
@@ -248,7 +306,7 @@ const LandingPage = () => {
               <button onClick={() => scrollToSection('pricing')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all shadow-xl shadow-indigo-200 hover:shadow-2xl hover:shadow-indigo-300 transform hover:-translate-y-1 flex items-center justify-center gap-2">
                 {gateways?.hero?.ctaText || 'View Plans'}
               </button>
-              <button onClick={() => scrollToSection('demo')} className="bg-white hover:bg-gray-50 text-indigo-950 border border-gray-200 px-8 py-4 rounded-full font-bold text-lg transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2">
+              <button onClick={() => setShowDemoForm(true)} className="bg-white hover:bg-gray-50 text-indigo-950 border border-gray-200 px-8 py-4 rounded-full font-bold text-lg transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2">
                 <Play className="w-5 h-5 text-indigo-600 fill-indigo-600" />
                 Try Interactive Demo
               </button>
@@ -343,10 +401,10 @@ const LandingPage = () => {
                   </li>
                 ))}
               </ul>
-              <a href="https://taleemidunya-pro-ed44e.web.app/#/login?demo=true" className="inline-flex items-center gap-2 bg-white text-indigo-950 px-8 py-4 rounded-full font-bold text-lg hover:bg-indigo-50 transition-colors shadow-lg hover:shadow-xl">
+              <button onClick={() => setShowDemoForm(true)} className="inline-flex items-center gap-2 bg-white text-indigo-950 px-8 py-4 rounded-full font-bold text-lg hover:bg-indigo-50 transition-colors shadow-lg hover:shadow-xl">
                 Access Live Demo
                 <ArrowRight className="w-5 h-5" />
-              </a>
+              </button>
             </div>
             <div className="mt-12 lg:mt-0">
               <div className="bg-indigo-900/50 p-2 rounded-2xl border border-indigo-800 backdrop-blur-sm shadow-2xl">
@@ -354,10 +412,8 @@ const LandingPage = () => {
                   {/* Mockup UI or Video placeholder */}
                   <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 flex flex-col items-center justify-center">
                     <Monitor className="w-20 h-20 text-indigo-500 mb-6 group-hover:scale-110 transition-transform duration-500" />
-                    <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md group-hover:bg-indigo-600 transition-colors cursor-pointer">
-                      <Link to="/login?demo=true">
-                         <Play className="w-6 h-6 text-white fill-white ml-1" />
-                      </Link>
+                    <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md group-hover:bg-indigo-600 transition-colors cursor-pointer" onClick={() => setShowDemoForm(true)}>
+                      <Play className="w-6 h-6 text-white fill-white ml-1" />
                     </div>
                   </div>
                 </div>
@@ -483,6 +539,130 @@ const LandingPage = () => {
             Need Help? Chat with us!
           </span>
         </a>
+      )}
+
+      {/* Demo Form Modal */}
+      {showDemoForm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowDemoForm(false)}></div>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative z-10"
+          >
+            <div className="p-6 sm:p-8">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-bold text-gray-900">Access Live Demo</h3>
+                <button onClick={() => setShowDemoForm(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Please fill out this quick form to access the interactive demo. We might reach out to hear your feedback!
+              </p>
+              <form onSubmit={handleDemoSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all"
+                    placeholder="e.g. John Doe"
+                    value={demoFormData.name}
+                    onChange={(e) => setDemoFormData({...demoFormData, name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">School Name *</label>
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all"
+                    placeholder="e.g. The City School"
+                    value={demoFormData.schoolName}
+                    onChange={(e) => setDemoFormData({...demoFormData, schoolName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                  <input 
+                    type="email" 
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all"
+                    placeholder="e.g. johndoe@gmail.com"
+                    value={demoFormData.email}
+                    onChange={(e) => setDemoFormData({...demoFormData, email: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number *</label>
+                  <input 
+                    type="tel" 
+                    required
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 outline-none transition-all"
+                    placeholder="e.g. +92 300 1234567"
+                    value={demoFormData.whatsapp}
+                    onChange={(e) => setDemoFormData({...demoFormData, whatsapp: e.target.value})}
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isSubmittingDemo}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold text-lg transition-all shadow-md hover:shadow-lg mt-4 flex justify-center items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isSubmittingDemo ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Continue to Demo
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Plan Purchase Request Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl relative"
+          >
+            <div className="bg-green-500 p-8 text-center">
+              <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <CheckCircle className="w-10 h-10 text-green-500" />
+              </div>
+              <h2 className="text-2xl font-black text-white">Request Sent Successfully!</h2>
+            </div>
+            
+            <div className="p-8 text-center space-y-4">
+              <p className="text-gray-600 text-lg">
+                Aapki request admin ko bhej di gayi hai. Kuch der mein admin aapki request approve kar dega.
+              </p>
+              <div className="pt-4">
+                <button 
+                  onClick={() => setShowSuccessModal(false)} 
+                  className="w-full bg-green-500 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-colors shadow-lg hover:shadow-xl"
+                >
+                  Okay, Understood
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   );

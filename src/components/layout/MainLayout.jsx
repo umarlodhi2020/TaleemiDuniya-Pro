@@ -20,6 +20,7 @@ const MainLayout = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -160,11 +161,19 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg flex overflow-x-hidden">
-      <Sidebar role={userData?.role} />
+    <div className="min-h-screen bg-dark-bg flex overflow-x-hidden relative">
+      <Sidebar role={userData?.role} isOpen={isMobileSidebarOpen} setIsOpen={setIsMobileSidebarOpen} />
+      
+      {/* Mobile overlay */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
 
-      <div className="flex-1 flex flex-col min-w-0 pl-56 w-full max-w-full overflow-x-hidden">
-        <Navbar />
+      <div className="flex-1 flex flex-col min-w-0 md:pl-56 w-full max-w-full overflow-x-hidden">
+        <Navbar toggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)} />
 
         <main className="py-6 px-4 sm:px-6 lg:px-8 flex-1 transition-all duration-300 max-w-full overflow-x-hidden">
           <div className="max-w-6xl mx-auto">

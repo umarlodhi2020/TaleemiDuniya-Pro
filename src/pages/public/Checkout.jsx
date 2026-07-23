@@ -108,10 +108,12 @@ Please verify the payment and approve my account. (I am attaching the payment sc
         const waLink = `https://wa.me/${gateways.developerWhatsapp.number.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
         window.open(waLink, '_blank');
       } else {
-        alert("Thank you! Your payment proof has been submitted. Our team will verify and activate your account shortly.");
+        // Only show basic browser alert if redirect popup somehow fails
+        console.log("Thank you! Your payment proof has been submitted. Our team will verify and activate your account shortly.");
       }
       
-      navigate('/');
+      // Redirect directly to the web app domain (Firebase) and show the popup there
+      window.location.href = "https://taleemidunya-pro-ed44e.web.app/?request_sent=true";
     } catch (e) {
       alert("Error submitting request: " + e.message);
     } finally {
@@ -127,7 +129,7 @@ Please verify the payment and approve my account. (I am attaching the payment sc
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-indigo-500 selection:text-white py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        <button onClick={() => navigate('/')} className="flex items-center gap-2 text-indigo-600 font-bold mb-8 hover:bg-indigo-50 px-4 py-2 rounded-xl transition-colors">
+        <button onClick={() => window.location.href = "https://taleemiduniya-pro.vercel.app/"} className="flex items-center gap-2 text-indigo-600 font-bold mb-8 hover:bg-indigo-50 px-4 py-2 rounded-xl transition-colors">
           <ArrowLeft size={18} /> Back to Website
         </button>
 

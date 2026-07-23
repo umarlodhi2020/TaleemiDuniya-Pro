@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Search, User, ChevronDown, ChevronLeft, ChevronRight, Sun, Moon, Command, Monitor, Zap, UserPlus, CalendarCheck, DollarSign, Activity, BarChart3, Settings } from 'lucide-react';
+import { Bell, Search, User, ChevronDown, ChevronLeft, ChevronRight, Sun, Moon, Command, Monitor, Zap, UserPlus, CalendarCheck, DollarSign, Activity, BarChart3, Settings, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import PwaInstallButton from '../common/PwaInstallButton';
 import GlobalSearchModal from '../common/GlobalSearchModal';
 
-const Navbar = () => {
+const Navbar = ({ toggleSidebar }) => {
   const { userData } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
@@ -65,11 +65,18 @@ const Navbar = () => {
   return (
     <>
       <header className="h-20 bg-dark-bg/80 backdrop-blur-md border-b border-dark-border sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between transition-all duration-300 w-full max-w-full overflow-hidden shrink-0">
-        <div className="flex items-center gap-4 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          {/* Mobile Menu Toggle */}
+          <button 
+            onClick={toggleSidebar}
+            className="md:hidden p-2 -ml-2 text-dark-muted hover:text-white shrink-0"
+          >
+            <Menu size={24} />
+          </button>
 
           {/* Web App Brand Title (Clickable to Home) */}
           <NavLink to={getHomePath()} className="flex flex-col gap-1 hover:opacity-80 transition-opacity cursor-pointer shrink-0" title="Go to Home Dashboard">
-            <h1 className="text-xl font-extrabold bg-premium-gradient bg-clip-text text-transparent tracking-wide leading-none">
+            <h1 className="text-lg sm:text-xl font-extrabold bg-premium-gradient bg-clip-text text-transparent tracking-wide leading-none truncate">
               TaleemiDunya
             </h1>
             <div className="flex items-center gap-1.5 flex-wrap">
