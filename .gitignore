@@ -1,0 +1,23 @@
+# Exclude duplicate nested folder
+taleem dithub main/
+
+# Exclude sensitive Firebase files
+google-services*.json
+*-firebase-adminsdk-*.json
+
+# Exclude private signing files
+*.jks
+*.keystore
+Taleemidunya-pro app key store/
+
+# Exclude environment files
+.env
+.env.*
+
+# Exclude large archives
+*.rar
+*.zip
+
+# Ignore local files like DS_Store
+.DS_Store
+node_modules/

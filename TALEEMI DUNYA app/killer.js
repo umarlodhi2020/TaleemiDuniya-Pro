@@ -1,0 +1,1 @@
+﻿import { exec } from \u0027child_process\u0027; console.log(\u0027Killer starting...\u0027); exec(\u0027pkill -9 -u umarhayat node\u0027, (err, stdout, stderr) \u003d\u003e { console.log(\u0027Killed\u0027); process.exit(0); });
