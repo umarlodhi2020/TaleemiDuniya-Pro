@@ -1,0 +1,38 @@
+{
+  "appId": "com.taleemidunya.pocketapp",
+  "appName": "TaleemiDunya Pro",
+  "webDir": "www",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": [
+      "taleemidunya-pro-ed44e.web.app",
+      "*.firebaseapp.com",
+      "*.googleapis.com"
+    ]
+  },
+  "android": {
+    "overrideUserAgent": "Mozilla/5.0 (Linux; Android 12; Pixel 6 Build/SD1A.210817.036; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/121.0.6167.178 Mobile Safari/537.36",
+    "backgroundColor": "#090b10",
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false,
+    "buildOptions": {
+      "releaseType": "AAB"
+    }
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2500,
+      "launchAutoHide": true,
+      "backgroundColor": "#090b10",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": true,
+      "spinnerColor": "#9333ea"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#090b10"
+    }
+  }
+}

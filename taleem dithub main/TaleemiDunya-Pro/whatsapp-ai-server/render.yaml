@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: taleemidunya-whatsapp-ai-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/session/status?schoolId=default_school
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: NODE_VERSION
+        value: "20"

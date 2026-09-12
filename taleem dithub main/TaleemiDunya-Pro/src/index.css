@@ -1,0 +1,419 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary-50: 240 249 255;
+  --color-primary-100: 224 242 254;
+  --color-primary-200: 186 230 253;
+  --color-primary-300: 125 211 252;
+  --color-primary-400: 56 189 248;
+  --color-primary-500: 14 165 233;
+  --color-primary-600: 2 132 199;
+  --color-primary-700: 3 105 161;
+  --color-primary-800: 7 89 133;
+  --color-primary-900: 12 74 110;
+  --color-primary-950: 8 47 73;
+}
+
+@theme {
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+  --color-primary-950: #1e1b4b;
+
+  --color-secondary-50: #fdf2f8;
+  --color-secondary-100: #fce7f3;
+  --color-secondary-200: #fbcfe8;
+  --color-secondary-300: #f9a8d4;
+  --color-secondary-400: #f472b6;
+  --color-secondary-500: #ec4899;
+  --color-secondary-600: #db2777;
+  --color-secondary-700: #be185d;
+  --color-secondary-800: #9d174d;
+  --color-secondary-900: #831843;
+  --color-secondary-950: #500724;
+
+  --color-dark-bg: #09090b;
+  --color-dark-card: #18181b;
+  --color-dark-border: #27272a;
+  --color-dark-hover: #27272a;
+  --color-dark-text: #fafafa;
+  --color-dark-muted: #a1a1aa;
+
+  --background-image-glass-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  --background-image-premium-gradient: linear-gradient(135deg, #4f46e5 0%, #db2777 100%);
+}
+
+@layer base {
+  :root {
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    color-scheme: dark;
+    color: #ffffff;
+    background-color: #0a0a0c;
+    font-size: 14.5px; /* Sleek Executive Compact Scaling (~90% of default 16px) */
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--color-dark-bg);
+    color: var(--color-dark-text);
+    zoom: 0.90; /* Global Compact Zoom Out (`zoom in kam kro`) so full UI is visible on screen without scrolling! */
+  }
+}
+
+/* Dynamic UI Zoom / Display Density Overrides */
+html[data-ui-zoom="80"] body { zoom: 0.80 !important; }
+html[data-ui-zoom="85"] body { zoom: 0.85 !important; }
+html[data-ui-zoom="90"] body { zoom: 0.90 !important; }
+html[data-ui-zoom="95"] body { zoom: 0.95 !important; }
+html[data-ui-zoom="100"] body { zoom: 1.0 !important; }
+
+/* ==========================================================================
+   DUAL THEME ENGINE (CLEAN WHITE / LIGHT MODE GUARANTEED OVERRIDES)
+   ========================================================================== */
+html.light-mode {
+  color-scheme: light !important;
+  background-color: #f4f6f9 !important;
+  /* Override ALL CSS custom properties for light mode */
+  --color-dark-bg: #f4f6f9 !important;
+  --color-dark-card: #ffffff !important;
+  --color-dark-border: #e9ecef !important;
+  --color-dark-hover: #f8f9fa !important;
+  --color-dark-text: #343a40 !important;
+  --color-dark-muted: #6c757d !important;
+}
+
+html.light-mode body {
+  background-color: #f4f6f9 !important;
+  color: #343a40 !important;
+}
+
+/* === HEADER / NAVBAR === */
+html.light-mode header {
+  background: #ffffff !important;
+  border-bottom: 1px solid #dee2e6 !important;
+  box-shadow: none !important;
+}
+html.light-mode header h1 { color: #343a40 !important; font-weight: 600 !important; }
+html.light-mode header * { color: #495057 !important; }
+html.light-mode header .text-primary-400, 
+html.light-mode header .text-primary-500 { color: #0284c7 !important; }
+html.light-mode header .text-amber-400 { color: #d97706 !important; }
+html.light-mode header .text-cyan-400 { color: #0891b2 !important; }
+html.light-mode header .text-green-400 { color: #16a34a !important; }
+html.light-mode header button { color: #6c757d !important; }
+html.light-mode header button:hover { color: #343a40 !important; }
+html.light-mode header .bg-dark-card { background-color: #f8f9fa !important; border-color: #e9ecef !important; }
+
+/* === SIDEBAR (Supports both new <aside> and old cached <div>) === */
+html.light-mode aside,
+html.light-mode div.fixed.z-40.w-56 {
+  background-color: #16161a !important;
+  border-right: 1px solid #232329 !important;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
+}
+html.light-mode aside .bg-dark-card,
+html.light-mode aside [class*="bg-dark-card"],
+html.light-mode div.fixed.z-40.w-56 .bg-dark-card,
+html.light-mode div.fixed.z-40.w-56 [class*="bg-dark-card"] {
+  background-color: transparent !important;
+}
+html.light-mode aside .text-dark-muted,
+html.light-mode div.fixed.z-40.w-56 .text-dark-muted { 
+  color: #94a3b8 !important; 
+}
+html.light-mode aside .text-white,
+html.light-mode div.fixed.z-40.w-56 .text-white { 
+  color: #ffffff !important; 
+}
+html.light-mode aside .sidebar-item-active,
+html.light-mode aside .sidebar-item-active *,
+html.light-mode div.fixed.z-40.w-56 .sidebar-item-active,
+html.light-mode div.fixed.z-40.w-56 .sidebar-item-active * { 
+  background-color: #2b2d3c !important; 
+  color: #ffffff !important; 
+  border-left: 3px solid #6366f1 !important;
+  border-right: none !important;
+  border-radius: 0 !important;
+}
+html.light-mode aside .sidebar-item:hover,
+html.light-mode div.fixed.z-40.w-56 .sidebar-item:hover { 
+  background-color: rgba(255,255,255,0.05) !important; 
+  color: #ffffff !important; 
+}
+
+/* === MAIN BACKGROUND & CONTAINERS === */
+/* === MAIN BACKGROUND & CONTAINERS === */
+/* Removed old hacks since tailwind.config.js now uses CSS vars */
+html.light-mode main,
+html.light-mode .min-h-screen { background-color: #f4f6f9 !important; }
+
+html.light-mode .bg-dark-card { 
+  box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.2) !important;
+  border-radius: 4px !important;
+}
+
+/* === TEXT === */
+
+/* All plain text-white inside cards becomes dark in light mode */
+html.light-mode .glass-card .text-white,
+html.light-mode .bg-dark-card .text-white,
+html.light-mode main .text-white { color: #343a40 !important; }
+
+/* === GLASS CARD === */
+html.light-mode .glass-card {
+  background-color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 0 1px rgba(0,0,0,.125), 0 1px 3px rgba(0,0,0,.2) !important;
+  backdrop-filter: none !important;
+  border-top: 3px solid #6366f1 !important;
+  border-radius: 4px !important;
+}
+html.light-mode .glass-card-hover:hover {
+  box-shadow: 0 14px 28px rgba(0,0,0,0.1), 0 10px 10px rgba(0,0,0,0.05) !important;
+}
+
+/* === BUTTONS & INPUTS === */
+html.light-mode .premium-input {
+  background-color: #ffffff !important;
+  border: 1px solid #ced4da !important;
+  color: #495057 !important;
+  border-radius: 4px !important;
+}
+html.light-mode .premium-button-secondary {
+  background-color: #f8f9fa !important;
+  border: 1px solid #ced4da !important;
+  color: #495057 !important;
+  border-radius: 4px !important;
+}
+html.light-mode .premium-button-primary {
+  border-radius: 4px !important;
+  background-image: none !important;
+  background-color: #6366f1 !important;
+}
+
+/* Semi-transparent white overlays flip to light gray */
+html.light-mode [class*="bg-white/5"],
+html.light-mode [class*="bg-white/10"] {
+  background-color: rgba(241,245,249,0.9) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Dark overlays used for modals / dropdowns */
+html.light-mode [class*="bg-dark-bg/"] { background-color: rgba(248,250,252,0.95) !important; }
+html.light-mode [class*="bg-dark-card/"] { background-color: rgba(255,255,255,0.95) !important; }
+
+
+@layer components {
+  .glass-card {
+    background-color: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+  
+  .glass-card-hover:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  }
+
+  .premium-input {
+    background-color: var(--color-dark-card);
+    border: 1px solid var(--color-dark-border);
+    border-radius: 0.75rem;
+    padding: 0.625rem 1rem;
+    outline: 2px solid transparent;
+    transition: all 200ms;
+    font-size: 0.875rem;
+  }
+
+  .premium-input:focus {
+    border-color: var(--color-primary-500);
+    box-shadow: 0 0 0 1px var(--color-primary-500);
+  }
+
+  .premium-button {
+    padding: 0.625rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: all 300ms;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .premium-button:active {
+    transform: scale(0.95);
+  }
+
+  .premium-button-primary {
+    background-image: var(--background-image-premium-gradient);
+    color: white;
+    box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.2);
+    padding: 0.625rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: all 300ms;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .premium-button-primary:hover {
+    box-shadow: 0 20px 25px -5px rgba(99, 102, 241, 0.4);
+  }
+
+  .premium-button-secondary {
+    background-color: var(--color-dark-card);
+    border: 1px solid var(--color-dark-border);
+    color: var(--color-dark-text);
+    padding: 0.625rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: all 300ms;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .premium-button-secondary:hover {
+    background-color: var(--color-dark-hover);
+  }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    transition: all 200ms;
+    color: var(--color-dark-muted);
+  }
+
+  .sidebar-item:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .sidebar-item-active {
+    background-color: rgba(99, 102, 241, 0.1);
+    color: var(--color-primary-500);
+    font-weight: 600;
+    border-right: 4px solid var(--color-primary-500);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem 0 0 0.75rem;
+    transition: all 200ms;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--color-dark-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-dark-border);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-dark-muted);
+}
+
+/* ==========================================================================
+   UNIVERSAL WHITE-PAPER PRINT ENGINE (@media print)
+   Ensure clean, high-contrast black & white printing across all printable modules
+   ========================================================================== */
+@media print {
+  @page {
+    margin: 1cm;
+    size: auto;
+  }
+
+  html, body, .min-h-screen, [class*="bg-dark-bg"] {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    background-image: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide navigation, sidebars, floating AI widget, and non-printable elements */
+  header,
+  aside,
+  .no-print,
+  button:not(.print-allow),
+  [class*="fixed"],
+  [class*="sticky"] {
+    display: none !important;
+  }
+
+  /* Force main container to use 100% width cleanly without margin offset */
+  main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Force all glass cards, grids, and containers to render as crisp white boxes with thin borders */
+  .glass-card,
+  [class*="bg-dark-card"],
+  [class*="bg-white/5"],
+  [class*="bg-slate"] {
+    background-color: #ffffff !important;
+    backdrop-filter: none !important;
+    border: 1px solid #cccccc !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+
+  /* Force all typography and text colors inside print view to pure black */
+  p, h1, h2, h3, h4, h5, h6, span, div, td, th, label {
+    color: #000000 !important;
+    text-shadow: none !important;
+  }
+
+  /* Keep table borders crisp and distinct */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th, td {
+    border: 1px solid #999999 !important;
+    padding: 6px 8px !important;
+  }
+
+  /* Ensure page breaks don't split cards or table rows awkwardly */
+  .glass-card,
+  tr,
+  .print-page-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}

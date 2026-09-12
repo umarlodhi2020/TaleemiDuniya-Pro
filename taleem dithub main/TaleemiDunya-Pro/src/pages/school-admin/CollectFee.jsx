@@ -1,0 +1,1864 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
+import { getRecords, addRecord, updateRecord, deleteRecord, subscribeToCollection } from '../../services/db';
+import GlassCard from '../../components/common/GlassCard';
+import {
+  Search, Receipt, CheckCircle, Printer, MessageCircle,
+  DollarSign, History, X, TrendingUp, Wallet, AlertCircle,
+  Calendar, Users, ChevronRight, Tag, Banknote, Clock,
+  CreditCard, Award, ArrowRight, Zap, Phone, PlusCircle, FileText
+} from 'lucide-react';
+
+// ─── Helper Functions ───────────────────────────────────────────────────────
+const getFamilyKey = (student) => {
+  let key = student.familyId;
+  if (key) return key;
+  const cnicKey = student.fatherCnic ? String(student.fatherCnic).replace(/[^0-9]/g, '') : null;
+  const phoneKey = String(student.parentPhone || student.fatherPhone || student.phone || '');
+  const cleanPhone = String(phoneKey).replace(/[^0-9]/g, '');
+  const nameKey = student.fatherName ? String(student.fatherName).trim().toLowerCase() : 'unknown_father';
+  const isScientificPhone = phoneKey.toUpperCase().includes('E');
+  const isDummyPhone = cleanPhone === '00000000000' || cleanPhone === '1234567890';
+  const isValidPhone = cleanPhone.length >= 10 && !isScientificPhone && !isDummyPhone;
+  if (cnicKey && cnicKey.length > 8) return `cnic_${cnicKey}`;
+  if (isValidPhone && nameKey !== 'unknown_father') return `phone_${cleanPhone}_fname_${nameKey.replace(/\s+/g, '_')}`;
+  if (isValidPhone) return `phone_${cleanPhone}`;
+  return `student_${student.id}`;
+};
+
+const parseDateSafely = (val) => {
+  if (!val) return new Date(0);
+  if (typeof val === 'object' && val.toDate) return val.toDate();
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? new Date(0) : d;
+};
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+const CollectFee = () => {
+  const navigate = useNavigate();
+  const { userData } = useAuth();
+  const { schoolData } = useSchool();
+  const schoolName = schoolData?.name || schoolData?.schoolName || userData?.schoolName || 'SCHOOL';
+  const schoolId = userData?.schoolId || 'default-school';
+
+  const [loading, setLoading] = useState(true);
+  const [allStudents, setAllStudents] = useState([]);
+  const [allVouchers, setAllVouchers] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState({ today: 0, month: 0, arrears: 0 });
+  const [recentPayments, setRecentPayments] = useState([]);
+
+  // Step-based Flow
+  const [step, setStep] = useState(1); // 1=Search, 2=Details, 3=Success
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const wrapperRef = useRef(null);
+
+  const [selectedFamily, setSelectedFamily] = useState(null);
+  const [familyStudents, setFamilyStudents] = useState([]);
+  const [pendingVouchers, setPendingVouchers] = useState([]);
+  const [paidVouchersForFamily, setPaidVouchersForFamily] = useState([]);
+
+  // Payment state (one entry per voucher)
+  const [paymentEntries, setPaymentEntries] = useState({});
+  const [processingId, setProcessingId] = useState(null);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(true);
+  const [lastReceipt, setLastReceipt] = useState(null);
+
+  // Direct On-the-Spot Collection State (when no vouchers exist)
+  const [directPayAmount, setDirectPayAmount] = useState('');
+  const [directDiscount, setDirectDiscount] = useState('');
+  const [directPayDate, setDirectPayDate] = useState(new Date().toISOString().split('T')[0]);
+  const [directMonth, setDirectMonth] = useState(new Date().toISOString().slice(0, 7));
+
+  // Edit Payment State
+  const [editingVoucher, setEditingVoucher] = useState(null);
+  const [editForm, setEditForm] = useState({ paidAmount: '', discountAmount: '', status: 'Paid' });
+  const [editProcessing, setEditProcessing] = useState(false);
+
+  // Voucher Detail Modal State
+  const [detailVoucher, setDetailVoucher] = useState(null);
+
+  // ─── Real-time Data Listener ────────────────────────────────────────────
+  useEffect(() => {
+    setLoading(true);
+    let latestStudents = [], latestVouchers = [], studentsLoaded = false, vouchersLoaded = false;
+
+    const processData = (students, vouchers) => {
+      setAllStudents(students);
+      setAllVouchers(vouchers);
+      const paidVouchers = vouchers
+        .filter(v => (v.status === 'Paid' || v.status === 'Partial') && v.paidAt)
+        .sort((a, b) => parseDateSafely(b.paidAt) - parseDateSafely(a.paidAt));
+      setRecentPayments(paidVouchers.slice(0, 50));
+      let todayTotal = 0, monthTotal = 0;
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      const thisMonth = today.getMonth(), thisYear = today.getFullYear();
+      
+      const voucherArrears = vouchers.reduce((acc, v) => {
+        const tot = Number(v.totalAmount) || 0;
+        const paid = Number(v.paidAmount) || 0;
+        const disc = Number(v.discountAmount) || 0;
+        const rem = tot - paid - disc;
+        if (v.paidAt && (v.status === 'Paid' || v.status === 'Partial')) {
+          const pDate = parseDateSafely(v.paidAt);
+          if (pDate.toISOString().split('T')[0] === todayStr) todayTotal += paid;
+          if (pDate.getMonth() === thisMonth && pDate.getFullYear() === thisYear) monthTotal += paid;
+        }
+        return acc + (rem > 0 ? rem : 0);
+      }, 0);
+
+      const studentProfileArrears = students.reduce((acc, s) => {
+        const bal = Number(s.balance !== undefined && s.balance !== '' ? s.balance : (s.arrears || 0));
+        return acc + (bal > 0 ? bal : 0);
+      }, 0);
+
+      const totalArrears = voucherArrears > 0 ? voucherArrears : studentProfileArrears;
+      setDashboardStats({ today: todayTotal, month: monthTotal, arrears: totalArrears });
+      setLoading(false);
+    };
+
+    const unsubStudents = subscribeToCollection('students', schoolId, (s) => {
+      latestStudents = s || []; studentsLoaded = true;
+      if (vouchersLoaded) processData(latestStudents, latestVouchers);
+    });
+    const unsubVouchers = subscribeToCollection('vouchers', schoolId, (v) => {
+      latestVouchers = v || []; vouchersLoaded = true;
+      if (studentsLoaded) processData(latestStudents, latestVouchers);
+    });
+    return () => { unsubStudents(); unsubVouchers(); };
+  }, [schoolId]);
+
+  // Family profile breakdown (calculated from student profile baseline)
+  const familyProfileBreakdown = useMemo(() => {
+    if (!familyStudents || familyStudents.length === 0) return { children: [], totalMonthly: 0, totalAnnual: 0, totalArrears: 0, totalOther: 0, grandTotal: 0 };
+    
+    let totalMonthly = 0;
+    let totalAnnual = 0;
+    let totalArrears = 0;
+    let totalOther = 0;
+
+    const children = familyStudents.map(s => {
+      const monthly = Number(s.monthlyFee !== undefined && s.monthlyFee !== '' ? s.monthlyFee : (s.tuitionFee !== undefined && s.tuitionFee !== '' ? s.tuitionFee : (s.fee || 0))) || 0;
+      const annual = Number(s.annualFee !== undefined && s.annualFee !== '' ? s.annualFee : (s.annualFund !== undefined && s.annualFund !== '' ? s.annualFund : (s.annual || 0))) || 0;
+      const arrears = Number(s.balance !== undefined && s.balance !== '' ? s.balance : (s.arrears !== undefined && s.arrears !== '' ? s.arrears : (s.previousBalance || 0))) || 0;
+      const other = Number(s.otherFee || s.otherCharges || s.otherBalance || s.admissionFee || s.examFee || 0) || 0;
+      const childTotal = monthly + annual + arrears + other;
+
+      totalMonthly += monthly;
+      totalAnnual += annual;
+      totalArrears += arrears;
+      totalOther += other;
+
+      return {
+        id: s.id,
+        name: s.name,
+        class: s.class,
+        rollNo: s.rollNumber || s.rollNo || s.grNo || '-',
+        monthly,
+        annual,
+        arrears,
+        other,
+        childTotal
+      };
+    });
+
+    const grandTotal = totalMonthly + totalAnnual + totalArrears + totalOther;
+    return { children, totalMonthly, totalAnnual, totalArrears, totalOther, grandTotal };
+  }, [familyStudents]);
+
+  // ─── Update pending vouchers when family is selected ─────────────────────
+  useEffect(() => {
+    if (!selectedFamily) return;
+    const studs = allStudents.filter(s => getFamilyKey(s) === selectedFamily.key);
+    setFamilyStudents(studs);
+
+    let pending = allVouchers.filter(v => {
+      if (v.status === 'Paid') return false;
+      if (v.selectionType === 'family') {
+        if (v.childrenDetails?.length > 0) {
+          return v.childrenDetails.some(vc =>
+            studs.some(s =>
+              (s.rollNumber && String(s.rollNumber).trim() === String(vc.admNo).trim()) ||
+              (s.rollNo && String(s.rollNo).trim() === String(vc.admNo).trim()) ||
+              s.id === v.childrenIds?.[v.childrenDetails?.indexOf(vc)]
+            )
+          );
+        }
+        // Fallbacks for legacy family vouchers without childrenDetails
+        if (v.familyId && selectedFamily.key) return v.familyId === selectedFamily.key;
+        
+        const vCnic = String(v.fatherCnic || '').replace(/[^0-9]/g, '');
+        const sCnic = String(studs[0]?.fatherCnic || '').replace(/[^0-9]/g, '');
+        if (vCnic && sCnic && vCnic.length > 8) return vCnic === sCnic;
+        
+        const vPhone = String(v.phone || v.parentPhone || '').replace(/[^0-9]/g, '');
+        const sPhone = String(studs[0]?.parentPhone || studs[0]?.phone || '').replace(/[^0-9]/g, '');
+        const isDummyPhone = (p) => p === '00000000000' || p === '1234567890' || p === '03000000000' || p === '0000000000';
+        if (vPhone && sPhone && vPhone.length >= 10 && vPhone === sPhone && !isDummyPhone(vPhone)) return true;
+        
+        return false; // Do not blindly match by father name alone
+      } else {
+        return studs.some(s => s.id === v.studentId);
+      }
+    });
+
+    // Only show the most recent pending voucher to avoid double payments of rolled-over arrears
+    pending.sort((a, b) => {
+      const dateA = parseDateSafely(a.createdAt || a.month || 0);
+      const dateB = parseDateSafely(b.createdAt || b.month || 0);
+      return dateB - dateA;
+    });
+    if (pending.length > 1) {
+      pending = [pending[0]];
+    }
+
+    const paid = allVouchers.filter(v => {
+      if (v.status !== 'Paid' && v.status !== 'Partial') return false;
+      if (v.selectionType === 'family') {
+        return v.childrenDetails?.some(vc =>
+          studs.some(s =>
+            (s.rollNumber && String(s.rollNumber).trim() === String(vc.admNo).trim()) ||
+            (s.rollNo && String(s.rollNo).trim() === String(vc.admNo).trim()) ||
+            s.id === v.childrenIds?.[v.childrenDetails?.indexOf(vc)]
+          )
+        );
+      }
+      return studs.some(s => s.id === v.studentId);
+    }).sort((a, b) => parseDateSafely(b.paidAt) - parseDateSafely(a.paidAt));
+
+    setPendingVouchers(pending);
+    setPaidVouchersForFamily(paid);
+
+    const entries = {};
+    pending.forEach(v => {
+      const rem = (Number(v.totalAmount) || 0) - (Number(v.paidAmount) || 0) - (Number(v.discountAmount) || 0);
+      entries[v.id] = { payAmount: rem > 0 ? rem : 0, discountAmount: '', payDate: new Date().toISOString().split('T')[0] };
+    });
+    setPaymentEntries(entries);
+  }, [selectedFamily, allVouchers, allStudents]);
+
+  useEffect(() => {
+    if (familyProfileBreakdown.grandTotal > 0) {
+      setDirectPayAmount(String(familyProfileBreakdown.grandTotal));
+    } else {
+      setDirectPayAmount('');
+    }
+  }, [familyProfileBreakdown]);
+
+  // ─── Click Outside to close suggestions ──────────────────────────────────
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setShowSuggestions(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // ─── Search Logic ─────────────────────────────────────────────────────────
+  const searchSuggestions = searchTerm.length >= 2 ? (() => {
+    const term = searchTerm.toLowerCase();
+    const families = new Map();
+    allStudents.forEach(s => {
+      const gr = String(s.admissionNumber || s.rollNo || s.grNo || s.grNumber || s.rollNumber || '').toLowerCase();
+      const match = String(s.name || '').toLowerCase().includes(term) ||
+        String(s.fatherName || '').toLowerCase().includes(term) ||
+        gr.includes(term);
+      const voucherMatch = !match && allVouchers.some(v => {
+        const vNo = String(v.voucherNo || v.voucherNumber || v.id || '').toLowerCase();
+        if (!vNo.includes(term)) return false;
+        if (v.studentId) return v.studentId === s.id;
+        return v.childrenDetails?.some(vc =>
+          gr && String(vc.admNo || '').trim().toLowerCase() === gr
+        );
+      });
+      if (match || voucherMatch) {
+        const key = getFamilyKey(s);
+        if (!families.has(key)) {
+          families.set(key, { key, fatherName: s.fatherName || 'Unknown', phone: s.parentPhone || s.fatherPhone || s.phone || '', students: [] });
+        }
+        const entry = families.get(key);
+        if (!entry.students.find(x => x.id === s.id)) entry.students.push(s);
+      }
+    });
+    return Array.from(families.values()).slice(0, 8);
+  })() : [];
+
+  const handleSelectFamily = (fam) => {
+    setSelectedFamily(fam);
+    setSearchTerm('');
+    setShowSuggestions(false);
+    setStep(2);
+    setLastReceipt(null);
+  };
+
+  // Recalculate and sync accurate arrears from previous vouchers ledger
+  const handleSyncVoucherArrears = async (voucher) => {
+    if (!voucher) return;
+    try {
+      const studentIds = voucher.childrenIds || (voucher.studentId ? [voucher.studentId] : familyStudents.map(s => s.id));
+      const targetMonth = voucher.month;
+      
+      // Calculate true unpaid balance from prior vouchers
+      const priorVouchers = allVouchers.filter(v => {
+        if (v.id === voucher.id) return false;
+        if (v.month && targetMonth && v.month >= targetMonth) return false;
+        const vIds = v.childrenIds || (v.studentId ? [v.studentId] : []);
+        return vIds.some(id => studentIds.includes(id));
+      });
+
+      let trueArrears = 0;
+      if (priorVouchers.length > 0) {
+        priorVouchers.sort((a, b) => String(b.month || '').localeCompare(String(a.month || '')));
+        const latestMonth = priorVouchers[0].month;
+        const latestVouchers = priorVouchers.filter(v => v.month === latestMonth);
+        latestVouchers.forEach(v => {
+          if (v.status === 'Paid' || v.status === 'paid') return;
+          const due = Number(v.totalAmount) || 0;
+          const paid = Number(v.paidAmount) || 0;
+          const disc = Number(v.discountAmount) || 0;
+          trueArrears += Math.max(0, due - paid - disc);
+        });
+      } else {
+        trueArrears = familyStudents.reduce((sum, s) => {
+          const bal = Number(s.balance !== undefined ? s.balance : (s.arrears || 0));
+          return sum + (bal > 0 ? bal : 0);
+        }, 0);
+      }
+
+      // Update fee items of the voucher
+      const items = voucher.feeItems ? [...voucher.feeItems] : [];
+      const cleanItems = items.filter(i => 
+        !(i.name && (i.name.toLowerCase().includes('arrears') || i.name.toLowerCase().includes('previous balance')))
+      );
+      if (trueArrears > 0) {
+        cleanItems.push({ name: 'Previous Balance (Arrears)', amount: trueArrears });
+      }
+      const newTotal = cleanItems.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+      
+      await updateRecord('vouchers', voucher.id, {
+        feeItems: cleanItems,
+        totalAmount: newTotal
+      });
+
+      // Update local state
+      setAllVouchers(prev => prev.map(v => v.id === voucher.id ? { ...v, feeItems: cleanItems, totalAmount: newTotal } : v));
+      setPendingVouchers(prev => prev.map(v => v.id === voucher.id ? { ...v, feeItems: cleanItems, totalAmount: newTotal } : v));
+      alert(`✅ Voucher #${voucher.voucherNo || voucher.id.slice(0,6)} arrears updated to Rs. ${trueArrears.toLocaleString()} (New Total: Rs. ${newTotal.toLocaleString()})`);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to sync arrears: ' + e.message);
+    }
+  };
+
+  const resetSearch = () => {
+    setSelectedFamily(null);
+    setFamilyStudents([]);
+    setPendingVouchers([]);
+    setStep(1);
+    setSearchTerm('');
+    setLastReceipt(null);
+  };
+
+  // ─── Payment Handler ──────────────────────────────────────────────────────
+  const handlePayNow = async (voucher) => {
+    const entry = paymentEntries[voucher.id] || {};
+    const payAmount = Number(entry.payAmount) || 0;
+    const newDiscount = Number(entry.discountAmount) || 0;
+    if (payAmount <= 0 && newDiscount <= 0) { alert('Please enter a payment or discount amount'); return; }
+
+    const totalDue = Number(voucher.totalAmount) || 0;
+    const alreadyPaid = Number(voucher.paidAmount) || 0;
+    const alreadyDisc = Number(voucher.discountAmount) || 0;
+    const remaining = totalDue - alreadyPaid - alreadyDisc;
+
+    if ((payAmount + newDiscount) > remaining + 1) {
+      alert(`Cannot exceed remaining amount: Rs. ${remaining.toLocaleString()}`);
+      return;
+    }
+
+    setProcessingId(voucher.id);
+    try {
+      const newPaid = alreadyPaid + payAmount;
+      const totalDisc = alreadyDisc + newDiscount;
+      let newStatus = (newPaid + totalDisc) >= totalDue ? 'Paid' : (newPaid > 0 || totalDisc > 0) ? 'Partial' : 'Unpaid';
+
+      const historyEntry = {
+        amount: payAmount,
+        discount: newDiscount,
+        date: entry.payDate || new Date().toISOString(),
+        id: Date.now().toString()
+      };
+      const updatedHistory = [...(voucher.paymentHistory || []), historyEntry];
+
+      await updateRecord('vouchers', voucher.id, {
+        status: newStatus, paidAmount: newPaid, discountAmount: totalDisc,
+        paidAt: entry.payDate || new Date().toISOString(),
+        paymentHistory: updatedHistory
+      });
+
+      const phone = voucher.parentPhone || voucher.fatherPhone || voucher.phone ||
+        familyStudents[0]?.parentPhone || familyStudents[0]?.fatherPhone || familyStudents[0]?.phone || '';
+      const fatherName = voucher.fatherName || familyStudents[0]?.fatherName || 'Parent';
+
+      setLastReceipt({
+        voucherNo: voucher.voucherNo || voucher.voucherNumber || voucher.id.slice(0, 6),
+        fatherName, phone, month: voucher.month, totalDue,
+        paidAmount: newPaid, discountAmount: totalDisc,
+        currentPaid: payAmount,
+        previousPaid: alreadyPaid,
+        status: newStatus, remaining: totalDue - newPaid - totalDisc
+      });
+
+      if (whatsappEnabled && phone) {
+        const childrenText = voucher.selectionType === 'family' && voucher.childrenDetails
+          ? voucher.childrenDetails.map((c, i) =>
+              `${i + 1}. *${c.name}* | Grade: ${c.class || 'N/A'} | Roll: ${c.admNo || 'N/A'}`
+            ).join('\n')
+          : `*${voucher.studentName || 'Student'}*`;
+        const msg = `✅ *FEE PAYMENT RECEIPT*\n\nAssalam-o-Alaikum *${fatherName}* Sb!\n\n📚 *Children:*\n${childrenText}\n\n━━━━━━━━━━━━━━━━━━\n📅 Month: ${voucher.month || '-'}\n🧾 Voucher #: ${voucher.voucherNo || voucher.id.slice(0, 6)}\n💰 Total Due: Rs. ${totalDue.toLocaleString()}\n🎁 Discount: Rs. ${totalDisc.toLocaleString()}\n${alreadyPaid > 0 ? `🕒 Previously Paid: Rs. ${alreadyPaid.toLocaleString()}\n` : ''}✅ Amount Paid: *Rs. ${payAmount.toLocaleString()}*\n📉 Remaining: Rs. ${(totalDue - newPaid - totalDisc).toLocaleString()}\n━━━━━━━━━━━━━━━━━━\n\nShukria! Fees pay karne par bahut shukriya.\n— ${schoolName}`;
+        fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schoolId, phone, message: msg })
+        }).catch(() => {});
+      }
+
+      setStep(3);
+    } catch (err) {
+      console.error(err); alert('Payment failed. Please try again.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handlePayAll = async () => {
+    const totalRemaining = pendingVouchers.reduce((acc, v) => acc + Math.max(0, (Number(v.totalAmount)||0) - (Number(v.paidAmount)||0) - (Number(v.discountAmount)||0)), 0);
+    if (totalRemaining <= 0) return;
+    
+    if (!window.confirm(`Are you sure you want to pay ALL pending dues (Rs. ${totalRemaining.toLocaleString()})?`)) return;
+
+    setProcessingId('all');
+    try {
+      const updates = pendingVouchers.map(async (voucher) => {
+        const totalDue = Number(voucher.totalAmount) || 0;
+        const alreadyDisc = Number(voucher.discountAmount) || 0;
+        const newPaid = totalDue - alreadyDisc; // Pay remaining full
+        
+        await updateRecord('vouchers', voucher.id, {
+          status: 'Paid', 
+          paidAmount: newPaid, 
+          paidAt: new Date().toISOString()
+        });
+      });
+
+      await Promise.all(updates);
+      alert('✅ All pending vouchers marked as Paid successfully!');
+      
+      const phone = familyStudents[0]?.parentPhone || familyStudents[0]?.fatherPhone || familyStudents[0]?.phone || '';
+      const fatherName = familyStudents[0]?.fatherName || 'Parent';
+
+      if (whatsappEnabled && phone) {
+        const msg = `✅ *FEE PAYMENT RECEIPT*\n\nAssalam-o-Alaikum *${fatherName}* Sb!\n\nAll pending dues of *Rs. ${totalRemaining.toLocaleString()}* have been successfully paid. Thank you!\n— ${schoolName}`;
+        fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schoolId, phone, message: msg })
+        }).catch(() => {});
+      }
+
+      setStep(1); // Go back to search or refresh
+      resetSearch();
+    } catch (err) {
+      console.error(err); alert('Payment failed. Please try again.');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDirectPay = async () => {
+    const payAmt = Number(directPayAmount) || 0;
+    const discAmt = Number(directDiscount) || 0;
+    if (payAmt <= 0 && discAmt <= 0) {
+      alert('Please enter a payment or discount amount.');
+      return;
+    }
+
+    setProcessingId('direct');
+    try {
+      const totalDue = familyProfileBreakdown.grandTotal > 0 ? familyProfileBreakdown.grandTotal : payAmt;
+      const isPaid = (payAmt + discAmt) >= totalDue;
+      const status = isPaid ? 'Paid' : (payAmt > 0 || discAmt > 0 ? 'Partial' : 'Unpaid');
+
+      // Build fee items
+      const feeItems = [];
+      familyProfileBreakdown.children.forEach(c => {
+        if (c.monthly > 0) feeItems.push({ name: `Tuition Fee - ${c.name} (${c.class || 'N/A'})`, amount: c.monthly });
+        if (c.annual > 0) feeItems.push({ name: `Annual Fund - ${c.name}`, amount: c.annual });
+        if (c.other > 0) feeItems.push({ name: `Other Charges - ${c.name}`, amount: c.other });
+      });
+      if (familyProfileBreakdown.totalArrears > 0) {
+        feeItems.push({ name: 'Total Previous Arrears', amount: familyProfileBreakdown.totalArrears });
+      }
+      if (feeItems.length === 0) {
+        feeItems.push({ name: 'Fee Collection', amount: totalDue });
+      }
+      if (discAmt > 0) {
+        feeItems.push({ name: 'Discount / Scholarship', amount: -discAmt });
+      }
+
+      // Fetch max voucher no
+      let maxVoucherNo = 1000;
+      allVouchers.forEach(v => {
+        if (v.voucherNo && Number(v.voucherNo) > maxVoucherNo) maxVoucherNo = Number(v.voucherNo);
+      });
+      const nextVoucherNo = maxVoucherNo + 1;
+
+      const voucherDoc = {
+        voucherNo: nextVoucherNo,
+        selectionType: 'family',
+        month: directMonth || new Date().toISOString().slice(0, 7),
+        dueDate: directPayDate || new Date().toISOString().split('T')[0],
+        feeItems,
+        totalAmount: totalDue,
+        paidAmount: payAmt,
+        discountAmount: discAmt,
+        status,
+        paidAt: directPayDate ? new Date(directPayDate).toISOString() : new Date().toISOString(),
+        fatherCnic: selectedFamily.students?.[0]?.fatherCnic || '',
+        fatherName: selectedFamily.fatherName,
+        phone: selectedFamily.phone || '',
+        childrenIds: familyStudents.map(s => s.id),
+        childrenDetails: familyProfileBreakdown.children.map(c => ({
+          admNo: c.rollNo,
+          name: c.name,
+          class: c.class,
+          fee: c.monthly,
+          annualFee: c.annual,
+          arrears: c.arrears
+        })),
+        paymentHistory: [{
+          id: Date.now().toString(),
+          amount: payAmt,
+          discount: discAmt,
+          date: directPayDate ? new Date(directPayDate).toISOString() : new Date().toISOString(),
+          note: 'Direct Collection'
+        }]
+      };
+
+      await addRecord('vouchers', voucherDoc, schoolId);
+      
+      // Update student profile balances if arrears were paid
+      for (const student of familyStudents) {
+        const studentDue = familyProfileBreakdown.children.find(c => c.id === student.id)?.childTotal || 0;
+        if (studentDue > 0) {
+          const paidShare = Math.min(studentDue, Math.round(payAmt * (studentDue / totalDue)));
+          const currentArrears = Number(student.balance !== undefined ? student.balance : (student.arrears || 0));
+          if (currentArrears > 0 && paidShare > 0) {
+            const newArrears = Math.max(0, currentArrears - paidShare);
+            await updateRecord('students', student.id, { balance: newArrears, arrears: newArrears });
+          }
+        }
+      }
+
+      setLastReceipt({
+        voucherNo: nextVoucherNo,
+        fatherName: selectedFamily.fatherName,
+        phone: selectedFamily.phone,
+        month: voucherDoc.month,
+        totalDue,
+        paidAmount: payAmt,
+        discountAmount: discAmt,
+        currentPaid: payAmt,
+        previousPaid: 0,
+        status,
+        remaining: Math.max(0, totalDue - payAmt - discAmt)
+      });
+
+      if (whatsappEnabled && selectedFamily.phone) {
+        const childrenText = familyProfileBreakdown.children.map((c, i) =>
+          `${i + 1}. *${c.name}* | Grade: ${c.class || 'N/A'} | Roll: ${c.rollNo}`
+        ).join('\n');
+        const msg = `✅ *FEE PAYMENT RECEIPT*\n\nAssalam-o-Alaikum *${selectedFamily.fatherName}* Sb!\n\n📚 *Children:*\n${childrenText}\n\n━━━━━━━━━━━━━━━━━━\n📅 Month: ${voucherDoc.month}\n🧾 Receipt #: ${nextVoucherNo}\n💰 Total Due: Rs. ${totalDue.toLocaleString()}\n🎁 Discount: Rs. ${discAmt.toLocaleString()}\n✅ Amount Paid: *Rs. ${payAmt.toLocaleString()}*\n📉 Remaining: Rs. ${(Math.max(0, totalDue - payAmt - discAmt)).toLocaleString()}\n━━━━━━━━━━━━━━━━━━\n\nShukria! Fees pay karne par bahut shukriya.\n— ${schoolName}`;
+        fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ schoolId, phone: selectedFamily.phone, message: msg })
+        }).catch(() => {});
+      }
+
+      setStep(3);
+    } catch (err) {
+      console.error(err);
+      alert('Error recording payment: ' + err.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // ─── Edit Payment Handler ──────────────────────────────────────────────────
+  const openEditModal = (v) => {
+    setEditingVoucher(v);
+    setEditForm({
+      paidAmount: String(Number(v.paidAmount) || 0),
+      discountAmount: String(Number(v.discountAmount) || 0),
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingVoucher) return;
+    setEditProcessing(true);
+    const newPaid = Number(editForm.paidAmount) || 0;
+    const newDisc = Number(editForm.discountAmount) || 0;
+    const totalDue = Number(editingVoucher.totalAmount) || 0;
+    let autoStatus = (newPaid + newDisc) >= totalDue ? 'Paid' : newPaid > 0 ? 'Partial' : 'Unpaid';
+    try {
+      const historyEntry = {
+        amount: newPaid,
+        discount: newDisc,
+        date: new Date().toISOString(),
+        id: Date.now().toString(),
+        note: 'Manual Adjustment'
+      };
+      const updatedHistory = [...(editingVoucher.paymentHistory || []), historyEntry];
+
+      await updateRecord('vouchers', editingVoucher.id, {
+        paidAmount: newPaid, discountAmount: newDisc, status: autoStatus,
+        paymentHistory: updatedHistory
+      });
+      alert(`✅ Voucher updated! Status: ${autoStatus} | Paid: Rs. ${newPaid.toLocaleString()}`);
+      setEditingVoucher(null);
+    } catch(err) {
+      alert('❌ Error: ' + err.message);
+    } finally {
+      setEditProcessing(false);
+    }
+  };
+
+  // ─── Print Receipt Handler ───────────────────────────────────────────
+  const handlePrintReceipt = (receipt) => {
+    const logoHtml = schoolData?.logo
+      ? `<img src="${schoolData.logo}" />`
+      : `<div class="logo-fallback">${schoolName.charAt(0)}</div>`;
+
+    const tDue = Number(receipt.totalDue || receipt.totalAmount) || 0;
+    const tDisc = Number(receipt.discountAmount) || 0;
+    
+    // Check if we have current transaction amounts, otherwise fallback to cumulative totals
+    const tPaid = receipt.currentPaid !== undefined ? Number(receipt.currentPaid) : (Number(receipt.paidAmount) || 0);
+    const tPrevPaid = Number(receipt.previousPaid) || 0;
+    
+    const tBal = Math.max(0, tDue - (tPrevPaid + tPaid) - tDisc);
+    
+    let currentFee = 0;
+    let prevArrears = 0;
+    let annualFund = 0;
+    let otherCharges = 0;
+    
+    if (receipt.feeItems && receipt.feeItems.length > 0) {
+      receipt.feeItems.forEach(item => {
+        const name = String(item.name || '').toLowerCase();
+        const amt = Number(item.amount) || 0;
+        if (name.includes('annual')) {
+          annualFund += Math.abs(amt);
+        } else if (name.includes('arrear') || name.includes('previous') || name.includes('balance') || name.includes('baqaya') || name.includes('opening')) {
+          prevArrears += amt;
+        } else if (name.includes('discount') || name.includes('scholarship') || amt < 0) {
+          // discount
+        } else if (name.includes('tuition') || name.includes('monthly') || name === 'fee') {
+          currentFee += amt;
+        } else {
+          otherCharges += amt;
+        }
+      });
+    }
+
+    if (prevArrears === 0 && receipt.childrenDetails && Array.isArray(receipt.childrenDetails)) {
+      prevArrears = receipt.childrenDetails.reduce((sum, ch) => sum + (Number(ch.arrears) || 0), 0);
+    }
+    if (annualFund === 0 && receipt.childrenDetails && Array.isArray(receipt.childrenDetails)) {
+      annualFund = receipt.childrenDetails.reduce((sum, ch) => sum + (Number(ch.annualFee) || 0), 0);
+    }
+    
+    const totalPayable = tDue;
+    
+    const childRows = (receipt.childrenDetails && receipt.childrenDetails.length > 0) ? receipt.childrenDetails.map((c) => {
+      let childFee = Number(c.fee || c.feeAmount || c.totalFee || c.amount || 0);
+      if (!childFee && receipt.feeItems) {
+        if (receipt.childrenDetails.length === 1) {
+          childFee = currentFee > 0 ? currentFee : tDue;
+        } else {
+          const item = receipt.feeItems.find(f => {
+            const n = String(f.name || '').toLowerCase();
+            return c.name && n.includes(c.name.toLowerCase()) && !n.includes('arrear') && !n.includes('annual');
+          });
+          if (item) childFee = Number(item.amount);
+        }
+      }
+      return `<tr>
+        <td class="text-center">${c.admNo || '-'}</td>
+        <td>${c.name || '-'}</td>
+        <td class="text-center">${c.class || '-'}</td>
+        <td style="text-align:right; padding-right:10px;">${childFee > 0 ? childFee.toLocaleString() : '-'}</td>
+      </tr>`;
+    }).join('') : `<tr>
+        <td class="text-center">${receipt.rollNo || receipt.rollNumber || '-'}</td>
+        <td>${receipt.studentName || receipt.fatherName || '-'}</td>
+        <td class="text-center">${receipt.class || '-'}</td>
+        <td style="text-align:right; padding-right:10px;">${(currentFee > 0 ? currentFee : tDue).toLocaleString()}</td>
+      </tr>`;
+      
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<title>Fee Receipt - #${receipt.voucherNo}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Arial', sans-serif; font-size:12px; }
+  body { background:#f3f4f6; display:flex; justify-content:center; padding:20px; }
+  .no-print { text-align:center; margin-bottom: 20px; }
+  .print-btn { padding:10px 20px; background:#4f46e5; color:#fff; border:none; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 14px; }
+  .voucher-wrapper { display:flex; flex-direction: row; gap: 0; background:#f3f4f6; }
+  .voucher { width: 105mm; background: #fff; padding: 20px; position: relative; border: 1px solid #d1d5db; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+  .cut-line { width: 20px; display: flex; flex-direction: column; align-items: center; justify-content: space-around; position: relative; }
+  .cut-line::before { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; border-left: 1px dashed #9ca3af; }
+  .cut-icon { font-size: 14px; color: #9ca3af; background: #f3f4f6; z-index: 10; padding: 5px 0; }
+  .header { display:flex; align-items:center; gap:10px; border-bottom: 1px solid #000; padding-bottom:10px; margin-bottom:15px; }
+  .logo img { width:55px; height:55px; object-fit:contain; }
+  .logo-fallback { width:55px; height:55px; border-radius:50%; background:#4f46e5; display:flex; align-items:center; justify-content:center; color:white; font-size:24px; font-weight:900; }
+  .school-title { font-size:16px; font-weight:bold; color:#000; }
+  .branch-name { font-size:12px; color:#555; margin-top:2px; }
+  .copy-header { display:flex; justify-content:space-between; align-items:flex-end; font-weight:bold; margin-top:10px; text-transform:uppercase; font-size:11px; }
+  .info-grid { display:grid; grid-template-columns: 80px 1fr; row-gap: 6px; margin-bottom: 15px; font-size:12px; font-weight:bold; }
+  .info-grid .label { font-weight:bold; color:#000; }
+  .info-grid .value { font-weight:normal; color:#000; }
+  .table { width:100%; border-collapse:collapse; margin-bottom: 0; }
+  .table th, .table td { border:1px solid #6b7280; padding:6px; text-align:left; }
+  .table th { background:#6b7280; color:#fff; font-size: 11px; font-weight:bold; border: 1px solid #6b7280; }
+  .text-center { text-align:center !important; }
+  .totals-row { display:flex; justify-content:space-between; font-weight:bold; font-size:12px; padding:6px; border:1px solid #6b7280; border-top:none; }
+  .totals-row.payable { background:#e5e7eb; font-size:13px; margin-top:10px; border:1px solid #6b7280; font-weight:900; }
+  .totals-row.received { background:#dcfce7; color:#166534; font-size:13px; border:1px solid #6b7280; border-top:none; font-weight:900; }
+  .totals-row.balance { background:#fef2f2; color:#991b1b; font-size:12px; border:1px solid #6b7280; border-top:none; font-weight:900; }
+  @media print {
+    body { background:#fff; padding:0; display:block; }
+    .voucher-wrapper { box-shadow:none; background:#fff; }
+    .voucher { border:1px solid #d1d5db; box-shadow:none; }
+    .cut-icon { background:#fff; }
+    .no-print { display:none !important; }
+  }
+</style>
+</head>
+<body>
+<div>
+  <div class="no-print">
+    <button class="print-btn" onclick="window.print()">🖨️ Print Receipt</button>
+  </div>
+  <div class="voucher-wrapper">
+    ${['SCHOOL COPY', 'PARENT COPY'].map((copyType, idx) => `
+      ${idx > 0 ? '<div class="cut-line"><div class="cut-icon">✂</div><div class="cut-icon">✂</div><div class="cut-icon">✂</div></div>' : ''}
+      <div class="voucher">
+        <div class="header">
+          <div class="logo">${logoHtml}</div>
+          <div style="flex:1;">
+            <div class="school-title">${schoolName}</div>
+            <div class="branch-name">Main</div>
+            <div class="copy-header">
+              <span>${copyType} (RECEIPT)</span>
+              <span>Voucher #${receipt.voucherNo}</span>
+            </div>
+          </div>
+        </div>
+        <div class="info-grid">
+          <div class="label">Month</div><div class="value">${receipt.month || '-'}</div>
+          <div class="label">Due Date</div><div class="value">${receipt.dueDate || '-'}</div>
+          <div class="label">Ft. Name</div><div class="value">${receipt.fatherName || '-'}</div>
+          <div class="label">No Of child</div><div class="value">${receipt.childrenDetails?.length || 1}</div>
+          <div class="label">NIC</div><div class="value">${receipt.fatherCnic || '-'}</div>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th style="width:15%;" class="text-center">Adm#</th>
+              <th style="width:40%;">Name</th>
+              <th style="width:15%;" class="text-center">Class</th>
+              <th style="width:30%; text-align:right; padding-right:10px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${childRows}
+          </tbody>
+        </table>
+        ${annualFund > 0 ? `
+          <div class="totals-row" style="background:#f0f9ff;">
+            <span style="flex:1; text-align:right; padding-right:10px; color:#0369a1;">Annual Fund</span>
+            <span style="width:30%; padding-left:6px; border-left:1px solid #6b7280; text-align:right; color:#0369a1;">${annualFund.toLocaleString()}</span>
+          </div>
+        ` : ''}
+        ${otherCharges > 0 ? `
+          <div class="totals-row">
+            <span style="flex:1; text-align:right; padding-right:10px;">Other Charges</span>
+            <span style="width:30%; padding-left:6px; border-left:1px solid #6b7280; text-align:right;">${otherCharges.toLocaleString()}</span>
+          </div>
+        ` : ''}
+        ${prevArrears > 0 ? `
+          <div class="totals-row" style="background:#fff1f2;">
+            <span style="flex:1; text-align:right; padding-right:10px; color:#be123c;">Total Previous Arrears</span>
+            <span style="width:30%; padding-left:6px; border-left:1px solid #6b7280; text-align:right; color:#be123c;">${prevArrears.toLocaleString()}</span>
+          </div>
+        ` : ''}
+        ${tDisc > 0 ? `
+          <div class="totals-row" style="background:#f0fdf4;">
+            <span style="flex:1; text-align:right; padding-right:10px; color:#15803d;">Discount / Concession</span>
+            <span style="width:30%; padding-left:6px; border-left:1px solid #6b7280; text-align:right; color:#15803d;">-${tDisc.toLocaleString()}</span>
+          </div>
+        ` : ''}
+        <div class="totals-row payable">
+          <span style="flex:1; text-align:right; padding-right:10px;">Total Payable</span>
+          <span style="width:30%; padding-left:6px; border-left:1px solid #6b7280; text-align:right;">${totalPayable.toLocaleString()}</span>
+        </div>
+        <div class="totals-row received">
+          <span style="flex:1; text-align:right; padding-right:10px;">Amount Received</span>
+          <span style="width:30%; padding-left:6px; border-left:1px solid #6b7280; text-align:right;">${tPaid.toLocaleString()}</span>
+        </div>
+        ${tBal > 0 ? `
+          <div class="totals-row balance">
+            <span style="flex:1; text-align:right; padding-right:10px;">Balance Remaining</span>
+            <span style="width:30%; padding-left:6px; border-left:1px solid #6b7280; text-align:right;">${tBal.toLocaleString()}</span>
+          </div>
+        ` : `
+          <div class="totals-row balance" style="background:#f0fdf4; color:#16a34a;">
+            <span style="flex:1; text-align:right; padding-right:10px;">Balance Remaining</span>
+            <span style="width:30%; padding-left:6px; border-left:1px solid #6b7280; text-align:right;">0</span>
+          </div>
+        `}
+      </div>
+    `).join('')}
+  </div>
+</div>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=950,height=700');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
+  const handleSendReminder = async (voucher) => {
+    const phone = voucher.parentPhone || voucher.fatherPhone || voucher.phone ||
+      familyStudents[0]?.parentPhone || familyStudents[0]?.fatherPhone || '';
+    const fatherName = voucher.fatherName || familyStudents[0]?.fatherName || 'Parent';
+    const remaining = (Number(voucher.totalAmount) || 0) - (Number(voucher.paidAmount) || 0) - (Number(voucher.discountAmount) || 0);
+    if (!phone) { alert('No phone number found!'); return; }
+    const msg = `⚠️ *FEE REMINDER*\n\nAssalam-o-Alaikum *${fatherName}* Sb!\n\n📅 *Month:* ${voucher.month || '-'}\n💰 *Outstanding Balance:* *Rs. ${remaining.toLocaleString()}*\n\nBraaye meherbani jald az jald fees ada karein.\nShukriya!\n— ${schoolName}`;
+    try {
+      await fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ schoolId, phone, message: msg })
+      });
+      alert(`✅ Reminder sent to ${phone}`);
+    } catch (e) { alert('Failed to send reminder'); }
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto"></div>
+          <p className="text-dark-muted text-sm font-bold uppercase tracking-widest mt-4">Loading Fee System...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleWipeUnpaidVouchers = async () => {
+    const unpaidVouchers = allVouchers.filter(v => v.status === 'Unpaid');
+    if (unpaidVouchers.length === 0) return alert('Koi bhi Unpaid voucher nahi mila!');
+    if (!window.confirm(`Kya aap wakai ${unpaidVouchers.length} saare UNPAID vouchers delete karna chahte hain?\n\nSirf Paid/Partial vouchers mehfooz rahein ge.`)) return;
+    try {
+      for (const v of unpaidVouchers) {
+        await deleteRecord('vouchers', v.id);
+      }
+      alert(`✅ ${unpaidVouchers.length} Unpaid vouchers successfully delete ho gaye!`);
+    } catch (err) {
+      alert('❌ Error: ' + err.message);
+    }
+  };
+
+  return (
+    <div className="p-4 md:p-8 space-y-6 animate-fade-in pb-32">
+
+      {/* ── Admin: Wipe Unpaid Vouchers ── */}
+      {allVouchers.filter(v => v.status === 'Unpaid').length > 0 && (
+        <div className="bg-rose-950/30 border border-rose-500/40 rounded-xl px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle size={18} className="text-rose-400" />
+            <span className="text-rose-300 text-sm font-bold">
+              {allVouchers.filter(v => v.status === 'Unpaid').length} Unpaid vouchers database mein hain (jo ghalti se bane thay)
+            </span>
+          </div>
+          <button
+            onClick={handleWipeUnpaidVouchers}
+            className="px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            🗑️ Saare Unpaid Vouchers Delete Karo
+          </button>
+        </div>
+      )}
+
+      {/* ── Top Stats ── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { label: "Today's Collection", value: dashboardStats.today, icon: Zap, color: 'emerald', gradient: 'from-emerald-500/20 to-emerald-500/5' },
+          { label: "This Month", value: dashboardStats.month, icon: Calendar, color: 'blue', gradient: 'from-blue-500/20 to-blue-500/5' },
+          { label: "Total Arrears", value: dashboardStats.arrears, icon: AlertCircle, color: 'rose', gradient: 'from-rose-500/20 to-rose-500/5' },
+        ].map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <GlassCard key={i} className={`p-5 bg-gradient-to-br ${stat.gradient} border-b-2 border-b-${stat.color}-500`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-dark-muted uppercase tracking-widest">{stat.label}</p>
+                  <p className={`text-2xl font-black text-${stat.color}-400 mt-1`}>Rs. {stat.value.toLocaleString()}</p>
+                </div>
+                <div className={`w-12 h-12 rounded-xl bg-${stat.color}-500/10 flex items-center justify-center text-${stat.color}-400`}>
+                  <Icon size={22} />
+                </div>
+              </div>
+            </GlassCard>
+          );
+        })}
+      </div>
+
+      {/* ── Step 1: Search ── */}
+      {step === 1 && (
+        <div className="space-y-6">
+          <GlassCard className="p-8 border-t-4 border-t-blue-500 relative z-50">
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                  <Search size={24} />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-black text-white">Collect Fee</h2>
+                  <p className="text-dark-muted text-sm font-bold">Search student by Roll No, Father Name, or Voucher No</p>
+                </div>
+              </div>
+
+              <div ref={wrapperRef} className="relative max-w-2xl z-50">
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Search size={20} className="text-dark-muted group-focus-within:text-blue-400 transition-colors" />
+                  </div>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => { setSearchTerm(e.target.value); setShowSuggestions(true); }}
+                    onFocus={() => setShowSuggestions(true)}
+                    placeholder="Type Roll No, Father Name, Student Name or Voucher No..."
+                    className="w-full bg-dark-card border border-dark-border text-white rounded-2xl py-5 pl-12 pr-5 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-bold text-base placeholder:text-dark-muted/60"
+                  />
+                  {searchTerm && (
+                    <button onClick={() => setSearchTerm('')} className="absolute inset-y-0 right-0 pr-4 flex items-center text-dark-muted hover:text-white transition-colors">
+                      <X size={18} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Suggestions Dropdown */}
+                {showSuggestions && searchSuggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-2xl shadow-black/50 z-50">
+                    {searchSuggestions.map((fam, idx) => (
+                      <button key={idx} onClick={() => handleSelectFamily(fam)}
+                        className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-dark-border/50 last:border-none text-left group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-black text-base uppercase">
+                            {(fam.students[0]?.name || fam.fatherName || '?').charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-black text-white text-sm">
+                              {fam.students.map(s => s.name).join(' & ')}
+                            </p>
+                            <p className="text-[11px] font-bold text-dark-muted">
+                              S/O {fam.fatherName} • Roll No: {fam.students.map(s => s.admissionNumber || s.rollNo || s.rollNumber || s.grNo || '-').join(', ')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {fam.phone && (
+                            <span className="text-[10px] font-bold text-dark-muted">{fam.phone}</span>
+                          )}
+                          <ChevronRight size={16} className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showSuggestions && searchTerm.length >= 2 && searchSuggestions.length === 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-dark-card border border-dark-border rounded-2xl p-6 text-center z-50">
+                    <p className="text-dark-muted font-bold text-sm">No results found for "<span className="text-white">{searchTerm}</span>"</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Recent Payments */}
+          {recentPayments.length > 0 && (
+            <GlassCard className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <History size={20} className="text-blue-400" />
+                <h3 className="text-base font-black text-white uppercase tracking-widest">Recent Payments</h3>
+              </div>
+              <div className="space-y-2">
+                {recentPayments.map((v, i) => {
+                  const tDue = Number(v.totalAmount) || 0;
+                  const tPaid = Number(v.paidAmount) || 0;
+                  const tDisc = Number(v.discountAmount) || 0;
+                  const tBal = Math.max(0, tDue - tPaid - tDisc);
+                  const pct = tDue > 0 ? Math.round(((tPaid + tDisc) / tDue) * 100) : 0;
+                  return (
+                    <button key={i} onClick={() => setDetailVoucher(v)}
+                      className="w-full p-4 bg-dark-card/50 rounded-xl border border-dark-border/30 hover:border-blue-500/40 hover:bg-white/5 transition-all text-left group cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 font-black text-sm">
+                            {(v.fatherName || v.studentName || '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-white text-sm">{v.fatherName || v.studentName || 'Unknown'}</p>
+                            <p className="text-[10px] font-bold text-dark-muted uppercase tracking-wider">{v.month} • #{v.voucherNo || v.id?.slice(0,6)}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-black text-emerald-400 text-sm">Rs. {tPaid.toLocaleString()}</p>
+                          <p className="text-[10px] font-bold text-dark-muted">{parseDateSafely(v.paidAt).toLocaleString('en-US', { day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+                        </div>
+                      </div>
+                      {/* Mini progress bar */}
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-1.5 bg-dark-border rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(pct, 100)}%` }}></div>
+                        </div>
+                        <span className={`text-[10px] font-black ${tBal > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {tBal > 0 ? `Rs. ${tBal.toLocaleString()} remaining` : 'Cleared ✅'}
+                        </span>
+                        <ChevronRight size={14} className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </GlassCard>
+          )}
+        </div>
+      )}
+
+      {/* ── Step 2: Fee Details & Payment ── */}
+      {step === 2 && selectedFamily && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Dashboard Header */}
+          <GlassCard className="p-0 border border-dark-border/50 relative overflow-hidden">
+            <div className="p-6 border-b border-dark-border/50 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-dark-card border border-dark-border flex items-center justify-center text-white font-black text-xl">
+                  {(selectedFamily.fatherName || '?').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white">{selectedFamily.fatherName}</h2>
+                  <p className="text-xs text-dark-muted font-bold flex items-center gap-2">
+                    Family Financial Dashboard 
+                    {selectedFamily.phone && <span>• {selectedFamily.phone}</span>}
+                  </p>
+                </div>
+              </div>
+              <button onClick={resetSearch} className="w-8 h-8 rounded-full bg-dark-card border border-dark-border flex items-center justify-center hover:bg-dark-hover transition-colors">
+                <X size={16} className="text-dark-muted" />
+              </button>
+            </div>
+            
+            {/* KPI Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-dark-bg/50">
+              {(() => {
+                const familyVouchers = allVouchers.filter(v => 
+                  v.fatherName === selectedFamily.fatherName || 
+                  familyStudents.some(s => s.id === v.studentId || v.childrenIds?.includes(s.id)) ||
+                  (v.selectionType === 'family' && v.childrenDetails?.some(c => familyStudents.some(s => String(s.rollNumber || s.rollNo) === String(c.admNo))))
+                );
+                const lifetimeBilled = familyVouchers.length > 0
+                  ? familyVouchers.reduce((sum, v) => sum + (Number(v.totalAmount) || 0), 0)
+                  : familyProfileBreakdown.grandTotal;
+                const lifetimePaid = familyVouchers.reduce((sum, v) => sum + (Number(v.paidAmount) || 0) + (Number(v.discountAmount) || 0), 0);
+                const arrears = pendingVouchers.length > 0 
+                  ? pendingVouchers.reduce((acc, v) => acc + Math.max(0, (Number(v.totalAmount)||0) - (Number(v.paidAmount)||0) - (Number(v.discountAmount)||0)), 0)
+                  : familyProfileBreakdown.grandTotal;
+
+                return (
+                  <>
+                    <div className="bg-dark-card border border-dark-border rounded-xl p-4 flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center"><Receipt size={24} /></div>
+                      <div>
+                        <p className="text-[10px] font-black text-dark-muted uppercase tracking-widest">LIFETIME BILLED</p>
+                        <p className="text-xl font-black text-white">Rs. {lifetimeBilled.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="bg-dark-card border border-dark-border rounded-xl p-4 flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center"><CheckCircle size={24} /></div>
+                      <div>
+                        <p className="text-[10px] font-black text-dark-muted uppercase tracking-widest">LIFETIME PAID</p>
+                        <p className="text-xl font-black text-emerald-400">Rs. {lifetimePaid.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="bg-dark-card border border-dark-border rounded-xl p-4 flex items-center gap-4 border-rose-500/20">
+                      <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center"><DollarSign size={24} /></div>
+                      <div>
+                        <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest">REMAINING ARREARS</p>
+                        <p className="text-xl font-black text-rose-500">Rs. {arrears.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </GlassCard>
+
+          {/* Enrolled Students */}
+          <div>
+            <h3 className="text-xs font-black text-dark-muted uppercase tracking-widest mb-3">ENROLLED STUDENTS</h3>
+            <div className="flex flex-wrap gap-4">
+              {familyStudents.map((stud) => {
+                 const gr = stud.admissionNumber || stud.rollNo || stud.grNo || stud.grNumber || stud.rollNumber || 'N/A';
+                 return (
+                   <div key={stud.id} className="bg-dark-card border border-dark-border rounded-xl p-3 pr-8 flex items-center gap-4 min-w-[200px]">
+                     <div className="w-10 h-10 rounded-lg bg-dark-hover flex items-center justify-center font-black text-white">
+                       {stud.name.charAt(0)}
+                     </div>
+                     <div>
+                       <p className="font-bold text-white text-sm">{stud.name}</p>
+                       <p className="text-[10px] text-dark-muted font-bold">Class {stud.class} • GR: {gr}</p>
+                     </div>
+                   </div>
+                 );
+              })}
+            </div>
+          </div>
+
+          {/* Missing Voucher Fallback - Enforces voucher generation before collection */}
+          {pendingVouchers.length === 0 && (
+            <div className="bg-dark-card border border-rose-500/30 rounded-2xl p-8 text-center shadow-lg shadow-rose-500/5">
+              <div className="w-16 h-16 rounded-full bg-rose-500/10 flex items-center justify-center text-rose-500 mx-auto mb-4">
+                <AlertCircle size={32} />
+              </div>
+              <h3 className="text-xl font-black text-white mb-2">No Generated Voucher Found</h3>
+              <p className="text-dark-muted text-sm max-w-md mx-auto mb-6">
+                System found student fee records, but no voucher has been generated for them yet. 
+                According to your policy, you must formally generate a voucher first before collecting fees.
+              </p>
+              <button
+                onClick={() => navigate('/school-admin/fees/generate')}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-black rounded-xl shadow-lg shadow-blue-500/20 transition-all"
+              >
+                <FileText size={18} /> Go to Generate Voucher
+              </button>
+            </div>
+          )}
+
+          {/* Pending Dues Breakdown */}
+          {pendingVouchers.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-black text-rose-400 flex items-center gap-2">
+                  <DollarSign size={14} /> Pending Dues Breakdown & Quick Pay
+                </h3>
+                {pendingVouchers.length > 1 && (
+                  <button 
+                    onClick={handlePayAll}
+                    disabled={processingId === 'all'}
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg font-black text-xs uppercase tracking-widest shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition-all flex items-center gap-2"
+                  >
+                    {processingId === 'all' ? 'Processing...' : `Pay All Dues (Rs. ${pendingVouchers.reduce((acc, v) => acc + Math.max(0, (Number(v.totalAmount)||0) - (Number(v.paidAmount)||0) - (Number(v.discountAmount)||0)), 0).toLocaleString()})`}
+                  </button>
+                )}
+              </div>
+              <div className="space-y-4">
+                {pendingVouchers.map((voucher) => {
+                  const totalDue = Number(voucher.totalAmount) || 0;
+                  const alreadyPaid = (Number(voucher.paidAmount) || 0) + (Number(voucher.discountAmount) || 0);
+                  const remaining = Math.max(0, totalDue - alreadyPaid);
+                  const entry = paymentEntries[voucher.id] || { payAmount: remaining };
+                  const isProcessing = processingId === voucher.id;
+
+                  return (
+                    <div key={voucher.id} className="border border-rose-500/30 rounded-xl overflow-hidden bg-dark-card/30">
+                      {/* Header */}
+                      <div className="px-5 py-3 border-b border-dark-border/50 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-black text-white">{voucher.month}</span>
+                          <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${voucher.status === 'Partial' ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                            {voucher.status}
+                          </span>
+                          <span className="text-[10px] text-dark-muted font-bold">Voucher #{voucher.voucherNo || voucher.id?.slice(0,6)}</span>
+                        </div>
+                        <button
+                          onClick={() => handleSyncVoucherArrears(voucher)}
+                          className="px-2.5 py-1 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 text-[10px] font-bold rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                          title="Recalculate previous balance from previous vouchers ledger"
+                        >
+                          🔄 Sync Arrears
+                        </button>
+                      </div>
+                      
+                      {/* Body */}
+                      <div className="p-5 flex flex-col lg:flex-row gap-6 items-stretch">
+                        <div className="flex-1 flex flex-wrap gap-6">
+                          {(() => {
+                            const children = voucher.childrenDetails && voucher.childrenDetails.length > 0 ? voucher.childrenDetails : familyStudents;
+                            const hasChildIds = voucher.feeItems?.some(item => item.childId);
+                            
+                            if (hasChildIds) {
+                              // Items are assigned to specific children — show per-child columns
+                              return children.map((child, idx) => {
+                                const childItems = voucher.feeItems?.filter(item => item.childId === child.id) || [];
+                                if (childItems.length === 0) return null;
+                                return (
+                                  <div key={idx} className="flex-1 min-w-[200px] bg-dark-bg rounded-xl p-4 border border-dark-border/50">
+                                    <p className="font-bold text-white text-sm mb-3">{child.name}</p>
+                                    <div className="space-y-2">
+                                      {childItems.map((item, i) => (
+                                        <div key={i} className="flex justify-between text-xs font-bold">
+                                          <span className="text-dark-muted">{item.name}</span>
+                                          <span className="text-white">Rs. {Number(item.amount).toLocaleString()}</span>
+                                        </div>
+                                      ))}
+                                      <div className="border-t border-dark-border mt-2 pt-2 flex justify-between text-xs font-black">
+                                        <span className="text-rose-400">TOTAL</span>
+                                        <span className="text-rose-400">Rs. {childItems.reduce((s, item) => s + Number(item.amount), 0).toLocaleString()}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            } else {
+                              // No childId on items — show items once in a single shared column
+                              const items = voucher.feeItems || [];
+                              return (
+                                <div className="flex-1 min-w-[200px] bg-dark-bg rounded-xl p-4 border border-dark-border/50">
+                                  <p className="font-bold text-white text-sm mb-3">Fee Breakdown</p>
+                                  <div className="space-y-2">
+                                    {items.length > 0 ? items.map((item, i) => (
+                                      <div key={i} className="flex justify-between text-xs font-bold">
+                                        <span className="text-dark-muted">{item.name}</span>
+                                        <span className="text-white">Rs. {Number(item.amount).toLocaleString()}</span>
+                                      </div>
+                                    )) : children.map((child, i) => (
+                                      <div key={i} className="flex justify-between text-xs font-bold">
+                                        <span className="text-dark-muted">{child.name}</span>
+                                        <span className="text-white">Rs. {(Number(child.fee) || 0).toLocaleString()}</span>
+                                      </div>
+                                    ))}
+                                    <div className="border-t border-dark-border mt-2 pt-2 flex justify-between text-xs font-black">
+                                      <span className="text-rose-400">TOTAL</span>
+                                      <span className="text-rose-400">Rs. {(items.length > 0 ? items.reduce((s, item) => s + Number(item.amount), 0) : children.reduce((s, c) => s + (Number(c.fee) || 0), 0)).toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+                          })()}
+                        </div>
+                        
+                        {/* Quick Pay Box */}
+                        <div className="w-full lg:w-64 bg-dark-bg rounded-xl p-5 border border-dark-border flex flex-col justify-center">
+                           <div className="flex items-end gap-3 mb-4">
+                             <div>
+                               <p className="text-[10px] font-black text-dark-muted uppercase">REMAINING</p>
+                               <p className="text-xl font-black text-rose-500">Rs. {remaining.toLocaleString()}</p>
+                             </div>
+                           </div>
+                           <div className="flex items-center gap-2 mb-3">
+                             <input 
+                               type="number" 
+                               value={entry.payAmount}
+                               onChange={e => setPaymentEntries(prev => ({...prev, [voucher.id]: {...prev[voucher.id], payAmount: e.target.value}}))}
+                               className="w-full bg-dark-card border border-dark-border rounded-lg px-3 py-2 text-sm font-bold text-white focus:border-rose-500 outline-none"
+                             />
+                             <button
+                               onClick={() => handlePayNow(voucher)}
+                               disabled={isProcessing}
+                               className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm px-4 py-2 rounded-lg whitespace-nowrap disabled:opacity-50 transition-colors"
+                             >
+                               {isProcessing ? 'Wait...' : 'Pay Now'}
+                             </button>
+                           </div>
+                           <div className="flex items-center justify-between text-[10px] font-bold text-dark-muted">
+                             <span>Discount: Rs. {Number(entry.discountAmount || 0)}</span>
+                             <button 
+                               onClick={() => {
+                                 const val = prompt('Enter discount amount:', entry.discountAmount || 0);
+                                 if (val !== null) setPaymentEntries(prev => ({...prev, [voucher.id]: {...prev[voucher.id], discountAmount: val}}));
+                               }}
+                               className="text-blue-400 hover:underline"
+                             >Edit</button>
+                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Transaction History Ledger */}
+          <div className="bg-dark-card border border-dark-border rounded-xl p-5">
+             <div className="flex items-center gap-2 mb-4">
+               <History size={16} className="text-dark-muted" />
+               <h3 className="text-xs font-black text-dark-muted uppercase tracking-widest">TRANSACTION HISTORY LEDGER</h3>
+             </div>
+             
+             <div className="overflow-x-auto">
+               <table className="w-full text-left text-sm whitespace-nowrap">
+                 <thead>
+                   <tr className="border-b border-dark-border/50 text-[10px] font-black text-dark-muted uppercase tracking-widest">
+                     <th className="pb-3 px-2">Month/Title</th>
+                     <th className="pb-3 px-2 text-center">Total Fee</th>
+                     <th className="pb-3 px-2 text-center">Paid</th>
+                     <th className="pb-3 px-2 text-center">Discount</th>
+                     <th className="pb-3 px-2 text-center">Remaining</th>
+                     <th className="pb-3 px-2 text-center">Status</th>
+                     <th className="pb-3 px-2">Date & Time</th>
+                     <th className="pb-3 px-2 text-center">Action</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-dark-border/30">
+                   {paidVouchersForFamily.length === 0 ? (
+                     <tr>
+                       <td colSpan="8" className="py-8 text-center text-dark-muted font-bold text-xs">No transaction history found.</td>
+                     </tr>
+                   ) : paidVouchersForFamily.flatMap(v => {
+                     if (v.paymentHistory && v.paymentHistory.length > 0) {
+                       const historyList = [...v.paymentHistory];
+                       const totalHistPaid = historyList.reduce((acc, h) => acc + (Number(h.amount) || 0), 0);
+                       const totalHistDisc = historyList.reduce((acc, h) => acc + (Number(h.discount) || 0), 0);
+                       const currentVoucherPaid = Number(v.paidAmount) || 0;
+                       const currentVoucherDisc = Number(v.discountAmount) || 0;
+                       
+                       if (totalHistPaid < currentVoucherPaid || totalHistDisc < currentVoucherDisc) {
+                         historyList.unshift({
+                           id: 'legacy',
+                           amount: Math.max(0, currentVoucherPaid - totalHistPaid),
+                           discount: Math.max(0, currentVoucherDisc - totalHistDisc),
+                           date: v.paidAt || v.createdAt || new Date().toISOString()
+                         });
+                       }
+
+                       let cumulativePaid = 0;
+                       let cumulativeDisc = 0;
+                       return historyList.map((hist, idx) => {
+                         const tDue = Number(v.totalAmount) || 0;
+                         const tPaid = Number(hist.amount) || 0;
+                         const tDisc = Number(hist.discount) || 0;
+                         const previousPaid = cumulativePaid;
+                         cumulativePaid += tPaid;
+                         cumulativeDisc += tDisc;
+                         const tBal = Math.max(0, tDue - cumulativePaid - cumulativeDisc);
+                         const status = (cumulativePaid + cumulativeDisc) >= tDue ? 'Paid' : 'Partial';
+                         
+                         return {
+                           id: `${v.id}_${hist.id || idx}`,
+                           voucher: v,
+                           month: v.month,
+                           voucherNo: v.voucherNo || v.id.slice(0,6),
+                           tDue, tPaid, tDisc, tBal, status,
+                           paidAt: hist.date,
+                           previousPaid
+                         };
+                       });
+                     } else {
+                       return [{
+                         id: v.id,
+                         voucher: v,
+                         month: v.month,
+                         voucherNo: v.voucherNo || v.id.slice(0,6),
+                         tDue: Number(v.totalAmount) || 0,
+                         tPaid: Number(v.paidAmount) || 0,
+                         tDisc: Number(v.discountAmount) || 0,
+                         tBal: Math.max(0, (Number(v.totalAmount)||0) - (Number(v.paidAmount)||0) - (Number(v.discountAmount)||0)),
+                         status: v.status,
+                         paidAt: v.paidAt,
+                         previousPaid: 0
+                       }];
+                     }
+                   }).sort((a, b) => parseDateSafely(b.paidAt) - parseDateSafely(a.paidAt)).map(item => (
+                       <tr key={item.id} className="hover:bg-dark-hover/50 transition-colors">
+                         <td className="py-3 px-2">
+                           <p className="font-bold text-white">{item.month}</p>
+                           <p className="text-[10px] text-dark-muted">Voucher #{item.voucherNo}</p>
+                         </td>
+                         <td className="py-3 px-2 text-center font-bold text-white">Rs. {item.tDue.toLocaleString()}</td>
+                         <td className="py-3 px-2 text-center font-black text-emerald-400">Rs. {item.tPaid.toLocaleString()}</td>
+                         <td className="py-3 px-2 text-center font-bold text-amber-400">{item.tDisc > 0 ? 'Rs. ' + item.tDisc.toLocaleString() : 'Rs. -'}</td>
+                         <td className="py-3 px-2 text-center font-bold text-rose-400">Rs. {item.tBal.toLocaleString()}</td>
+                         <td className="py-3 px-2 text-center">
+                           <span className={`text-[9px] font-black uppercase px-2 py-1 rounded ${item.status === 'Paid' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                             {item.status}
+                           </span>
+                         </td>
+                         <td className="py-3 px-2 text-[10px] text-dark-muted font-bold">
+                           {item.paidAt ? parseDateSafely(item.paidAt).toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : '-'}
+                         </td>
+                         <td className="py-3 px-2 flex justify-center gap-2">
+                           <button onClick={() => openEditModal(item.voucher)} className="w-7 h-7 rounded bg-blue-500/10 text-blue-400 flex items-center justify-center hover:bg-blue-500/20" title="Edit">✏️</button>
+                           <button onClick={() => handlePrintReceipt({...item.voucher, fatherName: selectedFamily.fatherName, currentPaid: item.tPaid, previousPaid: item.previousPaid, status: item.status })} className="w-7 h-7 rounded bg-purple-500/10 text-purple-400 flex items-center justify-center hover:bg-purple-500/20" title="Print">🖨️</button>
+                         </td>
+                       </tr>
+                   ))}
+                 </tbody>
+               </table>
+             </div>
+          </div>
+        </div>
+      )}
+      
+      {/* ── Step 3: Success Screen ── */}
+      {step === 3 && lastReceipt && (
+        <div className="flex items-center justify-center py-8">
+          <GlassCard className="p-10 max-w-lg w-full text-center border-t-4 border-t-emerald-500 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/10 to-transparent pointer-events-none"></div>
+            <div className="relative z-10">
+              {/* Animated checkmark */}
+              <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/30">
+                <div className="w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center">
+                  <CheckCircle size={40} className="text-emerald-400" />
+                </div>
+              </div>
+              <h2 className="text-3xl font-black text-white mb-2">Payment Received!</h2>
+              <p className="text-dark-muted font-bold">Fee has been successfully recorded.</p>
+
+              {/* Receipt Card */}
+              <div className="mt-6 p-5 bg-dark-card border border-dark-border rounded-2xl text-left space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-dark-muted font-bold">Voucher #</span>
+                  <span className="font-black text-white">{lastReceipt.voucherNo}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-dark-muted font-bold">Father Name</span>
+                  <span className="font-black text-white">{lastReceipt.fatherName}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-dark-muted font-bold">Month</span>
+                  <span className="font-black text-white">{lastReceipt.month}</span>
+                </div>
+                <div className="border-t border-dark-border pt-3 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-dark-muted font-bold">Total Due</span>
+                    <span className="font-bold text-white">Rs. {lastReceipt.totalDue.toLocaleString()}</span>
+                  </div>
+                  {lastReceipt.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-dark-muted font-bold">Discount</span>
+                      <span className="font-bold text-amber-400">-Rs. {lastReceipt.discountAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {lastReceipt.previousPaid > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-dark-muted font-bold">Previously Paid</span>
+                      <span className="font-bold text-emerald-500">-Rs. {lastReceipt.previousPaid.toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm border-t border-dark-border pt-2">
+                    <span className="font-black text-white">Amount Paid</span>
+                    <span className="font-black text-emerald-400 text-lg">Rs. {(lastReceipt.currentPaid || lastReceipt.paidAmount).toLocaleString()}</span>
+                  </div>
+                  {lastReceipt.remaining > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-dark-muted font-bold">Balance Remaining</span>
+                      <span className="font-bold text-rose-400">Rs. {lastReceipt.remaining.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {whatsappEnabled && lastReceipt.phone && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-xs text-emerald-400 font-bold">
+                  <MessageCircle size={14} /> WhatsApp receipt sent to {lastReceipt.phone}
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-col gap-3">
+                {/* Print Receipt Button */}
+                <button
+                  onClick={() => handlePrintReceipt({
+                    ...lastReceipt,
+                    childrenDetails: pendingVouchers[0]?.childrenDetails || []
+                  })}
+                  className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all"
+                >
+                  <Printer size={16} /> 🖨️ Print Receipt
+                </button>
+
+                <div className="flex gap-3">
+                  <button onClick={() => { setStep(2); setLastReceipt(null); }}
+                    className="flex-1 py-3 border border-dark-border rounded-xl font-black text-sm text-white hover:bg-white/5 transition-all"
+                  >
+                    View More Vouchers
+                  </button>
+                  <button onClick={resetSearch}
+                    className="flex-1 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl font-black text-sm text-white hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg shadow-blue-500/20"
+                  >
+                    New Collection
+                  </button>
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+      {/* ✏️ Edit Payment Modal */}
+      {editingVoucher && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
+          <div className="bg-dark-card border border-dark-border max-w-md w-full rounded-3xl p-7 shadow-2xl text-dark-text">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="font-black text-xl text-white">✏️ Edit Payment</h3>
+                <p className="text-xs text-blue-400 font-bold mt-1">
+                  #{editingVoucher.voucherNo || editingVoucher.id?.slice(0,6)} • {editingVoucher.month}
+                </p>
+              </div>
+              <button onClick={() => setEditingVoucher(null)} className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-dark-muted hover:text-white transition-all">✕</button>
+            </div>
+
+            {/* Total Due Info */}
+            <div className="mb-5 p-4 bg-dark-hover rounded-2xl border border-dark-border">
+              <div className="flex justify-between text-sm">
+                <span className="text-dark-muted font-bold">Total Voucher Amount:</span>
+                <span className="font-black text-white">Rs. {(Number(editingVoucher.totalAmount) || 0).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block">Correct Paid Amount (Rs.)</label>
+                <input
+                  type="number"
+                  value={editForm.paidAmount}
+                  onChange={e => setEditForm({...editForm, paidAmount: e.target.value})}
+                  className="w-full bg-dark-hover border border-dark-border text-white rounded-xl py-3 px-4 font-bold outline-none focus:border-emerald-500 transition-all"
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">Discount / Concession (Rs.)</label>
+                <input
+                  type="number"
+                  value={editForm.discountAmount}
+                  onChange={e => setEditForm({...editForm, discountAmount: e.target.value})}
+                  className="w-full bg-dark-hover border border-dark-border text-white rounded-xl py-3 px-4 font-bold outline-none focus:border-amber-500 transition-all"
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* Live Preview */}
+            <div className="mb-6 p-4 bg-dark-hover rounded-2xl border border-dark-border space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-dark-muted font-bold">Total Due:</span>
+                <span className="font-black text-white">Rs. {(Number(editingVoucher.totalAmount)||0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-dark-muted font-bold">Paid:</span>
+                <span className="font-black text-emerald-400">Rs. {(Number(editForm.paidAmount)||0).toLocaleString()}</span>
+              </div>
+              {Number(editForm.discountAmount) > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-dark-muted font-bold">Discount:</span>
+                  <span className="font-black text-amber-400">Rs. {(Number(editForm.discountAmount)||0).toLocaleString()}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-dark-border pt-2">
+                <span className="font-black text-white">Balance Remaining:</span>
+                <span className={`font-black ${
+                  ((Number(editingVoucher.totalAmount)||0) - (Number(editForm.paidAmount)||0) - (Number(editForm.discountAmount)||0)) <= 0
+                    ? 'text-emerald-400' : 'text-rose-400'
+                }`}>
+                  Rs. {Math.max(0, (Number(editingVoucher.totalAmount)||0) - (Number(editForm.paidAmount)||0) - (Number(editForm.discountAmount)||0)).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-dark-muted font-bold">New Status:</span>
+                <span className={`font-black px-2 py-0.5 rounded text-[10px] uppercase ${
+                  ((Number(editForm.paidAmount)||0) + (Number(editForm.discountAmount)||0)) >= (Number(editingVoucher.totalAmount)||0)
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : (Number(editForm.paidAmount)||0) > 0
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'bg-rose-500/20 text-rose-400'
+                }`}>
+                  {((Number(editForm.paidAmount)||0) + (Number(editForm.discountAmount)||0)) >= (Number(editingVoucher.totalAmount)||0)
+                    ? 'Paid ✅' : (Number(editForm.paidAmount)||0) > 0 ? 'Partial ⚡' : 'Unpaid ❌'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => setEditingVoucher(null)} className="flex-1 py-3 rounded-xl bg-dark-hover text-dark-muted font-bold text-sm hover:bg-dark-border transition-all">Cancel</button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={editProcessing}
+                className="flex-[2] py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-50"
+              >
+                {editProcessing ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Saving...</> : '✅ Save Correction'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Voucher Detail Modal ── */}
+      {detailVoucher && (() => {
+        const dv = detailVoucher;
+        const tDue = Number(dv.totalAmount) || 0;
+        const tPaid = Number(dv.paidAmount) || 0;
+        const tDisc = Number(dv.discountAmount) || 0;
+        const tBal = Math.max(0, tDue - tPaid - tDisc);
+        const pct = tDue > 0 ? Math.round(((tPaid + tDisc) / tDue) * 100) : 0;
+        const paidDate = dv.paidAt ? parseDateSafely(dv.paidAt) : null;
+        const children = dv.childrenDetails || [];
+        const isFamily = dv.selectionType === 'family' && children.length > 0;
+
+        // Find all vouchers for this same family/student to show payment timeline
+        const relatedVouchers = allVouchers.filter(v => {
+          if (dv.selectionType === 'family' && dv.fatherCnic) {
+            return String(v.fatherCnic || '').replace(/[^0-9]/g, '') === String(dv.fatherCnic || '').replace(/[^0-9]/g, '');
+          }
+          if (dv.studentId) return v.studentId === dv.studentId;
+          return false;
+        }).sort((a, b) => parseDateSafely(b.paidAt || b.createdAt) - parseDateSafely(a.paidAt || a.createdAt));
+
+        const totalAllDue = relatedVouchers.reduce((s, v) => s + (Number(v.totalAmount) || 0), 0);
+        const totalAllPaid = relatedVouchers.reduce((s, v) => s + (Number(v.paidAmount) || 0), 0);
+        const totalAllDisc = relatedVouchers.reduce((s, v) => s + (Number(v.discountAmount) || 0), 0);
+        const totalAllBal = Math.max(0, totalAllDue - totalAllPaid - totalAllDisc);
+        const pendingCount = relatedVouchers.filter(v => v.status !== 'Paid').length;
+
+        return (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4" onClick={() => setDetailVoucher(null)}>
+            <div className="bg-dark-card border border-dark-border max-w-2xl w-full rounded-3xl shadow-2xl text-dark-text max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="p-6 border-b border-dark-border/50 bg-gradient-to-r from-blue-500/10 to-indigo-500/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-black text-2xl border border-blue-500/20">
+                      {(dv.fatherName || dv.studentName || '?').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="font-black text-xl text-white">{dv.fatherName || dv.studentName || 'Unknown'}</h3>
+                      <p className="text-xs text-blue-400 font-bold mt-0.5">
+                        Voucher #{dv.voucherNo || dv.id?.slice(0,6)} • {dv.month || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setDetailVoucher(null)} className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-dark-muted hover:text-white transition-all">✕</button>
+                </div>
+              </div>
+
+              {/* Status & Payment Summary */}
+              <div className="p-6 space-y-5">
+                {/* Status Badge Row */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-widest border ${
+                    dv.status === 'Paid' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                    : dv.status === 'Partial' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                    : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                  }`}>{dv.status || 'Unpaid'}</span>
+                  {isFamily && <span className="px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-full text-[11px] font-black border border-blue-500/30">👨‍👩‍👧‍👦 Family ({children.length} children)</span>}
+                  {paidDate && <span className="text-[11px] font-bold text-dark-muted">📅 Paid on {paidDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
+                </div>
+
+                {/* Fee Breakdown Card */}
+                <div className="p-5 bg-dark-hover rounded-2xl border border-dark-border space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-dark-muted font-bold">Total Fee Due</span>
+                    <span className="font-black text-white">Rs. {tDue.toLocaleString()}</span>
+                  </div>
+                  {tDisc > 0 && <div className="flex justify-between text-sm">
+                    <span className="text-dark-muted font-bold">🎁 Discount</span>
+                    <span className="font-black text-amber-400">- Rs. {tDisc.toLocaleString()}</span>
+                  </div>}
+                  <div className="flex justify-between text-sm border-t border-dark-border pt-2">
+                    <span className="font-black text-white">Amount Paid</span>
+                    <span className="font-black text-emerald-400 text-lg">Rs. {tPaid.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-bold text-dark-muted">Balance Remaining</span>
+                    <span className={`font-black ${tBal > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                      {tBal > 0 ? `Rs. ${tBal.toLocaleString()}` : 'Cleared ✅'}
+                    </span>
+                  </div>
+                  {/* Progress */}
+                  <div className="pt-1">
+                    <div className="flex justify-between text-[10px] font-bold text-dark-muted mb-1">
+                      <span>{pct}% paid</span>
+                      <span>Rs. {tPaid.toLocaleString()} / {tDue.toLocaleString()}</span>
+                    </div>
+                    <div className="h-2.5 bg-dark-border rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(pct, 100)}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fee Items Breakdown */}
+                {dv.feeItems?.length > 0 && (
+                  <div className="p-5 bg-dark-hover rounded-2xl border border-dark-border">
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3">📋 Fee Items Breakdown</p>
+                    <div className="space-y-2">
+                      {dv.feeItems.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span className="text-dark-muted font-bold">{item.name}</span>
+                          <span className={`font-black ${Number(item.amount) < 0 ? 'text-emerald-400' : 'text-white'}`}>Rs. {Math.abs(Number(item.amount)).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Children Details (if Family) */}
+                {isFamily && (
+                  <div className="p-5 bg-dark-hover rounded-2xl border border-dark-border">
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3">👨‍👩‍👧‍👦 Children in this Voucher</p>
+                    <div className="space-y-2">
+                      {children.map((c, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-dark-card/50 rounded-xl border border-dark-border/30">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-black text-xs">
+                              {(c.name || '?').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-bold text-white text-sm">{c.name || 'N/A'}</p>
+                              <p className="text-[10px] font-bold text-dark-muted">Class: {c.class || 'N/A'} • GR: {c.admNo || 'N/A'}</p>
+                            </div>
+                          </div>
+                          {c.fee && <span className="text-xs font-black text-white">Rs. {Number(c.fee).toLocaleString()}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Overall Account Summary */}
+                {relatedVouchers.length > 1 && (
+                  <div className="p-5 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-2xl border border-indigo-500/20">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3">📊 Overall Account Summary</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="text-center p-3 bg-dark-card/50 rounded-xl">
+                        <p className="text-[9px] font-black text-dark-muted uppercase">Total Vouchers</p>
+                        <p className="text-lg font-black text-white">{relatedVouchers.length}</p>
+                      </div>
+                      <div className="text-center p-3 bg-dark-card/50 rounded-xl">
+                        <p className="text-[9px] font-black text-dark-muted uppercase">Total Fees</p>
+                        <p className="text-lg font-black text-white">Rs. {totalAllDue.toLocaleString()}</p>
+                      </div>
+                      <div className="text-center p-3 bg-dark-card/50 rounded-xl">
+                        <p className="text-[9px] font-black text-dark-muted uppercase">Total Paid</p>
+                        <p className="text-lg font-black text-emerald-400">Rs. {totalAllPaid.toLocaleString()}</p>
+                      </div>
+                      <div className="text-center p-3 bg-dark-card/50 rounded-xl">
+                        <p className="text-[9px] font-black text-dark-muted uppercase">Total Balance</p>
+                        <p className={`text-lg font-black ${totalAllBal > 0 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                          {totalAllBal > 0 ? `Rs. ${totalAllBal.toLocaleString()}` : 'All Clear ✅'}
+                        </p>
+                      </div>
+                    </div>
+                    {pendingCount > 0 && (
+                      <p className="text-xs font-bold text-amber-400 mt-3 text-center">⚠️ {pendingCount} pending voucher{pendingCount > 1 ? 's' : ''} remaining</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Payment Timeline (last 5 vouchers) */}
+                {relatedVouchers.length > 1 && (
+                  <div className="p-5 bg-dark-hover rounded-2xl border border-dark-border">
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3">🕐 Payment Timeline</p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {relatedVouchers.slice(0, 8).map((rv, idx) => {
+                        const rvPaid = Number(rv.paidAmount) || 0;
+                        const rvDue = Number(rv.totalAmount) || 0;
+                        const rvBal = Math.max(0, rvDue - rvPaid - (Number(rv.discountAmount) || 0));
+                        return (
+                          <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                            rv.id === dv.id ? 'bg-blue-500/10 border-blue-500/30' : 'bg-dark-card/30 border-dark-border/20'
+                          }`}>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-2.5 h-2.5 rounded-full ${rv.status === 'Paid' ? 'bg-emerald-500' : rv.status === 'Partial' ? 'bg-amber-500' : 'bg-rose-500'}`}></div>
+                              <div>
+                                <p className="font-bold text-white text-xs">{rv.month || 'N/A'}</p>
+                                <p className="text-[9px] text-dark-muted font-bold">
+                                  {rv.paidAt ? parseDateSafely(rv.paidAt).toLocaleDateString('en-GB') : 'Not paid'}
+                                  {rv.id === dv.id && ' ← current'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs font-black text-emerald-400">Rs. {rvPaid.toLocaleString()}</p>
+                              {rvBal > 0 && <p className="text-[9px] font-bold text-rose-400">Bal: Rs. {rvBal.toLocaleString()}</p>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => {
+                      handlePrintReceipt({ ...dv, fatherName: dv.fatherName || 'Parent' });
+                    }}
+                    className="flex-1 min-w-[140px] py-3 rounded-xl font-black text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all"
+                  >
+                    <Printer size={16} /> 🖨️ Print Voucher
+                  </button>
+                  {tBal > 0 && (
+                    <button
+                      onClick={() => {
+                        handleSendReminder(dv);
+                      }}
+                      className="flex-1 min-w-[140px] py-3 rounded-xl font-black text-sm text-amber-400 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 flex items-center justify-center gap-2 transition-all"
+                    >
+                      <MessageCircle size={16} /> Send Reminder
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setDetailVoucher(null);
+                      // Find the family for this voucher and navigate to step 2
+                      const matchStudent = allStudents.find(s => s.id === dv.studentId) ||
+                        allStudents.find(s => dv.childrenDetails?.some(c =>
+                          (s.rollNumber && String(s.rollNumber).trim() === String(c.admNo).trim()) ||
+                          (s.rollNo && String(s.rollNo).trim() === String(c.admNo).trim())
+                        ));
+                      if (matchStudent) {
+                        const key = getFamilyKey(matchStudent);
+                        const fam = { key, fatherName: matchStudent.fatherName || 'Unknown', phone: matchStudent.parentPhone || matchStudent.fatherPhone || '', students: allStudents.filter(s => getFamilyKey(s) === key) };
+                        handleSelectFamily(fam);
+                      }
+                    }}
+                    className="flex-1 min-w-[140px] py-3 rounded-xl font-black text-sm text-blue-400 border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 flex items-center justify-center gap-2 transition-all"
+                  >
+                    <ArrowRight size={16} /> View Full Account
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+};
+
+export default CollectFee;

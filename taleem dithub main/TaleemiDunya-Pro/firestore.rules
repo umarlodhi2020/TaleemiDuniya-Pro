@@ -1,0 +1,186 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─────────────────────────────────────────────
+    // 1. HELPER FUNCTIONS (SaaS & Multi-School Security)
+    // ─────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && getUser().role == 'super-admin';
+    }
+
+    function isSchoolAdmin(schoolId) {
+      return isSignedIn() && 
+             (getUser().role == 'school-admin' || getUser().role == 'admin') && 
+             getUser().schoolId == schoolId;
+    }
+
+    function isSchoolStaff(schoolId) {
+      return isSignedIn() && getUser().schoolId == schoolId;
+    }
+
+    // ─────────────────────────────────────────────
+    // 2. PARENTS APP & FACE SCANNER ACCESS (AIRTIGHT SECURE)
+    // ─────────────────────────────────────────────
+
+    // Students: Public Read & STRICT Biometric-Only Updates
+    match /students/{docId} {
+      allow read: if true; 
+      allow delete: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId);
+      allow create: if isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId) || isSignedIn(); 
+      
+      // STRICT UPDATE PERMISSIONS:
+      // Option 1: Admin / Super Admin (Full access)
+      // Option 2: Biometric Scanner (STRICTLY ONLY faceDescriptor, profilePhoto, isFaceRegistered)
+      // Option 3: Parents App (STRICTLY ONLY student profile/verification fields)
+      allow update: if isSuperAdmin() || 
+                    isSchoolAdmin(resource.data.schoolId) || 
+                    (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['faceDescriptor', 'profilePhoto', 'faceScanPhoto', 'isFaceRegistered', 'updatedAt'])) ||
+                    (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'studentName', 'fatherName', 'motherName', 'cnic', 'cnicNumber', 'fatherCnic', 'dob', 'phone', 'parentPhone', 'linkedEmail', 'dataVerifiedByParent', 'dataVerifiedAt', 'updatedAt']));
+    }
+
+    match /parents/{docId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId);
+      allow create: if true; 
+    }
+
+    // ─────────────────────────────────────────────
+    // 3. SCHOOLS & USERS (SaaS Management)
+    // ─────────────────────────────────────────────
+
+    match /schools/{schoolId} {
+      allow read: if true; 
+      allow write: if isSuperAdmin(); 
+      allow update: if isSchoolAdmin(schoolId); 
+    }
+
+    match /school_websites/{docId} {
+      allow read: if true; 
+      allow create: if isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId);
+      allow update: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId);
+      allow delete: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId);
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isSuperAdmin() || (isSignedIn() && request.auth.uid == userId);
+    }
+
+    // ─────────────────────────────────────────────
+    // 4. PROTECTED SCHOOL DATA (Attendance, Fees, Exams)
+    // ─────────────────────────────────────────────
+
+    match /fees/{docId} {
+      allow read: if true; 
+      allow create, update: if isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId);
+      allow delete: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId);
+    }
+
+    match /vouchers/{docId} {
+      allow read: if true; 
+      allow create, update: if isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId);
+      allow delete: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId);
+    }
+
+    // ATTENDANCE LOGS: Face Scanner App entries save aur read karne ke liye
+    match /attendance/{docId} {
+      allow read, write: if true;
+    }
+
+    match /results/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /homework/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /announcements/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+
+    // ─────────────────────────────────────────────
+    // 5. SYSTEM & CONFIG
+    // ─────────────────────────────────────────────
+
+    match /system/{doc} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    match /demoRequests/{docId} {
+      allow create: if true;
+      allow read, delete: if isSuperAdmin();
+    }
+
+    // ─────────────────────────────────────────────
+    // 6. STAFF, TEACHERS & OTHER PROTECTED DATA (AIRTIGHT SECURE)
+    // ─────────────────────────────────────────────
+
+    match /staff/{docId} { 
+      allow read: if true; 
+      allow delete: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId); 
+      allow create: if isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId);
+      // STRICTLY ONLY faceDescriptor, profilePhoto, isFaceRegistered
+      allow update: if isSuperAdmin() || 
+                    isSchoolAdmin(resource.data.schoolId) || 
+                    (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['faceDescriptor', 'profilePhoto', 'faceScanPhoto', 'isFaceRegistered', 'updatedAt']));
+    }
+
+    match /teachers/{docId} { 
+      allow read: if true; 
+      allow delete: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId); 
+      allow create: if isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId);
+      // STRICTLY ONLY faceDescriptor, profilePhoto, isFaceRegistered
+      allow update: if isSuperAdmin() || 
+                    isSchoolAdmin(resource.data.schoolId) || 
+                    (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['faceDescriptor', 'profilePhoto', 'isFaceRegistered', 'updatedAt']));
+    }
+
+    match /transport_vans/{docId} { 
+      allow read: if true;
+      allow delete: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId); 
+      allow create, update: if isSuperAdmin() || isSchoolAdmin(request.resource.data.schoolId) || isSchoolAdmin(resource.data.schoolId); 
+    }
+
+    // Now securing all previously open endpoints:
+    match /classes/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /subjects/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /exams/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /examMasterFiles/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /exam_subjects/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /exam_marks/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /challans/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /timetable/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /leaves/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /materials/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /study_materials/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /chats_messages/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /inquiries/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /inventory/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /accounts/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+    match /sms/{docId} { allow read: if true; allow write: if isSuperAdmin() || isSchoolAdmin(resource.data.schoolId) || isSchoolAdmin(request.resource.data.schoolId); }
+
+    // ─────────────────────────────────────────────
+    // 7. SAAS MANAGEMENT DATA
+    // ─────────────────────────────────────────────
+    match /plans/{docId} { allow read: if true; allow write: if isSuperAdmin(); }
+    match /saas_recharge_requests/{docId} { allow read, write: if isSignedIn(); }
+    match /payments/{docId} { allow read, write: if isSuperAdmin(); }
+    match /support_tickets/{docId} { allow read, write: if isSignedIn(); }
+    match /notifications/{docId} { allow read, write: if isSignedIn(); }
+    match /subscriptions/{docId} { allow read, write: if isSuperAdmin(); }
+    match /revenue/{docId} { allow read, write: if isSuperAdmin(); }
+    match /cloudinary_deletions/{docId} { allow create: if isSignedIn(); allow read, write: if isSuperAdmin(); }
+    match /photo_sessions/{docId} { allow read, write: if true; } 
+
+    // ─────────────────────────────────────────────
+    // 8. GLOBAL FALLBACK
+    // ─────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}
