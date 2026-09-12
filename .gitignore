@@ -1,6 +1,3 @@
-# Exclude duplicate nested folder
-taleem dithub main/
-
 # Exclude sensitive Firebase files
 google-services*.json
 *-firebase-adminsdk-*.json
