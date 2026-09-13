@@ -46,6 +46,7 @@ const AddStaff = () => {
 
   const [formData, setFormData] = useState({
     staffId: '',
+    username: '',
     name: '',
     role: '',
     department: '',
@@ -345,7 +346,19 @@ const AddStaff = () => {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      
+      // Auto-generate username if name is entered and username is currently empty
+      if (name === 'name' && !prev.username && value.trim() !== '') {
+        const base = value.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (base) {
+          updated.username = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+      }
+      return updated;
+    });
   };
 
   return (
@@ -388,7 +401,7 @@ const AddStaff = () => {
                     />
                   </div>
                   {!isEditing && (
-                    <button
+                    <button 
                       type="button"
                       onClick={generateStaffIdGlobal}
                       className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20 whitespace-nowrap"
@@ -400,6 +413,23 @@ const AddStaff = () => {
               </div>
 
               <div className="space-y-2">
+                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">App Username *</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-400" size={18} />
+                  <input 
+                    type="text" 
+                    name="username"
+                    required
+                    value={formData.username || ''}
+                    placeholder="e.g. asim8432 (For app login)" 
+                    className="w-full premium-input pl-12 border-primary-500/30 focus:border-primary-500"
+                    onChange={handleChange}
+                  />
+                </div>
+                <p className="text-[10px] text-dark-muted px-1">Used for mobile app login</p>
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Full Name *</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted" size={18} />

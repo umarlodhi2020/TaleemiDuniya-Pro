@@ -13,6 +13,7 @@ const EditParent = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
+    parentUsername: '',
     fatherName: '',
     parentCnic: '',
     parentPhone: '',
@@ -35,6 +36,7 @@ const EditParent = () => {
       const student = await getSingleRecord('students', parentId);
       if (student) {
         setFormData({
+          parentUsername: student.parentUsername || '',
           fatherName: student.fatherName || '',
           parentCnic: student.parentCnic || '',
           parentPhone: student.parentPhone || '',
@@ -61,7 +63,19 @@ const EditParent = () => {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      
+      // Auto-generate username if fatherName is entered and parentUsername is currently empty
+      if (name === 'fatherName' && !prev.parentUsername && value.trim() !== '') {
+        const base = value.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (base) {
+          updated.parentUsername = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -72,6 +86,7 @@ const EditParent = () => {
       // Update all linked students so the parent data is consistent
       for (const student of linkedStudents) {
         await updateRecord('students', student.id, {
+          parentUsername: formData.parentUsername,
           fatherName: formData.fatherName,
           parentCnic: formData.parentCnic,
           parentPhone: formData.parentPhone,
@@ -132,6 +147,23 @@ const EditParent = () => {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-dark-muted uppercase">App Username *</label>
+                <div className="relative">
+                  <User size={16} className="absolute left-3 top-3 text-primary-400" />
+                  <input
+                    type="text"
+                    name="parentUsername"
+                    value={formData.parentUsername || ''}
+                    onChange={handleChange}
+                    placeholder="e.g. parent8432 (For app login)"
+                    className="w-full bg-dark-bg border border-primary-500/30 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-primary-500"
+                    required
+                  />
+                </div>
+                <p className="text-[10px] text-dark-muted px-1">Used for mobile app login</p>
               </div>
 
               <div className="space-y-2">

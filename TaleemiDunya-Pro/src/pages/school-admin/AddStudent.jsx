@@ -59,6 +59,7 @@ const AddStudent = () => {
   const [qrSessionId, setQrSessionId] = useState('');
   const [mobileConnected, setMobileConnected] = useState(false);
   const [formData, setFormData] = useState({
+    username: '',
     name: '',
     fatherName: '',
     dob: '',
@@ -342,7 +343,18 @@ const AddStudent = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      
+      // Auto-generate username if name is entered and username is currently empty
+      if (name === 'name' && !prev.username && value.trim() !== '') {
+        const base = value.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (base) {
+          updated.username = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+        }
+      }
+      return updated;
+    });
 
     // Auto-generate roll number globally if it's not set when class is selected
     if (name === 'class' && value && !formData.rollNumber) {
@@ -429,6 +441,23 @@ const AddStudent = () => {
                     onChange={handleChange}
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">App Username *</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-400" size={18} />
+                  <input 
+                    type="text" 
+                    name="username"
+                    required
+                    value={formData.username || ''}
+                    placeholder="e.g. ali8432 (For app login)" 
+                    className="w-full premium-input pl-12 border-primary-500/30 focus:border-primary-500"
+                    onChange={handleChange}
+                  />
+                </div>
+                <p className="text-[10px] text-dark-muted px-1">Used for mobile app login</p>
               </div>
 
               <div className="space-y-2">

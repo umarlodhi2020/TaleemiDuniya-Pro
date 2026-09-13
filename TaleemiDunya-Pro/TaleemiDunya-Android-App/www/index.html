@@ -186,59 +186,35 @@
         </div>
         <div>
             <div class="login-title">TaleemiDunya <span>Pro</span></div>
-            <div class="login-sub">Teacher Portal — Sign in to continue</div>
+            <div class="login-sub">Sign in to continue</div>
         </div>
-    </div>
-
-    <div class="tab-switch" style="max-width:420px;width:100%;">
-        <button class="tab-btn active" id="tab-id" onclick="switchTab('id')">🪪 ID + WhatsApp</button>
-        <button class="tab-btn" id="tab-gmail" onclick="switchTab('gmail')">✉️ Gmail</button>
     </div>
 
     <div class="login-card">
         <div class="error-box" id="err-box">⚠️ <span id="err-msg"></span></div>
 
-        <!-- Tab: Staff ID + WhatsApp -->
-        <div id="panel-id">
+        <div id="panel-login">
             <div class="form-group">
-                <label class="form-label">Staff / Teacher ID</label>
-                <div class="form-input-wrap">
-                    <div class="form-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 10h10M7 14h10"/></svg>
-                    </div>
-                    <input id="input-staffid" class="form-input" type="text" placeholder="e.g. T001" autocomplete="off" autocapitalize="characters">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">WhatsApp / Mobile Number</label>
-                <div class="form-input-wrap">
-                    <div class="form-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.43 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                    </div>
-                    <input id="input-phone" class="form-input" type="tel" placeholder="03XXXXXXXXX" autocomplete="off">
-                </div>
-            </div>
-            <button class="login-btn" id="btn-id-login" onclick="loginWithID()">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                Sign In as Teacher
-            </button>
-        </div>
-
-        <!-- Tab: Gmail -->
-        <div id="panel-gmail" style="display:none;">
-            <div class="form-group">
-                <label class="form-label">Gmail Address</label>
+                <label class="form-label">Email Address / Username</label>
                 <div class="form-input-wrap">
                     <div class="form-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                     </div>
-                    <input id="input-gmail" class="form-input" type="email" placeholder="yourname@gmail.com" autocomplete="email">
+                    <input id="input-email" class="form-input" type="text" placeholder="e.g. admin@school.com or admin123" autocomplete="off" autocapitalize="none">
                 </div>
             </div>
-            <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Enter the Gmail linked to your staff profile. We'll verify it against the school database.</p>
-            <button class="login-btn" id="btn-gmail-login" onclick="loginWithGmail()">
-                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.5.4-2.3L1.6 7.4C.6 9.4 0 11.6 0 14s.6 4.6 1.6 6.6l3.7-2.8z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/></svg>
-                Verify with Gmail
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <div class="form-input-wrap">
+                    <div class="form-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <input id="input-password" class="form-input" type="password" placeholder="••••••••" autocomplete="current-password">
+                </div>
+            </div>
+            <button class="login-btn" id="btn-login" onclick="loginWithPassword()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                Sign In
             </button>
         </div>
     </div>
@@ -398,7 +374,7 @@
 <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
     import { getFirestore, collection, getDocs, getDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
     const firebaseConfig = {
         apiKey: "AIzaSyDDVwn-o7X_R4JmJs8a8wE7QjFOrc21jOQ",
@@ -455,84 +431,50 @@
     function clearSession() { localStorage.removeItem('td_teacher'); }
 
     function loadDashboard(teacher) {
-        document.getElementById('dash-name').textContent = teacher.name || 'Teacher';
-        document.getElementById('dash-id-badge').textContent = 'ID: ' + (teacher.staffId || teacher.id || '—');
+        document.getElementById('dash-name').textContent = teacher.name || 'User';
+        document.getElementById('dash-id-badge').textContent = 'ID: ' + (teacher.staffId || teacher.id || teacher.uid || '—');
         document.getElementById('dash-class-badge').textContent = 'Class: ' + (teacher.assignedClass || teacher.class || '—');
-        document.getElementById('dash-dept-badge').textContent = 'Dept: ' + (teacher.department || 'Academic');
-        document.getElementById('teacher-role-badge').textContent = (teacher.role || teacher.designation || 'Teacher') + ' Portal';
+        document.getElementById('dash-dept-badge').textContent = 'Dept: ' + (teacher.department || '—');
+        document.getElementById('teacher-role-badge').textContent = (teacher.role || 'user').toUpperCase() + ' Portal';
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('dashboard').classList.add('active');
         document.getElementById('loader').classList.add('hidden');
     }
 
-    // ── Tab switch ──
-    window.switchTab = function(tab) {
-        document.getElementById('tab-id').classList.toggle('active', tab === 'id');
-        document.getElementById('tab-gmail').classList.toggle('active', tab === 'gmail');
-        document.getElementById('panel-id').style.display = tab === 'id' ? 'block' : 'none';
-        document.getElementById('panel-gmail').style.display = tab === 'gmail' ? 'block' : 'none';
+    // ── Login with Password ──
+    window.loginWithPassword = async function() {
         clearError();
-    };
+        let emailInput = document.getElementById('input-email').value.trim().toLowerCase();
+        const password = document.getElementById('input-password').value.trim();
+        
+        if (!emailInput || !password) { showError('Please enter both Email/Username and Password.'); return; }
 
-    // ── Login with Staff ID + Phone ──
-    window.loginWithID = async function() {
-        clearError();
-        const staffId = document.getElementById('input-staffid').value.trim().toUpperCase();
-        const phone = document.getElementById('input-phone').value.trim();
-        if (!staffId || !phone) { showError('Apna Staff ID aur WhatsApp number dono enter karein.'); return; }
-
-        setLoading('btn-id-login', true);
-        try {
-            const snap = await getDocs(collection(db, 'staff'));
-            let matched = null;
-            for (const doc of snap.docs) {
-                const d = { id: doc.id, ...doc.data() };
-                const sid = String(d.staffId || d.id || '').trim().toUpperCase();
-                const sphone = d.phone || d.whatsappNumber || d.mobile || '';
-                if (sid === staffId && phonesMatch(sphone, phone)) { matched = d; break; }
-            }
-            if (!matched) {
-                showError('Staff ID ya Mobile Number galat hai. Dobara check karein.');
-            } else {
-                saveSession(matched);
-                loadDashboard(matched);
-                showToast('✅ Welcome, ' + (matched.name || 'Teacher') + '!');
-            }
-        } catch (e) {
-            console.error(e);
-            showError('Network error: ' + e.message);
-        } finally {
-            setLoading('btn-id-login', false);
+        if (!emailInput.includes('@')) {
+            emailInput = `${emailInput}@taleemidunya.local`;
         }
-    };
 
-    // ── Login with Gmail ──
-    window.loginWithGmail = async function() {
-        clearError();
-        const gmailInput = document.getElementById('input-gmail').value.trim().toLowerCase();
-        if (!gmailInput) { showError('Gmail address enter karein.'); return; }
-
-        setLoading('btn-gmail-login', true);
+        setLoading('btn-login', true);
         try {
-            const snap = await getDocs(collection(db, 'staff'));
-            let matched = null;
-            for (const doc of snap.docs) {
-                const d = { id: doc.id, ...doc.data() };
-                const email = String(d.email || d.linkedEmail || d.gmail || '').trim().toLowerCase();
-                if (email && email === gmailInput) { matched = d; break; }
-            }
-            if (!matched) {
-                showError('Yeh Gmail staff database mein nahi mili. Email check karein.');
+            const credential = await signInWithEmailAndPassword(auth, emailInput, password);
+            const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
+            
+            if (userDoc.exists()) {
+                const profile = { uid: credential.user.uid, ...userDoc.data() };
+                saveSession(profile);
+                loadDashboard(profile);
+                showToast('✅ Welcome, ' + (profile.name || 'User') + '!');
             } else {
-                saveSession(matched);
-                loadDashboard(matched);
-                showToast('✅ Welcome, ' + (matched.name || 'Teacher') + '!');
+                showError('User profile not found in database.');
             }
         } catch (e) {
             console.error(e);
-            showError('Error: ' + e.message);
+            if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+                showError('Invalid email/username or password.');
+            } else {
+                showError('Error: ' + e.message);
+            }
         } finally {
-            setLoading('btn-gmail-login', false);
+            setLoading('btn-login', false);
         }
     };
 
@@ -541,9 +483,8 @@
         clearSession();
         document.getElementById('dashboard').classList.remove('active');
         document.getElementById('login-screen').classList.remove('hidden');
-        document.getElementById('input-staffid').value = '';
-        document.getElementById('input-phone').value = '';
-        document.getElementById('input-gmail').value = '';
+        document.getElementById('input-email').value = '';
+        document.getElementById('input-password').value = '';
         clearError();
     };
 
@@ -567,26 +508,17 @@
         setTimeout(() => { document.getElementById('feat-frame').src = ''; }, 400);
     };
 
-    async function refreshTeacherSession(teacher) {
-        if (!teacher) return;
+    async function refreshTeacherSession(sessionUser) {
+        if (!sessionUser || !sessionUser.uid) return;
         try {
-            const staffRef = collection(db, 'staff');
-            let freshDoc = null;
-            if (teacher.id) {
-                const sDoc = await getDoc(doc(db, 'staff', teacher.id));
-                if (sDoc.exists()) freshDoc = { id: sDoc.id, ...sDoc.data() };
-            }
-            if (!freshDoc && teacher.staffId) {
-                const q = query(staffRef, where('staffId', '==', teacher.staffId));
-                const snap = await getDocs(q);
-                if (!snap.empty) freshDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
-            }
-            if (freshDoc) {
+            const userDoc = await getDoc(doc(db, 'users', sessionUser.uid));
+            if (userDoc.exists()) {
+                const freshDoc = { uid: sessionUser.uid, ...userDoc.data() };
                 saveSession(freshDoc);
                 loadDashboard(freshDoc);
             }
         } catch(e) {
-            console.error("Error auto-refreshing staff session:", e);
+            console.error("Error auto-refreshing user session:", e);
         }
     }
 
