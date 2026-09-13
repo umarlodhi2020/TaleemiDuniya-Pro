@@ -1,0 +1,304 @@
+{"users": [
+{
+  "localId": "2uGfQAXsdGVpD6X988i4DV0nWuS2",
+  "email": "demo_admin@taleemidunya.com",
+  "emailVerified": false,
+  "passwordHash": "TcgBU09bWh3IhLk2iDL+751d/8nC/Be3FdpPxaj9R7o3rRmjpu3P+89PPtL3rbkG61x2a/08Wq3si57uozeutw==",
+  "salt": "cjQjwf90QuLyPQ==",
+  "lastSignedInAt": "1789127439004",
+  "createdAt": "1784734049160",
+  "providerUserInfo": []
+},
+{
+  "localId": "H4KiOlRx8je6PdieIoCN6aeOGzn2",
+  "email": "umareditor26@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "mFe4LzSBVJkpQhZUdNA3WgViGErdktkanDN0/RofCxjqOSZtLDg3E4TBhnLNGeEQ4b9igoz+pA3x+nyddSyUNg==",
+  "salt": "WOChU5W+HyIDLQ==",
+  "lastSignedInAt": "1785948007496",
+  "createdAt": "1785944037919",
+  "providerUserInfo": []
+},
+{
+  "localId": "HDpo3PaUXhQT6NP1XQfNokF91Bh1",
+  "email": "umarhayatlodhi25@gmail.com",
+  "emailVerified": true,
+  "displayName": "Umar Hayat",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocL2ygCdr0GppR8GD15OGexn0T2UZCd87dnfBlUVzS_cO88UFuqP=s96-c",
+  "lastSignedInAt": "1784231906559",
+  "createdAt": "1779437791491",
+  "disabled": false,
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "117617335865739476710",
+      "email": "umarhayatlodhi25@gmail.com",
+      "displayName": "Umar Hayat",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocL2ygCdr0GppR8GD15OGexn0T2UZCd87dnfBlUVzS_cO88UFuqP=s96-c"
+    }
+  ]
+},
+{
+  "localId": "Ml9c1oL3TQa7oGPaNxXrWsiZZii2",
+  "email": "zainoffical254@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "7hwiz6R67OrxLAeI/aFRjyItfVhi3T7nHEQx9p5pudml2pxWrzVI3tPY3abdkYFi4m6XKGrw66Dv6tbVONh/OQ==",
+  "salt": "euUPNa3zj+QTqg==",
+  "lastSignedInAt": "1789133351295",
+  "createdAt": "1785091279555",
+  "providerUserInfo": []
+},
+{
+  "localId": "Nc5JX1LBddU9rv2AT9duNNmwCO03",
+  "email": "testadmin@taleemidunya.com",
+  "emailVerified": false,
+  "passwordHash": "N7ZeQXi2nPTyIwwzX6ZNmyuHXmR+iB8AexLH0T9Gs5IneqZjkly/71HYu5SI1+RG5t+MtndiGW6YWjJ4zlIDCQ==",
+  "salt": "q58zCZSrq9fDIA==",
+  "lastSignedInAt": "1789133289310",
+  "createdAt": "1786985671619",
+  "providerUserInfo": []
+},
+{
+  "localId": "Nm8i0AyYwsPGIFl0qbe3yKpnO5L2",
+  "email": "superadmin@lodhischool.com",
+  "emailVerified": false,
+  "passwordHash": "1LBWkl4+VbA/zBJl0tqZ6A5IPEM60YOh/ZkXTds3sRayFMahUYhKBzjaFPvcEDpSoRNKwVQXBhdUqxexfnIymA==",
+  "salt": "iXDRcWiAWIJV8g==",
+  "lastSignedInAt": "1786985624598",
+  "createdAt": "1779459729348",
+  "providerUserInfo": []
+},
+{
+  "localId": "OZCI0RZpQZNBEMx7rxaziEutJCH2",
+  "email": "misstabiya@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "lyPOnN/tsVPVWdIQzDg9/CJhD//UPXdfXmhljH4O5SfdW9oh6edAlqVJv/tlfy/GKL5WPzV+m3KccY7OBmI+5g==",
+  "salt": "nb7G9e0bWkjArw==",
+  "lastSignedInAt": "1787809180311",
+  "createdAt": "1785912397801",
+  "providerUserInfo": []
+},
+{
+  "localId": "Rp8JRb1yuWNx1NaRGNBYqWKM7Fk1",
+  "email": "lodhi@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "wGzRSKi6a3xvqwcqzzOgKje67b284NjjFl/POyBIzMOyW8QyN8rDr/qJF2Qh3Ihqoyy8/bW8iB51+Iene3Cb1Q==",
+  "salt": "JadhlZTc57ihvA==",
+  "lastSignedInAt": "1784741649570",
+  "createdAt": "1783956769574",
+  "providerUserInfo": []
+},
+{
+  "localId": "VOXRpWalkXgbf2PlEv7YWWqm33c2",
+  "email": "umar@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "tDl2VtP2XMvCtQHMO8apzvNYlsArcs6Uqfsf8eEHunYOuiUl3dC9bPqqPwGuR4q5SCSDFlcEcpeSFoc042oufQ==",
+  "salt": "BqNaIzHEnLpiNQ==",
+  "lastSignedInAt": "1784819624419",
+  "createdAt": "1784138391417",
+  "providerUserInfo": []
+},
+{
+  "localId": "Y9REqw6FMVU18tsm8QWX98J6u4r2",
+  "email": "smarttesting@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "PrmxJ3AVGXTKHMXtzC8JJ//UngUDsaKieFu6lcu/cmu+SRS/Z6PKHCnjKLeyi5rh7HpZr1sNYTIW6YULx/PVjg==",
+  "salt": "W5GI8Eq8AmoU0w==",
+  "lastSignedInAt": "1788367563118",
+  "createdAt": "1788280227658",
+  "providerUserInfo": []
+},
+{
+  "localId": "Z2cxLhH45VdNcdWCVyjJVjyIqcK2",
+  "email": "rehanlodhi@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "+YYT/1Jr40FSIYBAaMOSBTbbv7InghJwFr7fh2LGcItOV2CynaUJXeP0xnEljFMjmSpCwH+mmiyco/VaNSgJYA==",
+  "salt": "lrgprTNpj41yKQ==",
+  "lastSignedInAt": "1785260297108",
+  "createdAt": "1785260297108",
+  "providerUserInfo": []
+},
+{
+  "localId": "cYKbwJdwYROayMHSzHLrJrQDQOz1",
+  "email": "umarhayat@smart.edu.com",
+  "emailVerified": false,
+  "passwordHash": "3bEGYAzqqWRDr427ZQ1kv5Bm4fZNawc8maRU0Q8RtLbUwO8rrbmyi8/OMARdcWCXeA7m04HAZ10ZQSzwAdZvbw==",
+  "salt": "4wQuali6Cc87bw==",
+  "lastSignedInAt": "1785354169335",
+  "createdAt": "1785354169335",
+  "providerUserInfo": []
+},
+{
+  "localId": "f9inqzVSaPMovDbnOdq6TQheolz1",
+  "email": "sirliaquatlodhi@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "ddY6YkrKl4v7bwA5TmE/w7HcKy+ZgaSf9irhrsA4jYMbF6bp3NLefz3BSzJ1jt0ic4FBBO4CQ3OXc/h7wq74ZA==",
+  "salt": "7xNvy4XFVRHyIQ==",
+  "lastSignedInAt": "1786089246277",
+  "createdAt": "1786089246277",
+  "providerUserInfo": []
+},
+{
+  "localId": "i7KZdmiREETl5n4gwJ9Jmn7SZzB3",
+  "email": "smart@gamil.com",
+  "emailVerified": false,
+  "passwordHash": "md4UnTj7y6iGvX3bEs2Lg/gqpAnL4Liu9aTUXsZfERadzqESk649/CIDt0+jT5ylKUxHi9Us7Njrpfm52gevTQ==",
+  "salt": "3sUF67sG9W/R4Q==",
+  "lastSignedInAt": "1783970790880",
+  "createdAt": "1779468548945",
+  "providerUserInfo": []
+},
+{
+  "localId": "lPNetwDB5cf0kw9n3CSAMN5Az412",
+  "email": "ahsan99043@gmail.com",
+  "emailVerified": true,
+  "displayName": "Amir hafiz",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ6b916foHXF8onSgp9Gtfu1MzzDTP1V4tzxf8tiozQF_Gzlw=s96-c",
+  "lastSignedInAt": "1789029962683",
+  "createdAt": "1789029962683",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "104087477888154105518",
+      "email": "ahsan99043@gmail.com",
+      "displayName": "Amir hafiz",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocJ6b916foHXF8onSgp9Gtfu1MzzDTP1V4tzxf8tiozQF_Gzlw=s96-c"
+    }
+  ]
+},
+{
+  "localId": "lYSMiQAXNDRbLm8DZzEMmeK0dfC3",
+  "email": "studentadmin1@lodhischool.com",
+  "emailVerified": false,
+  "passwordHash": "yYk9LYGqfUN+14wadFwj0zF10XGoADGccHOi+k+L6evG13GUoEToy1B55qLtDHJEUAKUHIApfWtrFPBLs8EvhA==",
+  "salt": "aehECCP4sKZxmA==",
+  "lastSignedInAt": "1779459733547",
+  "createdAt": "1779459733547",
+  "providerUserInfo": []
+},
+{
+  "localId": "li8MgEztwXS68czF9iRAx9mFmlj1",
+  "email": "lodhilodhi990@gmail.com",
+  "emailVerified": true,
+  "displayName": "Lodhi Lodhi",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocIOalyPLMqvACR72tSfNptTaFEBJYWyr3OGhukpsDxwsDWo=s96-c",
+  "lastSignedInAt": "1783953831639",
+  "createdAt": "1783953831638",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "112769377473141148184",
+      "email": "lodhilodhi990@gmail.com",
+      "displayName": "Lodhi Lodhi",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocIOalyPLMqvACR72tSfNptTaFEBJYWyr3OGhukpsDxwsDWo=s96-c"
+    }
+  ]
+},
+{
+  "localId": "pO0TD3zwFgaOYm0gOs5TUUi9ZlJ2",
+  "email": "umarhayatlodhi2001@gmail.com",
+  "emailVerified": true,
+  "displayName": "Mr umar Hayat",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLBNeYLCGFyGjY9J71In3P7Ja4Xzf8KvGB8FuwY4I29wWdFIFCDJw=s96-c",
+  "lastSignedInAt": "1787991889482",
+  "createdAt": "1783955924307",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "115221630202331588643",
+      "email": "umarhayatlodhi2001@gmail.com",
+      "displayName": "Mr umar Hayat",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocLBNeYLCGFyGjY9J71In3P7Ja4Xzf8KvGB8FuwY4I29wWdFIFCDJw=s96-c"
+    }
+  ]
+},
+{
+  "localId": "parent_4220144545577",
+  "lastSignedInAt": "1786941434858",
+  "createdAt": "1786911765346"
+},
+{
+  "localId": "parent_4220170162791",
+  "lastSignedInAt": "1787032405839",
+  "createdAt": "1786561743064"
+},
+{
+  "localId": "s5GdjfDYsre0qKWhdhteiA3Zjp23",
+  "email": "schooladmin1@lodhischool.com",
+  "emailVerified": false,
+  "passwordHash": "v3LnVDvnXDiZgDQU/K6g7P1FMUWSFcUpCYs8tOaWwgUebcctZhS/n0YdvcVH7m5mRpg9Ph8y12hpgrulBjwYvw==",
+  "salt": "mjcD0/Mz8xDQAw==",
+  "lastSignedInAt": "1779462155564",
+  "createdAt": "1779459040387",
+  "providerUserInfo": []
+},
+{
+  "localId": "staff_262vhYzwHiIB2UUYhVZU",
+  "lastSignedInAt": "1788800444687",
+  "createdAt": "1788800444687"
+},
+{
+  "localId": "staff_sjnFqu2NEwJ1kdz1sRm9",
+  "lastSignedInAt": "1787155132706",
+  "createdAt": "1787055673996"
+},
+{
+  "localId": "student_BdWYp4UED8ZcbLz1QAjj",
+  "lastSignedInAt": "1787032304434",
+  "createdAt": "1786843782975"
+},
+{
+  "localId": "student_IiQos36KpzLRnIa9FZp4",
+  "lastSignedInAt": "1786651013310",
+  "createdAt": "1786651013310"
+},
+{
+  "localId": "student_MOlsZYWHn6GGzOVzgLFF",
+  "lastSignedInAt": "1786912586881",
+  "createdAt": "1786911482012"
+},
+{
+  "localId": "student_in5WejvUETtltjDdNcaV",
+  "lastSignedInAt": "1786797957744",
+  "createdAt": "1786797957744"
+},
+{
+  "localId": "ubnZK4oK7UeXOKzEaQSb38EjV5H2",
+  "email": "teacheradmin1@lodhischool.com",
+  "emailVerified": false,
+  "passwordHash": "AOJLXAMJf1yvdMptWAeK9RgJzazfWsapMko5AbpzR8fzftaqv4fDBBjR5F58VsprFpdaE10AheEwGcKqwVryZA==",
+  "salt": "GPWkGgPoSxqJeg==",
+  "lastSignedInAt": "1779900018963",
+  "createdAt": "1779459732145",
+  "providerUserInfo": []
+},
+{
+  "localId": "y2NMIOUqQVfZL39JL27mKTJv8ku2",
+  "email": "faizanlodhi035@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "/B31vq2FCKzVqwxlF6N5GoDhIoLcqETTq3OfPH5Qhw5E9phze0vk7dozjrlEZM3SGW8YLsdRTW2AO2DmPhXQYA==",
+  "salt": "SLkZIGkQqGmh9A==",
+  "displayName": "Muhammad Faizan Lodhi",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocKL2L0hJ0TXUFPXk6QnoLYRTKUr0Ot9De6yv_FnVLoJxMHZQFQP=s96-c",
+  "lastSignedInAt": "1788280079284",
+  "createdAt": "1784811941137",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "105868336744599595730",
+      "email": "faizanlodhi035@gmail.com",
+      "displayName": "Muhammad Faizan Lodhi",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocKL2L0hJ0TXUFPXk6QnoLYRTKUr0Ot9De6yv_FnVLoJxMHZQFQP=s96-c"
+    }
+  ]
+},
+{
+  "localId": "zmPtfNj8KPS0YlFqWMXmnnk9Ohp1",
+  "email": "misswajiha@gmail.com",
+  "emailVerified": false,
+  "passwordHash": "03xeVJqalErawWLW8WDQTI8JsZpDHiZF3pQSy3PC6P9XQZTXKXmIQGgsZ0BNKg+oM8Tb1iT6egDZ/9FZ7u6HIA==",
+  "salt": "5Z4fH+byk0MSxA==",
+  "lastSignedInAt": "1786005026370",
+  "createdAt": "1786004122172",
+  "providerUserInfo": []
+}]}

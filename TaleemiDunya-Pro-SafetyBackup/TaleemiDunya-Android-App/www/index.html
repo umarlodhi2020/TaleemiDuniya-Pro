@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#090b10">
+    <title>TaleemiDunya – Teacher App</title>
+    <style>
+        :root {
+            --bg: #090b10;
+            --card: #131720;
+            --card2: #1a2030;
+            --primary: #9333ea;
+            --primary-glow: rgba(147,51,234,0.25);
+            --accent: #6366f1;
+            --green: #10b981;
+            --red: #f43f5e;
+            --yellow: #f59e0b;
+            --blue: #3b82f6;
+            --text: #ffffff;
+            --text-dim: #8b9ab2;
+            --border: rgba(255,255,255,0.06);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; }
+        body { background: var(--bg); font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--text); overflow: hidden; height: 100vh; width: 100vw; }
+
+        /* ───── LOADER ───── */
+        #loader {
+            position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 9999; gap: 16px; transition: opacity 0.4s;
+        }
+        #loader.hidden { opacity: 0; pointer-events: none; }
+        .loader-logo { width: 64px; height: 64px; background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 40px var(--primary-glow); }
+        .loader-ring { width: 32px; height: 32px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ───── LOGIN SCREEN ───── */
+        #login-screen {
+            position: fixed; inset: 0; background: var(--bg); overflow-y: auto;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+            padding: 32px 20px 40px; transition: opacity 0.4s transform 0.4s;
+        }
+        #login-screen.hidden { opacity: 0; pointer-events: none; transform: translateY(-20px); }
+
+        .login-logo-wrap { margin-bottom: 28px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .login-logo { width: 76px; height: 76px; background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: 24px; display: flex; align-items: center; justify-content: center; box-shadow: 0 16px 40px var(--primary-glow); }
+        .login-logo svg { width: 42px; height: 42px; }
+        .login-title { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .login-title span { color: var(--primary); }
+        .login-sub { color: var(--text-dim); font-size: 13px; text-align: center; }
+
+        .tab-switch { display: flex; background: var(--card); border-radius: 14px; padding: 4px; margin-bottom: 20px; width: 100%; border: 1px solid var(--border); }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 700; border-radius: 11px; cursor: pointer; transition: all 0.25s; }
+        .tab-btn.active { background: var(--primary); color: #fff; box-shadow: 0 4px 14px var(--primary-glow); }
+
+        .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 24px; width: 100%; max-width: 420px; }
+        .form-group { margin-bottom: 16px; }
+        .form-label { font-size: 11px; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+        .form-input-wrap { position: relative; }
+        .form-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: 0.4; }
+        .form-input {
+            width: 100%; background: var(--card2); border: 1.5px solid var(--border); border-radius: 14px;
+            padding: 13px 14px 13px 42px; color: #fff; font-size: 15px; outline: none;
+            transition: border-color 0.2s; -webkit-appearance: none;
+        }
+        .form-input:focus { border-color: var(--primary); }
+        .form-input::placeholder { color: var(--text-dim); font-size: 14px; }
+
+        .login-btn {
+            width: 100%; padding: 15px; border: none; border-radius: 16px; font-size: 16px; font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--accent)); color: #fff; cursor: pointer;
+            box-shadow: 0 8px 24px var(--primary-glow); transition: transform 0.15s, opacity 0.15s; margin-top: 4px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .login-btn:active { transform: scale(0.97); }
+        .login-btn:disabled { opacity: 0.6; }
+
+        .divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--text-dim); font-size: 12px; font-weight: 600; }
+        .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+        .google-btn {
+            width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 16px; background: var(--card2);
+            color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; gap: 10px; transition: all 0.2s;
+        }
+        .google-btn:active { background: rgba(255,255,255,0.05); }
+
+        .error-box { background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.3); border-radius: 12px; padding: 12px 14px; color: #f43f5e; font-size: 13px; font-weight: 600; margin-bottom: 14px; display: none; }
+        .error-box.show { display: block; }
+
+        /* ───── DASHBOARD ───── */
+        #dashboard {
+            position: fixed; inset: 0; background: var(--bg); overflow-y: auto;
+            display: none; flex-direction: column;
+        }
+        #dashboard.active { display: flex; }
+
+        .dash-header { background: var(--card); border-bottom: 1px solid var(--border); padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+        .dash-logo { display: flex; align-items: center; gap: 10px; }
+        .dash-logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--accent)); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .dash-brand { font-size: 16px; font-weight: 800; }
+        .dash-brand span { color: var(--primary); }
+        .dash-badge { font-size: 10px; color: var(--text-dim); font-weight: 600; }
+        .logout-btn { background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.2); color: #f43f5e; padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+        .dash-body { flex: 1; overflow-y: auto; padding: 18px; }
+
+        .welcome-box { background: linear-gradient(135deg, rgba(147,51,234,0.15), rgba(99,102,241,0.1)); border: 1px solid rgba(147,51,234,0.2); border-radius: 20px; padding: 18px; margin-bottom: 20px; }
+        .welcome-name { font-size: 20px; font-weight: 800; }
+        .welcome-name span { color: var(--primary); }
+        .welcome-meta { color: var(--text-dim); font-size: 12px; margin-top: 4px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .meta-badge { background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; padding: 3px 10px; font-size: 11px; font-weight: 700; }
+
+        .section-title { font-size: 11px; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+
+        .quick-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 20px; scrollbar-width: none; }
+        .quick-row::-webkit-scrollbar { display: none; }
+        .quick-chip { flex: 0 0 auto; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; }
+        .quick-chip:active { background: rgba(147,51,234,0.15); border-color: var(--primary); }
+        .quick-chip span { font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .grid-1 { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 20px; }
+
+        .feat-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+            padding: 20px 16px; display: flex; flex-direction: column; align-items: center;
+            text-align: center; cursor: pointer; transition: all 0.2s; gap: 10px;
+        }
+        .feat-card:active { transform: scale(0.97); border-color: var(--primary); background: rgba(147,51,234,0.08); }
+        .feat-icon { width: 52px; height: 52px; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+        .feat-label { font-size: 14px; font-weight: 800; }
+        .feat-desc { font-size: 10px; color: var(--text-dim); }
+
+        .wide-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 18px; cursor: pointer; display: flex; align-items: center; gap: 14px; transition: all 0.2s; }
+        .wide-card:active { border-color: var(--primary); background: rgba(147,51,234,0.08); }
+        .wide-icon { width: 46px; height: 46px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .wide-info { flex: 1; }
+        .wide-label { font-size: 15px; font-weight: 800; }
+        .wide-desc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+        .wide-arrow { color: var(--text-dim); }
+
+        /* ───── FEATURE VIEW ───── */
+        #feature-view {
+            position: fixed; inset: 0; background: var(--bg); z-index: 1000;
+            transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+            display: flex; flex-direction: column;
+        }
+        #feature-view.active { transform: translateY(0); }
+        .feat-top-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+        .back-btn { background: rgba(255,255,255,0.06); border: none; color: #fff; padding: 9px 14px; border-radius: 12px; font-weight: 800; font-size: 13px; cursor: pointer; }
+        .feat-top-title { font-size: 15px; font-weight: 800; flex: 1; }
+        .feat-spin { width: 20px; height: 20px; border: 2.5px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .iframe-wrap { flex: 1; overflow: hidden; background: #000; }
+        .iframe-wrap iframe { width: 100%; height: 100%; border: none; }
+
+        /* ───── TOAST ───── */
+        #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: rgba(30,35,50,0.95); border: 1px solid var(--border); border-radius: 14px; padding: 12px 20px; font-size: 13px; font-weight: 700; z-index: 9999; transition: transform 0.3s; white-space: nowrap; backdrop-filter: blur(12px); }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+    <div class="loader-logo">
+        <svg width="38" height="38" viewBox="0 0 512 512" fill="none">
+            <path d="M256 120L100 210L256 300L412 210L256 120Z" fill="white"/>
+            <path d="M140 235V330C140 370 200 395 256 395C312 395 372 370 372 330V235L256 295L140 235Z" fill="white" fill-opacity="0.75"/>
+            <path d="M412 210V340" stroke="#f59e0b" stroke-width="14" stroke-linecap="round"/>
+        </svg>
+    </div>
+    <div class="loader-ring"></div>
+    <p style="color:var(--text-dim);font-size:13px;font-weight:700;">Loading TaleemiDunya...</p>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="hidden">
+    <div class="login-logo-wrap">
+        <div class="login-logo">
+            <svg viewBox="0 0 512 512" fill="none">
+                <path d="M256 120L100 210L256 300L412 210L256 120Z" fill="white"/>
+                <path d="M140 235V330C140 370 200 395 256 395C312 395 372 370 372 330V235L256 295L140 235Z" fill="white" fill-opacity="0.75"/>
+                <path d="M412 210V340" stroke="#f59e0b" stroke-width="14" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div>
+            <div class="login-title">TaleemiDunya <span>Pro</span></div>
+            <div class="login-sub">Teacher Portal — Sign in to continue</div>
+        </div>
+    </div>
+
+    <div class="tab-switch" style="max-width:420px;width:100%;">
+        <button class="tab-btn active" id="tab-id" onclick="switchTab('id')">🪪 ID + WhatsApp</button>
+        <button class="tab-btn" id="tab-gmail" onclick="switchTab('gmail')">✉️ Gmail</button>
+    </div>
+
+    <div class="login-card">
+        <div class="error-box" id="err-box">⚠️ <span id="err-msg"></span></div>
+
+        <!-- Tab: Staff ID + WhatsApp -->
+        <div id="panel-id">
+            <div class="form-group">
+                <label class="form-label">Staff / Teacher ID</label>
+                <div class="form-input-wrap">
+                    <div class="form-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 10h10M7 14h10"/></svg>
+                    </div>
+                    <input id="input-staffid" class="form-input" type="text" placeholder="e.g. T001" autocomplete="off" autocapitalize="characters">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">WhatsApp / Mobile Number</label>
+                <div class="form-input-wrap">
+                    <div class="form-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.43 2 2 0 0 1 3.62 1h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    </div>
+                    <input id="input-phone" class="form-input" type="tel" placeholder="03XXXXXXXXX" autocomplete="off">
+                </div>
+            </div>
+            <button class="login-btn" id="btn-id-login" onclick="loginWithID()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                Sign In as Teacher
+            </button>
+        </div>
+
+        <!-- Tab: Gmail -->
+        <div id="panel-gmail" style="display:none;">
+            <div class="form-group">
+                <label class="form-label">Gmail Address</label>
+                <div class="form-input-wrap">
+                    <div class="form-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    </div>
+                    <input id="input-gmail" class="form-input" type="email" placeholder="yourname@gmail.com" autocomplete="email">
+                </div>
+            </div>
+            <p style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Enter the Gmail linked to your staff profile. We'll verify it against the school database.</p>
+            <button class="login-btn" id="btn-gmail-login" onclick="loginWithGmail()">
+                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.5.4-2.3L1.6 7.4C.6 9.4 0 11.6 0 14s.6 4.6 1.6 6.6l3.7-2.8z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/></svg>
+                Verify with Gmail
+            </button>
+        </div>
+    </div>
+
+    <p style="color:var(--text-dim);font-size:11px;margin-top:20px;text-align:center;">
+        © 2026 TaleemiDunya Pro · Secure Teacher Portal
+    </p>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+    <div class="dash-header">
+        <div class="dash-logo">
+            <div class="dash-logo-icon">
+                <svg width="20" height="20" viewBox="0 0 512 512" fill="none">
+                    <path d="M256 120L100 210L256 300L412 210L256 120Z" fill="white"/>
+                    <path d="M140 235V330C140 370 200 395 256 395C312 395 372 370 372 330V235L256 295L140 235Z" fill="white" fill-opacity="0.75"/>
+                </svg>
+            </div>
+            <div>
+                <div class="dash-brand">Taleemi<span>Dunya</span></div>
+                <div class="dash-badge" id="teacher-role-badge">Teacher Portal</div>
+            </div>
+        </div>
+        <button class="logout-btn" onclick="doLogout()">Logout</button>
+    </div>
+
+    <div class="dash-body">
+        <!-- Welcome -->
+        <div class="welcome-box">
+            <div class="welcome-name">👋 Welcome, <span id="dash-name">Teacher</span></div>
+            <div class="welcome-meta">
+                <span class="meta-badge" id="dash-id-badge">ID: —</span>
+                <span class="meta-badge" id="dash-class-badge">Class: —</span>
+                <span class="meta-badge" id="dash-dept-badge">Dept: Academic</span>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="section-title">⚡ Quick Actions</div>
+        <div class="quick-row" id="quick-row">
+            <div class="quick-chip" onclick="openFeature('take-attendance','Take Attendance')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+                <span>Attendance</span>
+            </div>
+            <div class="quick-chip" onclick="openFeature('broadcast-diary','Daily Diary')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <span>Diary</span>
+            </div>
+            <div class="quick-chip" onclick="openFeature('online-quizzes','Quizzes')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                <span>Quizzes</span>
+            </div>
+            <div class="quick-chip" onclick="openFeature('teacher/dashboard','Full Dashboard')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2.5"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                <span>Dashboard</span>
+            </div>
+        </div>
+
+        <!-- Main Features -->
+        <div class="section-title">📚 Teaching Tools</div>
+        <div class="grid-2">
+            <div class="feat-card" onclick="openFeature('take-attendance','Take Attendance')">
+                <div class="feat-icon" style="background:linear-gradient(135deg,#10b981,#059669);">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+                </div>
+                <div class="feat-label">Attendance</div>
+                <div class="feat-desc">Mark student presence</div>
+            </div>
+            <div class="feat-card" onclick="openFeature('broadcast-diary','Daily Diary')">
+                <div class="feat-icon" style="background:linear-gradient(135deg,#ec4899,#f43f5e);">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                </div>
+                <div class="feat-label">Daily Diary</div>
+                <div class="feat-desc">Post homework & notes</div>
+            </div>
+            <div class="feat-card" onclick="openFeature('online-quizzes','Live Quizzes')">
+                <div class="feat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                </div>
+                <div class="feat-label">Quizzes</div>
+                <div class="feat-desc">Create live tests</div>
+            </div>
+            <div class="feat-card" onclick="openFeature('exams','Exam Results')">
+                <div class="feat-icon" style="background:linear-gradient(135deg,#3b82f6,#6366f1);">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div class="feat-label">Exams</div>
+                <div class="feat-desc">Results & marksheets</div>
+            </div>
+        </div>
+
+        <!-- Student & Class -->
+        <div class="section-title">👨‍🎓 Student Management</div>
+        <div class="grid-1">
+            <div class="wide-card" onclick="openFeature('students','My Students')">
+                <div class="wide-icon" style="background:linear-gradient(135deg,rgba(147,51,234,0.3),rgba(99,102,241,0.2));">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div class="wide-info">
+                    <div class="wide-label">My Students</div>
+                    <div class="wide-desc">View class list, profiles & parent info</div>
+                </div>
+                <svg class="wide-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div class="wide-card" onclick="openFeature('timetable','Class Timetable')">
+                <div class="wide-icon" style="background:linear-gradient(135deg,rgba(16,185,129,0.3),rgba(5,150,105,0.2));">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div class="wide-info">
+                    <div class="wide-label">Class Timetable</div>
+                    <div class="wide-desc">View schedule & lecture periods</div>
+                </div>
+                <svg class="wide-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+        </div>
+
+        <!-- Communication -->
+        <div class="section-title">📣 Communication</div>
+        <div class="grid-2">
+            <div class="feat-card" onclick="openFeature('announcements','Announcements')">
+                <div class="feat-icon" style="background:linear-gradient(135deg,rgba(147,51,234,0.3),rgba(99,102,241,0.2));">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#9333ea" stroke-width="2.5"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3z"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </div>
+                <div class="feat-label">Notices</div>
+                <div class="feat-desc">School announcements</div>
+            </div>
+            <div class="feat-card" onclick="openFeature('teacher/dashboard','Full Portal')">
+                <div class="feat-icon" style="background:linear-gradient(135deg,rgba(245,158,11,0.3),rgba(217,119,6,0.2));">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                </div>
+                <div class="feat-label">Full Portal</div>
+                <div class="feat-desc">Complete dashboard</div>
+            </div>
+        </div>
+
+        <p style="text-align:center;font-size:11px;color:var(--text-dim);padding-bottom:10px;">TaleemiDunya Pro v2.5 · Teacher Portal</p>
+    </div>
+</div>
+
+<!-- FEATURE VIEW (iframe) -->
+<div id="feature-view">
+    <div class="feat-top-bar">
+        <button class="back-btn" onclick="closeFeature()">← Back</button>
+        <span class="feat-top-title" id="feat-title">Loading</span>
+        <div class="feat-spin" id="feat-spin"></div>
+    </div>
+    <div class="iframe-wrap">
+        <iframe id="feat-frame" src="" allow="camera; microphone"></iframe>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- Firebase SDK -->
+<script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, collection, getDocs, getDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDDVwn-o7X_R4JmJs8a8wE7QjFOrc21jOQ",
+        authDomain: "taleemidunya-pro-ed44e.firebaseapp.com",
+        projectId: "taleemidunya-pro-ed44e",
+        storageBucket: "taleemidunya-pro-ed44e.firebasestorage.app",
+        messagingSenderId: "909284889749",
+        appId: "1:909284889749:web:c73f707ba6756c1823779c"
+    };
+
+    const fbApp = initializeApp(firebaseConfig);
+    const db = getFirestore(fbApp);
+    const auth = getAuth(fbApp);
+
+    const BASE_URL = "https://taleemidunya-pro-ed44e.web.app/#/";
+    const TEACHER_BASE = BASE_URL + "teacher/";
+
+    // ── Helpers ──
+    function normalizePhone(p) {
+        let d = String(p || '').replace(/\D/g, '');
+        if (d.startsWith('0') && d.length === 11) d = '92' + d.slice(1);
+        if (d.length === 10 && !d.startsWith('0')) d = '92' + d;
+        return d;
+    }
+    function phonesMatch(a, b) {
+        const na = normalizePhone(a), nb = normalizePhone(b);
+        if (!na || !nb) return false;
+        return na === nb || na.slice(-10) === nb.slice(-10);
+    }
+    function showToast(msg, ms = 3000) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), ms);
+    }
+    function showError(msg) {
+        const box = document.getElementById('err-box');
+        document.getElementById('err-msg').textContent = msg;
+        box.classList.add('show');
+    }
+    function clearError() { document.getElementById('err-box').classList.remove('show'); }
+    function setLoading(btnId, loading) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        btn.disabled = loading;
+        btn.style.opacity = loading ? '0.6' : '1';
+    }
+
+    function saveSession(teacher) {
+        localStorage.setItem('td_teacher', JSON.stringify(teacher));
+    }
+    function getSession() {
+        try { return JSON.parse(localStorage.getItem('td_teacher') || 'null'); } catch { return null; }
+    }
+    function clearSession() { localStorage.removeItem('td_teacher'); }
+
+    function loadDashboard(teacher) {
+        document.getElementById('dash-name').textContent = teacher.name || 'Teacher';
+        document.getElementById('dash-id-badge').textContent = 'ID: ' + (teacher.staffId || teacher.id || '—');
+        document.getElementById('dash-class-badge').textContent = 'Class: ' + (teacher.assignedClass || teacher.class || '—');
+        document.getElementById('dash-dept-badge').textContent = 'Dept: ' + (teacher.department || 'Academic');
+        document.getElementById('teacher-role-badge').textContent = (teacher.role || teacher.designation || 'Teacher') + ' Portal';
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('dashboard').classList.add('active');
+        document.getElementById('loader').classList.add('hidden');
+    }
+
+    // ── Tab switch ──
+    window.switchTab = function(tab) {
+        document.getElementById('tab-id').classList.toggle('active', tab === 'id');
+        document.getElementById('tab-gmail').classList.toggle('active', tab === 'gmail');
+        document.getElementById('panel-id').style.display = tab === 'id' ? 'block' : 'none';
+        document.getElementById('panel-gmail').style.display = tab === 'gmail' ? 'block' : 'none';
+        clearError();
+    };
+
+    // ── Login with Staff ID + Phone ──
+    window.loginWithID = async function() {
+        clearError();
+        const staffId = document.getElementById('input-staffid').value.trim().toUpperCase();
+        const phone = document.getElementById('input-phone').value.trim();
+        if (!staffId || !phone) { showError('Apna Staff ID aur WhatsApp number dono enter karein.'); return; }
+
+        setLoading('btn-id-login', true);
+        try {
+            const snap = await getDocs(collection(db, 'staff'));
+            let matched = null;
+            for (const doc of snap.docs) {
+                const d = { id: doc.id, ...doc.data() };
+                const sid = String(d.staffId || d.id || '').trim().toUpperCase();
+                const sphone = d.phone || d.whatsappNumber || d.mobile || '';
+                if (sid === staffId && phonesMatch(sphone, phone)) { matched = d; break; }
+            }
+            if (!matched) {
+                showError('Staff ID ya Mobile Number galat hai. Dobara check karein.');
+            } else {
+                saveSession(matched);
+                loadDashboard(matched);
+                showToast('✅ Welcome, ' + (matched.name || 'Teacher') + '!');
+            }
+        } catch (e) {
+            console.error(e);
+            showError('Network error: ' + e.message);
+        } finally {
+            setLoading('btn-id-login', false);
+        }
+    };
+
+    // ── Login with Gmail ──
+    window.loginWithGmail = async function() {
+        clearError();
+        const gmailInput = document.getElementById('input-gmail').value.trim().toLowerCase();
+        if (!gmailInput) { showError('Gmail address enter karein.'); return; }
+
+        setLoading('btn-gmail-login', true);
+        try {
+            const snap = await getDocs(collection(db, 'staff'));
+            let matched = null;
+            for (const doc of snap.docs) {
+                const d = { id: doc.id, ...doc.data() };
+                const email = String(d.email || d.linkedEmail || d.gmail || '').trim().toLowerCase();
+                if (email && email === gmailInput) { matched = d; break; }
+            }
+            if (!matched) {
+                showError('Yeh Gmail staff database mein nahi mili. Email check karein.');
+            } else {
+                saveSession(matched);
+                loadDashboard(matched);
+                showToast('✅ Welcome, ' + (matched.name || 'Teacher') + '!');
+            }
+        } catch (e) {
+            console.error(e);
+            showError('Error: ' + e.message);
+        } finally {
+            setLoading('btn-gmail-login', false);
+        }
+    };
+
+    // ── Logout ──
+    window.doLogout = function() {
+        clearSession();
+        document.getElementById('dashboard').classList.remove('active');
+        document.getElementById('login-screen').classList.remove('hidden');
+        document.getElementById('input-staffid').value = '';
+        document.getElementById('input-phone').value = '';
+        document.getElementById('input-gmail').value = '';
+        clearError();
+    };
+
+    // ── Open Feature (iframe) ──
+    window.openFeature = function(route, label) {
+        const frame = document.getElementById('feat-frame');
+        const view = document.getElementById('feature-view');
+        const spin = document.getElementById('feat-spin');
+        document.getElementById('feat-title').textContent = label;
+        spin.style.display = 'block';
+        // If route contains '/', use BASE_URL, else TEACHER_BASE for teacher-specific routes
+        const url = route.includes('teacher/') ? (BASE_URL + route + '?minimal=1') : (TEACHER_BASE + route + '?minimal=1');
+        frame.src = url;
+        view.classList.add('active');
+        frame.onload = () => { spin.style.display = 'none'; };
+    };
+
+    window.closeFeature = function() {
+        const view = document.getElementById('feature-view');
+        view.classList.remove('active');
+        setTimeout(() => { document.getElementById('feat-frame').src = ''; }, 400);
+    };
+
+    async function refreshTeacherSession(teacher) {
+        if (!teacher) return;
+        try {
+            const staffRef = collection(db, 'staff');
+            let freshDoc = null;
+            if (teacher.id) {
+                const sDoc = await getDoc(doc(db, 'staff', teacher.id));
+                if (sDoc.exists()) freshDoc = { id: sDoc.id, ...sDoc.data() };
+            }
+            if (!freshDoc && teacher.staffId) {
+                const q = query(staffRef, where('staffId', '==', teacher.staffId));
+                const snap = await getDocs(q);
+                if (!snap.empty) freshDoc = { id: snap.docs[0].id, ...snap.docs[0].data() };
+            }
+            if (freshDoc) {
+                saveSession(freshDoc);
+                loadDashboard(freshDoc);
+            }
+        } catch(e) {
+            console.error("Error auto-refreshing staff session:", e);
+        }
+    }
+
+    // ── Init ──
+    window.addEventListener('DOMContentLoaded', () => {
+        const session = getSession();
+        if (session) {
+            loadDashboard(session);
+            refreshTeacherSession(session);
+        } else {
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+        }
+    });
+
+    // Back button (Capacitor)
+    if (window.Capacitor?.Plugins?.App) {
+        window.Capacitor.Plugins.App.addListener('backButton', () => {
+            const view = document.getElementById('feature-view');
+            if (view.classList.contains('active')) window.closeFeature();
+            else window.Capacitor.Plugins.App.exitApp();
+        });
+    }
+</script>
+<script src="capacitor.js"></script>
+</body>
+</html>

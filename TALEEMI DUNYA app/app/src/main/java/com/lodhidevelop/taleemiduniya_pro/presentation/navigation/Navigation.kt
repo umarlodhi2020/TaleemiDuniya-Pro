@@ -207,9 +207,11 @@ fun AppNavigation() {
                     val selectedChild by viewModel.selectedChild.collectAsState()
                     val schoolId by viewModel.sessionManager.schoolId.collectAsState(initial = "")
 
-                    TeacherLeaveScreen(
-                        teacherId = selectedChild?.id ?: "",
-                        teacherName = selectedChild?.name ?: "",
+                    ParentLeaveScreen(
+                        studentId = selectedChild?.id ?: "",
+                        studentName = selectedChild?.name ?: "",
+                        className = selectedChild?.className ?: "",
+                        section = selectedChild?.section ?: "",
                         schoolId = schoolId ?: "",
                         onBack = { backStack.removeAt(backStack.size - 1) }
                     )
@@ -218,9 +220,10 @@ fun AppNavigation() {
                     val viewModel: ParentDashboardViewModel = hiltViewModel()
                     val selectedChild by viewModel.selectedChild.collectAsState()
 
-                    TeacherStudentListScreen( // Reusing the list UI for directory
+                    ParentTeachersScreen(
                         className = selectedChild?.className ?: "",
                         section = selectedChild?.section ?: "",
+                        schoolId = selectedChild?.schoolId ?: "",
                         onBack = { backStack.removeAt(backStack.size - 1) }
                     )
                 }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TaleemiFaceScanner</string>
+    <string name="title_activity_main">TaleemiFaceScanner</string>
+    <string name="package_name">com.taleemi.facescanner</string>
+    <string name="custom_url_scheme">com.taleemi.facescanner</string>
+</resources>

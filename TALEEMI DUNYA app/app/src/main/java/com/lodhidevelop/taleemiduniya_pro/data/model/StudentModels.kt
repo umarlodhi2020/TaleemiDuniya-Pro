@@ -112,6 +112,19 @@ data class LeaveRequest(
     val schoolId: String = ""
 )
 
+data class StudentLeaveRequest(
+    val id: String = "",
+    val studentId: String = "",
+    val studentName: String = "",
+    val className: String = "",
+    val section: String = "",
+    val reason: String = "",
+    val startDate: String = "",
+    val endDate: String = "",
+    val status: String = "Pending", // Pending, Approved, Rejected
+    val schoolId: String = ""
+)
+
 data class NotificationRecord(
     val id: String = "",
     val title: String = "",

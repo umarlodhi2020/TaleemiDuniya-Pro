@@ -30,6 +30,7 @@ import SchoolAdminDashboard from './pages/school-admin/Dashboard';
 import InquiryManager from './pages/school-admin/InquiryManager';
 import AddInquiry from './pages/school-admin/AddInquiry';
 import ParentManager from './pages/school-admin/ParentManager';
+import EditParent from './pages/school-admin/EditParent';
 import FeeRecord from './pages/school-admin/FeeRecord';
 import SubjectManager from './pages/school-admin/SubjectManager';
 import AdmitCard from './pages/school-admin/AdmitCard';
@@ -327,6 +328,7 @@ const AppRoutes = () => {
         <Route path="class-fees" element={<ClassFeesSetup />} />
         <Route path="staff/id-cards" element={<StaffIdCards />} />
         <Route path="parents" element={<ParentManager />} />
+        <Route path="parents/edit/:parentId" element={<EditParent />} />
         <Route path="parents/:id" element={<ParentProfile />} />
         <Route path="fees/record" element={<FeeRecord />} />
         <Route path="subjects" element={<SubjectManager />} />

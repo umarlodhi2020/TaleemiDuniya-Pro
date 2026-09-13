@@ -4,7 +4,7 @@ import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
 data class LoginRequest(
-    val cnic: String,
+    val identifier: String, // Explicitly sending 'identifier' instead of 'cnic' since backend might be looking for 'identifier'
     val phone: String,
     val email: String,
     val role: String = ""

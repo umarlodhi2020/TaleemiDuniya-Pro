@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, RefreshCcw, CheckCircle, Scan, X, User, ShieldCheck, Lock, AlertCircle, Search } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 export default function FaceScannerApp() {
@@ -137,6 +137,21 @@ export default function FaceScannerApp() {
       // Pick a REAL student from the loaded list
       if (allStudents.length > 0) {
         const randomStudent = allStudents[Math.floor(Math.random() * allStudents.length)];
+        
+        // Save to Database
+        try {
+          addDoc(collection(db, 'attendance'), {
+            studentId: randomStudent.id,
+            studentName: randomStudent.name || 'Student',
+            rollNumber: randomStudent.rollNumber || randomStudent.rollNo || 'N/A',
+            class: randomStudent.class || randomStudent.className || 'N/A',
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString(),
+            status: 'present',
+            schoolId: activeSchoolId
+          });
+        } catch (err) { console.error('Failed to save attendance', err); }
+
         setScanResult({
           name: randomStudent.name || 'Student',
           class: randomStudent.class || randomStudent.className || 'N/A',
@@ -174,6 +189,20 @@ export default function FaceScannerApp() {
   };
 
   const handleSelectManualStudent = (student) => {
+    // Save to Database
+    try {
+      addDoc(collection(db, 'attendance'), {
+        studentId: student.id,
+        studentName: student.name || 'Student',
+        rollNumber: student.rollNumber || student.rollNo || 'N/A',
+        class: student.class || student.className || 'N/A',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString(),
+        status: 'present',
+        schoolId: activeSchoolId
+      });
+    } catch (err) { console.error('Failed to save manual attendance', err); }
+
     setScanResult({
       name: student.name || 'Student',
       class: student.class || student.className || 'N/A',

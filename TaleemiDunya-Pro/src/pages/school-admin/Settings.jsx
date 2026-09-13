@@ -41,7 +41,7 @@ const SchoolSettings = () => {
   const queryParams = new URLSearchParams(location.search);
   const tabFromUrl = queryParams.get('tab') || 'profile';
 
-  const { userData } = useAuth();
+  const { userData, createUser } = useAuth();
   const [activeTab, setActiveTab] = useState(tabFromUrl);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -312,6 +312,29 @@ const SchoolSettings = () => {
         password: faceScan.password, // Update Face Scan Password
         updatedAt: serverTimestamp(),
       });
+      
+      // Auto-Create Face Scanner Firebase Auth Account (Virtual Email)
+      if (faceScan.password && faceScan.password.length >= 6) {
+        try {
+          const virtualEmail = `${faceScan.idNumber}@taleemiduniya.com`;
+          await createUser({
+            email: virtualEmail,
+            password: faceScan.password,
+            role: 'kiosk', // Identifier role
+            name: `${profile.name} Kiosk`,
+            schoolId: faceScan.idNumber
+          });
+          console.log("Kiosk Auth Account Auto-Created!");
+        } catch (authErr) {
+          // If email already exists, we cannot update its password via client SDK without logging in as that user
+          if (authErr.code === 'auth/email-already-in-use') {
+             console.warn("Kiosk auth account already exists. Password updates must be done manually in Firebase Console.");
+          } else {
+             console.error("Failed to auto-create kiosk auth:", authErr);
+          }
+        }
+      }
+
       showToast('success', 'School preferences saved successfully.');
     } catch (err) {
       console.error('Error updating settings:', err);

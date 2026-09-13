@@ -17,16 +17,16 @@ class AuthRepository @Inject constructor(
     
     suspend fun requestOtp(cnic: String, phone: String, email: String, role: String): Result<AuthResponse> {
         return try {
-            val response = authApiService.requestOtp(LoginRequest(cnic, phone, email, role))
+            val response = authApiService.requestOtp(LoginRequest(identifier = cnic, phone = phone, email = email, role = role))
             if (response.isSuccessful && response.body() != null) {
                 Result.success(response.body()!!)
             } else {
                 val errorJson = response.errorBody()?.string() ?: ""
                 val errorMessage = try {
                     val jsonObject = org.json.JSONObject(errorJson)
-                    jsonObject.optString("error", "Request failed (${response.code()})")
+                    jsonObject.optString("error", "Request failed ()")
                 } catch (e: Exception) {
-                    "Request failed (${response.code()})"
+                    "Request failed ()"
                 }
                 Result.failure(Exception(errorMessage))
             }
@@ -41,7 +41,6 @@ class AuthRepository @Inject constructor(
             val authResponse = response.body()
             if (response.isSuccessful && authResponse != null) {
                 if (authResponse.success && authResponse.token != null) {
-                    // Sign in to Firebase using the Custom Token from our backend
                     firebaseAuth.signInWithCustomToken(authResponse.token).await()
                     Result.success(authResponse)
                 } else {
