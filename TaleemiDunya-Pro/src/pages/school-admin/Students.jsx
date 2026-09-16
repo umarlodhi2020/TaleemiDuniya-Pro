@@ -447,16 +447,16 @@ const StudentManager = () => {
                 )}
                 <th className="pb-4 px-4">Student Name</th>
                 <th className="pb-4 px-4">Roll No</th>
-                <th className="pb-4 px-4">Class</th>
-                <th className="pb-4 px-4">Section</th>
-                <th className="pb-4 px-4">Father Name</th>
-                <th className="pb-4 px-4">Mobile No</th>
-                <th className="pb-4 px-4">CNIC</th>
-                <th className="pb-4 px-4">Monthly Fee</th>
-                {isSpreadsheetMode && <th className="pb-4 px-4">Prev. Balance</th>}
-                {isSpreadsheetMode && <th className="pb-4 px-4">Annual Fund</th>}
-                <th className="pb-4 px-4">Status</th>
-                {!isSpreadsheetMode && <th className="pb-4 px-4 text-right">Action</th>}
+                <th className="pb-3 px-3">Class</th>
+                <th className="pb-3 px-3">Section</th>
+                <th className="pb-3 px-3">Father Name</th>
+                <th className="pb-3 px-3">Mobile No</th>
+                <th className="pb-3 px-3">CNIC</th>
+                <th className="pb-3 px-3">Monthly Fee</th>
+                {isSpreadsheetMode && <th className="pb-3 px-3">Prev. Balance</th>}
+                {isSpreadsheetMode && <th className="pb-3 px-3">Annual Fund</th>}
+                <th className="pb-3 px-3">Status</th>
+                {!isSpreadsheetMode && <th className="pb-3 px-4 text-right sticky right-0 bg-[#0f121b] z-20 shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.5)]">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-border">
@@ -536,23 +536,23 @@ const StudentManager = () => {
                             {student.status}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-3 px-4 text-right sticky right-0 bg-[#0f121b] group-hover:bg-[#1a1f2b] z-10 shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.5)] transition-colors">
                           <div className="flex items-center justify-end gap-2">
                             <button 
                               onClick={() => handleSendStudentWhatsApp(student)}
                               disabled={sendingWaId === student.id}
-                              className="p-1.5 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-lg transition-all flex items-center gap-1 text-xs font-bold disabled:opacity-50"
+                              className="p-1.5 px-2 bg-green-500 hover:bg-green-600 text-white rounded-md transition-all flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold disabled:opacity-50"
                               title="Send Automatic WhatsApp via Cloud AI Bot Server"
                             >
                               {sendingWaId === student.id ? (
-                                <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                               ) : (
-                                <MessageSquare size={14} />
+                                <MessageSquare size={12} />
                               )}
                             </button>
-                            <button onClick={() => navigate(`/school-admin/students/${student.id}`)} className="p-1.5 hover:bg-primary-500/10 text-dark-muted hover:text-primary-500 rounded-lg transition-all"><Eye size={14} /></button>
-                            <button onClick={() => navigate(`/school-admin/students/edit/${student.id}`)} className="p-1.5 hover:bg-blue-500/10 text-dark-muted hover:text-blue-500 rounded-lg transition-all"><Edit2 size={14} /></button>
-                            <button onClick={() => handleDelete(student.id)} className="p-1.5 hover:bg-red-500/10 text-dark-muted hover:text-red-500 rounded-lg transition-all"><Trash2 size={14} /></button>
+                            <button onClick={() => navigate(`/school-admin/students/${student.id}`)} className="p-1.5 px-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-all text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"><Eye size={12} /> View</button>
+                            <button onClick={() => navigate(`/school-admin/students/edit/${student.id}`)} className="p-1.5 px-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-all text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"><Edit2 size={12} /> Edit</button>
+                            <button onClick={() => handleDelete(student.id)} className="p-1.5 px-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-all text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"><Trash2 size={12} /> Delete</button>
                           </div>
                         </td>
                       </>

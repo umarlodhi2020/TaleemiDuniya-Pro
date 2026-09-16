@@ -67,11 +67,27 @@ const EditParent = () => {
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
       
-      // Auto-generate username if fatherName is entered and parentUsername is currently empty
-      if (name === 'fatherName' && !prev.parentUsername && value.trim() !== '') {
+      // Auto-generate or update username if it hasn't been manually changed
+      if (name === 'fatherName' && value.trim() !== '') {
         const base = value.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
         if (base) {
-          updated.parentUsername = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+          let randomSuffix = Math.floor(1000 + Math.random() * 9000);
+          let shouldUpdate = false;
+          
+          if (!prev.parentUsername) {
+            shouldUpdate = true;
+          } else {
+            const oldBase = prev.fatherName ? prev.fatherName.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+            const match = prev.parentUsername.match(/\d{4}$/);
+            if (match && oldBase && prev.parentUsername === `${oldBase}${match[0]}`) {
+              shouldUpdate = true;
+              randomSuffix = match[0];
+            }
+          }
+          
+          if (shouldUpdate) {
+            updated.parentUsername = `${base}${randomSuffix}`;
+          }
         }
       }
       return updated;

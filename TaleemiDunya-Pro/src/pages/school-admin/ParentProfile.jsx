@@ -62,6 +62,7 @@ const ParentProfile = () => {
           email: first.parentEmail || first.email,
           address: first.address,
           whatsapp: first.whatsapp,
+          parentUsername: first.parentUsername || '',
         });
 
         // Find vouchers for any of the children
@@ -193,6 +194,7 @@ const ParentProfile = () => {
                 { label: 'Father Name', val: parentInfo.fatherName, icon: User },
                 { label: 'Mother Name', val: parentInfo.motherName, icon: User },
                 { label: 'CNIC', val: parentInfo.fatherCnic, icon: CreditCard },
+                { label: 'App Username', val: parentInfo.parentUsername, icon: User },
                 { label: 'Address', val: parentInfo.address, icon: User },
               ].map((item, i) => item.val ? (
                 <div key={i} className="flex items-start gap-3">

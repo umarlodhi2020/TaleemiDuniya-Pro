@@ -350,11 +350,27 @@ const AddStaff = () => {
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
       
-      // Auto-generate username if name is entered and username is currently empty
-      if (name === 'name' && !prev.username && value.trim() !== '') {
+      // Auto-generate or update username if it hasn't been manually changed
+      if (name === 'name' && value.trim() !== '') {
         const base = value.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
         if (base) {
-          updated.username = `${base}${Math.floor(1000 + Math.random() * 9000)}`;
+          let randomSuffix = Math.floor(1000 + Math.random() * 9000);
+          let shouldUpdate = false;
+          
+          if (!prev.username) {
+            shouldUpdate = true;
+          } else {
+            const oldBase = prev.name ? prev.name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+            const match = prev.username.match(/\d{4}$/);
+            if (match && oldBase && prev.username === `${oldBase}${match[0]}`) {
+              shouldUpdate = true;
+              randomSuffix = match[0];
+            }
+          }
+          
+          if (shouldUpdate) {
+            updated.username = `${base}${randomSuffix}`;
+          }
         }
       }
       return updated;

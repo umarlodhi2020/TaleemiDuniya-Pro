@@ -930,21 +930,20 @@ async function handleAIBotReply(schoolId, senderPhone, queryText) {
     const percentage = totalDays > 0 ? Math.round((presentCount / totalDays) * 100) : 100;
     return prependMsg + `📅 *REAL-TIME ATTENDANCE REPORT* 🔒\n\n` +
            `👤 *Student Name:* ${verifiedStudent.name}\n` +
-           `ðŸ « *Class / Section:* ${verifiedStudent.class || 'N/A'}-${verifiedStudent.section || 'A'}\n` +
+           `ðŸ« *Class / Section:* ${verifiedStudent.class || 'N/A'}-${verifiedStudent.section || 'A'}\n` +
            `📊 *Overall Attendance:* ${percentage}%\n` +
            `✅ *Total Present:* ${totalDays > 0 ? presentCount + ' Days' : '100% Regular (Current Term)'}\n` +
-           `â Œ *Total Absent:* ${totalDays > 0 ? absentCount + ' Days' : '0 Leaves Recorded'}\n\n` +
-           `ℹï¸  *Details:* Student ki daily attendance biomertric / class teacher registry se sync ho rahi hai. Regular attendance maintain rakhne par shukriya!\n\n` +
+           `âŒ *Total Absent:* ${totalDays > 0 ? absentCount + ' Days' : '0 Leaves Recorded'}\n\n` +
+           `ℹï¸ *Details:* Student ki daily attendance biomertric / class teacher registry se sync ho rahi hai. Regular attendance maintain rakhne par shukriya!\n\n` +
            `🔙 *(Type *0* or *menu* to go back to main options)*`;
   }
 
   if (verifiedStudent && (lower.includes('update data') || lower.includes('update form') || lower.includes('edit data') || lower.includes('form') || lower.includes('data form'))) {
-    const encodedFather = encodeURIComponent(verifiedStudent.fatherName || '');
-    const link = `https://taleemidunya-pro-ed44e.web.app/#/family-update/${schoolId}/${cleanSender}/${encodedFather}`;
-    return prependMsg + `ðŸ“  *FAMILY DATA UPDATE FORM* 🔒\n\n` +
+    const link = `https://taleemidunya-pro-ed44e.web.app/family-update/${schoolId}/${cleanSender}`;
+    return prependMsg + `ðŸ“ *FAMILY DATA UPDATE FORM* 🔒\n\n` +
            `Assalam-o-Alaikum, neeche diye gaye secure link par click karke aap apne bache(on) ka data verify aur update kar sakte hain:\n\n` +
            `🔗 *Update Link:*\n${link}\n\n` +
-           `ℹï¸  *Note:* Yeh link secure hai. Yahan par aap Student Name, Father/Mother Name, Date of Birth, CNIC aur Mobile Number update kar sakte hain. Class, Section aur Roll No sirf school admin badal sakta hai.\n\n` +
+           `ℹï¸ *Note:* Yeh link secure hai. Yahan par aap Student Name, Father/Mother Name, Date of Birth, CNIC aur Mobile Number update kar sakte hain. Class, Section aur Roll No sirf school admin badal sakta hai.\n\n` +
            `🔙 *(Type *0* or *menu* to go back to main options)*`;
   }
 
@@ -1555,16 +1554,18 @@ async function withTimeout(promise, timeoutMs, errorMsg = 'Operation timed out')
 app.post('/api/mobile/auth/request-otp', async (req, res) => {
   const startTime = Date.now();
   try {
-    const { cnic, phone, email, role: requestedRole } = req.body;
-    const cleanPhone = normalizePhone(phone);
-    const cleanCnic = String(cnic || '').replace(/\D/g, '');
-    const isCnicFormat = cleanCnic.length === 13;
-    const inputId = String(cnic || '').toUpperCase().trim();
+    const { cnic, email, identifier, contact } = req.body;
+    const searchIdentifier = (identifier || cnic || '').trim();
+    const searchContact = (contact || email || '').trim();
 
-    console.log(`[AUTH] REQ -> Role: ${requestedRole} | ID: "${inputId}" | Phone: "${phone}"`);
+    const inputId = String(searchIdentifier || '').toLowerCase().trim();
+    const cleanCnic = String(searchIdentifier || '').replace(/\D/g, '');
+    const providedEmail = String(searchContact || '').toLowerCase().trim();
 
-    if (!cnic || !phone || !email || !email.includes('@')) {
-      return res.status(400).json({ success: false, error: 'All 3 fields (ID, WhatsApp, and valid Gmail) are required.' });
+    console.log(`[AUTH] REQ -> ID/Username: "${inputId}" | Email: "${providedEmail}"`);
+
+    if (!searchIdentifier || !searchContact || !searchContact.includes('@')) {
+      return res.status(400).json({ success: false, error: 'Username (ID) and Gmail are required.' });
     }
 
     // Identified User Data
@@ -1574,164 +1575,87 @@ app.post('/api/mobile/auth/request-otp', async (req, res) => {
     let displayName = '';
     let userId = '';
     let recordId = '';
+    let userPhone = '';
 
-    // --- 1. TEACHER LOGIN ---
-    if (requestedRole === 'teacher') {
-        const staffSnap = await db.collection('staff').get();
-        const teacherMatch = staffSnap.docs.find(d => {
-            const data = d.data();
-            const dbStaffId = String(data.staffId || '').toUpperCase().trim();
-            const dbCnic = String(data.cnic || '').replace(/\D/g, '');
-            const dbPhone = normalizePhone(data.phone || data.whatsapp || '');
+    // --- 1. SEARCH IN STAFF ---
+    const staffSnap = await db.collection('staff').get();
+    const staffMatch = staffSnap.docs.find(d => {
+        const data = d.data();
+        const dbStaffId = String(data.staffId || '').toLowerCase().trim();
+        const dbCnic = String(data.cnic || '').replace(/\D/g, '');
+        const dbUsername = String(data.appUsername || '').toLowerCase().trim();
 
-            const idMatches = (dbStaffId === inputId) ||
-                              (dbStaffId === `STF-${inputId}`) ||
-                              (dbStaffId.replace('STF-', '') === inputId) ||
-                              (dbCnic === inputId.replace(/\D/g, ''));
+        return (dbStaffId === inputId) ||
+               (dbStaffId === `stf-${inputId}`) ||
+               (dbCnic === cleanCnic && cleanCnic.length === 13) ||
+               (dbUsername === inputId);
+    });
 
-            const phoneMatches = dbPhone.slice(-10) === cleanPhone.slice(-10);
-            return idMatches && phoneMatches;
-        });
-
-        if (teacherMatch) {
-            userFound = teacherMatch.data();
-            recordId = teacherMatch.id;
-            role = 'teacher';
-            schoolId = userFound.schoolId;
-            displayName = userFound.name || 'Teacher';
-            userId = `staff_${recordId}`;
-        }
+    if (staffMatch) {
+        userFound = staffMatch.data();
+        recordId = staffMatch.id;
+        role = userFound.role || 'teacher';
+        schoolId = userFound.schoolId;
+        displayName = userFound.name || 'Staff';
+        userId = `staff_${recordId}`;
+        userPhone = normalizePhone(userFound.phone || userFound.whatsapp || '');
     }
 
-    // --- 2. PARENT LOGIN ---
-    else if (requestedRole === 'parent') {
-        const formattedCnic = formatCnic(cnic);
-        const parentSnap = await db.collection('students').where('fatherCnic', '==', formattedCnic).get();
-        const parentMatch = parentSnap.docs.find(d => {
-            const data = d.data();
-            const dbParentPhone = normalizePhone(data.parentPhone || data.whatsappPhone || data.phone || '');
-            return dbParentPhone.slice(-10) === cleanPhone.slice(-10);
-        });
-
-        if (parentMatch) {
-            userFound = parentMatch.data();
-            recordId = parentMatch.id;
-            role = 'parent';
-            schoolId = userFound.schoolId;
-            displayName = userFound.fatherName || 'Parent';
-            userId = `parent_${cleanCnic}`;
-        }
-    }
-
-    // --- 3. STUDENT LOGIN ---
-    else if (requestedRole === 'student') {
-        const studentSnap = await db.collection('students').where('rollNumber', '==', inputId).get();
+    // --- 2. SEARCH IN STUDENTS ---
+    if (!userFound) {
+        const studentSnap = await db.collection('students').get();
         const studentMatch = studentSnap.docs.find(d => {
             const data = d.data();
-            const dbPhone = normalizePhone(data.phone || data.parentPhone || '');
-            return dbPhone.slice(-10) === cleanPhone.slice(-10);
+            const dbRoll = String(data.rollNumber || '').toLowerCase().trim();
+            const dbRollNo = String(data.rollNo || '').toLowerCase().trim();
+            const dbCnic = String(data.fatherCnic || '').replace(/\D/g, '');
+            const dbStudentCnic = String(data.cnic || '').replace(/\D/g, '');
+            const dbUsername = String(data.appUsername || '').toLowerCase().trim();
+
+            return (dbRoll === inputId) ||
+                   (dbRollNo === inputId) ||
+                   (dbCnic === cleanCnic && cleanCnic.length === 13) ||
+                   (dbStudentCnic === cleanCnic && cleanCnic.length === 13) ||
+                   (dbUsername === inputId);
         });
 
         if (studentMatch) {
             userFound = studentMatch.data();
             recordId = studentMatch.id;
-            role = 'student';
             schoolId = userFound.schoolId;
-            displayName = userFound.name || 'Student';
-            userId = `student_${recordId}`;
-        }
-    }
 
-    // 2. Search for Parent if not Teacher
-    if (!userFound && isCnicFormat) {
-        const formattedCnic = formatCnic(cnic);
-        try {
-            const parentSnap = await withTimeout(
-                db.collection('students').where('fatherCnic', '==', formattedCnic).get(),
-                8000,
-                'Database lookup timed out (Parent Search)'
-            );
-
-            const parentMatch = parentSnap.docs.find(d => {
-                const data = d.data();
-                const dbParentPhone = normalizePhone(data.parentPhone || data.whatsappPhone || data.phone || '');
-                return dbParentPhone.slice(-10) === cleanPhone.slice(-10);
-            });
-
-            if (parentMatch) {
-                console.log(`[AUTH] Parent Match Found! ID: ${parentMatch.id}`);
-                const data = parentMatch.data();
-                userFound = data;
-                recordId = parentMatch.id;
+            if ((cleanCnic.length === 13 && String(userFound.fatherCnic || '').replace(/\D/g, '') === cleanCnic) || userFound.role === 'parent') {
                 role = 'parent';
-                schoolId = data.schoolId;
-                displayName = data.fatherName || 'Parent';
-                userId = `parent_${cleanCnic}`;
-            }
-        } catch (e) {}
-    }
-
-    // 3. Search for Student if still not found
-    if (!userFound) {
-      console.log(`[AUTH] Searching Student by Roll: ${cnic} (${Date.now() - startTime}ms)`);
-      try {
-        const studentSnap = await withTimeout(
-          db.collection('students').where('rollNumber', '==', cnic.trim()).get(),
-          8000,
-          'Database lookup timed out (Student Search)'
-        );
-
-        if (!studentSnap.empty) {
-            // Find student with matching phone among same roll numbers
-            const studentMatch = studentSnap.docs.find(d => {
-                const data = d.data();
-                const dbPhone = normalizePhone(data.phone || data.parentPhone || '');
-                return dbPhone.slice(-10) === cleanPhone.slice(-10);
-            });
-
-            if (studentMatch) {
-                console.log(`[AUTH] Student Match Found! ID: ${studentMatch.id}`);
-                userFound = studentMatch.data();
-                recordId = studentMatch.id;
-                role = 'student';
-                schoolId = userFound.schoolId;
+                displayName = userFound.fatherName || 'Parent';
+                userId = `parent_${cleanCnic || recordId}`;
+                userPhone = normalizePhone(userFound.parentPhone || userFound.phone || '');
+            } else {
+                role = userFound.role || 'student';
                 displayName = userFound.name || 'Student';
                 userId = `student_${recordId}`;
-            } else {
-                console.log(`[AUTH] Roll match found but Phone mismatch. Expected: ${studentSnap.docs[0].data().phone}, Got: ${cleanPhone}`);
-                return res.status(400).json({
-                    success: false,
-                    error: `The ID and WhatsApp number do not match. Please ensure you have selected the correct Role (Student/Teacher/Parent).`
-                });
+                userPhone = normalizePhone(userFound.phone || '');
             }
         }
-      } catch (dbErr) {
-        console.error(`[AUTH] Roll search error:`, dbErr.message);
-      }
     }
 
     // FINAL CHECK: Did we find any account?
     if (!userFound) {
-      console.log(`[AUTH] No account found for ID: ${cnic} and Phone: ${phone} (${Date.now() - startTime}ms)`);
+      console.log(`[AUTH] No account found for ID: ${searchIdentifier} (${Date.now() - startTime}ms)`);
       return res.status(404).json({
         success: false,
-        error: 'No account found with these details. Please ensure your ID and WhatsApp number are correct.'
+        error: 'No account found with this ID/Username. Please ensure it is correct.'
       });
     }
 
     // Email matching logic (Auto-Link check)
-    if (userFound.linkedEmail) {
-      const registeredEmail = userFound.linkedEmail.toLowerCase().trim();
-      const providedEmail = email.toLowerCase().trim();
-      if (registeredEmail !== providedEmail) {
+    const registeredEmail = (userFound.linkedEmail || userFound.email || '').toLowerCase().trim();
+
+    if (registeredEmail && registeredEmail !== providedEmail) {
         console.log(`[AUTH] Email mismatch. Registered: "${registeredEmail}", Provided: "${providedEmail}"`);
         return res.status(400).json({
           success: false,
           error: 'The provided Gmail ID does not match the one registered to your account.'
         });
-      }
-    } else {
-      console.log(`[AUTH] No email registered yet for ${userId}. Will auto-link: ${email}`);
     }
 
     console.log(`[AUTH] User identified: ${role} in School: ${schoolId} (${Date.now() - startTime}ms)`);
@@ -1739,47 +1663,47 @@ app.post('/api/mobile/auth/request-otp', async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
 
-    otpStore.set(cleanPhone, {
+    // Using the phone from Firestore as the key as requested
+    const storageKey = userPhone || providedEmail;
+    otpStore.set(storageKey, {
       otp,
       expiresAt,
       attempts: 0,
-      userData: { userId, role, schoolId, name: displayName, phone: cleanPhone, email, recordId }
+      userData: { userId, role, schoolId, name: displayName, phone: userPhone, email: providedEmail, recordId }
     });
 
-    // Persistent audit log
-    try {
-        fs.appendFileSync(path.join(__dirname, 'auth_audit.log'), `[${new Date().toISOString()}] OTP for ${cleanPhone} (${displayName}) is ${otp}\n`);
-    } catch (e) {}
-
-    // Priority 1: Send Email
-    let emailSent = false;
+    // 1. Send Email
     try {
       const mailOptions = {
         from: '"TaleemiDunya School System" <taleemiduniyapro@gmail.com>',
-        to: email,
+        to: providedEmail,
         subject: 'TaleemiDunya Verification Code',
         text: `Assalam-o-Alaikum ${displayName}!\n\nYour login verification code is: ${otp}\n\nThis code expires in 5 minutes.\nDo not share this code with anyone.`
       };
       await transporter.sendMail(mailOptions);
-      emailSent = true;
-      console.log(`[AUTH] Email success to ${email}`);
+      console.log(`[AUTH] Email success to ${providedEmail}`);
     } catch (emailErr) {
       console.error(`[AUTH] Email failed:`, emailErr.message);
     }
 
-    // Priority 2: Send WhatsApp (even if email sent, for reliability)
-    const sock = sessions.get(schoolId) || sessions.get('NNRuCtHxQNjISc9EPgMs');
-    if (sock && sock.ws && sock.ws.readyState === 1) {
-      const msgText = `🏫 *TaleemiDunya School System*\n\nAssalam-o-Alaikum ${displayName}!\n\nYour verification code is: *${otp}*\n\nThis code expires in 5 minutes.`;
-      sock.sendMessage(`${cleanPhone}@s.whatsapp.net`, { text: msgText })
-        .then(() => console.log(`[AUTH] WhatsApp sent to ${cleanPhone}`))
-        .catch(err => console.error(`[AUTH] WhatsApp failed:`, err.message));
+    // 2. Send WhatsApp (Using retrieved phone)
+    if (userPhone) {
+      const sock = sessions.get(schoolId) || sessions.get('NNRuCtHxQNjISc9EPgMs');
+      if (sock && sock.ws && sock.ws.readyState === 1) {
+        const msgText = `🏫 *TaleemiDunya School System*\n\nAssalam-o-Alaikum ${displayName}!\n\nYour login verification code is: *${otp}*\n\nThis code expires in 5 minutes.`;
+        try {
+          await sock.sendMessage(`${userPhone}@s.whatsapp.net`, { text: msgText });
+          console.log(`[AUTH] WhatsApp success to ${userPhone}`);
+        } catch (waErr) {
+          console.error(`[AUTH] WhatsApp failed:`, waErr.message);
+        }
+      }
     }
 
     res.json({
       success: true,
-      message: emailSent ? 'OTP sent successfully to your Gmail.' : 'OTP initiated. Please check your WhatsApp.',
-      maskedPhone: emailSent ? email : `${phone.substring(0, 3)}******${phone.substring(phone.length - 2)}`,
+      message: 'Verification code sent to your Gmail and WhatsApp.',
+      maskedPhone: storageKey, // We return the key so the app can send it back to verify-otp
       expiresIn: 300
     });
 
@@ -1796,23 +1720,41 @@ app.post('/api/mobile/auth/verify-otp', async (req, res) => {
   try {
     const { phone, otp } = req.body;
     if (!phone || !otp) {
-      return res.status(400).json({ success: false, error: 'Phone and OTP are required.' });
+      return res.status(400).json({ success: false, error: 'Verification ID (Gmail/Phone) and OTP are required.' });
     }
 
-    const cleanPhone = normalizePhone(phone);
-    const stored = otpStore.get(cleanPhone);
+    const inputKey = phone.toLowerCase().trim();
+    let stored = otpStore.get(inputKey);
 
     if (!stored) {
-      return res.status(400).json({ success: false, error: 'OTP request not found or session expired.' });
+      console.log(`[AUTH] OTP not found for key: ${inputKey}, searching otpStore entries...`);
+      for (const [key, value] of otpStore.entries()) {
+        if (value.userData && (
+            (value.userData.email && value.userData.email.toLowerCase().trim() === inputKey) ||
+            (value.userData.phone && value.userData.phone.toLowerCase().trim() === inputKey) ||
+            (key.toLowerCase().trim() === inputKey)
+        )) {
+          stored = value;
+          break;
+        }
+      }
+    }
+
+    if (!stored) {
+      return res.status(400).json({ success: false, error: 'OTP request not found or session expired. Please request a new code.' });
     }
 
     if (Date.now() > stored.expiresAt) {
-      otpStore.delete(cleanPhone);
+      otpStore.delete(inputKey);
+      if (stored.userData && stored.userData.phone) otpStore.delete(stored.userData.phone);
+      if (stored.userData && stored.userData.email) otpStore.delete(stored.userData.email);
       return res.status(400).json({ success: false, error: 'This verification code has expired.' });
     }
 
     if (stored.attempts >= 5) {
-      otpStore.delete(cleanPhone);
+      otpStore.delete(inputKey);
+      if (stored.userData && stored.userData.phone) otpStore.delete(stored.userData.phone);
+      if (stored.userData && stored.userData.email) otpStore.delete(stored.userData.email);
       return res.status(400).json({ success: false, error: 'Too many failed attempts. Please request a new code.' });
     }
 
@@ -1822,30 +1764,18 @@ app.post('/api/mobile/auth/verify-otp', async (req, res) => {
     }
 
     // Success! Generate Firebase Custom Token
-    const { userId, role, schoolId, name, email, recordId } = stored.userData;
-
-    // Update linkedEmail in Firestore if email was used (Auto-Link Feature)
+    const { userId, role, schoolId, name, email, recordId, phone: userPhone } = stored.userData;
+    
+    // Update linkedEmail in Firestore if email was used
     if (email) {
       try {
-        const cleanEmail = email.toLowerCase().trim();
-        if (role === 'teacher' || role === 'staff') {
-            await db.collection('staff').doc(recordId).update({ linkedEmail: cleanEmail });
-        } else if (role === 'student') {
-            await db.collection('students').doc(recordId).update({ linkedEmail: cleanEmail });
-        } else if (role === 'parent') {
-            // For parents, update ALL student records with this fatherCnic to keep email sync
-            const parentCnic = userId.split('_')[1]; // userId is parent_CNIC
-            const formattedCnic = formatCnic(parentCnic);
-            const childrenSnap = await db.collection('students').where('fatherCnic', '==', formattedCnic).get();
-            const batch = db.batch();
-            childrenSnap.forEach(doc => {
-                batch.update(doc.ref, { linkedEmail: cleanEmail });
-            });
-            await batch.commit();
+        let collectionName = 'students';
+        if (role === 'teacher' || role === 'staff') collectionName = 'staff';
+        if (recordId) {
+          await db.collection(collectionName).doc(recordId).update({ linkedEmail: email });
         }
-        console.log(`[AUTH] Auto-Linked Email: ${cleanEmail} for ${role} (${userId})`);
       } catch (updateErr) {
-        console.error(`[AUTH] Failed to auto-link email:`, updateErr.message);
+        console.error(`[AUTH] Failed to update linkedEmail:`, updateErr.message);
       }
     }
 
@@ -1860,10 +1790,12 @@ app.post('/api/mobile/auth/verify-otp', async (req, res) => {
     const customToken = await admin.auth().createCustomToken(userId, {
       role,
       schoolId,
-      mobile: cleanPhone
+      mobile: userPhone || ''
     });
 
-    otpStore.delete(cleanPhone);
+    otpStore.delete(inputKey);
+    if (userPhone) otpStore.delete(userPhone);
+    if (email) otpStore.delete(email);
 
     res.json({
       success: true,
@@ -1873,7 +1805,7 @@ app.post('/api/mobile/auth/verify-otp', async (req, res) => {
         role,
         schoolId,
         name,
-        phone: cleanPhone
+        phone: userPhone || ''
       }
     });
 
@@ -1948,60 +1880,115 @@ app.get('/api/mobile/fees/voucher-pdf', async (req, res) => {
   }
 });
 
-// --- PUSH NOTIFICATION ENDPOINTS ---
-app.post('/api/mobile/teacher/homework', async (req, res) => {
+// POST /api/mobile/teacher/attendance
+app.post('/api/mobile/teacher/attendance', async (req, res) => {
   try {
-    const { subject, title, description, className, section, schoolId, teacherName, imageUrl } = req.body;
-    const homework = {
-        subject, title, description, className, section, schoolId, teacherName,
-        attachmentUrl: imageUrl,
-        assignedDate: new Date().toISOString().split('T')[0],
-        status: 'Pending'
-    };
-    const docRef = await db.collection('homework').add(homework);
+    const { records, schoolId } = req.body;
+    if (!records || !Array.isArray(records) || !schoolId) {
+      return res.status(400).json({ success: false, error: 'Records and schoolId are required.' });
+    }
 
-    // Topic: class_9th_A_schoolId
-    const topic = `class_${className}_${section}_${schoolId}`.replace(/\s+/g, '_');
-    const message = {
-      notification: { title: `New Homework: ${subject}`, body: `${title} by ${teacherName}` },
-      topic: topic
-    };
-    try { await admin.messaging().send(message); } catch(fcmErr) { console.error('[FCM] Error:', fcmErr.message); }
+    const batch = db.batch();
+    records.forEach(rec => {
+      const docId = `${rec.studentId}_${rec.date}`;
+      const ref = db.collection('attendance').doc(docId);
+      batch.set(ref, {
+        ...rec,
+        schoolId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    });
 
-    res.json({ success: true, id: docRef.id });
+    await batch.commit();
+    res.json({ success: true, message: `Successfully marked attendance for ${records.length} students.` });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-app.post('/api/mobile/teacher/attendance', async (req, res) => {
-    try {
-      const { records, schoolId } = req.body;
-      const batch = db.batch();
-      for (const record of records) {
-        const id = `${record.studentId}_${record.date}`;
-        const ref = db.collection('attendance').document(id);
-        batch.set(ref, record);
+// POST /api/mobile/teacher/homework
+app.post('/api/mobile/teacher/homework', async (req, res) => {
+  try {
+    const { subject, title, description, className, section, schoolId, teacherName, imageUrl } = req.body;
 
-        if (record.status.toLowerCase() === 'absent') {
-            const parentTopic = `parent_${record.studentId}`;
-            const msg = {
-                notification: { title: "Student Absent Alert", body: `Your child is marked Absent today.` },
-                topic: parentTopic
-            };
-            try { await admin.messaging().send(msg); } catch(e) {}
+    const homeworkData = {
+      subject, title, description, className, section, schoolId, teacherName, imageUrl,
+      assignedDate: new Date().toISOString().split('T')[0],
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    const docRef = await db.collection('homework').add(homeworkData);
+
+    // Notify Parents via WhatsApp
+    const sock = sessions.get(schoolId);
+    if (sock) {
+      const studentsSnap = await db.collection('students')
+        .where('schoolId', '==', schoolId)
+        .where('class', '==', className)
+        .get();
+
+      studentsSnap.forEach(doc => {
+        const s = doc.data();
+        if (s.section === section) {
+          const pPhone = normalizePhone(s.parentPhone || s.phone);
+          if (pPhone) {
+            const msg = `*NEW HOMEWORK ALERT*\n\nClass: ${className}-${section}\nSubject: ${subject}\nTitle: ${title}\n\nPlease check the Taleemi Dunya mobile app for details.`;
+            sock.sendMessage(`${pPhone}@s.whatsapp.net`, { text: msg }).catch(() => {});
+          }
         }
-      }
-      await batch.commit();
-      res.json({ success: true });
-    } catch (err) {
-      res.status(500).json({ success: false, error: err.message });
+      });
     }
+
+    res.json({ success: true, id: docRef.id, message: 'Homework posted successfully.' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /api/mobile/teacher/results
+app.post('/api/mobile/teacher/results', async (req, res) => {
+  try {
+    const { results, schoolId } = req.body;
+    if (!results || !Array.isArray(results)) {
+      return res.status(400).json({ success: false, error: 'Results array is required.' });
+    }
+
+    const batch = db.batch();
+    results.forEach(item => {
+      const id = `${item.examName}_${item.subject}_${item.studentId}`.replace(/\s+/g, '_');
+      const ref = db.collection('results').doc(id);
+      batch.set(ref, { ...item, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    });
+
+    await batch.commit();
+
+    // Notify Parents via WhatsApp
+    const sock = sessions.get(schoolId);
+    if (sock) {
+      for (const item of results) {
+        try {
+          const studentDoc = await db.collection('students').doc(item.studentId).get();
+          if (studentDoc.exists) {
+            const s = studentDoc.data();
+            const pPhone = normalizePhone(s.parentPhone || s.phone);
+            if (pPhone) {
+              const msg = `*EXAM RESULT ALERT*\n\nStudent: ${s.name}\nExam: ${item.examName}\nSubject: ${item.subject}\nMarks: ${item.obtainedMarks}/${item.totalMarks}\nGrade: ${item.grade}\n\nCongratulations! Check the app for details.`;
+              sock.sendMessage(`${pPhone}@s.whatsapp.net`, { text: msg }).catch(() => {});
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    res.json({ success: true, message: `Results published and ${results.length} parents notified.` });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 app.listen(PORT, () => {
   console.log(`\n======================================================`);
-  console.log(`🚀 TaleemiDunya WhatsApp AI Bot Server Running! v10-DebugTeacher`);
+  console.log(`🚀 TaleemiDunya WhatsApp AI Bot Server Running! v6-PDF-STABLE`);
   console.log(`ðŸŒ Local API Port: http://localhost:${PORT}`);
   console.log(`======================================================\n`);
   

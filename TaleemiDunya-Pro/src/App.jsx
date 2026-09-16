@@ -114,6 +114,7 @@ import SchoolSettings from './pages/school-admin/Settings';
 import DigitalLibrary from './pages/school-admin/DigitalLibrary';
 import TransportManager from './pages/school-admin/TransportManager';
 import RolesManager from './pages/school-admin/RolesManager';
+import Migration from './pages/school-admin/Migration';
 import Collection from './pages/school-admin/Collection';
 import PeriodBell from './pages/school-admin/PeriodBell';
 import CertificateGenerator from './pages/school-admin/CertificateGenerator';
@@ -314,6 +315,7 @@ const AppRoutes = () => {
         <Route path="sms" element={<SMSPanel />} />
         <Route path="e-services" element={<EServices />} />
         <Route path="settings" element={<SchoolSettings />} />
+        <Route path="migration" element={<Migration />} />
         <Route path="roles" element={<RolesManager />} />
         {/* Dynamic features implemented */}
         <Route path="single-student" element={<SingleStudent360 />} />

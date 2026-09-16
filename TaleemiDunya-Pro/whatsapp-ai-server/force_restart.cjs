@@ -1,53 +1,35 @@
 const { NodeSSH } = require('node-ssh');
 const ssh = new NodeSSH();
 
-// Alwaysdata API restart using their management API
-async function restartViaAPI() {
-    // Method 1: Try Alwaysdata REST API (if token available)
-    try {
-        const resp = await fetch('https://api.alwaysdata.com/v1/site/?format=json', {
-            headers: {
-                'Authorization': 'Basic ' + Buffer.from('umarhayat:umar9900').toString('base64')
-            }
-        });
-        const data = await resp.json();
-        console.log('Sites:', JSON.stringify(data, null, 2));
-    } catch(e) {
-        console.log('API method failed:', e.message);
-    }
-}
+ssh.connect({ host: 'ssh-umarhayat.alwaysdata.net', username: 'umarhayat', password: 'umar9900' }).then(async () => {
+  console.log('=== Connected ===');
 
-async function run() {
-    await ssh.connect({
-        host: 'ssh-umarhayat.alwaysdata.net',
-        username: 'umarhayat',
-        password: 'umar9900'
-    });
-    
-    console.log('Connected. Killing all node processes and letting supervisor restart...');
-    
-    // Kill all node processes - supervisor will auto-restart with new code
-    const kill = await ssh.execCommand('pkill -9 -u umarhayat node; sleep 2; echo "killed"');
-    console.log('Kill result:', kill.stdout, kill.stderr);
-    
-    // Wait and check if process comes back
-    await new Promise(r => setTimeout(r, 5000));
-    
-    const ps = await ssh.execCommand('ps -ef | grep node | grep -v grep');
-    console.log('Processes after restart:', ps.stdout || 'none running yet');
-    
-    ssh.dispose();
-    
-    // Now check status
-    await new Promise(r => setTimeout(r, 5000));
-    
-    try {
-        const resp = await fetch('https://umarhayat.alwaysdata.net/api/session/status?schoolId=NNRuCtHxQNjISc9EPgMs');
-        const data = await resp.json();
-        console.log('Live Status:', data.status, '| QR Ready:', data.qrDataUrl ? 'YES!' : 'No');
-    } catch(e) {
-        console.log('Status check:', e.message);
-    }
-}
+  // The old process is PID 2777681. Let's try to kill it directly and all node processes
+  const r1 = await ssh.execCommand('kill -9 2777681 2>&1; killall -9 node 2>&1; pkill -9 -u umarhayat node 2>&1; echo "kill done"');
+  console.log('kill result:', r1.stdout, r1.stderr);
 
-run().then(() => restartViaAPI());
+  // Also delete any lock files
+  const r2 = await ssh.execCommand('rm -f /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server/auth_sessions/*/lock.json 2>/dev/null; rm -f /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server/.bot-lock 2>/dev/null; ls /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server/auth_sessions/ 2>/dev/null');
+  console.log('lock files:', r2.stdout);
+
+  await new Promise(r => setTimeout(r, 2000));
+
+  // Now start a FRESH server
+  const r3 = await ssh.execCommand('cd /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server && PORT=8100 nohup node index.js > server.log 2>&1 < /dev/null & echo "Started PID: $!"');
+  console.log('start result:', r3.stdout, r3.stderr);
+
+  await new Promise(r => setTimeout(r, 5000));
+
+  // Verify
+  const r4 = await ssh.execCommand('ps aux | grep -E "node|index.js|server.js" | grep -v grep');
+  console.log('processes:', r4.stdout);
+
+  const r5 = await ssh.execCommand('tail -15 /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server/server.log');
+  console.log('server.log:', r5.stdout);
+
+  // Test the endpoint
+  const r6 = await ssh.execCommand('curl -s -X POST https://umarhayat.alwaysdata.net/api/mobile/auth/request-otp -H "Content-Type: application/json" -d \'{"cnic":"test","email":"test@gmail.com"}\' 2>&1 | head -5');
+  console.log('API test response:', r6.stdout);
+
+  ssh.dispose();
+}).catch(e => { console.error('SSH Error:', e.message); });

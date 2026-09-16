@@ -116,9 +116,11 @@ export const AuthProvider = ({ children }) => {
    */
   const login = async (email, password) => {
     let cleanEmail = email.trim().toLowerCase();
+    const rawInput = email.trim().toLowerCase();
+    const isUsername = !cleanEmail.includes('@');
     
     // If no '@' is found, assume it's a username and append pseudo-domain
-    if (!cleanEmail.includes('@')) {
+    if (isUsername) {
       cleanEmail = `${cleanEmail}@taleemidunya.local`;
     }
     
@@ -128,7 +130,100 @@ export const AuthProvider = ({ children }) => {
       throw { code: 'auth/super-admin-password-disabled' };
     }
 
-    const credential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+    let credential;
+    try {
+      // Try normal sign in first
+      credential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+    } catch (signInErr) {
+      // If user not found AND it was a username login → search Firestore and create account
+      if (
+        isUsername &&
+        (signInErr.code === 'auth/user-not-found' ||
+          signInErr.code === 'auth/invalid-credential' ||
+          signInErr.code === 'auth/invalid-email')
+      ) {
+        // Search students, staff, parents for this username
+        let firestoreRecord = null;
+        let recordRole = 'student';
+        let schoolId = 'default-school';
+
+        // Search students
+        const studentsSnap = await getDocs(
+          query(collection(db, 'students'), where('username', '==', rawInput))
+        );
+        if (!studentsSnap.empty) {
+          firestoreRecord = { id: studentsSnap.docs[0].id, ...studentsSnap.docs[0].data() };
+          recordRole = 'student';
+          schoolId = firestoreRecord.schoolId || 'default-school';
+        }
+
+        // Search staff
+        if (!firestoreRecord) {
+          const staffSnap = await getDocs(
+            query(collection(db, 'staff'), where('username', '==', rawInput))
+          );
+          if (!staffSnap.empty) {
+            firestoreRecord = { id: staffSnap.docs[0].id, ...staffSnap.docs[0].data() };
+            recordRole = 'teacher';
+            schoolId = firestoreRecord.schoolId || 'default-school';
+          }
+        }
+
+        // Search parents (parentUsername field in students collection)
+        if (!firestoreRecord) {
+          const parentSnap = await getDocs(
+            query(collection(db, 'students'), where('parentUsername', '==', rawInput))
+          );
+          if (!parentSnap.empty) {
+            firestoreRecord = { id: parentSnap.docs[0].id, ...parentSnap.docs[0].data() };
+            recordRole = 'parent';
+            schoolId = firestoreRecord.schoolId || 'default-school';
+          }
+        }
+
+        if (!firestoreRecord) {
+          // Username not found in any collection
+          throw { code: 'auth/user-not-found' };
+        }
+
+        // Create Firebase Auth account for this user (first time login)
+        try {
+          credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+        } catch (createErr) {
+          // If email already exists but wrong password
+          if (createErr.code === 'auth/email-already-in-use') {
+            throw { code: 'auth/wrong-password' };
+          }
+          throw createErr;
+        }
+
+        // Create Firestore user profile
+        const newProfile = {
+          uid: credential.user.uid,
+          role: recordRole,
+          email: cleanEmail,
+          username: rawInput,
+          name: firestoreRecord.name || firestoreRecord.fatherName || rawInput,
+          schoolId,
+          recordId: firestoreRecord.id,
+          createdAt: serverTimestamp(),
+        };
+        await setDoc(doc(db, 'users', credential.user.uid), newProfile);
+
+        // Update Firestore record with Firebase UID
+        try {
+          const collectionName = recordRole === 'student' ? 'students' : recordRole === 'teacher' ? 'staff' : 'students';
+          const fieldToUpdate = recordRole === 'parent' ? { parentAuthUid: credential.user.uid } : { authUid: credential.user.uid };
+          await updateDoc(doc(db, collectionName, firestoreRecord.id), fieldToUpdate);
+        } catch (_) {}
+
+        const profile = newProfile;
+        setUserData(profile);
+        return { ...credential.user, role: profile.role };
+      }
+      // Any other error: re-throw
+      throw signInErr;
+    }
     
     // Fetch user profile from Firestore
     const userDoc = await getDoc(doc(db, 'users', credential.user.uid));

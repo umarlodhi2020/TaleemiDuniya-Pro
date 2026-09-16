@@ -1630,6 +1630,13 @@ const StaffProfile = () => {
                     value={staff.email}
                   />
 
+                  <InfoItem
+                    icon={Lock}
+                    label="App Username (Login)"
+                    value={staff.username}
+                    mono
+                  />
+
                   <div className="sm:col-span-2">
                     <InfoItem
                       icon={MapPin}
