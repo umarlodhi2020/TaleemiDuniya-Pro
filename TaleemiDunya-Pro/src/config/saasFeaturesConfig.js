@@ -322,6 +322,15 @@ export const SAAS_FEATURE_CATALOG = [
 
   // SECURITY, GATE PASS & IOT
   {
+    key: 'cctv-monitoring',
+    title: 'CCTV Camera Monitoring & Security Grid',
+    path: '/school-admin/security/cctv',
+    module: 'security',
+    defaultPlans: ['basic', 'standard', 'premium', 'enterprise'],
+    addonPriceMonthly: 0,
+    description: 'Live multi-camera grid dashboard, IP/NVR/DVR stream monitoring, fullscreen preview, and security controls.'
+  },
+  {
     key: 'gate-scanner',
     title: 'Live ID Card Gate Scanner & Attendance IoT',
     path: '/school-admin/security/gate-scanner',

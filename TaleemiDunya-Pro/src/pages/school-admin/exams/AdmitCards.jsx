@@ -1,40 +1,81 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Award, Printer, Search, Download, Eye, Calendar, MapPin, 
   Clock, User, CheckSquare, Square, Share2, QrCode, Sparkles, 
   RefreshCw, CheckCircle2, ShieldCheck, Filter, Layers, X
 } from 'lucide-react';
-import GlassCard from '../../../components/common/GlassCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useSchool } from '../../../context/SchoolContext';
-import { getExams } from '../../../services/examService';
 import { getRecords } from '../../../services/db';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import QRCode from 'qrcode';
+import { checkStudentFeeClearance } from '../../../services/examService';
 import Swal from 'sweetalert2';
+
+const DEFAULT_TERMS = [
+  '1st Assessment 2025-26',
+  '2nd Assessment 2025-26',
+  '3rd Assessment 2025-26',
+  '4th Assessment 2025-26',
+  'First Term 2025-26',
+  'Mid Term Examinations 2025-2026',
+  'Second Term 2026',
+  'Final Term Exam 2026',
+  'Annual Exam 2026',
+  'Monthly Test',
+  'Pre-Board Exam'
+];
+
+const DEFAULT_SUBJECTS_LIST = [
+  'Islamiat',
+  'Science',
+  'Urdu',
+  'Math',
+  'Social Studies',
+  'English',
+  'Drawing',
+  'Madarsa'
+];
+
+// Date and Day formatters
+const formatExamDate = (dateStr) => {
+  if (!dateStr) return 'TBD';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const day = String(d.getDate()).padStart(2, '0');
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const month = monthNames[d.getMonth()];
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+};
+
+const getExamDay = (dateStr) => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { weekday: 'long' });
+};
 
 const AdmitCards = () => {
   const { userData } = useAuth();
-  const { schoolClasses } = useSchool();
+  const { schoolClasses, schoolData } = useSchool();
   const schoolId = userData?.schoolId || 'default-school';
+  const printRef = useRef(null);
 
-  const [exams, setExams] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
-
-  // Selectors
-  const [selectedExamId, setSelectedExamId] = useState('');
+  // Selector States
   const [selectedClass, setSelectedClass] = useState('');
-  const [selectedSection, setSelectedSection] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [selectedTerm, setSelectedTerm] = useState('');
+  const [selectedStudentForAdmitCard, setSelectedStudentForAdmitCard] = useState('ALL');
 
-  // Preview Modal
-  const [previewStudent, setPreviewStudent] = useState(null);
-  const [previewQrDataUrl, setPreviewQrDataUrl] = useState('');
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  // Loaded Data
+  const [availableClasses, setAvailableClasses] = useState([]);
+  const [createdExams, setCreatedExams] = useState([]);
+  const [studentsList, setStudentsList] = useState([]);
+  const [masterFiles, setMasterFiles] = useState([]);
+  const [subjectRows, setSubjectRows] = useState([]);
+
+  // Fee Status & Audit
+  const [feeStatusMap, setFeeStatusMap] = useState({});
+  const [checkingFees, setCheckingFees] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadInitialData();
@@ -43,671 +84,386 @@ const AdmitCards = () => {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const examsData = await getExams(schoolId);
-      setExams(examsData);
+      const [filesData, examsData, studentsData] = await Promise.all([
+        getRecords('examMasterFiles', schoolId),
+        getRecords('exams', schoolId),
+        getRecords('students', schoolId)
+      ]);
 
-      if (examsData.length > 0) {
-        setSelectedExamId(examsData[0].id);
+      const classList = schoolClasses?.length > 0 
+        ? schoolClasses.map(c => c.name) 
+        : ['7th', 'Nursery', 'KG', '1st', '2nd', '3rd', '4th', '5th', '6th', '8th', '9th', '10th'];
+      setAvailableClasses(classList);
+      if (classList.length > 0 && !selectedClass) {
+        setSelectedClass(classList[0]);
+      }
+
+      setMasterFiles(filesData || []);
+      setStudentsList(studentsData || []);
+
+      const examNames = examsData ? examsData.map(e => e.examName || e.title).filter(Boolean) : [];
+      const uniqueExams = Array.from(new Set(examNames));
+      const finalTerms = uniqueExams.length > 0 ? uniqueExams : DEFAULT_TERMS;
+      setCreatedExams(finalTerms);
+      if (finalTerms.length > 0 && !selectedTerm) {
+        setSelectedTerm(finalTerms[0]);
       }
     } catch (err) {
-      console.error(err);
-      Swal.fire('Error', 'Failed to load exams', 'error');
+      console.error('Error loading Admit Cards data:', err);
+      Swal.fire('Error', 'Failed to load initial data', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const currentExam = exams.find(e => e.id === selectedExamId);
-  const availableClasses = currentExam?.classes?.length > 0 
-    ? currentExam.classes 
-    : (schoolClasses?.map(c => c.name) || ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th']);
-
+  // Load subject schedule when class or term changes
   useEffect(() => {
-    if (availableClasses.length > 0 && (!selectedClass || !availableClasses.includes(selectedClass))) {
-      setSelectedClass(availableClasses[0]);
+    if (!selectedClass || !selectedTerm) {
+      setSubjectRows([]);
+      return;
     }
-  }, [selectedExamId, availableClasses]);
 
-  // Fetch students when class/section changes
-  useEffect(() => {
-    if (!selectedClass) return;
-    fetchStudents();
-  }, [selectedClass, selectedSection, schoolId]);
+    const found = masterFiles.find(
+      f => (f.className === selectedClass || f.classId === selectedClass) && f.term === selectedTerm
+    );
 
-  const fetchStudents = async () => {
-    setLoading(true);
-    try {
-      const filters = [{ field: 'class', operator: '==', value: selectedClass }];
-      const studs = await getRecords('students', schoolId, filters);
-      
-      const sorted = (studs || []).sort((a, b) => {
-        const rA = Number(a.rollNumber || a.rollNo || 0);
-        const rB = Number(b.rollNumber || b.rollNo || 0);
-        return rA - rB;
-      });
-
-      setStudents(sorted);
-      // Select all by default
-      setSelectedStudentIds(sorted.map(s => s.id));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    if (found && Array.isArray(found.subjects) && found.subjects.length > 0) {
+      setSubjectRows(found.subjects.filter(s => s.included));
+    } else {
+      setSubjectRows(DEFAULT_SUBJECTS_LIST.map((name, i) => {
+        const dummyDate = new Date(2025, 9, 7 + i * 2);
+        return {
+          subjectName: name,
+          included: true,
+          examDate: dummyDate.toISOString().split('T')[0],
+          startTime: '09:00 AM',
+          endTime: '12:00 PM',
+          room: 'Main Hall',
+          invigilator: 'Staff Member'
+        };
+      }));
     }
-  };
+  }, [selectedClass, selectedTerm, masterFiles]);
 
-  // Filtered Students
-  const filteredStudents = students.filter(s => {
-    const matchesSearch = (s.name || s.studentName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (s.rollNumber || s.rollNo || '').toString().includes(searchTerm) ||
-                          (s.fatherName || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesSection = selectedSection === 'All' || s.section === selectedSection;
-    return matchesSearch && matchesSection;
+  const filteredStudents = studentsList.filter(s => {
+    return !selectedClass || s.class === selectedClass || s.className === selectedClass;
   });
 
-  const handleToggleStudent = (id) => {
-    setSelectedStudentIds(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = () => {
-    if (selectedStudentIds.length === filteredStudents.length) {
-      setSelectedStudentIds([]);
-    } else {
-      setSelectedStudentIds(filteredStudents.map(s => s.id));
+  const handleCheckFeeClearance = async () => {
+    setCheckingFees(true);
+    const map = {};
+    for (const student of filteredStudents) {
+      const res = await checkStudentFeeClearance(student.id, schoolId);
+      map[student.id] = res;
     }
-  };
-
-  // Open Preview Modal
-  const handleOpenPreview = async (student) => {
-    setPreviewStudent(student);
-    try {
-      const qrPayload = JSON.stringify({
-        school: userData?.schoolName || 'TaleemiDunya School',
-        exam: currentExam?.examName || 'Examination',
-        student: student.name || student.studentName,
-        roll: student.rollNumber || student.rollNo,
-        class: student.class,
-        section: student.section || 'A',
-        auth: `TD-AUTH-${student.id.slice(0, 6)}`
-      });
-      const qrUrl = await QRCode.toDataURL(qrPayload, { width: 120, margin: 1 });
-      setPreviewQrDataUrl(qrUrl);
-    } catch (e) {
-      console.error(e);
-    }
-    setIsPreviewOpen(true);
-  };
-
-  // Format schedule table for this student's class
-  const getExamSchedule = () => {
-    if (!currentExam || !currentExam.subjects) return [];
-    const classSubjects = currentExam.subjects.filter(
-      s => !s.classId || s.classId === selectedClass || s.className === selectedClass
-    );
-
-    return classSubjects.map(s => {
-      let day = '—';
-      if (s.examDate) {
-        try {
-          day = new Date(s.examDate).toLocaleDateString('en-US', { weekday: 'short' });
-        } catch (e) {}
-      }
-      return {
-        date: s.examDate || '—',
-        day: day,
-        subject: s.subjectName || s.name || 'Subject',
-        code: s.subjectCode || '—',
-        time: `${s.startTime || '09:00'} - ${s.endTime || '12:00'}`,
-        room: s.room || 'Hall A'
-      };
+    setFeeStatusMap(map);
+    setCheckingFees(false);
+    Swal.fire({
+      title: 'Fee Audit Complete',
+      text: `Audited fee accounts for ${filteredStudents.length} students.`,
+      icon: 'info',
+      background: '#1a1f37',
+      color: '#fff'
     });
   };
 
-  // Generate Admit Cards PDF (Single or Bulk)
-  const generateAdmitCardsPDF = async (targetStudents = null) => {
-    const studentsToPrint = targetStudents || students.filter(s => selectedStudentIds.includes(s.id));
-    if (studentsToPrint.length === 0) {
-      return Swal.fire('Error', 'Please select at least one student to generate admit cards', 'warning');
-    }
-
-    setGenerating(true);
-    try {
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      
-      const schedule = getExamSchedule();
-      const schoolName = userData?.schoolName || 'TaleemiDunya Model School';
-      const schoolAddress = userData?.address || userData?.schoolAddress || 'Official Campus, Model Town';
-      const examTitle = currentExam?.examName || 'ANNUAL EXAMINATION 2026';
-      const session = currentExam?.academicYear || currentExam?.session || '2026-2027';
-
-      // 2 Admit Cards Per Page
-      const cardHeight = 135;
-      const cardWidth = 190;
-      const marginX = 10;
-
-      for (let i = 0; i < studentsToPrint.length; i++) {
-        const student = studentsToPrint[i];
-        const cardIndexOnPage = i % 2;
-        
-        if (i > 0 && cardIndexOnPage === 0) {
-          doc.addPage();
-        }
-
-        const currentY = cardIndexOnPage === 0 ? 10 : 152;
-
-        // Outer Card Border
-        doc.setDrawColor(37, 99, 235); // Blue 600
-        doc.setLineWidth(0.6);
-        doc.setFillColor(252, 253, 255);
-        doc.roundedRect(marginX, currentY, cardWidth, cardHeight, 3, 3, 'FD');
-
-        // Header Background Banner
-        doc.setFillColor(30, 58, 138); // Deep Blue
-        doc.rect(marginX, currentY, cardWidth, 22, 'F');
-
-        // School Header Text
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text(schoolName.toUpperCase(), pageWidth / 2, currentY + 8, { align: 'center' });
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
-        doc.text(schoolAddress, pageWidth / 2, currentY + 13, { align: 'center' });
-
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(191, 219, 254); // Light blue
-        doc.text(`EXAMINATION ADMIT CARD • ${session}`, pageWidth / 2, currentY + 19, { align: 'center' });
-
-        // Watermark in middle of card
-        doc.setTextColor(240, 243, 250);
-        doc.setFontSize(36);
-        doc.setFont('helvetica', 'bold');
-        doc.text("ADMIT CARD", pageWidth / 2, currentY + 75, { align: 'center', angle: 30 });
-
-        // Student Info Section Box
-        const infoY = currentY + 26;
-        doc.setTextColor(15, 23, 42);
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-
-        // Column 1
-        doc.text(`Exam: ${examTitle}`, marginX + 5, infoY);
-        doc.text(`Roll No: ${student.rollNumber || student.rollNo || '—'}`, marginX + 5, infoY + 5);
-        doc.text(`Class: ${student.class} (Sec ${student.section || 'A'})`, marginX + 5, infoY + 10);
-
-        // Column 2
-        doc.text(`Student Name: ${(student.name || student.studentName || 'Student').toUpperCase()}`, marginX + 70, infoY);
-        doc.text(`Father Name: ${student.fatherName || '—'}`, marginX + 70, infoY + 5);
-        doc.text(`Reg / B-Form: ${student.bForm || student.admissionNo || 'Verified'}`, marginX + 70, infoY + 10);
-
-        // Student Photo Box / Placeholder
-        const photoX = marginX + cardWidth - 28;
-        const photoY = infoY - 2;
-        doc.setDrawColor(203, 213, 225);
-        doc.setFillColor(241, 245, 249);
-        doc.rect(photoX, photoY, 22, 22, 'FD');
-        doc.setFontSize(6);
-        doc.setTextColor(100, 116, 139);
-        doc.text("PHOTO", photoX + 11, photoY + 12, { align: 'center' });
-
-        // QR Code generation
-        const qrPayload = `TD-VERIFY|${schoolId}|${examTitle}|${student.rollNumber || student.rollNo}|${student.id}`;
-        try {
-          const qrDataUrl = await QRCode.toDataURL(qrPayload, { width: 60, margin: 0 });
-          doc.addImage(qrDataUrl, 'PNG', marginX + cardWidth - 28, currentY + 52, 22, 22);
-        } catch (e) {}
-
-        // Exam Timetable Table inside Admit Card
-        const tableBody = schedule.length > 0 ? schedule.map(s => [
-          s.date,
-          s.day,
-          s.subject,
-          s.time,
-          s.room
-        ]) : [
-          ['As per schedule', 'Mon-Fri', 'All Core Subjects', '09:00 - 12:00', 'Assigned Hall']
-        ];
-
-        autoTable(doc, {
-          startY: currentY + 42,
-          margin: { left: marginX + 4, right: marginX + 32 },
-          head: [['Date', 'Day', 'Subject', 'Time', 'Room']],
-          body: tableBody.slice(0, 5), // show top subjects to fit card cleanly
-          theme: 'grid',
-          styles: { fontSize: 7, cellPadding: 1.5, textColor: [15, 23, 42] },
-          headStyles: { fillColor: [30, 58, 138], textColor: [255, 255, 255], fontStyle: 'bold' },
-          alternateRowStyles: { fillColor: [248, 250, 252] }
-        });
-
-        // Instructions line
-        const instrY = currentY + 106;
-        doc.setFontSize(6.5);
-        doc.setTextColor(71, 85, 105);
-        doc.setFont('helvetica', 'italic');
-        doc.text("Note: Student must bring this Admit Card & standard stationary. Electronic devices are strictly prohibited.", marginX + 5, instrY);
-
-        // Signatures and Stamp Box
-        const sigY = currentY + 124;
-        doc.setDrawColor(148, 163, 184);
-        doc.setLineWidth(0.4);
-
-        // Candidate Sign
-        doc.line(marginX + 10, sigY, marginX + 45, sigY);
-        doc.setFontSize(6.5);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(51, 65, 85);
-        doc.text("Student Signature", marginX + 27, sigY + 4, { align: 'center' });
-
-        // School Stamp Circle
-        doc.setDrawColor(203, 213, 225);
-        doc.circle(pageWidth / 2, sigY - 2, 8, 'D');
-        doc.setFontSize(5.5);
-        doc.setTextColor(148, 163, 184);
-        doc.text("OFFICIAL STAMP", pageWidth / 2, sigY - 1, { align: 'center' });
-
-        // Principal Sign
-        doc.setDrawColor(148, 163, 184);
-        doc.line(marginX + cardWidth - 55, sigY, marginX + cardWidth - 15, sigY);
-        doc.setFontSize(6.5);
-        doc.setTextColor(51, 65, 85);
-        doc.text("Controller / Principal", marginX + cardWidth - 35, sigY + 4, { align: 'center' });
-      }
-
-      const fileName = `AdmitCards_${selectedClass.replace(/\s+/g, '_')}_${(currentExam?.examName || 'Exam').replace(/\s+/g, '_')}.pdf`;
-      doc.save(fileName);
-
-      Swal.fire({
-        title: 'Admit Cards Generated!',
-        text: `Successfully generated PDF for ${studentsToPrint.length} student(s).`,
-        icon: 'success',
-        background: '#1a1f37',
-        color: '#fff',
-        confirmButtonColor: '#3b82f6'
-      });
-    } catch (err) {
-      console.error(err);
-      Swal.fire('Error', 'Failed to generate PDF', 'error');
-    } finally {
-      setGenerating(false);
-    }
+  const handlePrintWindow = () => {
+    window.print();
   };
 
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: `${currentExam?.examName} Admit Cards`,
-        text: `Admit cards for Class ${selectedClass} - ${currentExam?.examName}`,
-        url: window.location.href
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      Swal.fire('Link Copied', 'Admit Cards page link copied to clipboard', 'info');
-    }
-  };
+  const schoolName = schoolData?.name || schoolData?.schoolName || userData?.schoolName || 'Smart Angels Grammar School';
+  const schoolLogo = schoolData?.branding?.logo || schoolData?.logo || schoolData?.logoUrl || null;
+  const schoolSlogan = schoolData?.slogan || schoolData?.tagline || 'A Unique Balance between Deen – O – Dunya';
 
   return (
-    <div className="space-y-6 animate-fade-in pb-20">
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto font-sans animate-fade-in pb-24 text-black">
       
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-dark-card/90 via-dark-card/60 to-primary-950/40 p-6 rounded-3xl border border-white/5 shadow-2xl backdrop-blur-xl">
+      {/* Top Header Controls (Hidden during print) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 print:hidden">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2.5 bg-primary-500/10 rounded-xl text-primary-400 border border-primary-500/20">
-              <Award size={26} />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-white via-dark-text to-primary-300 bg-clip-text text-transparent">
-                Admit Cards
-              </h1>
-              <p className="text-xs md:text-sm text-dark-muted font-medium">
-                Generate, preview, download, and print verified examination admit cards with QR security codes.
-              </p>
-            </div>
-          </div>
+          <h1 className="text-2xl md:text-3xl font-black text-[#0070f3] tracking-tight">
+            Student Admit Cards Generator
+          </h1>
+          <p className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">
+            Generate and print official examination roll number slips with school watermark
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3">
           <button
-            onClick={handleShare}
-            className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-dark-muted hover:text-white border border-white/10 transition-colors"
-            title="Share"
+            onClick={handleCheckFeeClearance}
+            disabled={checkingFees}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5 disabled:opacity-50"
           >
-            <Share2 size={18} />
+            {checkingFees ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+            <span>Audit Fee Clearance</span>
           </button>
 
           <button
-            onClick={() => generateAdmitCardsPDF()}
-            disabled={generating || selectedStudentIds.length === 0}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-primary-600/30 transition-all hover:scale-[1.02] disabled:opacity-50"
+            onClick={handlePrintWindow}
+            className="px-5 py-2 bg-[#0070f3] hover:bg-blue-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow transition-all flex items-center gap-1.5"
           >
-            {generating ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
-            <span>Download Selected ({selectedStudentIds.length})</span>
+            <Printer size={14} />
+            <span>Print Admit Cards</span>
           </button>
         </div>
       </div>
 
-      {/* Selectors Bar */}
-      <GlassCard className="p-5 border-white/5 shadow-xl">
+      {/* Selectors Card (Hidden during print) */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4 print:hidden">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {/* Exam Selector */}
+          {/* Select Class */}
           <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Calendar size={13} className="text-primary-400" />
-              <span>1. Select Exam</span>
-            </label>
-            <select
-              value={selectedExamId}
-              onChange={(e) => setSelectedExamId(e.target.value)}
-              className="w-full px-4 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
-            >
-              {exams.map((ex) => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.examName} ({ex.academicYear})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Class Selector */}
-          <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Layers size={13} className="text-primary-400" />
-              <span>2. Select Class</span>
+            <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5">
+              Select Class
             </label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-4 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
+              className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
             >
+              <option value="">Select Class</option>
               {availableClasses.map((cls, idx) => (
-                <option key={idx} value={cls}>Class {cls}</option>
+                <option key={idx} value={cls}>{cls}</option>
               ))}
             </select>
           </div>
 
-          {/* Section Selector */}
+          {/* Select Term */}
           <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Filter size={13} className="text-primary-400" />
-              <span>3. Section</span>
+            <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5">
+              Select Term / Exam
             </label>
             <select
-              value={selectedSection}
-              onChange={(e) => setSelectedSection(e.target.value)}
-              className="w-full px-4 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
+              value={selectedTerm}
+              onChange={(e) => setSelectedTerm(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
             >
-              <option value="All">All Sections</option>
-              {['A', 'B', 'C', 'D', 'Boys', 'Girls'].map((sec, idx) => (
-                <option key={idx} value={sec}>Section {sec}</option>
+              <option value="">Select Term</option>
+              {createdExams.map((term, idx) => (
+                <option key={idx} value={term}>{term}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filter Student */}
+          <div>
+            <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1.5">
+              Filter Student
+            </label>
+            <select
+              value={selectedStudentForAdmitCard}
+              onChange={(e) => setSelectedStudentForAdmitCard(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm text-gray-800 focus:outline-none focus:border-blue-500 font-semibold cursor-pointer"
+            >
+              <option value="ALL">All Students ({filteredStudents.length})</option>
+              {filteredStudents.map(s => (
+                <option key={s.id} value={s.id}>{s.name || s.fullName} (GR/Roll: {s.grNo || s.rollNo || 'N/A'})</option>
               ))}
             </select>
           </div>
 
         </div>
-      </GlassCard>
 
-      {/* Student List & Selection */}
-      <GlassCard className="p-0 overflow-hidden border-white/5 shadow-2xl">
-        <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.01]">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleSelectAll}
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-primary-400 font-bold text-xs flex items-center gap-2 border border-white/5"
-            >
-              {selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0 ? (
-                <CheckSquare size={16} />
-              ) : (
-                <Square size={16} />
-              )}
-              <span>Select All</span>
-            </button>
-            <span className="text-xs text-dark-muted font-medium">
-              {selectedStudentIds.length} of {filteredStudents.length} selected
-            </span>
+        {selectedClass && selectedTerm && (
+          <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-xs font-bold text-gray-600">
+            <span>Target Class: <b className="text-blue-700">{selectedClass}</b> • Term: <b className="text-blue-700">{selectedTerm}</b></span>
+            <span>School: <b className="text-gray-900">{schoolName}</b> • Students: <b>{filteredStudents.length}</b></span>
           </div>
+        )}
+      </div>
 
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted" size={15} />
-            <input
-              type="text"
-              placeholder="Search student or roll no..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-dark-bg/60 border border-white/10 rounded-xl text-xs text-white placeholder-dark-muted focus:outline-none focus:border-primary-500"
-            />
-          </div>
+      {/* ADMIT CARDS PRINT AREA */}
+      {(!selectedClass || !selectedTerm) ? (
+        <div className="p-5 bg-[#e0f2fe] border border-[#bae6fd] rounded-2xl text-[#0369a1] text-sm font-semibold shadow-sm print:hidden">
+          Select Class and Term to generate student admit cards.
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead>
-              <tr className="bg-white/[0.02] border-b border-white/5 text-dark-muted text-xs uppercase tracking-wider font-semibold">
-                <th className="py-4 px-4 text-center w-12">Select</th>
-                <th className="py-4 px-3">Roll No</th>
-                <th className="py-4 px-4">Student Details</th>
-                <th className="py-4 px-4">Father Name</th>
-                <th className="py-4 px-3">Class & Section</th>
-                <th className="py-4 px-3">Exam Schedule</th>
-                <th className="py-4 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5 text-dark-text">
-              {loading ? (
-                <tr>
-                  <td colSpan="7" className="text-center py-16 text-dark-muted">
-                    <RefreshCw className="animate-spin inline-block mr-2 text-primary-400" size={20} />
-                    Loading student roster...
-                  </td>
-                </tr>
-              ) : filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="text-center py-16 text-dark-muted text-xs">
-                    No students found for Class {selectedClass}.
-                  </td>
-                </tr>
-              ) : (
-                filteredStudents.map((stud) => {
-                  const isSelected = selectedStudentIds.includes(stud.id);
-                  return (
-                    <tr 
-                      key={stud.id}
-                      className="hover:bg-white/[0.02] transition-colors group"
-                    >
-                      <td className="py-4 px-4 text-center">
-                        <button
-                          onClick={() => handleToggleStudent(stud.id)}
-                          className="text-primary-400 hover:text-primary-300"
-                        >
-                          {isSelected ? <CheckSquare size={18} /> : <Square size={18} className="text-dark-muted" />}
-                        </button>
-                      </td>
-                      <td className="py-4 px-3 font-mono font-bold text-xs text-primary-300">
-                        {stud.rollNumber || stud.rollNo || '—'}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500/20 to-indigo-500/20 border border-primary-500/30 flex items-center justify-center font-bold text-xs text-white overflow-hidden shrink-0">
-                            {stud.photoUrl || stud.photo ? (
-                              <img src={stud.photoUrl || stud.photo} alt={stud.name} className="w-full h-full object-cover" />
-                            ) : (
-                              (stud.name || stud.studentName || 'S').slice(0, 1).toUpperCase()
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-bold text-white">{stud.name || stud.studentName}</div>
-                            <div className="text-[11px] text-dark-muted">ID: {stud.id.slice(0, 6)}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-xs text-dark-muted">
-                        {stud.fatherName || '—'}
-                      </td>
-                      <td className="py-4 px-3">
-                        <span className="text-xs font-semibold text-white/90 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
-                          {stud.class} - {stud.section || 'A'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-3 text-xs text-dark-muted font-medium">
-                        {getExamSchedule().length} Subjects Scheduled
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          
-                          {/* Preview Admit Card */}
-                          <button
-                            onClick={() => handleOpenPreview(stud)}
-                            className="p-1.5 rounded-lg bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 border border-primary-500/20 text-xs font-bold flex items-center gap-1 transition-all"
-                            title="Interactive Live Preview"
-                          >
-                            <Eye size={14} />
-                            <span className="hidden sm:inline">Preview</span>
-                          </button>
-
-                          {/* Print / Download Single */}
-                          <button
-                            onClick={() => generateAdmitCardsPDF([stud])}
-                            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-dark-muted hover:text-white transition-all"
-                            title="Download Single PDF"
-                          >
-                            <Printer size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      ) : filteredStudents.length === 0 ? (
+        <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-sm font-semibold shadow-sm print:hidden">
+          No student records found for Class {selectedClass}.
         </div>
-      </GlassCard>
+      ) : (
+        <div ref={printRef} className="space-y-8">
+          {filteredStudents
+            .filter(s => selectedStudentForAdmitCard === 'ALL' || s.id === selectedStudentForAdmitCard)
+            .map((student, idx) => {
+              const feeData = feeStatusMap[student.id];
 
-      {/* ADMIT CARD LIVE INTERACTIVE PREVIEW MODAL */}
-      {isPreviewOpen && previewStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-          <div className="bg-dark-card border border-white/10 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl my-8">
-            
-            <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={20} className="text-emerald-400" />
-                <h3 className="text-sm font-bold text-white">Live Admit Card Preview</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => generateAdmitCardsPDF([previewStudent])}
-                  className="px-3 py-1.5 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-primary-600/30"
+              return (
+                <div 
+                  key={idx} 
+                  className="relative overflow-hidden bg-white border-[3px] border-black p-1 max-w-3xl mx-auto shadow-xl print:shadow-none print:page-break-after print:border-[3px] print:border-black"
+                  style={{ fontFamily: 'Times New Roman, Georgia, serif' }}
                 >
-                  <Download size={14} />
-                  <span>Download PDF</span>
-                </button>
-                <button 
-                  onClick={() => setIsPreviewOpen(false)}
-                  className="p-1.5 rounded-xl bg-white/5 text-dark-muted hover:text-white"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Rendered Admit Card Card UI */}
-            <div className="p-6 bg-slate-900/90 text-slate-800">
-              <div className="bg-white rounded-2xl border-2 border-blue-600 p-6 shadow-2xl relative overflow-hidden space-y-4">
-                
-                {/* Header Banner */}
-                <div className="text-center border-b-2 border-blue-900 pb-3">
-                  <h2 className="text-xl font-black text-blue-900 tracking-wide">
-                    {userData?.schoolName || 'TALEEMIDUNYA MODEL SCHOOL'}
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-medium">
-                    {userData?.address || 'Official Registered Campus • Examination Authority'}
-                  </p>
-                  <div className="mt-1 inline-block bg-blue-900 text-white text-[11px] font-black px-4 py-0.5 rounded-full uppercase tracking-wider">
-                    {currentExam?.examName || 'EXAMINATION ADMIT CARD'} • {currentExam?.academicYear || '2026-2027'}
-                  </div>
-                </div>
-
-                {/* Student Info Bar */}
-                <div className="flex items-start justify-between gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                    <div><span className="text-slate-400 font-semibold">Student Name:</span> <span className="font-bold text-slate-900">{previewStudent.name || previewStudent.studentName}</span></div>
-                    <div><span className="text-slate-400 font-semibold">Roll Number:</span> <span className="font-bold text-blue-700">{previewStudent.rollNumber || previewStudent.rollNo || '—'}</span></div>
-                    <div><span className="text-slate-400 font-semibold">Father Name:</span> <span className="font-bold text-slate-900">{previewStudent.fatherName || '—'}</span></div>
-                    <div><span className="text-slate-400 font-semibold">Class / Sec:</span> <span className="font-bold text-slate-900">{previewStudent.class} ({previewStudent.section || 'A'})</span></div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {previewQrDataUrl && (
-                      <img src={previewQrDataUrl} alt="QR" className="w-16 h-16 rounded border border-slate-300 p-0.5" />
-                    )}
-                    <div className="w-16 h-16 rounded border border-slate-300 bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 overflow-hidden">
-                      {previewStudent.photoUrl ? (
-                        <img src={previewStudent.photoUrl} alt="Student" className="w-full h-full object-cover" />
+                  {/* Inner Border Box */}
+                  <div className="border border-black p-4 md:p-5 relative space-y-4">
+                    
+                    {/* Background Watermark Logo (School Logo Watermark) */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 opacity-[0.07] print:opacity-[0.08]">
+                      {schoolLogo ? (
+                        <img 
+                          src={schoolLogo} 
+                          alt="School Watermark" 
+                          className="w-80 h-80 md:w-96 md:h-96 object-contain filter grayscale" 
+                        />
                       ) : (
-                        <span>PHOTO</span>
+                        <div className="w-72 h-72 rounded-full border-8 border-black flex items-center justify-center p-6 text-center transform -rotate-12">
+                          <span className="text-3xl font-black font-serif text-black uppercase tracking-wider leading-tight">
+                            {schoolName}
+                          </span>
+                        </div>
                       )}
                     </div>
+
+                    {/* Foreground Content */}
+                    <div className="relative z-10 space-y-3">
+                      
+                      {/* Top Header matching reference image */}
+                      <div className="relative text-center pb-1">
+                        
+                        {/* Left School Logo */}
+                        <div className="absolute left-0 top-0 flex items-center justify-center w-20 h-20 md:w-24 md:h-24">
+                          {schoolLogo ? (
+                            <img src={schoolLogo} alt="School Logo" className="max-w-full max-h-full object-contain" />
+                          ) : (
+                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-2 border-black flex items-center justify-center p-1 bg-gray-50">
+                              <span className="text-[10px] font-black text-black text-center leading-tight">
+                                {schoolName}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Center Header Details */}
+                        <div className="px-16 md:px-24 space-y-1">
+                          <div className="flex items-center justify-center gap-2 text-xs md:text-sm font-bold text-red-600">
+                            <span className="border-t border-red-500 w-8"></span>
+                            <span>{schoolSlogan}</span>
+                            <span className="border-t border-red-500 w-8"></span>
+                          </div>
+                          
+                          <h1 className="text-2xl md:text-3xl font-black text-black leading-tight tracking-tight">
+                            {schoolName}
+                          </h1>
+
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="border-t border-black w-12"></span>
+                            <span className="text-base md:text-lg font-bold text-black px-2">
+                              {selectedTerm || 'Mid Term 2026-27'}
+                            </span>
+                            <span className="border-t border-black w-12"></span>
+                          </div>
+                        </div>
+
+                        {/* Pending fee badge if applicable (hidden in print) */}
+                        {feeData && !feeData.cleared && (
+                          <span className="absolute right-0 top-0 px-2 py-0.5 bg-red-100 text-red-700 border border-red-300 font-bold text-[10px] rounded uppercase print:hidden">
+                            ⚠️ Pending Fee
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Student Details Row & Photo Box */}
+                      <div className="pt-2 flex justify-between items-center text-base md:text-lg font-bold text-black">
+                        
+                        {/* Student Info Grid */}
+                        <div className="grid grid-cols-12 gap-y-3.5 items-baseline flex-1 pr-6">
+                          
+                          {/* Row 1: Student Name & GR # */}
+                          <div className="col-span-7 flex items-baseline">
+                            <span className="whitespace-nowrap text-base md:text-lg font-bold">Student Name:</span>
+                            <span className="underline decoration-2 underline-offset-4 ml-2 font-black text-lg md:text-xl truncate">
+                              {student.name || student.fullName || 'Waniya Razi'}
+                            </span>
+                          </div>
+                          
+                          <div className="col-span-5 flex items-baseline justify-start pl-6">
+                            <span className="whitespace-nowrap text-base md:text-lg font-bold">GR #:</span>
+                            <span className="font-black text-lg md:text-xl ml-2">
+                              {student.grNo || student.grNumber || student.rollNo || student.rollNumber || '176'}
+                            </span>
+                          </div>
+
+                          {/* Row 2: Father Name & Class */}
+                          <div className="col-span-7 flex items-baseline">
+                            <span className="whitespace-nowrap text-base md:text-lg font-bold">Father Name:</span>
+                            <span className="underline decoration-2 underline-offset-4 ml-2 font-black text-lg md:text-xl truncate">
+                              {student.fatherName || 'Razi uddin'}
+                            </span>
+                          </div>
+
+                          <div className="col-span-5 flex items-baseline justify-start pl-6">
+                            <span className="whitespace-nowrap text-base md:text-lg font-bold">Class:</span>
+                            <span className="underline decoration-2 underline-offset-4 ml-2 font-black text-lg md:text-xl">
+                              {student.class || selectedClass || '7th'}
+                            </span>
+                          </div>
+
+                        </div>
+
+                        {/* Photo Box Container (Top Right matching reference) */}
+                        <div className="w-24 h-28 border-2 border-black flex flex-col items-center justify-center bg-white flex-shrink-0 overflow-hidden shadow-sm">
+                          {(student.photoUrl || student.photo || student.picture || student.profileImage || student.avatar || student.studentPhoto || student.imageUrl || student.image || student.profilePicture) ? (
+                            <img 
+                              src={student.photoUrl || student.photo || student.picture || student.profileImage || student.avatar || student.studentPhoto || student.imageUrl || student.image || student.profilePicture} 
+                              alt="Student" 
+                              className="w-full h-full object-cover" 
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-center p-1">
+                              <span className="text-xs font-sans font-black text-black tracking-wider uppercase leading-tight">
+                                NO PHOTO
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+
+                      {/* Ornamental Divider */}
+                      <div className="flex items-center justify-center py-1 text-black">
+                        <span className="border-t border-black flex-1 max-w-[220px]"></span>
+                        <span className="px-3 text-sm font-serif">❖</span>
+                        <span className="border-t border-black flex-1 max-w-[220px]"></span>
+                      </div>
+
+                      {/* Schedule Table (Black Header matching reference image) */}
+                      <div>
+                        <table className="w-full border-collapse border-2 border-black text-center text-base md:text-lg">
+                          <thead>
+                            <tr className="bg-black text-white font-serif">
+                              <th className="border-r border-gray-600 p-2.5 font-bold w-1/3 text-center">Date</th>
+                              <th className="border-r border-gray-600 p-2.5 font-bold w-1/3 text-center">Day</th>
+                              <th className="p-2.5 font-bold w-1/3 text-center">Subjects</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {subjectRows.map((sub, i) => (
+                              <tr key={i} className="border-b border-black">
+                                <td className="border-r border-black p-2 font-bold">{formatExamDate(sub.examDate)}</td>
+                                <td className="border-r border-black p-2 font-bold">{getExamDay(sub.examDate)}</td>
+                                <td className="p-2 font-bold">{sub.subjectName}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Bottom Ornamental Divider */}
+                      <div className="flex items-center justify-center pt-2 text-black">
+                        <span className="border-t border-black flex-1 max-w-[160px]"></span>
+                        <span className="px-2 text-xs font-serif">❖</span>
+                        <span className="border-t border-black flex-1 max-w-[160px]"></span>
+                      </div>
+
+                    </div>
+
                   </div>
+
                 </div>
-
-                {/* Exam Schedule Table */}
-                <div>
-                  <h4 className="text-[11px] font-black text-slate-700 uppercase tracking-wider mb-1.5">Exam Timetable</h4>
-                  <table className="w-full text-left text-xs border border-slate-200">
-                    <thead className="bg-blue-900 text-white text-[11px]">
-                      <tr>
-                        <th className="p-1.5">Date</th>
-                        <th className="p-1.5">Day</th>
-                        <th className="p-1.5">Subject</th>
-                        <th className="p-1.5">Time</th>
-                        <th className="p-1.5">Room</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 text-slate-700 text-[11px]">
-                      {getExamSchedule().length > 0 ? (
-                        getExamSchedule().map((s, idx) => (
-                          <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                            <td className="p-1.5 font-bold">{s.date}</td>
-                            <td className="p-1.5">{s.day}</td>
-                            <td className="p-1.5 font-semibold text-slate-900">{s.subject}</td>
-                            <td className="p-1.5">{s.time}</td>
-                            <td className="p-1.5">{s.room}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="5" className="p-3 text-center text-slate-400 italic">
-                            Timetable will be announced shortly.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Signatures & Stamp */}
-                <div className="pt-6 flex items-end justify-between text-center text-[10px] text-slate-600 border-t border-slate-200">
-                  <div className="w-28 border-t border-slate-400 pt-1 font-medium">
-                    Student Signature
-                  </div>
-                  <div className="w-20 h-20 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center text-[8px] font-bold text-slate-400">
-                    OFFICIAL STAMP
-                  </div>
-                  <div className="w-28 border-t border-slate-400 pt-1 font-bold text-slate-900">
-                    Principal / Controller
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-          </div>
+              );
+            })}
         </div>
       )}
 

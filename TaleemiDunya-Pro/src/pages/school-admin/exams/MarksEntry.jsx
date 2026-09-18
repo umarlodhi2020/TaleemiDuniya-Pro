@@ -1,669 +1,901 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  ClipboardCheck, Save, Search, Filter, Lock, Unlock, 
-  CheckCircle, AlertCircle, FileSpreadsheet, Download, RefreshCw, 
-  Calendar, Layers, BookOpen, Check, X, ShieldAlert, Award,
-  Sparkles, Eye, UserCheck
+  ClipboardCheck, Save, Search, Filter, RefreshCw, 
+  FileSpreadsheet, ArrowLeft, CheckCircle, Lock, 
+  Layers, Calendar, ChevronDown, Check, X, ShieldAlert, Award, BookOpen
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import GlassCard from '../../../components/common/GlassCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useSchool } from '../../../context/SchoolContext';
 import { 
   getExams, calculateGrade, saveMarksBatch, 
-  getGradingRules, MARK_STATUSES 
+  getGradingRules, MARK_STATUSES, VERIFICATION_STATUSES
 } from '../../../services/examService';
-import { getRecords } from '../../../services/db';
-import * as XLSX from 'xlsx';
+import { getRecords, upsertRecord } from '../../../services/db';
 import Swal from 'sweetalert2';
 
+const DEFAULT_TERMS = [
+  '1st Assessment 2025-26',
+  '2nd Assessment 2025-26',
+  '3rd Assessment 2025-26',
+  '4th Assessment 2025-26',
+  'First Term 2025-26',
+  'Mid Term 2026-27',
+  'Second Term 2026',
+  'Final Term Exam 2026',
+  'Annual Exam 2026',
+  'Monthly Test'
+];
+
+const DEFAULT_SUBJECTS_LIST = [
+  { subjectName: 'Drawing', totalMarks: 25 },
+  { subjectName: 'English', totalMarks: 25 },
+  { subjectName: 'G.K + Reader', totalMarks: 25 },
+  { subjectName: 'Math', totalMarks: 25 },
+  { subjectName: 'Poem + Islamiat', totalMarks: 25 },
+  { subjectName: 'Urdu', totalMarks: 25 }
+];
+
 const MarksEntry = () => {
+  const navigate = useNavigate();
   const { userData } = useAuth();
   const { schoolClasses } = useSchool();
   const schoolId = userData?.schoolId || 'default-school';
-  const isTeacher = userData?.role === 'teacher';
 
-  const [exams, setExams] = useState([]);
+  // Entry Mode: 'BULK' | 'SINGLE'
+  const [marksMode, setMarksMode] = useState('BULK');
+
+  // Selection States
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedTerm, setSelectedTerm] = useState('');
+  const [orderBy, setOrderBy] = useState('adm_desc'); // adm_desc, adm_asc, name_asc, rank_asc
+  const [activeSubjectPill, setActiveSubjectPill] = useState('ALL');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Loaded Data
+  const [availableClasses, setAvailableClasses] = useState([]);
+  const [createdExams, setCreatedExams] = useState([]);
   const [students, setStudents] = useState([]);
-  const [existingResults, setExistingResults] = useState([]);
+  const [classSubjects, setClassSubjects] = useState([]);
   const [gradingRules, setGradingRules] = useState([]);
+
+  // Grid Data State for Bulk Mode
+  const [gridData, setGridData] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Active View Mode: 'SUBJECT_VIEW' or 'MASTER_VIEW'
-  const [viewMode, setViewMode] = useState('SUBJECT_VIEW');
-
-  // Selectors
-  const [selectedExamId, setSelectedExamId] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
-  const [selectedSection, setSelectedSection] = useState('All');
-  const [selectedSubjectName, setSelectedSubjectName] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Editable Student Marks State
-  const [studentMarksList, setStudentMarksList] = useState([]);
-  const [isLocked, setIsLocked] = useState(false);
+  // Single Subject Mode States
+  const [selectedSingleSubject, setSelectedSingleSubject] = useState('');
+  const [singleSubjectMarks, setSingleSubjectMarks] = useState([]);
+  const [verificationStatus, setVerificationStatus] = useState('DRAFT');
 
   useEffect(() => {
-    loadMasterData();
+    loadMasterMetaData();
   }, [schoolId]);
 
-  const loadMasterData = async () => {
+  const loadMasterMetaData = async () => {
     setLoading(true);
     try {
       const [examsData, rulesData] = await Promise.all([
         getExams(schoolId),
         getGradingRules(schoolId)
       ]);
-      setExams(examsData);
-      setGradingRules(rulesData);
 
-      if (examsData.length > 0) {
-        setSelectedExamId(examsData[0].id);
+      const classList = schoolClasses?.length > 0 
+        ? schoolClasses.map(c => c.name) 
+        : ['Nursery', 'KG', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
+      
+      setAvailableClasses(classList);
+      if (classList.length > 0 && !selectedClass) {
+        setSelectedClass(classList[0]);
+      }
+
+      setGradingRules(rulesData || []);
+
+      const examNames = examsData ? examsData.map(e => e.examName || e.title).filter(Boolean) : [];
+      const uniqueExams = Array.from(new Set(examNames));
+      const finalTerms = uniqueExams.length > 0 ? uniqueExams : DEFAULT_TERMS;
+      setCreatedExams(finalTerms);
+      if (finalTerms.length > 0 && !selectedTerm) {
+        setSelectedTerm(finalTerms[0]);
       }
     } catch (err) {
-      console.error(err);
-      Swal.fire('Error', 'Failed to load exams master data', 'error');
+      console.error('Error loading metadata:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const currentExam = exams.find(e => e.id === selectedExamId);
-  const availableClasses = currentExam?.classes?.length > 0 
-    ? currentExam.classes 
-    : (schoolClasses?.map(c => c.name) || ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th']);
-
+  // Load Class Data when Class or Term changes
   useEffect(() => {
-    if (availableClasses.length > 0 && (!selectedClass || !availableClasses.includes(selectedClass))) {
-      setSelectedClass(availableClasses[0]);
+    if (selectedClass && selectedTerm) {
+      fetchClassData();
     }
-  }, [selectedExamId, availableClasses]);
+  }, [selectedClass, selectedTerm, schoolId]);
 
-  // Subjects for the current exam + class
-  const classSubjects = currentExam?.subjects?.filter(
-    s => !s.classId || s.classId === selectedClass || s.className === selectedClass
-  ) || [];
-
-  useEffect(() => {
-    if (classSubjects.length > 0 && (!selectedSubjectName || !classSubjects.some(s => s.subjectName === selectedSubjectName))) {
-      setSelectedSubjectName(classSubjects[0].subjectName || classSubjects[0].name);
-    }
-  }, [selectedClass, selectedExamId, currentExam]);
-
-  const currentSubject = classSubjects.find(s => (s.subjectName || s.name) === selectedSubjectName) || {
-    totalMarks: 100,
-    passingMarks: 33,
-    theoryMarks: 100,
-    practicalMarks: 0
-  };
-
-  // Load Students and Existing Marks
-  useEffect(() => {
-    if (!selectedExamId || !selectedClass) return;
-    fetchStudentsAndMarks();
-  }, [selectedExamId, selectedClass, selectedSection, selectedSubjectName, schoolId]);
-
-  const fetchStudentsAndMarks = async () => {
+  const fetchClassData = async () => {
     setLoading(true);
     try {
-      const [studs, results] = await Promise.all([
-        getRecords('students', schoolId, [{ field: 'class', operator: '==', value: selectedClass }]),
-        getRecords('results', schoolId, [{ field: 'examId', operator: '==', value: selectedExamId }])
+      const [masterFiles, studs, existingResults] = await Promise.all([
+        getRecords('examMasterFiles', schoolId),
+        getRecords('students', schoolId),
+        getRecords('results', schoolId)
       ]);
 
-      const sortedStuds = (studs || []).sort((a, b) => {
-        const rA = Number(a.rollNumber || a.rollNo || 0);
-        const rB = Number(b.rollNumber || b.rollNo || 0);
-        return rA - rB;
-      });
+      // 1. Find Subjects for Selected Class & Term
+      const masterFile = masterFiles?.find(
+        f => (f.className === selectedClass || f.classId === selectedClass) && f.term === selectedTerm
+      );
 
-      setStudents(sortedStuds);
-      setExistingResults(results || []);
+      let subjectsToUse = [];
+      if (masterFile && Array.isArray(masterFile.subjects) && masterFile.subjects.length > 0) {
+        subjectsToUse = masterFile.subjects
+          .filter(s => s.included)
+          .map(s => ({
+            subjectName: s.subjectName,
+            totalMarks: Number(s.maxMarks || 25),
+            passingMarks: Number(s.passingMarks || 8.25)
+          }));
+      }
 
-      // Build student marks list for current subject
-      let lockedFlag = false;
-      const initialMarks = sortedStuds.map(s => {
-        const existingMark = (results || []).find(
-          r => r.studentId === s.id && (r.subject === selectedSubjectName || r.subjectName === selectedSubjectName)
+      if (subjectsToUse.length === 0) {
+        subjectsToUse = DEFAULT_SUBJECTS_LIST;
+      }
+      setClassSubjects(subjectsToUse);
+
+      if (subjectsToUse.length > 0 && (!selectedSingleSubject || !subjectsToUse.some(s => s.subjectName === selectedSingleSubject))) {
+        setSelectedSingleSubject(subjectsToUse[0].subjectName);
+      }
+
+      // 2. Filter Students by Selected Class
+      const classStuds = (studs || []).filter(
+        s => s.class === selectedClass || s.className === selectedClass
+      );
+
+      setStudents(classStuds);
+
+      // 3. Build Grid State Map for Bulk Mode
+      const initialGrid = {};
+      classStuds.forEach(student => {
+        const studentResults = (existingResults || []).filter(
+          r => r.studentId === student.id && (r.examId === selectedTerm || r.term === selectedTerm)
         );
 
-        if (existingMark?.isLocked) lockedFlag = true;
+        const marksObj = {};
+        subjectsToUse.forEach(sub => {
+          const matched = studentResults.find(
+            r => r.subject === sub.subjectName || r.subjectName === sub.subjectName
+          );
 
-        let status = existingMark?.status || MARK_STATUSES.PRESENT;
-        let obt = existingMark?.obtainedMarks;
-        if (obt === 'ABS') {
-          status = MARK_STATUSES.ABSENT;
-          obt = '';
-        } else if (obt === undefined || obt === null) {
-          obt = '';
-        }
+          let status = 'P';
+          let obt = '0';
 
-        const gradeObj = calculateGrade(
-          status === MARK_STATUSES.ABSENT ? 'ABS' : obt,
-          currentSubject.totalMarks || 100,
-          gradingRules,
-          status
-        );
+          if (matched) {
+            if (matched.obtainedMarks === 'ABS' || matched.status === MARK_STATUSES.ABSENT) {
+              status = 'A';
+              obt = 'ABS';
+            } else if (matched.status === MARK_STATUSES.LEAVE) {
+              status = 'L';
+              obt = matched.obtainedMarks ?? '0';
+            } else {
+              status = 'P';
+              obt = String(matched.obtainedMarks ?? '0');
+            }
+          }
 
-        return {
-          studentId: s.id,
-          studentName: s.name || s.studentName,
-          rollNumber: s.rollNumber || s.rollNo || '',
-          section: s.section || 'A',
-          totalMarks: currentSubject.totalMarks || 100,
-          obtainedMarks: obt,
-          status: status,
-          percentage: gradeObj.percentage,
-          grade: gradeObj.grade,
-          gpa: gradeObj.gpa,
-          remarks: existingMark?.remarks || gradeObj.remarks,
-          isLocked: existingMark?.isLocked || false
+          marksObj[sub.subjectName] = {
+            obtainedMarks: obt,
+            status: status
+          };
+        });
+
+        initialGrid[student.id] = {
+          marks: marksObj,
+          totalDays: 0,
+          attPercent: 0,
+          excludeFromRank: false,
+          excludeFromLive: false,
+          comment: ''
         };
       });
 
-      setStudentMarksList(initialMarks);
-      setIsLocked(lockedFlag);
+      setGridData(initialGrid);
+
+      // 4. Build Single Subject State
+      if (selectedSingleSubject) {
+        loadSingleSubjectState(selectedSingleSubject, classStuds, existingResults, subjectsToUse);
+      }
+
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching class marks data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Update Marks for a specific student
-  const handleMarkChange = (idx, value) => {
-    if (isLocked) return;
-    const max = Number(currentSubject.totalMarks || 100);
-    const numericVal = value === '' ? '' : Number(value);
-
-    if (numericVal !== '' && (numericVal < 0 || numericVal > max)) {
-      Swal.fire({
-        title: 'Invalid Marks',
-        text: `Marks cannot exceed total marks (${max}) or be negative.`,
-        icon: 'warning',
-        timer: 1500,
-        showConfirmButton: false,
-        background: '#1a1f37',
-        color: '#fff'
-      });
-      return;
-    }
-
-    setStudentMarksList(prev => {
-      const updated = [...prev];
-      const s = updated[idx];
-      const gradeObj = calculateGrade(numericVal, max, gradingRules, s.status);
-
-      updated[idx] = {
-        ...s,
-        obtainedMarks: numericVal,
-        percentage: gradeObj.percentage,
-        grade: gradeObj.grade,
-        gpa: gradeObj.gpa,
-        remarks: gradeObj.remarks
+  const loadSingleSubjectState = (subjName, studList = students, resultsList = [], subjList = classSubjects) => {
+    const targetSubj = subjList.find(s => s.subjectName === subjName) || { totalMarks: 25, passingMarks: 8.25 };
+    const rows = studList.map((st, idx) => {
+      const match = resultsList.find(r => r.studentId === st.id && (r.subject === subjName || r.subjectName === subjName));
+      return {
+        studentId: st.id,
+        rollNo: st.rollNo || st.rollNumber || st.grNo || (100 + idx),
+        studentName: st.name || st.fullName || 'Student',
+        totalMarks: targetSubj.totalMarks,
+        obtainedMarks: match ? String(match.obtainedMarks ?? 0) : '0',
+        status: match ? (match.status || MARK_STATUSES.PRESENT) : MARK_STATUSES.PRESENT,
+        remarks: match ? (match.remarks || '') : ''
       };
-      return updated;
+    });
+    setSingleSubjectMarks(rows);
+  };
+
+  useEffect(() => {
+    if (selectedSingleSubject && students.length > 0) {
+      loadSingleSubjectState(selectedSingleSubject);
+    }
+  }, [selectedSingleSubject]);
+
+  // Update Individual Mark Input in Bulk Mode
+  const handleMarkInputChange = (studentId, subjectName, val) => {
+    setGridData(prev => {
+      const studentState = prev[studentId] || { marks: {} };
+      const currentMarks = studentState.marks[subjectName] || { status: 'P', obtainedMarks: '0' };
+      
+      const updatedStatus = val.toUpperCase() === 'ABS' ? 'A' : currentMarks.status;
+
+      return {
+        ...prev,
+        [studentId]: {
+          ...studentState,
+          marks: {
+            ...studentState.marks,
+            [subjectName]: {
+              ...currentMarks,
+              obtainedMarks: val,
+              status: updatedStatus
+            }
+          }
+        }
+      };
     });
   };
 
-  // Change Status (Present, Absent, Leave, Exempt, Withheld)
-  const handleStatusChange = (idx, newStatus) => {
-    if (isLocked) return;
-    setStudentMarksList(prev => {
-      const updated = [...prev];
-      const s = updated[idx];
-      let obt = s.obtainedMarks;
-      if (newStatus === MARK_STATUSES.ABSENT) obt = '';
+  // Handle Quick Status Buttons (P / A / L)
+  const handleQuickStatusClick = (studentId, subjectName, statusType) => {
+    setGridData(prev => {
+      const studentState = prev[studentId] || { marks: {} };
+      const currentMarks = studentState.marks[subjectName] || { obtainedMarks: '0' };
 
-      const gradeObj = calculateGrade(
-        newStatus === MARK_STATUSES.ABSENT ? 'ABS' : obt,
-        currentSubject.totalMarks || 100,
-        gradingRules,
-        newStatus
-      );
+      let newObtained = currentMarks.obtainedMarks;
+      if (statusType === 'A') {
+        newObtained = 'ABS';
+      } else if (statusType === 'P' && currentMarks.obtainedMarks === 'ABS') {
+        newObtained = '0';
+      }
 
-      updated[idx] = {
-        ...s,
-        status: newStatus,
-        obtainedMarks: obt,
-        percentage: gradeObj.percentage,
-        grade: gradeObj.grade,
-        gpa: gradeObj.gpa,
-        remarks: gradeObj.remarks
+      return {
+        ...prev,
+        [studentId]: {
+          ...studentState,
+          marks: {
+            ...studentState.marks,
+            [subjectName]: {
+              obtainedMarks: newObtained,
+              status: statusType
+            }
+          }
+        }
       };
-      return updated;
     });
   };
 
-  // Save / Submit Marks
-  const handleSaveMarks = async (lockAfterSave = false) => {
-    if (!selectedExamId || !selectedSubjectName) {
-      return Swal.fire('Error', 'Please select Exam and Subject', 'error');
-    }
+  // Handle Option Checkbox Change
+  const handleOptionChange = (studentId, field, value) => {
+    setGridData(prev => ({
+      ...prev,
+      [studentId]: {
+        ...(prev[studentId] || {}),
+        [field]: value
+      }
+    }));
+  };
 
-    // Role check: if teacher, verify authorization
-    if (isTeacher && currentSubject?.teacherId && currentSubject.teacherId !== userData?.uid) {
-      return Swal.fire('Unauthorized', 'You are only authorized to enter marks for subjects assigned to you.', 'error');
+  // Save All Bulk Marks to Database
+  const handleSaveAllMarks = async () => {
+    if (!selectedClass || !selectedTerm) {
+      return Swal.fire('Warning', 'Please select Class and Term', 'warning');
     }
 
     setSaving(true);
     try {
-      await saveMarksBatch({
-        examId: selectedExamId,
-        classId: selectedClass,
-        section: selectedSection,
-        subject: selectedSubjectName,
-        totalMarks: currentSubject.totalMarks || 100,
-        passingMarks: currentSubject.passingMarks || 33,
-        theoryMarks: currentSubject.theoryMarks,
-        practicalMarks: currentSubject.practicalMarks,
-        studentsMarks: studentMarksList,
-        schoolId: schoolId,
-        gradingRules: gradingRules,
-        locked: lockAfterSave || isLocked,
-        enteredBy: userData?.name || (isTeacher ? 'Teacher' : 'Admin')
-      });
+      const promises = [];
 
-      setIsLocked(lockAfterSave || isLocked);
+      for (const student of students) {
+        const sState = gridData[student.id] || { marks: {} };
+        const studentMarksObj = sState.marks || {};
+
+        for (const sub of classSubjects) {
+          const markData = studentMarksObj[sub.subjectName] || { obtainedMarks: '0', status: 'P' };
+          
+          let numericObt = markData.obtainedMarks;
+          let finalStatus = MARK_STATUSES.PRESENT;
+
+          if (markData.status === 'A' || markData.obtainedMarks === 'ABS') {
+            numericObt = 'ABS';
+            finalStatus = MARK_STATUSES.ABSENT;
+          } else if (markData.status === 'L') {
+            finalStatus = MARK_STATUSES.LEAVE;
+          }
+
+          const gradeObj = calculateGrade(numericObt, sub.totalMarks, gradingRules, finalStatus);
+          const resultDocId = `${student.id}_${selectedTerm}_${sub.subjectName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+          const payload = {
+            studentId: student.id,
+            studentName: student.name || student.fullName || '',
+            rollNo: student.rollNo || student.rollNumber || student.grNo || '',
+            class: selectedClass,
+            classId: selectedClass,
+            examId: selectedTerm,
+            term: selectedTerm,
+            subject: sub.subjectName,
+            subjectName: sub.subjectName,
+            totalMarks: sub.totalMarks,
+            passingMarks: sub.passingMarks || 8.25,
+            obtainedMarks: numericObt === 'ABS' ? 'ABS' : Number(numericObt || 0),
+            status: finalStatus,
+            percentage: gradeObj.percentage,
+            grade: gradeObj.grade,
+            gpa: gradeObj.gpa,
+            remarks: gradeObj.remarks,
+            schoolId: schoolId,
+            updatedAt: new Date().toISOString()
+          };
+
+          promises.push(upsertRecord('results', resultDocId, payload));
+        }
+      }
+
+      await Promise.all(promises);
 
       Swal.fire({
-        title: lockAfterSave ? 'Marks Locked & Submitted!' : 'Marks Saved!',
-        text: `Results for ${selectedSubjectName} (${selectedClass}) updated successfully.`,
+        title: 'Save All Marks Successful!',
+        text: `Updated marks for ${students.length} students in Class ${selectedClass} (${selectedTerm}).`,
         icon: 'success',
         background: '#1a1f37',
         color: '#fff',
-        confirmButtonColor: '#3b82f6'
+        confirmButtonColor: '#10b981'
       });
 
-      fetchStudentsAndMarks();
     } catch (err) {
-      console.error(err);
-      Swal.fire('Error', 'Failed to save marks', 'error');
+      console.error('Error saving all marks:', err);
+      Swal.fire('Error', 'Failed to save marks to database', 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  // Quick fill all with specific status or marks
-  const handleQuickFillStatus = (statusToFill) => {
-    if (isLocked) return;
-    setStudentMarksList(prev => prev.map(s => {
-      const gradeObj = calculateGrade(
-        statusToFill === MARK_STATUSES.ABSENT ? 'ABS' : s.obtainedMarks,
-        currentSubject.totalMarks || 100,
+  // Save Single Subject Pipeline
+  const handleSaveSingleSubject = async (newStatus = 'DRAFT') => {
+    if (!selectedSingleSubject || singleSubjectMarks.length === 0) return;
+
+    setSaving(true);
+    try {
+      const targetSubj = classSubjects.find(s => s.subjectName === selectedSingleSubject) || { totalMarks: 25, passingMarks: 8.25 };
+      await saveMarksBatch({
+        examId: selectedTerm,
+        classId: selectedClass,
+        section: 'All',
+        subject: selectedSingleSubject,
+        totalMarks: targetSubj.totalMarks,
+        passingMarks: targetSubj.passingMarks,
+        studentsMarks: singleSubjectMarks,
+        schoolId,
         gradingRules,
-        statusToFill
-      );
-      return {
-        ...s,
-        status: statusToFill,
-        percentage: gradeObj.percentage,
-        grade: gradeObj.grade,
-        gpa: gradeObj.gpa,
-        remarks: gradeObj.remarks
-      };
-    }));
-  };
-
-  // Export Master View to Excel
-  const handleExportMasterExcel = () => {
-    if (students.length === 0) return;
-
-    const dataRows = students.map(student => {
-      const row = {
-        'Roll No': student.rollNumber || student.rollNo || '',
-        'Student Name': student.name || student.studentName || '',
-        'Father Name': student.fatherName || '',
-        'Class': student.class,
-        'Section': student.section || 'A'
-      };
-
-      let grandTotal = 0;
-      let grandObtained = 0;
-
-      classSubjects.forEach(subj => {
-        const subName = subj.subjectName || subj.name;
-        const res = existingResults.find(r => r.studentId === student.id && r.subject === subName);
-        const obt = res?.obtainedMarks === 'ABS' ? 'ABS' : (res?.obtainedMarks ?? '—');
-        row[`${subName} (${subj.totalMarks})`] = obt;
-
-        if (res && res.obtainedMarks !== 'ABS' && typeof res.obtainedMarks === 'number') {
-          grandObtained += res.obtainedMarks;
-          grandTotal += Number(subj.totalMarks || 100);
-        }
+        locked: newStatus === VERIFICATION_STATUSES.LOCKED,
+        enteredBy: userData?.name || 'Admin'
       });
 
-      row['Total Obtained'] = grandObtained;
-      row['Grand Total'] = grandTotal;
-      row['Overall %'] = grandTotal > 0 ? ((grandObtained / grandTotal) * 100).toFixed(1) + '%' : '0%';
-      row['Overall Grade'] = calculateGrade(grandObtained, grandTotal, gradingRules).grade;
+      setVerificationStatus(newStatus);
 
-      return row;
-    });
-
-    const worksheet = XLSX.utils.json_to_sheet(dataRows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, `Master_Class_${selectedClass}`);
-    XLSX.writeFile(workbook, `Master_Marks_${selectedClass}_${currentExam?.examName || 'Exam'}.xlsx`);
-
-    Swal.fire({
-      title: 'Exported!',
-      text: 'Master marks file exported as Excel workbook.',
-      icon: 'success',
-      background: '#1a1f37',
-      color: '#fff'
-    });
+      Swal.fire({
+        title: `Single Subject Saved (${newStatus})`,
+        text: `Marks for ${selectedSingleSubject} updated successfully.`,
+        icon: 'success',
+        background: '#1a1f37',
+        color: '#fff',
+        confirmButtonColor: '#2563eb'
+      });
+    } catch (err) {
+      console.error('Error saving single subject:', err);
+      Swal.fire('Error', 'Failed to save single subject marks', 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Filtered student list for table
-  const filteredList = studentMarksList.filter(s => {
-    const matchesSearch = (s.studentName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (s.rollNumber || '').toString().includes(searchTerm);
-    const matchesSection = selectedSection === 'All' || s.section === selectedSection;
-    return matchesSearch && matchesSection;
+  // Calculated Student Stats & Sorting
+  const processedStudents = students.map((student, idx) => {
+    const sData = gridData[student.id] || { marks: {} };
+    const marks = sData.marks || {};
+
+    let grandTotalObtained = 0;
+    let grandMaxMarks = 0;
+
+    classSubjects.forEach(sub => {
+      const subMark = marks[sub.subjectName] || { obtainedMarks: '0', status: 'P' };
+      const maxM = sub.totalMarks || 25;
+      grandMaxMarks += maxM;
+
+      if (subMark.status !== 'A' && subMark.obtainedMarks !== 'ABS') {
+        grandTotalObtained += Number(subMark.obtainedMarks || 0);
+      }
+    });
+
+    const percent = grandMaxMarks > 0 ? ((grandTotalObtained / grandMaxMarks) * 100).toFixed(2) : '0.00';
+    const gradeObj = calculateGrade(grandTotalObtained, grandMaxMarks, gradingRules);
+
+    return {
+      ...student,
+      admNo: student.grNo || student.grNumber || student.rollNo || student.rollNumber || (100 + idx),
+      studentName: student.name || student.fullName || 'Student',
+      fatherName: student.fatherName || 'Father Name',
+      grandTotalObtained,
+      grandMaxMarks,
+      percent,
+      grade: gradeObj.grade,
+      sData
+    };
+  });
+
+  // Calculate Positions (Ranks)
+  const rankedStudents = [...processedStudents].sort((a, b) => b.grandTotalObtained - a.grandTotalObtained);
+  const positionMap = {};
+  let currentRank = 1;
+  rankedStudents.forEach((st, i) => {
+    if (i > 0 && st.grandTotalObtained < rankedStudents[i - 1].grandTotalObtained) {
+      currentRank = i + 1;
+    }
+    positionMap[st.id] = currentRank;
+  });
+
+  // Filter & Order Students
+  const filteredStudentsList = processedStudents.filter(st => {
+    const termLower = searchTerm.toLowerCase();
+    return (
+      st.studentName.toLowerCase().includes(termLower) ||
+      st.fatherName.toLowerCase().includes(termLower) ||
+      String(st.admNo).toLowerCase().includes(termLower)
+    );
+  }).sort((a, b) => {
+    if (orderBy === 'adm_desc') return Number(b.admNo) - Number(a.admNo);
+    if (orderBy === 'adm_asc') return Number(a.admNo) - Number(b.admNo);
+    if (orderBy === 'name_asc') return a.studentName.localeCompare(b.studentName);
+    if (orderBy === 'rank_asc') return (positionMap[a.id] || 99) - (positionMap[b.id] || 99);
+    return 0;
   });
 
   return (
-    <div className="space-y-6 animate-fade-in pb-20">
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto font-sans animate-fade-in pb-24 text-white">
       
-      {/* Header Banner */}
+      {/* 🏷️ Top Header Banner matching application design */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-dark-card/90 via-dark-card/60 to-primary-950/40 p-6 rounded-3xl border border-white/5 shadow-2xl backdrop-blur-xl">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <div className="p-2.5 bg-primary-500/10 rounded-xl text-primary-400 border border-primary-500/20">
-              <ClipboardCheck size={26} />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-white via-dark-text to-primary-300 bg-clip-text text-transparent">
-                Marks Entry & Master File
-              </h1>
-              <p className="text-xs md:text-sm text-dark-muted font-medium">
-                Input student scores, auto-calculate grades & percentages, or inspect the comprehensive cross-subject master sheet.
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary-500/10 rounded-2xl text-primary-400 border border-primary-500/20 shadow-inner">
+            <ClipboardCheck size={26} />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-white via-dark-text to-primary-300 bg-clip-text text-transparent tracking-tight">
+              Marks Entry Engine
+            </h1>
+            <p className="text-xs md:text-sm text-dark-muted font-medium mt-0.5">
+              Enter marks in Bulk All-Subjects mode or Single Subject verification mode
+            </p>
           </div>
         </div>
 
-        {/* View Mode Toggle & Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center p-1 bg-dark-bg/80 border border-white/10 rounded-2xl">
-            <button
-              onClick={() => setViewMode('SUBJECT_VIEW')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                viewMode === 'SUBJECT_VIEW'
-                  ? 'bg-primary-600 text-white shadow-md shadow-primary-600/30'
-                  : 'text-dark-muted hover:text-white'
-              }`}
-            >
-              Subject Entry
-            </button>
-            <button
-              onClick={() => setViewMode('MASTER_VIEW')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'MASTER_VIEW'
-                  ? 'bg-primary-600 text-white shadow-md shadow-primary-600/30'
-                  : 'text-dark-muted hover:text-white'
-              }`}
-            >
-              <FileSpreadsheet size={14} />
-              <span>Master View</span>
-            </button>
-          </div>
+        {/* Mode Switcher Toggle */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-dark-bg/80 border border-white/10 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => setMarksMode('BULK')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              marksMode === 'BULK'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 font-black'
+                : 'text-dark-muted hover:text-white'
+            }`}
+          >
+            <FileSpreadsheet size={15} />
+            <span>📊 Bulk Marks Entry</span>
+          </button>
 
-          {viewMode === 'MASTER_VIEW' ? (
-            <button
-              onClick={handleExportMasterExcel}
-              className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-lg shadow-emerald-600/30 transition-all"
-            >
-              <Download size={15} />
-              <span>Export Excel</span>
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleSaveMarks(false)}
-                disabled={saving || isLocked}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-dark-bg/90 hover:bg-white/5 border border-white/10 text-white font-bold text-xs transition-all disabled:opacity-50"
-              >
-                <Save size={15} />
-                <span>Save Draft</span>
-              </button>
-
-              <button
-                onClick={() => handleSaveMarks(true)}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-2xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-primary-600/30 transition-all disabled:opacity-50"
-              >
-                {saving ? <RefreshCw size={15} className="animate-spin" /> : <Lock size={15} />}
-                <span>{isLocked ? 'Update Marks' : 'Submit & Lock'}</span>
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setMarksMode('SINGLE')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+              marksMode === 'SINGLE'
+                ? 'bg-primary-600 text-white shadow-lg shadow-primary-600/30 font-black'
+                : 'text-dark-muted hover:text-white'
+            }`}
+          >
+            <BookOpen size={15} />
+            <span>📖 Single Subject Entry</span>
+          </button>
         </div>
       </div>
 
-      {/* Selectors Bar */}
-      <GlassCard className="p-5 border-white/5 shadow-xl">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      {/* 🎛️ Selectors & Filters Glass Card */}
+      <GlassCard className="p-5 border-white/5 shadow-xl space-y-4">
+        
+        {/* Selectors Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           
-          {/* Exam */}
-          <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Calendar size={13} className="text-primary-400" />
-              <span>1. Exam</span>
-            </label>
-            <select
-              value={selectedExamId}
-              onChange={(e) => setSelectedExamId(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
-            >
-              {exams.map((ex) => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.examName}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {/* Class */}
           <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
               <Layers size={13} className="text-primary-400" />
-              <span>2. Class</span>
+              <span>Class</span>
             </label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
+              className="w-full px-3.5 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors cursor-pointer"
             >
+              <option value="" className="bg-dark-bg text-white">Select Class</option>
               {availableClasses.map((cls, idx) => (
-                <option key={idx} value={cls}>Class {cls}</option>
+                <option key={idx} value={cls} className="bg-dark-bg text-white">{cls}</option>
               ))}
             </select>
           </div>
 
-          {/* Section */}
+          {/* Term */}
           <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Filter size={13} className="text-primary-400" />
-              <span>3. Section</span>
+            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Calendar size={13} className="text-primary-400" />
+              <span>Term / Exam</span>
             </label>
             <select
-              value={selectedSection}
-              onChange={(e) => setSelectedSection(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
+              value={selectedTerm}
+              onChange={(e) => setSelectedTerm(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors cursor-pointer"
             >
-              <option value="All">All Sections</option>
-              {['A', 'B', 'C', 'D', 'Boys', 'Girls'].map((sec, idx) => (
-                <option key={idx} value={sec}>Section {sec}</option>
+              <option value="" className="bg-dark-bg text-white">Select Term</option>
+              {createdExams.map((term, idx) => (
+                <option key={idx} value={term} className="bg-dark-bg text-white">{term}</option>
               ))}
             </select>
           </div>
 
-          {/* Subject (Only in Subject Entry Mode) */}
-          {viewMode === 'SUBJECT_VIEW' && (
+          {/* Order By (Only in Bulk Mode) */}
+          {marksMode === 'BULK' ? (
             <div>
-              <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <BookOpen size={13} className="text-primary-400" />
-                <span>4. Subject</span>
+              <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <Filter size={13} className="text-primary-400" />
+                <span>Order By Admission No.</span>
               </label>
               <select
-                value={selectedSubjectName}
-                onChange={(e) => setSelectedSubjectName(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
+                value={orderBy}
+                onChange={(e) => setOrderBy(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors cursor-pointer"
               >
-                {classSubjects.length > 0 ? (
-                  classSubjects.map((s, idx) => (
-                    <option key={idx} value={s.subjectName || s.name}>
-                      {s.subjectName || s.name} (Max: {s.totalMarks})
-                    </option>
-                  ))
-                ) : (
-                  <option value="">No subjects scheduled</option>
-                )}
+                <option value="adm_desc" className="bg-dark-bg text-white">Descending</option>
+                <option value="adm_asc" className="bg-dark-bg text-white">Ascending</option>
+                <option value="name_asc" className="bg-dark-bg text-white">Student Name (A-Z)</option>
+                <option value="rank_asc" className="bg-dark-bg text-white">Position (1 to N)</option>
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <BookOpen size={13} className="text-primary-400" />
+                <span>Select Subject</span>
+              </label>
+              <select
+                value={selectedSingleSubject}
+                onChange={(e) => setSelectedSingleSubject(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors cursor-pointer"
+              >
+                {classSubjects.map((s, idx) => (
+                  <option key={idx} value={s.subjectName} className="bg-dark-bg text-white">
+                    {s.subjectName} (Max: {s.totalMarks})
+                  </option>
+                ))}
               </select>
             </div>
           )}
 
         </div>
-      </GlassCard>
 
-      {/* VIEW 1: SUBJECT ENTRY TABLE */}
-      {viewMode === 'SUBJECT_VIEW' && (
-        <GlassCard className="p-0 overflow-hidden border-white/5 shadow-2xl">
-          
-          {/* Quick Toolbar */}
-          <div className="p-4 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.01]">
-            <div className="flex items-center gap-3">
-              <div className="text-xs text-dark-muted">
-                Subject: <span className="font-bold text-white">{selectedSubjectName}</span> • Total Marks: <span className="font-bold text-emerald-400">{currentSubject.totalMarks || 100}</span> • Pass Marks: <span className="font-bold text-amber-300">{currentSubject.passingMarks || 33}</span>
-              </div>
-              {isLocked && (
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 text-[11px] font-bold border border-amber-500/20 flex items-center gap-1">
-                  <Lock size={12} /> Locked
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-dark-muted hidden md:inline">Quick Status:</span>
+        {/* Bulk Subjects Filter (In Bulk Mode) */}
+        {marksMode === 'BULK' && (
+          <div className="space-y-2 pt-3 border-t border-white/5">
+            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider">
+              Subjects Filter
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => handleQuickFillStatus(MARK_STATUSES.PRESENT)}
-                className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded-lg border border-emerald-500/20 transition-all"
+                onClick={() => setActiveSubjectPill('ALL')}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all ${
+                  activeSubjectPill === 'ALL'
+                    ? 'bg-primary-600 text-white border-primary-500 shadow-md shadow-primary-600/30'
+                    : 'bg-dark-bg/80 text-dark-muted border-white/10 hover:text-white hover:bg-white/5'
+                }`}
               >
-                All Present
+                All Subjects
               </button>
 
-              <div className="relative w-48">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-dark-muted" size={13} />
-                <input
-                  type="text"
-                  placeholder="Filter student..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-2.5 py-1 bg-dark-bg/60 border border-white/10 rounded-xl text-xs text-white placeholder-dark-muted focus:outline-none focus:border-primary-500"
-                />
-              </div>
+              {classSubjects.map((sub, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setActiveSubjectPill(sub.subjectName)}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition-all ${
+                    activeSubjectPill === sub.subjectName
+                      ? 'bg-primary-600 text-white border-primary-500 shadow-md shadow-primary-600/30'
+                      : 'bg-dark-bg/80 text-dark-muted border-white/10 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {sub.subjectName}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={fetchClassData}
+                disabled={loading}
+                className="ml-auto px-4 py-2 bg-primary-600 hover:bg-primary-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-primary-600/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {loading ? <RefreshCw size={14} className="animate-spin" /> : <ClipboardCheck size={14} />}
+                <span>Load Class Data</span>
+              </button>
             </div>
           </div>
+        )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm border-collapse">
+        {/* Search Row in Bulk Mode */}
+        {marksMode === 'BULK' && (
+          <div className="pt-2 flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-muted" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search Admission No, Student Name, Father Name..."
+                className="w-full pl-9 pr-3.5 py-2 bg-dark-bg/80 border border-white/10 rounded-xl text-xs text-white placeholder-dark-muted focus:outline-none focus:border-primary-500"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl border border-white/10 transition-all"
+            >
+              Show All
+            </button>
+          </div>
+        )}
+
+      </GlassCard>
+
+      {/* MODE 1: BULK MARKS MATRIX TABLE */}
+      {marksMode === 'BULK' && (
+        <GlassCard className="p-0 overflow-hidden border-white/5 shadow-2xl">
+          <div className="overflow-x-auto max-h-[70vh]">
+            <table className="w-full border-collapse text-left text-xs">
               <thead>
-                <tr className="bg-white/[0.02] border-b border-white/5 text-dark-muted text-xs uppercase tracking-wider font-semibold">
-                  <th className="py-4 px-3 text-center w-12">#</th>
-                  <th className="py-4 px-3">Roll No</th>
-                  <th className="py-4 px-4">Student Name</th>
-                  <th className="py-4 px-3">Total Marks</th>
-                  <th className="py-4 px-4">Obtained Marks</th>
-                  <th className="py-4 px-3">Attendance / Status</th>
-                  <th className="py-4 px-3">Percentage</th>
-                  <th className="py-4 px-3">Grade</th>
-                  <th className="py-4 px-4">Remarks</th>
+                <tr className="bg-white/[0.04] border-b border-white/10 text-primary-300 font-bold tracking-tight sticky top-0 z-20 backdrop-blur-md">
+                  <th className="py-3.5 px-2 text-center border-r border-white/10 w-10">#</th>
+                  <th className="py-3.5 px-3 text-center border-r border-white/10 whitespace-nowrap cursor-pointer">
+                    Adm No ▴▼
+                  </th>
+                  <th className="py-3.5 px-4 border-r border-white/10 whitespace-nowrap min-w-[130px]">
+                    Student Name
+                  </th>
+                  <th className="py-3.5 px-4 border-r border-white/10 whitespace-nowrap min-w-[130px]">
+                    Father Name
+                  </th>
+
+                  {/* Dynamic Subject Columns */}
+                  {classSubjects
+                    .filter(sub => activeSubjectPill === 'ALL' || activeSubjectPill === sub.subjectName)
+                    .map((sub, sIdx) => (
+                      <th key={sIdx} className="py-3.5 px-3 border-r border-white/10 text-center whitespace-nowrap min-w-[125px]">
+                        {sub.subjectName}
+                        <span className="block text-[10px] text-dark-muted font-normal">({Number(sub.totalMarks).toFixed(2)})</span>
+                      </th>
+                    ))}
+
+                  <th className="py-3.5 px-3 text-center border-r border-white/10 whitespace-nowrap">Total</th>
+                  <th className="py-3.5 px-3 text-center border-r border-white/10 whitespace-nowrap">Percent</th>
+                  <th className="py-3.5 px-3 text-center border-r border-white/10 whitespace-nowrap">Grade</th>
+                  <th className="py-3.5 px-3 text-center border-r border-white/10 whitespace-nowrap min-w-[75px]">Total Days</th>
+                  <th className="py-3.5 px-3 text-center border-r border-white/10 whitespace-nowrap">Att %</th>
+                  <th className="py-3.5 px-3 text-center border-r border-white/10 whitespace-nowrap cursor-pointer">
+                    Position ▴▼
+                  </th>
+                  <th className="py-3.5 px-4 text-center whitespace-nowrap min-w-[160px]">Options</th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-white/5 text-dark-text">
                 {loading ? (
                   <tr>
-                    <td colSpan="9" className="text-center py-16 text-dark-muted">
-                      <RefreshCw className="animate-spin inline-block mr-2 text-primary-400" size={20} />
-                      Loading students and marks...
+                    <td colSpan={10 + classSubjects.length} className="text-center py-16 text-dark-muted">
+                      <RefreshCw size={22} className="animate-spin inline mr-2 text-primary-400" />
+                      Loading class students and marks...
                     </td>
                   </tr>
-                ) : filteredList.length === 0 ? (
+                ) : filteredStudentsList.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="text-center py-16 text-dark-muted text-xs">
-                      No students found for Class {selectedClass}.
+                    <td colSpan={10 + classSubjects.length} className="text-center py-16 text-dark-muted text-xs">
+                      No student records found for Class {selectedClass}.
                     </td>
                   </tr>
                 ) : (
-                  filteredList.map((row, idx) => {
-                    const actualIdx = studentMarksList.findIndex(s => s.studentId === row.studentId);
-                    const isAbsent = row.status === MARK_STATUSES.ABSENT;
-                    const isFail = row.grade === 'F';
+                  filteredStudentsList.map((student, idx) => {
+                    const sData = gridData[student.id] || { marks: {} };
+                    const marks = sData.marks || {};
+                    const rank = positionMap[student.id] || (idx + 1);
 
                     return (
-                      <tr 
-                        key={row.studentId || idx}
-                        className="hover:bg-white/[0.02] transition-colors"
-                      >
-                        <td className="py-4 px-3 text-center text-xs text-dark-muted font-bold">
+                      <tr key={student.id} className="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                        
+                        <td className="py-3 px-2 text-center font-bold text-dark-muted border-r border-white/5">
                           {idx + 1}
                         </td>
-                        <td className="py-4 px-3 font-mono font-bold text-xs text-primary-300">
-                          {row.rollNumber || '—'}
+
+                        <td className="py-3 px-3 text-center font-mono font-bold text-primary-300 border-r border-white/5">
+                          {student.admNo}
                         </td>
-                        <td className="py-4 px-4">
-                          <div className="font-bold text-white text-xs">{row.studentName}</div>
-                          <div className="text-[10px] text-dark-muted">Sec: {row.section}</div>
+
+                        <td className="py-3 px-4 font-bold text-white border-r border-white/5 whitespace-nowrap">
+                          {student.studentName}
                         </td>
-                        <td className="py-4 px-3 font-bold text-xs text-dark-muted">
-                          {row.totalMarks}
+
+                        <td className="py-3 px-4 text-dark-muted border-r border-white/5 whitespace-nowrap">
+                          {student.fatherName}
                         </td>
-                        <td className="py-4 px-4">
-                          <input
-                            type="number"
-                            min="0"
-                            max={row.totalMarks}
-                            disabled={isLocked || isAbsent}
-                            placeholder={isAbsent ? 'ABS' : '0'}
-                            value={isAbsent ? '' : row.obtainedMarks}
-                            onChange={(e) => handleMarkChange(actualIdx, e.target.value)}
-                            className={`w-24 px-3 py-1.5 bg-dark-bg/80 border rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors ${
-                              isAbsent ? 'opacity-40 border-white/5' : 'border-white/10'
-                            }`}
-                          />
+
+                        {/* Subject Mark Cell & Quick Status Buttons */}
+                        {classSubjects
+                          .filter(sub => activeSubjectPill === 'ALL' || activeSubjectPill === sub.subjectName)
+                          .map((sub, sIdx) => {
+                            const subMark = marks[sub.subjectName] || { obtainedMarks: '0', status: 'P' };
+                            const isAbsent = subMark.status === 'A' || subMark.obtainedMarks === 'ABS';
+
+                            return (
+                              <td key={sIdx} className="py-2.5 px-2 text-center border-r border-white/5">
+                                <div className="flex flex-col items-center gap-1.5">
+                                  
+                                  <input
+                                    type="text"
+                                    value={subMark.obtainedMarks}
+                                    onChange={(e) => handleMarkInputChange(student.id, sub.subjectName, e.target.value)}
+                                    className={`w-16 px-2 py-1 text-center font-bold text-xs rounded-lg border focus:outline-none focus:border-primary-500 transition-all ${
+                                      isAbsent 
+                                        ? 'bg-red-500/10 text-red-400 border-red-500/30 font-black' 
+                                        : 'bg-dark-bg/80 text-white border-white/10'
+                                    }`}
+                                  />
+
+                                  {/* Quick Status Pills: P (Green), A (Red), L (Yellow) */}
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickStatusClick(student.id, sub.subjectName, 'P')}
+                                      title="Mark Present"
+                                      className={`w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${
+                                        subMark.status === 'P' && !isAbsent
+                                          ? 'bg-emerald-500 text-white ring-2 ring-emerald-400/30'
+                                          : 'bg-white/5 text-dark-muted hover:bg-emerald-500/20 hover:text-emerald-300'
+                                      }`}
+                                    >
+                                      P
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickStatusClick(student.id, sub.subjectName, 'A')}
+                                      title="Mark Absent"
+                                      className={`w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${
+                                        isAbsent
+                                          ? 'bg-red-500 text-white ring-2 ring-red-400/30'
+                                          : 'bg-white/5 text-dark-muted hover:bg-red-500/20 hover:text-red-300'
+                                      }`}
+                                    >
+                                      A
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickStatusClick(student.id, sub.subjectName, 'L')}
+                                      title="Mark Leave"
+                                      className={`w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center transition-all ${
+                                        subMark.status === 'L'
+                                          ? 'bg-amber-500 text-white ring-2 ring-amber-400/30'
+                                          : 'bg-white/5 text-dark-muted hover:bg-amber-500/20 hover:text-amber-300'
+                                      }`}
+                                    >
+                                      L
+                                    </button>
+                                  </div>
+
+                                </div>
+                              </td>
+                            );
+                          })}
+
+                        {/* Total */}
+                        <td className="py-3 px-3 text-center font-black text-white border-r border-white/5">
+                          {student.grandTotalObtained}
                         </td>
-                        <td className="py-4 px-3">
-                          <select
-                            disabled={isLocked}
-                            value={row.status}
-                            onChange={(e) => handleStatusChange(actualIdx, e.target.value)}
-                            className="bg-dark-bg/80 border border-white/10 text-white text-xs font-semibold rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-primary-500"
-                          >
-                            <option value={MARK_STATUSES.PRESENT}>Present</option>
-                            <option value={MARK_STATUSES.ABSENT}>Absent</option>
-                            <option value={MARK_STATUSES.LEAVE}>Leave</option>
-                            <option value={MARK_STATUSES.EXEMPT}>Exempt</option>
-                            <option value={MARK_STATUSES.WITHHELD}>Withheld</option>
-                          </select>
+
+                        {/* Percent */}
+                        <td className="py-3 px-3 text-center font-bold text-emerald-400 border-r border-white/5">
+                          {student.percent}%
                         </td>
-                        <td className="py-4 px-3 font-mono font-bold text-xs text-white/90">
-                          {row.percentage}%
-                        </td>
-                        <td className="py-4 px-3">
-                          <span className={`px-2 py-0.5 rounded-lg text-xs font-black border ${
-                            isFail
+
+                        {/* Grade */}
+                        <td className="py-3 px-3 text-center border-r border-white/5">
+                          <span className={`px-2 py-0.5 rounded text-xs font-black border ${
+                            student.grade === 'F'
                               ? 'bg-red-500/10 text-red-400 border-red-500/20'
                               : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                           }`}>
-                            {row.grade}
+                            {student.grade}
                           </span>
                         </td>
-                        <td className="py-4 px-4 text-xs text-dark-muted">
-                          {row.remarks || '—'}
+
+                        {/* Total Days */}
+                        <td className="py-3 px-2 text-center border-r border-white/5">
+                          <input
+                            type="number"
+                            min="0"
+                            value={sData.totalDays || 0}
+                            onChange={(e) => handleOptionChange(student.id, 'totalDays', Number(e.target.value))}
+                            className="w-12 px-1 py-0.5 text-center text-xs font-bold bg-dark-bg/80 text-white border border-white/10 rounded"
+                          />
                         </td>
+
+                        {/* Att % */}
+                        <td className="py-3 px-3 text-center font-bold text-dark-muted border-r border-white/5">
+                          {sData.attPercent || 0}%
+                        </td>
+
+                        {/* Position */}
+                        <td className="py-3 px-3 text-center font-black text-primary-300 border-r border-white/5">
+                          {rank}
+                        </td>
+
+                        {/* Options */}
+                        <td className="py-3 px-3 text-xs border-r border-white/5">
+                          <div className="flex flex-col gap-1 text-[11px]">
+                            <label className="flex items-center gap-1.5 cursor-pointer text-dark-muted hover:text-white">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(sData.excludeFromRank)}
+                                onChange={(e) => handleOptionChange(student.id, 'excludeFromRank', e.target.checked)}
+                                className="rounded bg-dark-bg border-white/10 text-primary-500 focus:ring-0"
+                              />
+                              <span>Exclude from Rank</span>
+                            </label>
+
+                            <label className="flex items-center gap-1.5 cursor-pointer text-dark-muted hover:text-white">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(sData.excludeFromLive)}
+                                onChange={(e) => handleOptionChange(student.id, 'excludeFromLive', e.target.checked)}
+                                className="rounded bg-dark-bg border-white/10 text-primary-500 focus:ring-0"
+                              />
+                              <span>Exclude from Live</span>
+                            </label>
+                          </div>
+                        </td>
+
                       </tr>
                     );
                   })
@@ -671,103 +903,147 @@ const MarksEntry = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Bottom Bar */}
+          <div className="p-4 bg-white/[0.02] border-t border-white/5 flex flex-wrap items-center justify-between gap-3">
+            <div className="text-xs text-dark-muted font-medium">
+              Showing <b className="text-white">{filteredStudentsList.length}</b> students • Target Class: <b className="text-primary-300">{selectedClass}</b> ({selectedTerm})
+            </div>
+
+            <button
+              onClick={handleSaveAllMarks}
+              disabled={saving || loading}
+              className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2 disabled:opacity-50"
+            >
+              {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+              <span>Save All Marks</span>
+            </button>
+          </div>
         </GlassCard>
       )}
 
-      {/* VIEW 2: MASTER VIEW MATRIX (MERGED MASTER FILE) */}
-      {viewMode === 'MASTER_VIEW' && (
-        <GlassCard className="p-0 overflow-hidden border-white/5 shadow-2xl">
-          <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+      {/* MODE 2: SINGLE SUBJECT ENTRY & PIPELINE */}
+      {marksMode === 'SINGLE' && (
+        <GlassCard className="p-5 border-white/5 shadow-2xl space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-4">
             <div>
-              <h3 className="font-bold text-white text-base">
-                Master Marks Sheet • Class {selectedClass}
-              </h3>
-              <p className="text-xs text-dark-muted mt-0.5">
-                Consolidated cross-subject scores and overall rankings.
-              </p>
+              <h3 className="text-lg font-black text-white">Single Subject Pipeline</h3>
+              <p className="text-xs text-dark-muted">Status: <b className="text-primary-400 uppercase">{verificationStatus}</b></p>
             </div>
-            <button
-              onClick={handleExportMasterExcel}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/30 transition-all"
-            >
-              <Download size={14} />
-              <span>Export Sheet</span>
-            </button>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleSaveSingleSubject('DRAFT')}
+                disabled={saving || !selectedSingleSubject}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white font-bold text-xs rounded-xl border border-white/10 transition-all"
+              >
+                Save Draft
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveSingleSubject('SUBMITTED')}
+                disabled={saving || !selectedSingleSubject}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+              >
+                Submit
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveSingleSubject('VERIFIED')}
+                disabled={saving || !selectedSingleSubject}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-md transition-all"
+              >
+                Verify
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveSingleSubject('LOCKED')}
+                disabled={saving || !selectedSingleSubject}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+              >
+                <Lock size={14} />
+                <span>Lock Marks</span>
+              </button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-white/[0.02] border-b border-white/5 text-dark-muted uppercase font-semibold">
-                  <th className="py-3 px-3">Roll No</th>
+                <tr className="bg-white/[0.03] border-b border-white/10 text-dark-muted uppercase font-semibold">
+                  <th className="py-3 px-3">Roll #</th>
                   <th className="py-3 px-4">Student Name</th>
-                  {classSubjects.map((sub, i) => (
-                    <th key={i} className="py-3 px-3 text-center border-l border-white/5">
-                      {sub.subjectName || sub.name}
-                      <span className="block text-[10px] text-dark-muted font-normal">({sub.totalMarks})</span>
-                    </th>
-                  ))}
-                  <th className="py-3 px-3 text-center border-l border-white/5">Grand Total</th>
-                  <th className="py-3 px-3 text-center">Obtained</th>
-                  <th className="py-3 px-3 text-center">%</th>
-                  <th className="py-3 px-3 text-center">Grade</th>
+                  <th className="py-3 px-3 text-center">Max Marks</th>
+                  <th className="py-3 px-3 text-center">Obtained Marks</th>
+                  <th className="py-3 px-3 text-center">Status</th>
+                  <th className="py-3 px-4">Remarks</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-dark-text">
-                {students.map((student, idx) => {
-                  let totalMax = 0;
-                  let totalObt = 0;
-
-                  return (
-                    <tr key={student.id || idx} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-3 px-3 font-mono font-bold text-primary-300">
-                        {student.rollNumber || student.rollNo || '—'}
-                      </td>
-                      <td className="py-3 px-4 font-bold text-white whitespace-nowrap">
-                        {student.name || student.studentName}
-                      </td>
-
-                      {classSubjects.map((sub, sIdx) => {
-                        const subName = sub.subjectName || sub.name;
-                        const res = existingResults.find(r => r.studentId === student.id && r.subject === subName);
-                        totalMax += Number(sub.totalMarks || 100);
-
-                        if (res && res.obtainedMarks !== 'ABS' && typeof res.obtainedMarks === 'number') {
-                          totalObt += res.obtainedMarks;
-                        }
-
-                        return (
-                          <td key={sIdx} className="py-3 px-3 text-center font-mono border-l border-white/5">
-                            {res ? (
-                              res.obtainedMarks === 'ABS' ? (
-                                <span className="text-red-400 font-bold">ABS</span>
-                              ) : (
-                                <span className="font-semibold text-white/90">{res.obtainedMarks}</span>
-                              )
-                            ) : (
-                              <span className="text-dark-muted italic">—</span>
-                            )}
-                          </td>
-                        );
-                      })}
-
-                      <td className="py-3 px-3 text-center font-bold text-dark-muted border-l border-white/5">
-                        {totalMax}
-                      </td>
-                      <td className="py-3 px-3 text-center font-bold text-emerald-400">
-                        {totalObt}
-                      </td>
-                      <td className="py-3 px-3 text-center font-bold text-white">
-                        {totalMax > 0 ? ((totalObt / totalMax) * 100).toFixed(1) : 0}%
-                      </td>
-                      <td className="py-3 px-3 text-center font-bold">
-                        <span className="px-2 py-0.5 rounded bg-primary-500/10 text-primary-400 border border-primary-500/20 font-black">
-                          {calculateGrade(totalObt, totalMax, gradingRules).grade}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {singleSubjectMarks.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="py-3 px-3 font-mono font-bold text-primary-300">{row.rollNo}</td>
+                    <td className="py-3 px-4 font-bold text-white">{row.studentName}</td>
+                    <td className="py-3 px-3 text-center font-bold text-dark-muted">{row.totalMarks}</td>
+                    <td className="py-3 px-3 text-center">
+                      <input
+                        type="text"
+                        disabled={verificationStatus === 'LOCKED'}
+                        value={row.obtainedMarks}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSingleSubjectMarks(prev => {
+                            const updated = [...prev];
+                            updated[idx] = { ...updated[idx], obtainedMarks: val };
+                            return updated;
+                          });
+                        }}
+                        className="w-20 px-2 py-1 text-center font-bold text-xs bg-dark-bg/80 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary-500"
+                      />
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <select
+                        disabled={verificationStatus === 'LOCKED'}
+                        value={row.status}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSingleSubjectMarks(prev => {
+                            const updated = [...prev];
+                            updated[idx] = { ...updated[idx], status: val, obtainedMarks: val === MARK_STATUSES.ABSENT ? 'ABS' : updated[idx].obtainedMarks };
+                            return updated;
+                          });
+                        }}
+                        className="bg-dark-bg/80 border border-white/10 text-white text-xs font-bold rounded-lg px-2 py-1"
+                      >
+                        <option value="Present" className="bg-dark-bg">Present</option>
+                        <option value="Absent" className="bg-dark-bg">Absent</option>
+                        <option value="Leave" className="bg-dark-bg">Leave</option>
+                        <option value="Exempt" className="bg-dark-bg">Exempt</option>
+                      </select>
+                    </td>
+                    <td className="py-3 px-4">
+                      <input
+                        type="text"
+                        disabled={verificationStatus === 'LOCKED'}
+                        placeholder="Remarks"
+                        value={row.remarks}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSingleSubjectMarks(prev => {
+                            const updated = [...prev];
+                            updated[idx] = { ...updated[idx], remarks: val };
+                            return updated;
+                          });
+                        }}
+                        className="w-full px-2.5 py-1 text-xs bg-dark-bg/80 border border-white/10 rounded-lg text-white placeholder-dark-muted focus:outline-none focus:border-primary-500"
+                      />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

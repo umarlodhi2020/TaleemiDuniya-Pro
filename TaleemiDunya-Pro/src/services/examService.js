@@ -612,3 +612,139 @@ export const publishExamResults = async (examId, schoolId) => {
     throw error;
   }
 };
+
+// ==========================================
+// 6. EXTENDED WORKFLOW HELPERS (6-STAGE ENGINE)
+// ==========================================
+
+export const VERIFICATION_STATUSES = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  VERIFIED: 'VERIFIED',
+  LOCKED: 'LOCKED'
+};
+
+export const APPROVAL_STATES = {
+  DRAFT: 'DRAFT',
+  TEACHER_SUBMITTED: 'TEACHER_SUBMITTED',
+  CONTROLLER_VERIFIED: 'CONTROLLER_VERIFIED',
+  PRINCIPAL_APPROVED: 'PRINCIPAL_APPROVED',
+  PUBLISHED: 'PUBLISHED'
+};
+
+/**
+ * Check if a student has cleared their fee balance (Read-only query to fees/vouchers)
+ */
+export const checkStudentFeeClearance = async (studentId, schoolId) => {
+  try {
+    if (!studentId || !schoolId) return { cleared: true, balance: 0 };
+    const vouchers = await getRecords('vouchers', schoolId, [
+      { field: 'studentId', operator: '==', value: studentId }
+    ]);
+
+    if (!vouchers || vouchers.length === 0) {
+      return { cleared: true, balance: 0, pendingVouchers: 0 };
+    }
+
+    let totalBalance = 0;
+    let pendingCount = 0;
+
+    vouchers.forEach(v => {
+      const status = (v.status || '').toUpperCase();
+      if (status === 'UNPAID' || status === 'PARTIAL' || status === 'PENDING') {
+        const bal = Number(v.balance || v.remainingAmount || (Number(v.totalAmount || 0) - Number(v.paidAmount || 0)));
+        if (bal > 0) {
+          totalBalance += bal;
+          pendingCount++;
+        }
+      }
+    });
+
+    return {
+      cleared: totalBalance <= 0,
+      balance: totalBalance,
+      pendingVouchers: pendingCount
+    };
+  } catch (err) {
+    console.error('Error checking student fee clearance:', err);
+    return { cleared: true, balance: 0, error: err.message };
+  }
+};
+
+/**
+ * Detailed calculations for a list of student marks in an exam term
+ */
+export const computeExamResultSummary = (studentMarks = [], failSubjectCountThreshold = 1, gradingRules = DEFAULT_GRADING_RULES) => {
+  let totalMax = 0;
+  let totalObtained = 0;
+  let failedSubjectsCount = 0;
+  let isAbsentAny = false;
+
+  const subjectBreakdown = studentMarks.map(m => {
+    const max = Number(m.totalMarks || m.maxMarks || 0);
+    const isAbs = m.status === MARK_STATUSES.ABSENT || m.obtainedMarks === 'ABS' || m.isAbsent;
+    const obt = isAbs ? 0 : Number(m.obtainedMarks || 0);
+    const passMarks = Number(m.passingMarks || Math.round(max * 0.33));
+    const isFail = isAbs || obt < passMarks;
+
+    totalMax += max;
+    totalObtained += obt;
+    if (isFail) failedSubjectsCount++;
+    if (isAbs) isAbsentAny = true;
+
+    const gradeInfo = calculateGrade(isAbs ? 'ABS' : obt, max, gradingRules, m.status);
+
+    return {
+      subjectName: m.subjectName || m.subject,
+      maxMarks: max,
+      obtainedMarks: isAbs ? 'ABS' : obt,
+      passingMarks: passMarks,
+      passed: !isFail,
+      grade: gradeInfo.grade,
+      percentage: gradeInfo.percentage
+    };
+  });
+
+  const overallPercentage = totalMax > 0 ? Math.round(((totalObtained / totalMax) * 100) * 100) / 100 : 0;
+  const overallGrade = calculateGrade(totalObtained, totalMax, gradingRules).grade;
+  const isOverallPass = failedSubjectsCount < Number(failSubjectCountThreshold || 1);
+
+  return {
+    totalMaxMarks: totalMax,
+    totalObtainedMarks: totalObtained,
+    percentage: overallPercentage,
+    grade: overallGrade,
+    failedSubjectsCount,
+    passed: isOverallPass,
+    status: isOverallPass ? 'PASS' : 'FAIL',
+    subjectBreakdown
+  };
+};
+
+/**
+ * Assign class ranks/positions based on total obtained marks
+ */
+export const assignClassRanks = (studentsResultList = []) => {
+  const sorted = [...studentsResultList].sort((a, b) => {
+    // 1. Passed students first
+    if (a.passed && !b.passed) return -1;
+    if (!a.passed && b.passed) return 1;
+    // 2. Highest total obtained marks
+    return Number(b.totalObtainedMarks || 0) - Number(a.totalObtainedMarks || 0);
+  });
+
+  let currentRank = 1;
+  return sorted.map((item, idx) => {
+    if (idx > 0) {
+      const prev = sorted[idx - 1];
+      if (prev.passed === item.passed && prev.totalObtainedMarks === item.totalObtainedMarks) {
+        // Tie position
+        return { ...item, rankPosition: prev.rankPosition };
+      }
+    }
+    const rank = currentRank;
+    currentRank++;
+    return { ...item, rankPosition: rank };
+  });
+};
+

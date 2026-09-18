@@ -78,13 +78,14 @@ const saveLocalMockCollection = (collectionName, records) => {
  * @returns {Promise<{success: boolean, id?: string, error?: Error}>}
  */
 export const addRecord = async (collectionName, data, schoolId) => {
+  const effectiveSchoolId = schoolId || data?.schoolId || 'default-school';
   if (IS_LOCAL_MOCK) {
     const records = getLocalMockCollection(collectionName);
     const newId = 'test_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const newDoc = {
       id: newId,
       ...data,
-      schoolId: schoolId || 'default-school',
+      schoolId: effectiveSchoolId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -94,9 +95,11 @@ export const addRecord = async (collectionName, data, schoolId) => {
   }
 
   try {
+    const cleanData = { ...data };
+    Object.keys(cleanData).forEach(key => cleanData[key] === undefined && delete cleanData[key]);
     const docRef = await addDoc(collection(db, collectionName), {
-      ...data,
-      schoolId,
+      ...cleanData,
+      schoolId: effectiveSchoolId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -115,13 +118,14 @@ export const addRecord = async (collectionName, data, schoolId) => {
  * @param {string} schoolId
  */
 export const addRecordWithId = async (collectionName, docId, data, schoolId) => {
+  const effectiveSchoolId = schoolId || data?.schoolId || 'default-school';
   if (IS_LOCAL_MOCK) {
     const records = getLocalMockCollection(collectionName);
     const idx = records.findIndex(r => r.id === docId);
     const docData = {
       id: docId,
       ...data,
-      schoolId: schoolId || 'default-school',
+      schoolId: effectiveSchoolId,
       updatedAt: new Date().toISOString(),
       createdAt: idx !== -1 ? (records[idx].createdAt || new Date().toISOString()) : new Date().toISOString()
     };
@@ -135,10 +139,12 @@ export const addRecordWithId = async (collectionName, docId, data, schoolId) => 
   }
 
   try {
+    const cleanData = { ...data };
+    Object.keys(cleanData).forEach(key => cleanData[key] === undefined && delete cleanData[key]);
     const docRef = doc(db, collectionName, docId);
     await setDoc(docRef, {
-      ...data,
-      schoolId,
+      ...cleanData,
+      schoolId: effectiveSchoolId,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -167,9 +173,11 @@ export const updateRecord = async (collectionName, id, data) => {
   }
 
   try {
+    const cleanData = { ...data };
+    Object.keys(cleanData).forEach(key => cleanData[key] === undefined && delete cleanData[key]);
     const docRef = doc(db, collectionName, id);
     await updateDoc(docRef, {
-      ...data,
+      ...cleanData,
       updatedAt: serverTimestamp(),
     });
     return { success: true };
@@ -191,9 +199,11 @@ export const upsertRecord = async (collectionName, id, data) => {
   }
 
   try {
+    const cleanData = { ...data };
+    Object.keys(cleanData).forEach(key => cleanData[key] === undefined && delete cleanData[key]);
     const docRef = doc(db, collectionName, id);
     await setDoc(docRef, {
-      ...data,
+      ...cleanData,
       updatedAt: serverTimestamp(),
     }, { merge: true });
     return { success: true };
@@ -1050,3 +1060,26 @@ export const getDashboardStats = async (schoolId) => {
     return null;
   }
 };
+
+// ═══════════════════════════════════════════════════════
+//  CCTV CAMERA MONITORING HELPERS
+// ═══════════════════════════════════════════════════════
+
+export const subscribeToRecords = subscribeToCollection;
+
+export const subscribeToCameras = (schoolId, callback) => {
+  return subscribeToCollection("cctv_cameras", schoolId, callback);
+};
+
+export const addCameraRecord = async (cameraData, schoolId) => {
+  return addRecord("cctv_cameras", cameraData, schoolId);
+};
+
+export const updateCameraRecord = async (id, data) => {
+  return updateRecord("cctv_cameras", id, data);
+};
+
+export const deleteCameraRecord = async (id) => {
+  return deleteRecord("cctv_cameras", id);
+};
+

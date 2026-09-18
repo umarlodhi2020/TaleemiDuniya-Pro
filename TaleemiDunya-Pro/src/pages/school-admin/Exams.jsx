@@ -30,6 +30,10 @@ const Exams = () => {
   }, [location.search]);
 
   const handleTabChange = (tabId) => {
+    if (tabId === 'master-file' || tabId === 'list') {
+      navigate('/school-admin/exams/master-file');
+      return;
+    }
     setActiveTab(tabId);
     navigate(`/school-admin/exams?tab=${tabId}`, { replace: true });
   };

@@ -301,9 +301,10 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             links: [
               { name: 'Create Exam', icon: PlusCircle, path: '/school-admin/exams', featureKey: 'exams-hub' },
               { name: 'Exam Subjects', icon: BookOpen, path: '/school-admin/exams/subjects', featureKey: 'exams-hub' },
-              { name: 'Admit Cards', icon: Award, path: '/school-admin/exams/admit-cards', featureKey: 'exams-hub' },
+              { name: 'Exam Master File', icon: FileText, path: '/school-admin/exams/master-file', featureKey: 'exams-hub' },
               { name: 'Add Marks', icon: ClipboardCheck, path: '/school-admin/exams/marks', featureKey: 'exams-hub' },
-              { name: 'Grading', icon: Settings2, path: '/school-admin/exams/grading', featureKey: 'exams-hub' },
+              { name: 'Admit Cards', icon: Award, path: '/school-admin/exams/admit-cards', featureKey: 'exams-hub' },
+              { name: 'Marksheet', icon: Award, path: '/school-admin/exams/marksheet', featureKey: 'exams-hub' },
               { name: 'Report Summary', icon: PieChart, path: '/school-admin/exams/report-summary', featureKey: 'exams-hub' },
             ]
           },
@@ -312,6 +313,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             categoryKey: 'Resources',
             links: [
               { name: 'Automated Reports & BI Hub', icon: PieChart, path: '/school-admin/reports-hub', featureKey: 'reports-hub' },
+              { name: 'CCTV Monitoring', icon: Laptop, path: '/school-admin/security/cctv', featureKey: 'cctv-monitoring' },
               { name: 'Certificate & Document Hub', icon: FileText, path: '/school-admin/certificates', featureKey: 'certificates' },
               { name: 'Live Face Scanner App', icon: Fingerprint, path: '/school-admin/face-scanner', featureKey: 'gate-scanner' },
               { name: 'Bulk Data Import', icon: UploadCloud, path: '/school-admin/import', featureKey: 'data-import' },
@@ -477,7 +479,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                 onClick={() => setActiveCategory(cat)}
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap transition-all ${
                   activeCategory === cat
-                    ? 'bg-cyan-500 text-white shadow-sm shadow-cyan-500/30'
+                    ? 'bg-primary-500 text-white shadow-sm'
                     : 'text-dark-muted hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -517,20 +519,20 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                             className="sidebar-item flex items-center justify-between cursor-pointer px-2.5 py-1.5 gap-2 transition-all hover:bg-white/5 rounded-xl"
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
-                              <link.icon size={15} className="flex-shrink-0 text-cyan-400" />
+                              <link.icon size={15} className="flex-shrink-0 text-primary-400" />
                               <span className="text-xs font-semibold whitespace-nowrap overflow-hidden max-w-[125px] ml-1.5 text-white">{link.name}</span>
                             </div>
-                            <ChevronDown size={13} className={`flex-shrink-0 transition-transform duration-300 ${expanded[link.name] ? 'rotate-180 text-cyan-400' : 'text-dark-muted'}`} />
+                            <ChevronDown size={13} className={`flex-shrink-0 transition-transform duration-300 ${expanded[link.name] ? 'rotate-180 text-primary-400' : 'text-dark-muted'}`} />
                           </div>
                           {expanded[link.name] && (
-                            <div className="ml-5 pl-2.5 border-l border-cyan-500/30 space-y-0.5 mt-0.5">
+                            <div className="ml-5 pl-2.5 border-l border-primary-500/30 space-y-0.5 mt-0.5">
                               {link.sublinks.map((subLink) => (
                                 <NavLink
                                   key={subLink.name}
                                   to={subLink.path}
                                   onClick={handleItemClick}
                                   className={({ isActive }) =>
-                                    `${isActive ? 'text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/20 shadow-sm' : 'text-dark-muted hover:text-white hover:bg-white/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg`
+                                    `${isActive ? 'text-primary-400 font-bold bg-primary-500/10 border border-primary-500/20 shadow-sm' : 'text-dark-muted hover:text-white hover:bg-white/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg`
                                   }
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
@@ -546,10 +548,10 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                           to={link.path}
                           onClick={handleItemClick}
                           className={({ isActive }) =>
-                            `${isActive ? 'sidebar-item-active !bg-gradient-to-r !from-cyan-500/20 !to-blue-500/10 !border-cyan-500/30 !text-cyan-400 font-bold shadow-sm' : 'sidebar-item text-dark-muted hover:text-white'} flex items-center transition-all duration-200 px-2.5 py-1.5 gap-2 justify-start rounded-xl`
+                            `${isActive ? 'sidebar-item-active font-bold shadow-sm' : 'sidebar-item text-dark-muted hover:text-white'} flex items-center transition-all duration-200 px-2.5 py-1.5 gap-2 justify-start rounded-xl`
                           }
                         >
-                          <link.icon size={15} className="flex-shrink-0 text-cyan-400/80" />
+                          <link.icon size={15} className="flex-shrink-0" />
                           <span className="text-xs font-semibold transition-all duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[125px] ml-1.5">{link.name}</span>
                         </NavLink>
                       )

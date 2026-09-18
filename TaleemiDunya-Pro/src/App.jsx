@@ -74,11 +74,13 @@ import TimetableBuilder from './pages/school-admin/TimetableBuilder';
 import StudentIdCards from './pages/school-admin/StudentIdCards';
 import ExpenseManager from './pages/school-admin/ExpenseManager';
 import ExamManagement from './pages/school-admin/exams/ExamManagement';
+import ExamMasterFile from './pages/school-admin/exams/ExamMasterFile';
 import ExamSubjects from './pages/school-admin/exams/ExamSubjects';
 import AdmitCards from './pages/school-admin/exams/AdmitCards';
 import MarksEntry from './pages/school-admin/exams/MarksEntry';
 import GradingManagement from './pages/school-admin/exams/GradingManagement';
 import ExamReportSummary from './pages/school-admin/exams/ExamReportSummary';
+import MarksheetGenerator from './pages/school-admin/exams/MarksheetGenerator';
 import AccountsManager from './pages/school-admin/AccountsManager';
 import InventoryManager from './pages/school-admin/InventoryManager';
 import SMSPanel from './pages/school-admin/SMSPanel';
@@ -119,6 +121,7 @@ import Collection from './pages/school-admin/Collection';
 import PeriodBell from './pages/school-admin/PeriodBell';
 import CertificateGenerator from './pages/school-admin/CertificateGenerator';
 
+import CCTVMonitoring from './pages/school-admin/CCTVMonitoring';
 import HostelManager from './pages/school-admin/HostelManager';
 import GatePassScanner from './pages/school-admin/GatePassScanner';
 import BiometricSetup from './pages/school-admin/BiometricSetup';
@@ -337,10 +340,16 @@ const AppRoutes = () => {
         
         {/* NEW 6-FEATURE EXAM & RESULT ENGINE */}
         <Route path="exams" element={<ExamManagement />} />
+        <Route path="exams/master-file" element={<ExamMasterFile />} />
+        <Route path="exams/master" element={<ExamMasterFile />} />
         <Route path="exams/subjects" element={<ExamSubjects />} />
         <Route path="exams/admit-cards" element={<AdmitCards />} />
         <Route path="exams/marks" element={<MarksEntry />} />
         <Route path="exams/grading" element={<GradingManagement />} />
+        <Route path="exams/marksheet" element={<MarksheetGenerator />} />
+        <Route path="exams/marksheet-generator" element={<MarksheetGenerator />} />
+        <Route path="exams/individual-marksheet" element={<MarksheetGenerator />} />
+        <Route path="exams/class-report" element={<ExamReportSummary />} />
         <Route path="exams/report-summary" element={<ExamReportSummary />} />
 
         {/* Backward Compatibility Aliases */}
@@ -351,6 +360,8 @@ const AppRoutes = () => {
         <Route path="exams/publish" element={<ExamReportSummary />} />
         <Route path="grading-rules" element={<GradingManagement />} />
 
+        <Route path="security/cctv" element={<CCTVMonitoring />} />
+        <Route path="cctv" element={<CCTVMonitoring />} />
         <Route path="face-scanner" element={<FaceScannerApp />} />
         <Route path="website-cms" element={<SchoolWebsiteCMS />} />
         <Route path="period-bell" element={<PeriodBell />} />

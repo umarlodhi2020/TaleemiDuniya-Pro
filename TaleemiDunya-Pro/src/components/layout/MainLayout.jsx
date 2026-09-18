@@ -161,7 +161,7 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg print:bg-white flex print:block overflow-x-hidden print:overflow-visible relative">
+    <div className="min-h-screen bg-dark-bg print:bg-white flex print:block relative">
       <Sidebar role={userData?.role} isOpen={isMobileSidebarOpen} setIsOpen={setIsMobileSidebarOpen} />
       
       {/* Mobile overlay */}
@@ -172,7 +172,7 @@ const MainLayout = () => {
         />
       )}
 
-      <div className="flex-1 flex flex-col print:block min-w-0 md:pl-56 print:pl-0 w-full max-w-full overflow-x-hidden print:overflow-visible">
+      <div className="flex-1 flex flex-col print:block min-w-0 md:pl-56 print:pl-0 w-full max-w-full relative">
         <Navbar toggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)} />
 
         <main className="py-6 px-4 sm:px-6 lg:px-8 print:p-0 flex-1 print:block transition-all duration-300 max-w-full overflow-x-hidden print:overflow-visible">

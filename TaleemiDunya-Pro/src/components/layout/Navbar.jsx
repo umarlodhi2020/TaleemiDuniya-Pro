@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Search, User, ChevronDown, ChevronLeft, ChevronRight, Sun, Moon, Command, Monitor, Zap, UserPlus, CalendarCheck, DollarSign, Activity, BarChart3, Settings, Menu } from 'lucide-react';
+import { Bell, Search, User, ChevronDown, ChevronLeft, ChevronRight, Sun, Moon, Command, Monitor, Zap, UserPlus, CalendarCheck, DollarSign, Activity, BarChart3, Settings, Menu, Palette, Check } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,12 +10,14 @@ import GlobalSearchModal from '../common/GlobalSearchModal';
 const Navbar = ({ toggleSidebar }) => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme, THEME_OPTIONS } = useTheme();
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [uiZoom, setUiZoom] = useState(() => localStorage.getItem('taleemidunya_ui_zoom') || '90');
   const shortcutsRef = useRef(null);
+  const themeRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-ui-zoom', uiZoom);
@@ -37,6 +39,9 @@ const Navbar = ({ toggleSidebar }) => {
     const handleClickOutside = (e) => {
       if (shortcutsRef.current && !shortcutsRef.current.contains(e.target)) {
         setIsShortcutsOpen(false);
+      }
+      if (themeRef.current && !themeRef.current.contains(e.target)) {
+        setIsThemeOpen(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -66,7 +71,7 @@ const Navbar = ({ toggleSidebar }) => {
 
   return (
     <>
-      <header className="h-20 bg-dark-bg/80 backdrop-blur-md border-b border-dark-border sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between transition-all duration-300 w-full max-w-full overflow-hidden shrink-0">
+      <header className="h-20 bg-dark-bg/80 backdrop-blur-md border-b border-dark-border sticky top-0 z-50 px-4 sm:px-6 flex items-center justify-between transition-all duration-300 w-full max-w-full shrink-0">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           {/* Mobile Menu Toggle */}
           <button 
@@ -168,18 +173,54 @@ const Navbar = ({ toggleSidebar }) => {
           <span className="hidden sm:inline">{uiZoom === '90' ? '90% Sleek' : uiZoom === '85' ? '85% Compact' : '100% Norm'}</span>
         </button>
 
-        {/* 1-Click Theme Switcher Button (Dark Mode / White Mode) */}
-        <button
-          onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to White / Light Mode' : 'Switch to Dark / Glass Mode'}
-          className="p-2.5 rounded-xl bg-dark-card border border-dark-border text-dark-muted hover:text-primary-500 hover:border-primary-500/50 transition-all duration-300 shadow-sm flex items-center justify-center cursor-pointer shrink-0"
-        >
-          {theme === 'dark' ? (
-            <Sun size={20} className="text-amber-400 hover:rotate-45 transition-transform duration-500" />
-          ) : (
-            <Moon size={20} className="text-primary-600 hover:-rotate-12 transition-transform duration-500" />
+        {/* Multi-Theme Selector Dropdown (4 Light Themes + Dark Mode) */}
+        <div className="relative" ref={themeRef}>
+          <button
+            onClick={() => setIsThemeOpen(!isThemeOpen)}
+            title="Change Theme Palette (4 Executive Light Themes + Dark Mode)"
+            className="p-2.5 rounded-xl bg-dark-card border border-dark-border text-dark-muted hover:text-primary-500 hover:border-primary-500/50 transition-all duration-300 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <Palette size={18} className="text-primary-500" />
+            <ChevronDown size={13} className={`transition-transform duration-200 ${isThemeOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isThemeOpen && (
+            <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-dark-card border border-dark-border shadow-2xl backdrop-blur-xl p-3 z-[9999] animate-fade-in space-y-2">
+              <div className="flex items-center justify-between px-2 pb-2 border-b border-dark-border text-xs font-bold text-dark-text">
+                <span className="flex items-center gap-1.5"><Palette size={14} className="text-primary-500" /> Theme Color Palette</span>
+                <span className="text-[10px] font-mono text-dark-muted uppercase font-semibold">5 Themes</span>
+              </div>
+              <div className="grid grid-cols-1 gap-1">
+                {THEME_OPTIONS?.map((item) => {
+                  const isActive = theme === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setTheme(item.id);
+                        setIsThemeOpen(false);
+                      }}
+                      className={`w-full text-left p-2 rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${
+                        isActive 
+                          ? 'bg-primary-500/10 border-primary-500/50 text-primary-500 font-bold' 
+                          : 'bg-transparent border-transparent hover:bg-dark-hover text-dark-text font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex items-center -space-x-1 shrink-0">
+                          <span className="w-4 h-4 rounded-full border border-black/20 shadow-sm" style={{ backgroundColor: item.primary }} />
+                          <span className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-sm" style={{ backgroundColor: item.accent }} />
+                        </div>
+                        <span className="text-xs truncate">{item.name}</span>
+                      </div>
+                      {isActive && <Check size={14} className="text-primary-500 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
-        </button>
+        </div>
 
         <button className="relative p-2 text-dark-muted hover:text-white transition-colors shrink-0">
           <Bell size={22} />
