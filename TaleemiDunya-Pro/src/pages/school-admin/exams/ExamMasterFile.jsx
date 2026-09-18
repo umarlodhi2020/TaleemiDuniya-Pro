@@ -816,68 +816,7 @@ const ExamMasterFile = () => {
           </p>
         </div>
 
-        {/* 🟩 STAGE NAVIGATION TAB BAR */}
-        <div className="flex flex-wrap items-center bg-gray-100 p-1 rounded-2xl border border-gray-200 gap-1 shadow-inner">
-          <button
-            onClick={() => setActiveStage('stage1')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeStage === 'stage1'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-            }`}
-          >
-            <Layers size={14} />
-            <span>1. Date Sheet</span>
-          </button>
 
-          <button
-            onClick={() => setActiveStage('stage3')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeStage === 'stage3'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-            }`}
-          >
-            <UserCheck size={14} />
-            <span>2. Attendance</span>
-          </button>
-
-          <button
-            onClick={() => setActiveStage('stage4')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeStage === 'stage4'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-            }`}
-          >
-            <FileText size={14} />
-            <span>3. Marks Entry</span>
-          </button>
-
-          <button
-            onClick={() => setActiveStage('stage5')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeStage === 'stage5'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-            }`}
-          >
-            <ShieldCheck size={14} />
-            <span>4. Results & Ranks</span>
-          </button>
-
-          <button
-            onClick={() => setActiveStage('stage6')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeStage === 'stage6'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-            }`}
-          >
-            <PieChart size={14} />
-            <span>5. Marksheets & Reports</span>
-          </button>
-        </div>
       </div>
 
       {/* 📋 GLOBAL SELECTOR CARD (Matching reference screenshot layout) */}

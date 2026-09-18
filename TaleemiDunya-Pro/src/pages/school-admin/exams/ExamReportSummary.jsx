@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ClipboardList, FileText, ArrowLeft, RefreshCw, Printer, Download, Eye, Layers, Calendar, Filter
+  ClipboardList, FileText, ArrowLeft, RefreshCw, Printer, Download, Eye, Layers, Calendar, Filter, Sparkles
 } from 'lucide-react';
+import GlassCard from '../../../components/common/GlassCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useSchool } from '../../../context/SchoolContext';
 import { getRecords } from '../../../services/db';
@@ -251,7 +252,6 @@ const ExamReportSummary = () => {
         rollNo: stud.rollNumber || stud.rollNo || '—',
         name: stud.name || stud.studentName || '—',
         fatherName: stud.fatherName || '—',
-        section: stud.section || 'A',
         subjMap,
         totalMax: '',
         totalObt: '',
@@ -270,7 +270,6 @@ const ExamReportSummary = () => {
         rollNo: stud.rollNumber || stud.rollNo || '—',
         name: stud.name || stud.studentName || '—',
         fatherName: stud.fatherName || '—',
-        section: stud.section || 'A',
         subjMap,
         totalMax: totalMaxMarks,
         totalObt: totalObtainedMarks,
@@ -300,10 +299,10 @@ const ExamReportSummary = () => {
 
   const handleGeneratePDF = async () => {
     if (!selectedClass) {
-      return Swal.fire({ title: 'Class Required', text: 'Please select a Class.', icon: 'warning', confirmButtonColor: '#2563eb' });
+      return Swal.fire({ title: 'Class Required', text: 'Please select a Class.', icon: 'warning', confirmButtonColor: '#3b82f6' });
     }
     if (!selectedTerm) {
-      return Swal.fire({ title: 'Term Required', text: 'Please select a Term.', icon: 'warning', confirmButtonColor: '#2563eb' });
+      return Swal.fire({ title: 'Term Required', text: 'Please select a Term.', icon: 'warning', confirmButtonColor: '#3b82f6' });
     }
 
     setGenerating(true);
@@ -364,10 +363,10 @@ const ExamReportSummary = () => {
       doc.text(`TERM / EXAM: ${selectedTerm.toUpperCase()}`, pageWidth / 2, subInfoY, { align: 'center' });
       doc.text(`DATE GENERATED: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - 16, subInfoY, { align: 'right' });
 
-      // Table Headers
+      // Table Headers (Without Sec column)
       const subjHeaders = activeSubjects.map(s => s.name);
       const head = [
-        ['S#', 'Roll', 'Student Name', 'Father Name', 'Sec', ...subjHeaders, 'Total', 'Obtained', '%age', 'Grade', 'Result']
+        ['S#', 'Roll', 'Student Name', 'Father Name', ...subjHeaders, 'Total', 'Obtained', '%age', 'Grade', 'Result']
       ];
 
       const body = reportRows.map(r => [
@@ -375,7 +374,6 @@ const ExamReportSummary = () => {
         r.rollNo,
         r.name,
         r.fatherName,
-        r.section,
         ...activeSubjects.map(s => r.subjMap[s.name] || ''),
         r.totalMax,
         r.totalObt,
@@ -437,11 +435,11 @@ const ExamReportSummary = () => {
         title: 'Report Downloaded!',
         text: `Class Term Report PDF for Class ${selectedClass} (${selectedTerm}) has been downloaded successfully.`,
         icon: 'success',
-        confirmButtonColor: '#2563eb'
+        confirmButtonColor: '#3b82f6'
       });
     } catch (err) {
       console.error("PDF Error:", err);
-      Swal.fire({ title: 'Error', text: 'Failed to generate PDF.', icon: 'error', confirmButtonColor: '#2563eb' });
+      Swal.fire({ title: 'Error', text: 'Failed to generate PDF.', icon: 'error', confirmButtonColor: '#3b82f6' });
     } finally {
       setGenerating(false);
     }
@@ -456,7 +454,7 @@ const ExamReportSummary = () => {
   const schoolAddress = schoolData?.address || userData?.schoolAddress || 'Plot #505 Area 36/C Korangi #5, Karachi | Tel: +92 313 2202569';
 
   return (
-    <div className="min-h-screen w-full p-4 sm:p-6 bg-gradient-to-br from-blue-100/90 via-sky-50 to-blue-200/80 font-sans space-y-6">
+    <div className="space-y-6 animate-fade-in p-2 sm:p-4">
       
       {/* Printable CSS block */}
       <style>{`
@@ -480,27 +478,27 @@ const ExamReportSummary = () => {
         }
       `}</style>
 
-      {/* Top Header & Navigation */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-blue-100 shadow-sm">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/school-admin/dashboard')}
-            className="p-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
-          >
-            <ArrowLeft size={18} />
-          </button>
+      {/* Top Header Banner matching system design */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-dark-card/60 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-xl">
+        <div className="flex items-center gap-4">
+          <div className="p-3.5 bg-primary-500/10 rounded-2xl text-primary-400 border border-primary-500/20">
+            <ClipboardList size={28} />
+          </div>
           <div>
-            <h1 className="text-xl font-black text-blue-900">Class Term Report Generator</h1>
-            <p className="text-xs text-blue-600 font-medium">Generate, preview and download official term reports</p>
+            <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-white via-dark-text to-primary-300 bg-clip-text text-transparent">
+              Class Term Report Generator
+            </h1>
+            <p className="text-xs md:text-sm text-dark-muted font-medium mt-0.5">
+              Generate, preview, and download official term performance reports
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={handlePrint}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
+            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-sm"
           >
             <Printer size={15} />
             <span>Print Report</span>
@@ -510,7 +508,7 @@ const ExamReportSummary = () => {
             type="button"
             onClick={handleGeneratePDF}
             disabled={generating}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-500/20 transition-all cursor-pointer disabled:opacity-70"
+            className="px-5 py-2.5 bg-primary-600 hover:bg-primary-500 text-white rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-primary-600/30 transition-all cursor-pointer disabled:opacity-70"
           >
             {generating ? <RefreshCw size={15} className="animate-spin" /> : <Download size={15} />}
             <span>Download PDF</span>
@@ -518,31 +516,31 @@ const ExamReportSummary = () => {
         </div>
       </div>
 
-      {/* Controls Selector Card */}
-      <div className="bg-white rounded-3xl shadow-xl p-6 border border-blue-100 max-w-4xl mx-auto space-y-4">
+      {/* Report Configuration Card */}
+      <GlassCard className="p-6 border-white/10 shadow-xl space-y-4">
         
-        <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
-          <div className="p-2.5 bg-blue-50 rounded-2xl text-blue-600">
-            <ClipboardList size={26} />
+        <div className="flex items-center gap-3 pb-3 border-b border-white/10">
+          <div className="p-2 bg-primary-500/10 rounded-xl text-primary-400 border border-primary-500/20">
+            <Sparkles size={18} />
           </div>
           <div>
-            <h2 className="text-lg font-black text-blue-900">Report Configuration</h2>
-            <p className="text-xs text-slate-500 font-medium">Select class, term and report style for instant live preview</p>
+            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Report Configuration</h2>
+            <p className="text-xs text-dark-muted font-medium">Select class, term, and report style for instant live preview</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
           
           {/* Select Class */}
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-blue-950 flex items-center gap-1">
-              <Layers size={13} className="text-blue-600" />
-              <span>Select Class</span>
+          <div>
+            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Layers size={13} className="text-primary-400" />
+              <span>1. Select Class</span>
             </label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-white border border-blue-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none shadow-sm transition-all"
+              className="w-full px-4 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
             >
               {dbClasses.length > 0 ? (
                 dbClasses.map((cls, idx) => (
@@ -555,15 +553,15 @@ const ExamReportSummary = () => {
           </div>
 
           {/* Select Term */}
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-blue-950 flex items-center gap-1">
-              <Calendar size={13} className="text-blue-600" />
-              <span>Select Term</span>
+          <div>
+            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Calendar size={13} className="text-primary-400" />
+              <span>2. Select Term</span>
             </label>
             <select
               value={selectedTerm}
               onChange={(e) => setSelectedTerm(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-white border border-blue-300 rounded-xl text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none shadow-sm transition-all"
+              className="w-full px-4 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
             >
               {termsList.length > 0 ? (
                 termsList.map((term, idx) => (
@@ -576,12 +574,12 @@ const ExamReportSummary = () => {
           </div>
 
           {/* Report Type Radios */}
-          <div className="space-y-1">
-            <label className="block text-xs font-bold text-blue-950 flex items-center gap-1">
-              <Filter size={13} className="text-blue-600" />
-              <span>Report Type</span>
+          <div>
+            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Filter size={13} className="text-primary-400" />
+              <span>3. Report Type</span>
             </label>
-            <div className="flex items-center gap-4 pt-1 text-xs font-bold text-blue-900">
+            <div className="flex items-center gap-5 pt-2 text-xs font-bold text-white">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="radio"
@@ -589,7 +587,7 @@ const ExamReportSummary = () => {
                   value="WITH_MARKS"
                   checked={reportType === 'WITH_MARKS'}
                   onChange={() => setReportType('WITH_MARKS')}
-                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                  className="w-4 h-4 text-primary-500 focus:ring-primary-500 border-white/20 bg-dark-bg cursor-pointer"
                 />
                 <span>With Marks</span>
               </label>
@@ -601,7 +599,7 @@ const ExamReportSummary = () => {
                   value="WITHOUT_MARKS"
                   checked={reportType === 'WITHOUT_MARKS'}
                   onChange={() => setReportType('WITHOUT_MARKS')}
-                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                  className="w-4 h-4 text-primary-500 focus:ring-primary-500 border-white/20 bg-dark-bg cursor-pointer"
                 />
                 <span>Without Marks</span>
               </label>
@@ -610,148 +608,150 @@ const ExamReportSummary = () => {
 
         </div>
 
-      </div>
+      </GlassCard>
 
-      {/* LIVE INTERACTIVE REPORT PREVIEW SHEET (Matching User Screenshot Layout) */}
-      <div className="max-w-6xl mx-auto space-y-3">
+      {/* LIVE INTERACTIVE REPORT PREVIEW SHEET CONTAINER */}
+      <div className="space-y-3">
         
-        <div className="flex items-center justify-between text-xs font-bold text-blue-900 px-2">
-          <div className="flex items-center gap-1.5">
-            <Eye size={15} className="text-blue-600" />
+        <div className="flex items-center justify-between text-xs font-bold text-dark-muted px-2">
+          <div className="flex items-center gap-1.5 text-white">
+            <Eye size={15} className="text-primary-400" />
             <span>Interactive Report Preview ({reportType === 'WITH_MARKS' ? 'With Marks' : 'Without Marks - Blank Sheet'})</span>
           </div>
-          <span>Total Students: {reportRows.length}</span>
+          <span className="text-primary-300 bg-primary-500/10 px-3 py-1 rounded-full border border-primary-500/20">
+            Total Students: {reportRows.length}
+          </span>
         </div>
 
-        {/* Paper Container */}
-        <div 
-          id="printable-report-card" 
-          ref={previewRef}
-          className="bg-white rounded-2xl border-2 border-blue-600 shadow-2xl p-6 md:p-8 text-slate-800 space-y-5 overflow-x-auto"
-        >
-          {/* Blue Top Stripe */}
-          <div className="h-1.5 bg-blue-600 -mx-6 -mt-6 md:-mx-8 md:-mt-8 rounded-t-xl mb-4" />
+        {/* Paper Sheet Container (Resting on dark desk) */}
+        <div className="p-4 sm:p-6 bg-dark-card/40 border border-white/10 rounded-3xl backdrop-blur-md">
+          <div 
+            id="printable-report-card" 
+            ref={previewRef}
+            className="bg-white rounded-2xl border-2 border-blue-600 shadow-2xl p-6 md:p-8 text-slate-800 space-y-5 overflow-x-auto mx-auto max-w-5xl"
+          >
+            {/* Blue Top Stripe */}
+            <div className="h-1.5 bg-blue-600 -mx-6 -mt-6 md:-mx-8 md:-mt-8 rounded-t-xl mb-4" />
 
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-            <div className="w-20 h-20 flex items-center justify-center">
-              {logoUrl ? (
-                <img src={logoUrl} alt="School Logo" className="max-h-20 max-w-20 object-contain" />
-              ) : (
-                <div className="w-16 h-16 rounded-2xl bg-blue-900 text-white font-black flex items-center justify-center text-xl shadow-md">
-                  {schoolName.charAt(0)}
-                </div>
-              )}
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="w-20 h-20 flex items-center justify-center">
+                {logoUrl ? (
+                  <img src={logoUrl} alt="School Logo" className="max-h-20 max-w-20 object-contain" />
+                ) : (
+                  <div className="w-16 h-16 rounded-2xl bg-blue-900 text-white font-black flex items-center justify-center text-xl shadow-md">
+                    {schoolName.charAt(0)}
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center flex-1 px-4">
+                <h2 className="text-xl md:text-2xl font-black text-blue-900 uppercase tracking-tight">
+                  {schoolName}
+                </h2>
+                <p className="text-xs font-medium text-slate-500 mt-0.5">
+                  {schoolAddress}
+                </p>
+              </div>
+
+              <div className="w-20 text-right text-[10px] text-slate-400 font-mono">
+                OFFICIAL REPORT
+              </div>
             </div>
 
-            <div className="text-center flex-1 px-4">
-              <h2 className="text-xl md:text-2xl font-black text-blue-900 uppercase tracking-tight">
-                {schoolName}
-              </h2>
-              <p className="text-xs font-medium text-slate-500 mt-0.5">
-                {schoolAddress}
-              </p>
+            {/* Report Title Bar */}
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center space-y-1">
+              <h3 className="text-sm font-black text-blue-900 uppercase tracking-wide">
+                {reportType === 'WITH_MARKS' 
+                  ? 'CLASS TERM REPORT (DETAILED MARKS SUMMARY)'
+                  : 'CLASS TERM DIRECTORY (BLANK EVALUATION SHEET)'}
+              </h3>
+              <div className="flex flex-wrap items-center justify-between text-[11px] font-bold text-slate-700 px-2 pt-1">
+                <span>CLASS: {selectedClass ? selectedClass.toUpperCase() : '—'}</span>
+                <span>TERM / EXAM: {selectedTerm ? selectedTerm.toUpperCase() : '—'}</span>
+                <span>DATE GENERATED: {new Date().toLocaleDateString('en-GB')}</span>
+              </div>
             </div>
 
-            <div className="w-20 text-right text-[10px] text-slate-400 font-mono">
-              OFFICIAL REPORT
-            </div>
-          </div>
+            {/* Report Table (Without Sec Column) */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse border border-blue-900">
+                <thead className="bg-blue-900 text-white text-[11px]">
+                  <tr>
+                    <th className="p-2 border border-blue-800 text-center w-8">Sr</th>
+                    <th className="p-2 border border-blue-800 text-center w-14">Roll</th>
+                    <th className="p-2 border border-blue-800">Student Name</th>
+                    <th className="p-2 border border-blue-800">Father Name</th>
 
-          {/* Report Title Bar */}
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center space-y-1">
-            <h3 className="text-sm font-black text-blue-900 uppercase tracking-wide">
-              {reportType === 'WITH_MARKS' 
-                ? 'CLASS TERM REPORT (DETAILED MARKS SUMMARY)'
-                : 'CLASS TERM DIRECTORY (BLANK EVALUATION SHEET)'}
-            </h3>
-            <div className="flex flex-wrap items-center justify-between text-[11px] font-bold text-slate-700 px-2 pt-1">
-              <span>CLASS: {selectedClass ? selectedClass.toUpperCase() : '—'}</span>
-              <span>TERM / EXAM: {selectedTerm ? selectedTerm.toUpperCase() : '—'}</span>
-              <span>DATE GENERATED: {new Date().toLocaleDateString('en-GB')}</span>
-            </div>
-          </div>
+                    {/* Subject Columns */}
+                    {activeSubjects.map((sub, i) => (
+                      <th key={i} className="p-2 border border-blue-800 text-center">{sub.name}</th>
+                    ))}
 
-          {/* Report Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse border border-blue-900">
-              <thead className="bg-blue-900 text-white text-[11px]">
-                <tr>
-                  <th className="p-2 border border-blue-800 text-center w-8">Sr</th>
-                  <th className="p-2 border border-blue-800 text-center w-14">Roll</th>
-                  <th className="p-2 border border-blue-800">Student Name</th>
-                  <th className="p-2 border border-blue-800">Father Name</th>
-                  <th className="p-2 border border-blue-800 text-center w-10">Sec</th>
+                    <th className="p-2 border border-blue-800 text-center w-14">Total</th>
+                    <th className="p-2 border border-blue-800 text-center w-14">Obtained</th>
+                    <th className="p-2 border border-blue-800 text-center w-12">%age</th>
+                    <th className="p-2 border border-blue-800 text-center w-12">Grade</th>
+                    <th className="p-2 border border-blue-800 text-center w-14">Result</th>
+                  </tr>
+                </thead>
 
-                  {/* Subject Columns */}
-                  {activeSubjects.map((sub, i) => (
-                    <th key={i} className="p-2 border border-blue-800 text-center">{sub.name}</th>
-                  ))}
+                <tbody className="divide-y divide-slate-300 text-slate-800 text-[11px]">
+                  {reportRows.length > 0 ? (
+                    reportRows.map((row, idx) => (
+                      <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                        <td className="p-2 border border-slate-300 text-center font-medium">{row.sNo}</td>
+                        <td className="p-2 border border-slate-300 text-center font-bold text-slate-700">{row.rollNo}</td>
+                        <td className="p-2 border border-slate-300 font-bold text-slate-900">{row.name}</td>
+                        <td className="p-2 border border-slate-300 text-slate-600">{row.fatherName}</td>
 
-                  <th className="p-2 border border-blue-800 text-center w-14">Total</th>
-                  <th className="p-2 border border-blue-800 text-center w-14">Obtained</th>
-                  <th className="p-2 border border-blue-800 text-center w-12">%age</th>
-                  <th className="p-2 border border-blue-800 text-center w-12">Grade</th>
-                  <th className="p-2 border border-blue-800 text-center w-14">Result</th>
-                </tr>
-              </thead>
+                        {/* Subject Mark Cells */}
+                        {activeSubjects.map((sub, i) => (
+                          <td key={i} className="p-2 border border-slate-300 text-center font-semibold">
+                            {row.subjMap[sub.name] !== undefined ? row.subjMap[sub.name] : ''}
+                          </td>
+                        ))}
 
-              <tbody className="divide-y divide-slate-300 text-slate-800 text-[11px]">
-                {reportRows.length > 0 ? (
-                  reportRows.map((row, idx) => (
-                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                      <td className="p-2 border border-slate-300 text-center font-medium">{row.sNo}</td>
-                      <td className="p-2 border border-slate-300 text-center font-bold text-slate-700">{row.rollNo}</td>
-                      <td className="p-2 border border-slate-300 font-bold text-slate-900">{row.name}</td>
-                      <td className="p-2 border border-slate-300 text-slate-600">{row.fatherName}</td>
-                      <td className="p-2 border border-slate-300 text-center">{row.section}</td>
-
-                      {/* Subject Mark Cells */}
-                      {activeSubjects.map((sub, i) => (
-                        <td key={i} className="p-2 border border-slate-300 text-center font-semibold">
-                          {row.subjMap[sub.name] !== undefined ? row.subjMap[sub.name] : ''}
+                        <td className="p-2 border border-slate-300 text-center font-bold">{row.totalMax}</td>
+                        <td className="p-2 border border-slate-300 text-center font-bold text-blue-700">{row.totalObt}</td>
+                        <td className="p-2 border border-slate-300 text-center font-semibold">{row.percentage}</td>
+                        <td className="p-2 border border-slate-300 text-center font-bold">{row.grade}</td>
+                        <td className="p-2 border border-slate-300 text-center font-extrabold">
+                          {reportType === 'WITH_MARKS' ? (
+                            <span className={row.status === 'PASS' ? 'text-emerald-600' : 'text-red-600'}>
+                              {row.status}
+                            </span>
+                          ) : (
+                            ''
+                          )}
                         </td>
-                      ))}
-
-                      <td className="p-2 border border-slate-300 text-center font-bold">{row.totalMax}</td>
-                      <td className="p-2 border border-slate-300 text-center font-bold text-blue-700">{row.totalObt}</td>
-                      <td className="p-2 border border-slate-300 text-center font-semibold">{row.percentage}</td>
-                      <td className="p-2 border border-slate-300 text-center font-bold">{row.grade}</td>
-                      <td className="p-2 border border-slate-300 text-center font-extrabold">
-                        {reportType === 'WITH_MARKS' ? (
-                          <span className={row.status === 'PASS' ? 'text-emerald-600' : 'text-red-600'}>
-                            {row.status}
-                          </span>
-                        ) : (
-                          ''
-                        )}
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5 + activeSubjects.length + 5} className="p-8 text-center text-slate-400 font-medium">
+                        No student records found for Class {selectedClass || '—'}.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6 + activeSubjects.length + 5} className="p-8 text-center text-slate-400 font-medium">
-                      No student records found for Class {selectedClass || '—'}.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-          {/* Signatures Footer */}
-          <div className="pt-12 flex items-center justify-between text-xs font-bold text-slate-600 px-4">
-            <div className="text-center border-t border-slate-400 pt-1 w-44">
-              <span>Class Teacher</span>
+            {/* Signatures Footer */}
+            <div className="pt-12 flex items-center justify-between text-xs font-bold text-slate-600 px-4">
+              <div className="text-center border-t border-slate-400 pt-1 w-44">
+                <span>Class Teacher</span>
+              </div>
+              <div className="text-center border-t border-slate-400 pt-1 w-44">
+                <span>Exam Controller</span>
+              </div>
+              <div className="text-center border-t border-slate-400 pt-1 w-44">
+                <span>Principal Signature</span>
+              </div>
             </div>
-            <div className="text-center border-t border-slate-400 pt-1 w-44">
-              <span>Exam Controller</span>
-            </div>
-            <div className="text-center border-t border-slate-400 pt-1 w-44">
-              <span>Principal Signature</span>
-            </div>
-          </div>
 
+          </div>
         </div>
 
       </div>
