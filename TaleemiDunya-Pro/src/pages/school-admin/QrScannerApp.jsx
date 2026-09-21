@@ -416,7 +416,7 @@ export default function QrScannerApp() {
           <ShieldCheck className="text-emerald-400" size={28} />
           <div>
             <span className="text-white font-black tracking-wider text-base block leading-none">TaleemiDunya FAST</span>
-            <span className="text-emerald-400/80 text-[10px] font-bold tracking-widest uppercase">Live QR Mode • {allStudents.length + allStaff.length} Members</span>
+            <span className="text-emerald-400/80 text-[10px] font-bold tracking-widest uppercase">Live QR Mode • {allStudents.length} Students • {allStaff.length} Staff</span>
           </div>
         </div>
         

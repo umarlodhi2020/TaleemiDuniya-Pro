@@ -178,6 +178,12 @@ const SchoolSettings = () => {
     password: '',
   });
 
+  // Staff Timings State
+  const [staffTimings, setStaffTimings] = useState({
+    shiftStartTime: '08:00',
+    shiftEndTime: '14:00',
+  });
+
   // Custom Domain state
   const [domain, setDomain] = useState({
     customDomain: '',
@@ -324,6 +330,7 @@ const SchoolSettings = () => {
             setSecurity(data.securitySettings);
           }
           if (data.faceScan) setFaceScan(data.faceScan);
+          if (data.staffTimings) setStaffTimings(data.staffTimings);
           if (data.signatureSettings) {
             // Check if it's the old format, migrate it softly
             if (data.signatureSettings.principalSignatureUrl && !data.signatureSettings.rules) {
@@ -411,6 +418,7 @@ const SchoolSettings = () => {
         securitySettings: security,
         signatureSettings: signatureSettings,
         password: faceScan.password, // Update Face Scan Password
+        staffTimings: staffTimings,
         updatedAt: serverTimestamp(),
       });
       
@@ -530,6 +538,7 @@ const SchoolSettings = () => {
             { id: 'face-scan', label: '6 Face Scan App', icon: Scan },
             { id: 'signatures', label: '7 Signatures & Docs', icon: UserCheck },
             { id: 'cctv', label: '8 CCTV & Recorder', icon: Tv },
+            { id: 'staff-timings', label: '9 Staff Timings', icon: CalendarDays },
             { id: 'branding', label: 'Branding & Logo', icon: ImageIcon },
             { id: 'domain', label: 'Custom Domain', icon: Globe },
             { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -1391,6 +1400,44 @@ const SchoolSettings = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </GlassCard>
+            </div>
+          )}
+
+          {/* TAB 9: STAFF TIMINGS (`staff-timings`) */}
+          {activeTab === 'staff-timings' && (
+            <div className="space-y-6">
+              <GlassCard className="p-8 border-t-4 border-t-purple-500">
+                <h3 className="text-xl font-bold flex items-center gap-2 mb-2 text-purple-400">
+                  <CalendarDays size={22} className="text-purple-500" />
+                  Staff Shift Timings Configuration
+                </h3>
+                <p className="text-xs text-dark-muted mb-6">
+                  Set default Time In and Time Out for teachers and staff. This is used for attendance and payroll deduction logic.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-dark-hover/50 p-6 rounded-2xl border border-dark-border">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-dark-muted uppercase">Default Shift Start Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={staffTimings.shiftStartTime}
+                      onChange={e => setStaffTimings({ ...staffTimings, shiftStartTime: e.target.value })}
+                      className="w-full premium-input font-mono text-lg font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black text-dark-muted uppercase">Default Shift End Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={staffTimings.shiftEndTime}
+                      onChange={e => setStaffTimings({ ...staffTimings, shiftEndTime: e.target.value })}
+                      className="w-full premium-input font-mono text-lg font-bold"
+                    />
+                  </div>
                 </div>
               </GlassCard>
             </div>

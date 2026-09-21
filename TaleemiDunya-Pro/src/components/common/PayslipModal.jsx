@@ -105,6 +105,22 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
             {isProcessed && (
               <>
                 <button 
+                  onClick={() => {
+                    const phone = payslipData.staffPhone || payslipData.phone || '';
+                    if (!phone) {
+                      alert('No phone number found for this staff member.');
+                      return;
+                    }
+                    const text = `*Payslip for ${formatPeriod(payslipData.period || payslipData.month)}*\n\nName: ${payslipData.staffName}\nRole: ${payslipData.staffRole}\nTotal Present: ${payslipData.presentDays ?? 0}\nTotal Leave: ${payslipData.leaveDays ?? 0}\n\n*Net Salary: Rs. ${payslipData.netSalary?.toLocaleString() ?? 0}*\n\nStatus: ${payslipData.status || 'PROCESSED'}`;
+                    const waUrl = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`;
+                    window.open(waUrl, '_blank');
+                  }}
+                  className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5" 
+                  title="Share to WhatsApp"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg> WhatsApp
+                </button>
+                <button 
                   onClick={handleExportCSV} 
                   className="px-3 py-1.5 bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5" 
                   title="Export Payslip to CSV"
@@ -113,7 +129,7 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
                 </button>
                 <button 
                   onClick={handlePrint} 
-                  className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5" 
+                  className="px-3 py-1.5 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5" 
                   title="Print / Save as PDF"
                 >
                   <Printer size={15} /> Print / Save as PDF

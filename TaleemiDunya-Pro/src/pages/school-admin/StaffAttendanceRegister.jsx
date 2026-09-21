@@ -131,6 +131,8 @@ const StaffAttendanceRegister = () => {
           map[key] = {
             status: r.status || 'present',
             notes: r.notes || '',
+            timeIn: r.timeIn || '',
+            timeOut: r.timeOut || '',
             existingDocId: r.id
           };
         }
@@ -191,7 +193,7 @@ const StaffAttendanceRegister = () => {
     for (const s of filteredStaff) {
       const current = dailyAttendanceMap[s.id] || {};
       const saved = savedDailyAttendanceMap[s.id] || {};
-      if (current.status !== saved.status || (current.notes || '') !== (saved.notes || '')) {
+      if (current.status !== saved.status || (current.notes || '') !== (saved.notes || '') || (current.timeIn || '') !== (saved.timeIn || '') || (current.timeOut || '') !== (saved.timeOut || '')) {
         return true;
       }
     }
@@ -216,6 +218,28 @@ const StaffAttendanceRegister = () => {
       [staffId]: {
         ...prev[staffId],
         notes
+      }
+    }));
+  };
+
+  // Handle time in change in Daily Register
+  const handleTimeInChange = (staffId, timeIn) => {
+    setDailyAttendanceMap(prev => ({
+      ...prev,
+      [staffId]: {
+        ...prev[staffId],
+        timeIn
+      }
+    }));
+  };
+
+  // Handle time out change in Daily Register
+  const handleTimeOutChange = (staffId, timeOut) => {
+    setDailyAttendanceMap(prev => ({
+      ...prev,
+      [staffId]: {
+        ...prev[staffId],
+        timeOut
       }
     }));
   };
@@ -262,6 +286,8 @@ const StaffAttendanceRegister = () => {
           date: selectedDate,
           status: att.status || 'present', // Default to present if unmarked upon saving
           notes: att.notes || '',
+          timeIn: att.timeIn || '',
+          timeOut: att.timeOut || '',
         };
       });
 
@@ -573,6 +599,7 @@ const StaffAttendanceRegister = () => {
                       <th className="py-3.5 px-4">Staff Member</th>
                       <th className="py-3.5 px-4">Employee ID</th>
                       <th className="py-3.5 px-4">Department</th>
+                      <th className="py-3.5 px-4 text-center">Time In/Out</th>
                       <th className="py-3.5 px-4 text-center">Attendance Status</th>
                       <th className="py-3.5 px-4">Notes / Remarks</th>
                     </tr>
@@ -614,6 +641,30 @@ const StaffAttendanceRegister = () => {
                             <span className="inline-block px-2.5 py-1 rounded-md bg-dark-bg border border-dark-border/60 text-xs font-semibold">
                               {staff.department || 'General'}
                             </span>
+                          </td>
+
+                          {/* Time In / Out */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-dark-muted w-8">IN</span>
+                                <input
+                                  type="time"
+                                  value={att.timeIn || ''}
+                                  onChange={(e) => handleTimeInChange(staff.id, e.target.value)}
+                                  className="w-full bg-dark-bg/60 border border-dark-border/60 rounded-md px-2 py-1 text-xs text-dark-text focus:outline-none focus:border-primary-500"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-dark-muted w-8">OUT</span>
+                                <input
+                                  type="time"
+                                  value={att.timeOut || ''}
+                                  onChange={(e) => handleTimeOutChange(staff.id, e.target.value)}
+                                  className="w-full bg-dark-bg/60 border border-dark-border/60 rounded-md px-2 py-1 text-xs text-dark-text focus:outline-none focus:border-primary-500"
+                                />
+                              </div>
+                            </div>
                           </td>
 
                           {/* Status Options */}
