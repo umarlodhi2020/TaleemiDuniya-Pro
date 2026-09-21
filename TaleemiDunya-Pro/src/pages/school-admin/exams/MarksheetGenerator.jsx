@@ -212,50 +212,57 @@ const MarksheetGenerator = () => {
   });
 
   const activeMasterDoc = masterFiles.find(m => {
-    const mClass = String(m.className || m.class || '').trim().toLowerCase();
+    const mClass = String(m.className || m.class || m.classId || '').trim().toLowerCase();
     const sClass = String(selectedClass || '').trim().toLowerCase();
     const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
     const sTerm = String(selectedTerm || '').trim().toLowerCase();
-    return (mClass === sClass || mClass.includes(sClass) || sClass.includes(mClass)) &&
-           (mTerm === sTerm || mTerm.includes(sTerm) || sTerm.includes(mTerm));
+    const classMatch = mClass === sClass || mClass === `class ${sClass}` || `class ${mClass}` === sClass;
+    const termMatch = mTerm === sTerm;
+    return classMatch && termMatch;
   });
 
   // Helper: Extract active subjects for a given class and specific term name
   const getActiveSubjectsForTerm = (targetTermName) => {
     const mDoc = masterFiles.find(m => {
-      const mClass = String(m.className || m.class || '').trim().toLowerCase();
+      const mClass = String(m.className || m.class || m.classId || '').trim().toLowerCase();
       const sClass = String(selectedClass || '').trim().toLowerCase();
       const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
       const sTerm = String(targetTermName || '').trim().toLowerCase();
-      return (mClass === sClass || mClass.includes(sClass) || sClass.includes(mClass)) &&
-             (mTerm === sTerm || mTerm.includes(sTerm) || sTerm.includes(mTerm));
+      const classMatch = mClass === sClass || mClass === `class ${sClass}` || `class ${mClass}` === sClass;
+      const termMatch = mTerm === sTerm;
+      return classMatch && termMatch;
     });
 
-    if (mDoc?.subjectRows?.length > 0) {
-      return mDoc.subjectRows.map(s => ({
-        name: s.subjectName || s.name,
-        totalMarks: Number(s.totalMarks || s.maxMarks || 25),
-        passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || 25) * 0.33))
-      }));
+    const docSubjects = mDoc?.subjects || mDoc?.subjectRows;
+    if (Array.isArray(docSubjects) && docSubjects.length > 0) {
+      const includedSubjs = docSubjects.filter(s => s.included !== false && s.included !== 'false');
+      if (includedSubjs.length > 0) {
+        return includedSubjs.map(s => ({
+          name: s.subjectName || s.name,
+          totalMarks: Number(s.totalMarks || s.maxMarks || 25),
+          passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || s.maxMarks || 25) * 0.33))
+        }));
+      }
     }
 
     const ex = exams.find(e => {
       const eName = String(e.examName || e.title || e.name || e.id || '').trim().toLowerCase();
       const sTerm = String(targetTermName || '').trim().toLowerCase();
-      return eName === sTerm || eName.includes(sTerm) || sTerm.includes(eName);
+      return eName === sTerm;
     });
 
     if (ex?.subjects?.length > 0) {
       const classSubjs = ex.subjects.filter(s => {
         const sCls = String(s.classId || s.className || '').trim().toLowerCase();
         const targetCls = String(selectedClass || '').trim().toLowerCase();
-        return !sCls || sCls === targetCls || sCls.includes(targetCls) || targetCls.includes(sCls);
+        const matchesClass = !sCls || sCls === targetCls || sCls === `class ${targetCls}` || `class ${sCls}` === targetCls;
+        return matchesClass && s.included !== false;
       });
       if (classSubjs.length > 0) {
         return classSubjs.map(s => ({
           name: s.subjectName || s.name,
           totalMarks: Number(s.totalMarks || s.maxMarks || 100),
-          passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || 100) * 0.33))
+          passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || s.maxMarks || 100) * 0.33))
         }));
       }
     }
