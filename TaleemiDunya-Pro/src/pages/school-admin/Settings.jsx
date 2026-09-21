@@ -26,7 +26,8 @@ import {
   AlertTriangle,
   Key,
   Upload,
-  Scan
+  Scan,
+  Tv
 } from 'lucide-react';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
