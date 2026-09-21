@@ -30,6 +30,7 @@ const AttendanceRegister = () => {
   const { schoolClasses } = useSchool();
   const navigate = useNavigate();
   const [selectedClass, setSelectedClass] = useState('10');
+  const [availableClasses, setAvailableClasses] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -39,6 +40,27 @@ const AttendanceRegister = () => {
   const [loading, setLoading] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchAvailableClasses = async () => {
+      try {
+        const studs = await getRecords('students', userData?.schoolId || 'default-school');
+        const stClasses = (studs || []).map(s => s.class || s.className).filter(Boolean);
+        const contextClasses = (schoolClasses || []).map(c => c.name || c.className).filter(Boolean);
+        
+        const allUnique = Array.from(new Set([...contextClasses, ...stClasses])).sort();
+        setAvailableClasses(allUnique);
+        
+        // Auto-select first class if current selection is invalid
+        if (allUnique.length > 0 && !allUnique.includes(selectedClass)) {
+          setSelectedClass(allUnique[0]);
+        }
+      } catch(e) {
+        console.error("Error fetching available classes:", e);
+      }
+    };
+    fetchAvailableClasses();
+  }, [schoolClasses, userData?.schoolId]);
 
   // Generate last 12 months list for select dropdown
   const getMonthsList = () => {
@@ -107,10 +129,11 @@ const AttendanceRegister = () => {
 
       // Try fetching actual saved attendance records from firestore if they exist
       try {
-        const attQuery = query(collection(firestore, 'attendance'), where('class', '==', selectedClass));
-        const attSnap = await getDocs(attQuery);
-        attSnap.forEach(docSnap => {
-          const data = docSnap.data();
+        const attSnap = await getRecords('attendance', userData?.schoolId || 'default-school', [
+          { field: 'class', operator: '==', value: selectedClass }
+        ]);
+        
+        (attSnap || []).forEach(data => {
           if (data && data.date && data.date.startsWith(selectedMonth) && data.studentId && newAtt[data.studentId]) {
             const dayNum = parseInt(data.date.split('-')[2], 10);
             if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= daysInMonth) {
@@ -120,7 +143,7 @@ const AttendanceRegister = () => {
           }
         });
       } catch (e) {
-        console.log('Info: Using local simulated register records or offline mode.');
+        console.error('Info: Using local simulated register records or offline mode.', e);
       }
 
       setAttendanceData(newAtt);
@@ -231,8 +254,8 @@ const AttendanceRegister = () => {
                 className="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-xl text-dark-text font-semibold focus:outline-none focus:border-primary-500 transition-all shadow-inner"
               >
                 <option value="">-- Select Class --</option>
-                {schoolClasses.map(c => (
-                  <option key={c.id || c.name} value={c.name}>{c.name}</option>
+                {availableClasses.map(className => (
+                  <option key={className} value={className}>{className}</option>
                 ))}
               </select>
             </div>

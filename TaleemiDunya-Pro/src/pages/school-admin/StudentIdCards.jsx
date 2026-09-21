@@ -16,6 +16,9 @@ import { getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import GlassCard from '../../components/common/GlassCard';
+import { Link } from 'react-router-dom';
+import { renderCustomCard } from '../../components/id-cards/IdCardRenderers';
+import QRCode from 'react-qr-code';
 
 const THEMES = {
   blue: {
@@ -62,6 +65,7 @@ const StudentIdCards = () => {
   const schoolId = userData?.schoolId || 'default-school';
 
   const [students, setStudents] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [selectedClass, setSelectedClass] = useState('ALL');
   const [loading, setLoading] = useState(false);
 
@@ -71,6 +75,7 @@ const StudentIdCards = () => {
   );
   const [cardSubtitle, setCardSubtitle] = useState('Student Identity Card');
   const [cardTheme, setCardTheme] = useState('blue');
+  const [cardLayout, setCardLayout] = useState('portrait');
   const [validity, setValidity] = useState('2026 - 2027');
   const [principalName, setPrincipalName] = useState('Principal Office');
   const [disclaimer, setDisclaimer] = useState('This card is non-transferable and remains the property of the school. If found, please return to the school administration office.');
@@ -83,24 +88,68 @@ const StudentIdCards = () => {
   const stampInputRef = useRef(null);
 
   useEffect(() => {
+    if (schoolData?.name || schoolData?.schoolName || userData?.schoolName) {
+      setSchoolName(schoolData?.name || schoolData?.schoolName || userData?.schoolName);
+    }
+  }, [schoolData, userData]);
+
+  useEffect(() => {
     fetchStudents();
   }, [schoolId]);
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const data = await getRecords('students', schoolId);
-      if (data && data.length > 0) {
-        setStudents(data);
-      } else {
-        setStudents([]);
-      }
+      const [studentsData, staffData] = await Promise.all([
+        getRecords('students', schoolId),
+        getRecords('staff', schoolId)
+      ]);
+      setStudents(studentsData || []);
+      setTeachers((staffData || []).filter(s => s.role === 'teacher' || s.isClassTeacher));
     } catch (error) {
-      console.error("Error fetching students for ID Cards:", error);
+      console.error("Error fetching students and staff for ID Cards:", error);
       setStudents([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getSignatureForStudent = (studentClass) => {
+    const rules = schoolData?.signatureSettings?.rules || [];
+    
+    // 1. Look for a teacher rule matching this class for ID Cards
+    const teacherRule = rules.find(r => r.type === 'Teacher' && String(r.class).trim().toUpperCase() === String(studentClass).trim().toUpperCase() && r.documents?.idCard);
+    if (teacherRule && teacherRule.signatureUrl) {
+      return teacherRule.signatureUrl;
+    }
+
+    // 2. Look for a principal rule for ID Cards
+    const principalRule = rules.find(r => r.type === 'Principal' && r.documents?.idCard);
+    if (principalRule && principalRule.signatureUrl) {
+      return principalRule.signatureUrl;
+    }
+
+    // 3. Legacy Fallback (for old configs)
+    if (schoolData?.signatureSettings?.documentRules) {
+      const legacyRules = schoolData.signatureSettings.documentRules;
+      const rule = legacyRules.idCard || 'principal';
+
+      if (rule === 'classTeacher') {
+        const customMapping = schoolData.signatureSettings.classSignatures?.find(
+          m => String(m.class).trim().toUpperCase() === String(studentClass).trim().toUpperCase()
+        );
+        if (customMapping && customMapping.signatureUrl) return customMapping.signatureUrl;
+        
+        const teacher = teachers.find(t => 
+          (t.assignedClass && String(t.assignedClass).trim().toUpperCase() === String(studentClass).trim().toUpperCase()) ||
+          (t.assignedClasses && t.assignedClasses.includes(studentClass))
+        );
+        if (teacher && teacher.signatureUrl) return teacher.signatureUrl;
+      }
+      return schoolData.signatureSettings.principalSignatureUrl || stampImage || null;
+    }
+
+    return stampImage || null;
   };
 
   const handleStampUpload = (e) => {
@@ -146,10 +195,133 @@ const StudentIdCards = () => {
     ? students 
     : students.filter(s => String(s.class || '').trim().toUpperCase() === selectedClass);
 
-  const activeTheme = THEMES[cardTheme] || THEMES.blue;
-
   const handlePrint = () => {
     window.print();
+  };
+
+  const SmitCombinedCard = ({ st, isPrint = false }) => {
+    const scale = isPrint ? 'scale-[0.95]' : '';
+    const wrapperWidth = isPrint ? 'w-[680px]' : 'w-[700px]';
+    const height = isPrint ? 'h-[210px]' : 'h-[220px]';
+
+    const WavesTop = () => (
+      <div className="absolute top-0 left-0 w-full h-[40px] overflow-hidden rounded-t-[12px]">
+        <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full">
+          {/* Outer wave: was blue, now Light Green */}
+          <path d="M0,0 L500,0 L500,60 Q375,10 250,60 Q125,110 0,60 Z" fill="#6eb838" />
+          {/* Inner wave: was green, now Dark Blue */}
+          <path d="M0,0 L500,0 L500,40 Q375,-10 250,40 Q125,90 0,40 Z" fill="#0160b0" />
+        </svg>
+      </div>
+    );
+
+    const WavesBottom = () => (
+      <div className="absolute bottom-0 left-0 w-full h-[40px] overflow-hidden rounded-b-[12px]">
+        <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full">
+          {/* Outer wave: was blue, now Light Green */}
+          <path d="M0,150 L500,150 L500,90 Q375,140 250,90 Q125,40 0,90 Z" fill="#6eb838" />
+          {/* Inner wave: was green, now Dark Blue */}
+          <path d="M0,150 L500,150 L500,110 Q375,160 250,110 Q125,60 0,110 Z" fill="#0160b0" />
+        </svg>
+      </div>
+    );
+
+    const FieldRow = ({ label, value }) => (
+      <div className="flex items-end mb-[10px] w-full">
+        <span className="text-[13px] font-bold text-black min-w-[90px]">{label}</span>
+        <div className="flex-1 border-b border-[#0160b0] pb-0.5 relative">
+          <span className="text-[13px] font-black text-[#0160b0] absolute bottom-0.5 left-2 truncate w-[90%]">{value || 'N/A'}</span>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className={`flex gap-4 rounded-[12px] print-card-break select-text transition-all duration-300 hover:scale-[1.02] mx-auto shrink-0 print:scale-[0.95] print:w-[680px] print:h-[210px] w-[700px] h-[220px] bg-white`}>
+        
+        {/* FRONT SIDE (Left) */}
+        <div className="w-[50%] h-full relative bg-white rounded-[12px] border border-gray-300 shadow-md overflow-hidden flex flex-col">
+          <WavesTop />
+          
+          {/* Watermark Logo */}
+          {schoolLogo && (
+            <div className="absolute inset-0 m-auto w-[120px] h-[120px] opacity-[0.08] pointer-events-none flex items-center justify-center">
+              <img src={schoolLogo} alt="Watermark" className="w-full h-full object-contain" />
+            </div>
+          )}
+
+          {/* Header */}
+          <div className="flex items-center justify-center pt-2 relative z-10 px-2 gap-2 mt-4">
+            {schoolLogo && (
+              <img src={schoolLogo} alt="Logo" className="w-[50px] h-[50px] object-contain shrink-0" />
+            )}
+            <h1 className="text-[14px] font-black text-[#0160b0] m-0 tracking-tight leading-tight whitespace-nowrap">
+              {schoolName?.toUpperCase() || 'SMART ANGELS GRAMMAR SCHOOL'}
+            </h1>
+          </div>
+
+          {/* Body */}
+          <div className="flex px-4 pt-4 pb-2 relative z-10 flex-1">
+            <div className="w-[80px] h-[100px] shrink-0 border-[3px] border-[#6eb838] rounded-md overflow-hidden bg-blue-100 flex items-center justify-center mr-4">
+              {st.profilePhoto ? (
+                <img src={st.profilePhoto} alt="Student" className="w-full h-full object-cover" />
+              ) : (
+                <User size={40} className="text-[#0160b0]/50" />
+              )}
+            </div>
+            
+            <div className="flex-1 flex flex-col justify-center mt-[-10px]">
+              <FieldRow label="Name:" value={st.name} />
+              <FieldRow label="Class:" value={st.class} />
+              <FieldRow label="Roll Number:" value={st.rollNo || st.rollNumber} />
+            </div>
+          </div>
+
+          <WavesBottom />
+        </div>
+
+        {/* BACK SIDE (Right) */}
+        <div className="w-[50%] h-full relative bg-white rounded-[12px] border border-gray-300 shadow-md overflow-hidden flex flex-col justify-between">
+          <WavesTop />
+          
+          {/* Watermark Logo */}
+          {schoolLogo && (
+            <div className="absolute inset-0 m-auto w-[120px] h-[120px] opacity-[0.08] pointer-events-none flex items-center justify-center">
+              <img src={schoolLogo} alt="Watermark" className="w-full h-full object-contain" />
+            </div>
+          )}
+
+          <div className="px-6 pt-12 pb-2 flex-1 flex flex-col justify-center relative z-10">
+            <div className="flex w-full gap-2 items-center">
+              <div className="flex-1 pr-2">
+                <FieldRow label="Father Name:" value={st.fatherName} />
+                <FieldRow label="CNIC No:" value={st.fatherCnic || st.cnic} />
+                <FieldRow label="Gr No:" value={st.grNumber || st.grNo} />
+                <FieldRow label="Contact No:" value={st.phone || st.contact} />
+              </div>
+              <div className="w-[85px] h-[85px] p-1 border-2 border-[#0160b0] rounded flex items-center justify-center shrink-0">
+                {(st.id || st.registrationNo || st.rollNo || st.rollNumber) ? <QRCode value={String(st.id || st.registrationNo || st.rollNo || st.rollNumber)} style={{ width: '100%', height: '100%' }} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[10px] border border-dashed border-red-500 w-full h-full">NO ID</div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="w-full flex justify-end px-6 relative z-10 mb-4">
+            <div className="flex flex-col items-center">
+              {getSignatureForStudent(st.class) ? (
+                <img src={getSignatureForStudent(st.class)} alt="Signature" className="h-[25px] object-contain mb-[-4px]" />
+              ) : (
+                <span className="font-['Dancing_Script',cursive] text-lg text-black mb-[-4px]">Signature</span>
+              )}
+              <div className="border-t border-black w-[100px] text-center pt-0.5 text-[10px] font-bold text-black">
+                {principalName || 'Issuing Authority'}
+              </div>
+            </div>
+          </div>
+
+          <WavesBottom />
+        </div>
+
+      </div>
+    );
   };
 
   return (
@@ -184,7 +356,6 @@ const StudentIdCards = () => {
         }
       `}</style>
 
-      {/* Header Panel */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 no-print">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-indigo-400">
@@ -205,10 +376,10 @@ const StudentIdCards = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 no-print">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 print:block">
         
         {/* Left Side: Customize Dashboard */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-6 no-print">
           <GlassCard className="p-5 border-dark-border/40">
             <h2 className="text-sm font-black text-primary-400 uppercase tracking-widest flex items-center gap-2 mb-4">
               <Sliders size={16} />
@@ -252,6 +423,30 @@ const StudentIdCards = () => {
                   className="w-full premium-input bg-dark-card text-xs"
                   placeholder="Enter Card Subtitle"
                 />
+              </div>
+
+              {/* Layout Picker */}
+              <div className="space-y-1.5 mt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] text-dark-muted uppercase tracking-wider flex items-center gap-1.5">
+                    <span>Card Template Layout</span>
+                  </label>
+                  <Link to="/school-admin/id-card-designer" className="text-[9px] font-bold text-primary-400 hover:text-primary-300 underline">Open Designer</Link>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-1">
+                  <button
+                    onClick={() => setCardLayout('portrait')}
+                    className={`py-1.5 px-3 rounded-lg border transition-all font-bold text-[10px] ${
+                      cardLayout === 'portrait' ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-dark-border/40 text-dark-muted hover:bg-white/5'
+                    }`}
+                  >Standard Portrait</button>
+                  <button
+                    onClick={() => setCardLayout('custom')}
+                    className={`py-1.5 px-3 rounded-lg border transition-all font-bold text-[10px] ${
+                      cardLayout === 'custom' ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-dark-border/40 text-dark-muted hover:bg-white/5'
+                    }`}
+                  >Custom Canva Design</button>
+                </div>
               </div>
 
               {/* Theme Picker */}
@@ -350,9 +545,9 @@ const StudentIdCards = () => {
         </div>
 
         {/* Right Side: Visual live preview grid */}
-        <div className="lg:col-span-3">
-          <GlassCard className="p-6 border-dark-border/40 min-h-[500px]">
-            <div className="flex items-center justify-between border-b border-dark-border/40 pb-3 mb-6">
+        <div className="lg:col-span-3 print:col-span-1 print:w-full printable-report-area">
+          <GlassCard className="p-6 border-dark-border/40 min-h-[500px] print:p-0 print:border-none print:shadow-none print:bg-transparent">
+            <div className="flex items-center justify-between border-b border-dark-border/40 pb-3 mb-6 no-print">
               <h2 className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-primary-400 uppercase tracking-widest flex items-center gap-2">
                 <CreditCard size={16} />
                 <span>Live Bulk ID Cards View ({filteredStudents.length} Students)</span>
@@ -373,108 +568,18 @@ const StudentIdCards = () => {
                 <p className="text-xs font-black text-dark-muted uppercase mt-2">No students found matching class: {selectedClass}</p>
               </div>
             ) : (
-              /* A4 Grid emulation container */
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 justify-items-center">
-                {filteredStudents.map((st) => (
-                  <div key={st.id} className="relative group w-[220px] h-[330px] rounded-[18px] bg-white border border-gray-200 shadow-xl overflow-hidden print-card-break select-text text-black flex flex-col font-sans transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl">
-                    
-                    {/* Upper dynamic background stripe */}
-                    <div className={`h-[88px] w-full ${activeTheme.bg} px-2 pt-2 pb-1 flex items-center justify-center relative overflow-hidden flex-shrink-0 text-center gap-2`}>
-                      <div className="absolute inset-0 bg-white/5 pointer-events-none" />
-                      <div className="absolute -top-12 -left-12 w-24 h-24 rounded-full bg-white/10 blur-xl" />
-                      <div className="absolute -bottom-10 -right-10 w-20 h-20 rounded-full bg-white/10 blur-xl" />
-                      
-                      {/* School Logo */}
-                      {schoolLogo && (
-                        <div className="w-10 h-10 rounded-full bg-white flex-shrink-0 overflow-hidden border-2 border-white/40 shadow-md">
-                          <img src={schoolLogo} alt="logo" className="w-full h-full object-contain p-0.5" />
-                        </div>
-                      )}
-
-                      <div className="flex flex-col items-center">
-                        {/* School Name */}
-                        <h3 className="text-[9.5px] font-black uppercase leading-tight tracking-wider text-white line-clamp-2 max-w-[130px]">
-                          {schoolName}
-                        </h3>
-                        {/* Card Title badge */}
-                        <span className="text-[7px] font-extrabold tracking-widest uppercase bg-white/20 text-yellow-300 mt-1 py-0.5 px-2 rounded-full leading-none">
-                          {cardSubtitle}
-                        </span>
-                      </div>
+              /* A4 Vertical List container */
+              <div className="flex flex-col gap-6 items-center w-full">
+                {filteredStudents.map((st) => {
+                  if (cardLayout === 'custom') {
+                    return renderCustomCard(st, false, { customTemplate: schoolData?.customIdCardTemplate });
+                  }
+                  return (
+                    <div key={st.id} className="flex flex-col items-center mb-6 border-b border-dark-border/30 pb-6 print:pb-2 print:border-0 last:border-0 last:pb-0 w-full overflow-hidden print:mb-0">
+                      <SmitCombinedCard st={st} isPrint={false} />
                     </div>
-
-                    {/* ID Card Body */}
-                    <div className="flex-1 px-3.5 pt-3 pb-2 flex flex-col items-center justify-between bg-white text-center">
-                      
-                      {/* Dynamic Photo Container */}
-                      <div className="relative z-10 w-[72px] h-[72px] rounded-full border-[3px] border-white shadow-md bg-gray-50 flex items-center justify-center overflow-hidden -mt-10 flex-shrink-0">
-                        {st.profilePhoto ? (
-                          <img src={st.profilePhoto} alt={st.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <User size={34} className="text-gray-400" />
-                        )}
-                        {/* Dynamic Class Badge */}
-                        <span className={`absolute bottom-0 right-0 text-[6.5px] font-black px-1.5 py-0.5 rounded-full border border-white shadow ${activeTheme.badge} uppercase leading-none`}>
-                          {st.class || 'N/A'}
-                        </span>
-                      </div>
-
-                      {/* Bio Details */}
-                      <div className="w-full my-1.5 flex-1 flex flex-col justify-center">
-                        {/* Student Name */}
-                        <h4 className="text-[12.5px] font-black text-gray-900 tracking-wide uppercase leading-tight mt-1 truncate">
-                          {st.name || 'N/A'}
-                        </h4>
-                        
-                        {/* Information Specs */}
-                        <div className="mt-2.5 space-y-1 text-left text-[8.5px] font-bold text-gray-700 max-w-[95%] mx-auto">
-                          <div className="flex justify-between border-b border-gray-100 pb-0.5">
-                            <span className="text-gray-400 font-extrabold uppercase text-[7.5px]">Father's Name</span>
-                            <span className="text-gray-800 uppercase truncate max-w-[100px]">{st.fatherName || 'N/A'}</span>
-                          </div>
-                          <div className="flex justify-between border-b border-gray-100 pb-0.5">
-                            <span className="text-gray-400 font-extrabold uppercase text-[7.5px]">Roll Number</span>
-                            <span className="text-gray-900 font-extrabold">{st.rollNo || 'N/A'}</span>
-                          </div>
-                          <div className="flex justify-between border-b border-gray-100 pb-0.5">
-                            <span className="text-gray-400 font-extrabold uppercase text-[7.5px]">Admn/Reg No</span>
-                            <span className="text-gray-800 font-mono font-black">{st.registrationNo || st.id || 'N/A'}</span>
-                          </div>
-                          <div className="flex justify-between pb-0.5">
-                            <span className="text-gray-400 font-extrabold uppercase text-[7.5px]">Contact</span>
-                            <span className="text-gray-800">{st.phone || st.contact || 'N/A'}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Barcode/QR dynamic area */}
-                      <div className="w-full flex-shrink-0 bg-gray-50 border border-gray-100 rounded-lg p-1 mt-1 mb-1">
-                        {renderBarcodeSVG(st.registrationNo || st.id)}
-                      </div>
-
-                      {/* Card Footer details */}
-                      <div className="w-full border-t border-gray-100 pt-2 flex items-center justify-between flex-shrink-0">
-                        {/* Validity dates */}
-                        <div className="text-left">
-                          <span className="block text-[6px] text-gray-400 uppercase font-black tracking-tighter leading-none">Validity Period</span>
-                          <span className="text-[7.5px] font-black text-gray-800 leading-none">{validity}</span>
-                        </div>
-
-                        {/* Signature stamp area */}
-                        <div className="text-right relative min-w-[70px]">
-                          {stampImage ? (
-                            <img src={stampImage} alt="Stamp" className="absolute -top-6 right-2 h-7 max-w-[48px] object-contain opacity-85 select-none pointer-events-none" />
-                          ) : (
-                            <div className="absolute -top-4 right-4 text-[7px] text-gray-300 font-semibold italic border border-dashed border-gray-200 px-1 select-none pointer-events-none">STAMP</div>
-                          )}
-                          <span className="block text-[6px] text-gray-400 uppercase font-black tracking-tighter leading-none">Authorized By</span>
-                          <span className="text-[7.5px] font-black text-gray-900 font-serif leading-none truncate max-w-[75px] block mt-0.5">{principalName}</span>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </GlassCard>
@@ -482,94 +587,10 @@ const StudentIdCards = () => {
 
       </div>
 
-      {/* ========================================================
-          SECRET PRINT HIDDEN CONTAINER
-          Always formatted correctly for standard A4 landscape/portrait grid printing
-      ======================================================== */}
-      <div id="id-cards-print-area" className="hidden print:block text-black bg-white">
-        <div className="flex flex-wrap gap-6 justify-center bg-white p-4">
-          {filteredStudents.map((st) => (
-            <div key={st.id} className="relative w-[210px] h-[315px] rounded-[14px] bg-white border border-gray-300 shadow-sm overflow-hidden print-card-break flex flex-col font-sans mb-4">
-              {/* Card Top Header */}
-              <div className={`h-[75px] w-full ${activeTheme.bg} p-2 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 text-center`}>
-                <h3 className="text-[9.5px] font-black uppercase leading-tight tracking-wider text-white line-clamp-2 max-w-[95%]">
-                  {schoolName}
-                </h3>
-                <span className="text-[7px] font-extrabold tracking-widest uppercase bg-white/20 text-yellow-300 mt-1 py-0.5 px-2 rounded-full leading-none">
-                  {cardSubtitle}
-                </span>
-              </div>
-
-              {/* Card Body */}
-              <div className="flex-1 px-3 pt-3 pb-2 flex flex-col items-center justify-between bg-white text-center">
-                
-                {/* Photo container */}
-                <div className="relative z-10 w-[64px] h-[64px] rounded-full border-2 border-white shadow-md bg-gray-50 flex items-center justify-center overflow-hidden -mt-10 flex-shrink-0">
-                  {st.profilePhoto ? (
-                    <img src={st.profilePhoto} alt={st.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <User size={30} className="text-gray-400" />
-                  )}
-                  <span className={`absolute bottom-0 right-0 text-[6px] font-black px-1.5 py-0.5 rounded-full border border-white shadow ${activeTheme.badge} uppercase leading-none`}>
-                    {st.class || 'N/A'}
-                  </span>
-                </div>
-
-                {/* Details */}
-                <div className="w-full my-1 flex-1 flex flex-col justify-center">
-                  <h4 className="text-[11.5px] font-black text-gray-900 tracking-wide uppercase leading-tight truncate">
-                    {st.name || 'N/A'}
-                  </h4>
-                  
-                  <div className="mt-2 space-y-0.5 text-left text-[8px] font-bold text-gray-700 max-w-[95%] mx-auto">
-                    <div className="flex justify-between border-b border-gray-100 pb-0.5">
-                      <span className="text-gray-400 font-extrabold uppercase text-[7px]">Father's Name</span>
-                      <span className="text-gray-800 uppercase truncate max-w-[90px]">{st.fatherName || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-gray-100 pb-0.5">
-                      <span className="text-gray-400 font-extrabold uppercase text-[7px]">Roll Number</span>
-                      <span className="text-gray-900 font-extrabold">{st.rollNo || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between border-b border-gray-100 pb-0.5">
-                      <span className="text-gray-400 font-extrabold uppercase text-[7px]">Admn/Reg No</span>
-                      <span className="text-gray-800 font-mono font-black">{st.registrationNo || st.id || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between pb-0.5">
-                      <span className="text-gray-400 font-extrabold uppercase text-[7px]">Contact</span>
-                      <span className="text-gray-800">{st.phone || st.contact || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dynamic SVG Barcode */}
-                <div className="w-full flex-shrink-0 bg-gray-50 border border-gray-100 rounded-lg p-1">
-                  {renderBarcodeSVG(st.registrationNo || st.id)}
-                </div>
-
-                {/* Signature stamp area & Validity */}
-                <div className="w-full border-t border-gray-100 pt-1.5 flex items-center justify-between flex-shrink-0">
-                  <div className="text-left">
-                    <span className="block text-[5.5px] text-gray-400 uppercase font-black leading-none">Validity Period</span>
-                    <span className="text-[7px] font-black text-gray-800 leading-none">{validity}</span>
-                  </div>
-
-                  <div className="text-right relative min-w-[70px]">
-                    {stampImage && (
-                      <img src={stampImage} alt="Stamp" className="absolute -top-5 right-2 h-6 max-w-[40px] object-contain opacity-85 select-none pointer-events-none" />
-                    )}
-                    <span className="block text-[5.5px] text-gray-400 uppercase font-black leading-none">Authorized By</span>
-                    <span className="text-[7px] font-black text-gray-900 font-serif leading-none truncate max-w-[70px] block mt-0.5">{principalName}</span>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
     </div>
   );
 };
 
 export default StudentIdCards;
+
+

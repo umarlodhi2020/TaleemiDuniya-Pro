@@ -1,388 +1,521 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
- Printer, 
- Download, 
- ArrowLeft, 
- User, 
- Sliders, 
- FileText, 
- CreditCard,
- CheckCircle,
- Palette,
- FileImage,
- RefreshCw,
- LayoutTemplate
-} from 'lucide-react';
+import { Search, Filter, Printer, Copy, Users, Save, Image as ImageIcon, Eye, Edit3, Palette, User, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getRecords, updateRecord } from '../../services/db';
-import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
-import GlassCard from '../../components/common/GlassCard';
-import QRCode from 'react-qr-code';
-import { THEMES, LAYOUTS, renderCard } from '../../components/id-cards/IdCardRenderers';
+import { useAuth } from '../../context/AuthContext';
+import { renderStaffCard } from '../../components/id-cards/StaffCardRenderer';
 
 const StaffIdCards = () => {
- const { userData } = useAuth();
- const { schoolData } = useSchool();
- const schoolId = userData?.schoolId || 'default-school';
+  const { userData } = useAuth();
+  const { schoolData } = useSchool();
+  const schoolId = userData?.schoolId || schoolData?.id || 'default-school';
+  const [loading, setLoading] = useState(false);
+  const [staff, setStaff] = useState([]);
+  const [filteredStaff, setFilteredStaff] = useState([]);
+  const [selectedStaffIds, setSelectedStaffIds] = useState([]);
+  const [previewStaffId, setPreviewStaffId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDept, setSelectedDept] = useState('All Departments');
+  const [departments, setDepartments] = useState(['All Departments']);
 
- const [staff, setStaff] = useState([]);
- const [classesList, setClassesList] = useState([]);
- const [selectedClass, setSelectedClass] = useState('ALL');
- const [loading, setLoading] = useState(false);
+  const defaultSettings = schoolData?.staffIdCardSettings || {};
 
- // ID Card customizations
- const idSettings = schoolData?.idCardSettings || {};
- const [schoolName, setSchoolName] = useState(idSettings.schoolName || userData?.schoolName || schoolData?.name || 'TaleemiDunya School System');
- const [cardSubtitle, setCardSubtitle] = useState(idSettings.cardSubtitle || 'Staff Identity Card');
- const [cardTheme, setCardTheme] = useState(idSettings.cardTheme || 'blue');
- const [cardLayout, setCardLayout] = useState(idSettings.cardLayout || 'portrait');
- const [validity, setValidity] = useState(idSettings.validity || '2026 - 2027');
- const [principalName, setPrincipalName] = useState(idSettings.principalName || 'Principal Office');
- 
- const logoImage = schoolData?.logo || '';
- const [disclaimer, setDisclaimer] = useState(idSettings.disclaimer || 'This card is non-transferable and remains the property of the school. If found, please return to the school administration office.');
- 
- // Custom stamp upload
- const [stampImage, setStampImage] = useState(idSettings.stampImage || null);
- const stampInputRef = useRef(null);
+  const [settings, setSettings] = useState({
+    schoolName: defaultSettings.schoolName || userData?.schoolName || schoolData?.name || 'Smart Angels Grammar School',
+    cardSubtitle: defaultSettings.cardSubtitle || 'Staff Identity Card',
+    principalName: defaultSettings.principalName || 'Principal Signature',
+    themeColor: defaultSettings.themeColor || '#1e3a8a',
+    orientation: defaultSettings.orientation || 'portrait',
+    cardType: defaultSettings.cardType || 'both',
+    showQRCode: defaultSettings.showQRCode !== false,
+    showStamp: defaultSettings.showStamp !== false,
+    showSignature: defaultSettings.showSignature !== false,
+    bgImage: defaultSettings.bgImage || null,
+    stampImage: defaultSettings.stampImage || null,
+    logoImage: defaultSettings.logoImage || null,
+    schoolAddress: schoolData?.address || 'Korangi, Karachi, Pakistan',
+    schoolPhone: schoolData?.phone || '0300-1234567'
+  });
 
- useEffect(() => {
- fetchData();
- }, [schoolId]);
+  const [activeTab, setActiveTab] = useState('template'); // template, design, fields
+  const bgInputRef = useRef(null);
 
- const fetchData = async () => {
- setLoading(true);
- try {
- const [staffData] = await Promise.all([
- getRecords('staff', schoolId)
- ]);
- 
- if (staffData) setStaff(staffData);
- 
- const roles = ['ALL', ...new Set((staffData || []).map(s => String(s.role || s.designation || '').trim().toUpperCase()))].filter(Boolean);
- setClassesList(roles);
- } catch (error) {
- console.error("Error fetching data for ID Cards:", error);
- } finally {
- setLoading(false);
- }
- };
+  useEffect(() => {
+    fetchData();
+  }, [schoolId]);
 
- const handleStampUpload = (e) => {
- const file = e.target.files[0];
- if (file) {
- const reader = new FileReader();
- reader.onload = (uploadEvent) => {
- setStampImage(uploadEvent.target.result);
- };
- reader.readAsDataURL(file);
- }
- };
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const staffData = await getRecords('staff', schoolId);
+      if (staffData) {
+        setStaff(staffData);
+        if (staffData.length > 0) {
+          setPreviewStaffId(staffData[0].id);
+          const depts = new Set(['All Departments']);
+          staffData.forEach(s => { if (s.department) depts.add(s.department) });
+          setDepartments(Array.from(depts));
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
- const saveTemplateDesign = async () => {
- try {
- const idCardSettings = {
- schoolName,
- cardSubtitle,
- cardTheme,
- cardLayout,
- validity,
- principalName,
- disclaimer,
- stampImage
- };
- await updateRecord('schools', schoolId, { idCardSettings });
- alert('ID Card template design saved globally!');
- } catch (error) {
- console.error('Error saving template:', error);
- alert('Failed to save template design.');
- }
- };
+  useEffect(() => {
+    let filtered = staff;
+    if (searchQuery) {
+      filtered = filtered.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.id?.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    if (selectedDept !== 'All Departments') {
+      filtered = filtered.filter(s => s.department === selectedDept);
+    }
+    setFilteredStaff(filtered);
+    setCurrentPage(1);
+  }, [staff, searchQuery, selectedDept]);
 
- // Filtered list
- const filteredStaff = selectedClass === 'ALL' 
- ? staff 
- : staff.filter(s => String(s.role || s.designation || '').trim().toUpperCase() === String(selectedClass).toUpperCase());
+  const toggleStaffSelection = (id) => {
+    if (selectedStaffIds.includes(id)) {
+      setSelectedStaffIds(prev => prev.filter(sid => sid !== id));
+    } else {
+      setSelectedStaffIds(prev => [...prev, id]);
+    }
+    setPreviewStaffId(id);
+  };
 
- const activeTheme = THEMES[cardTheme] || THEMES.blue;
+  const selectAllStaff = () => {
+    if (selectedStaffIds.length === filteredStaff.length) {
+      setSelectedStaffIds([]);
+    } else {
+      setSelectedStaffIds(filteredStaff.map(s => s.id));
+    }
+  };
 
- const handlePrint = () => {
- window.print();
- };
+  const handleSettingChange = (field, value) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+  };
 
- return (
- <div className="p-4 md:p-6 min-h-screen bg-dark-bg text-dark-text select-none">
- 
- {/* Printable Area Styles */}
- <style>{`
- @media print {
- body * {
- visibility: hidden;
- background-color: transparent !important;
- }
- #id-cards-print-area, #id-cards-print-area * {
- visibility: visible;
- }
- #id-cards-print-area {
- position: absolute;
- left: 0;
- top: 0;
- width: 100% !important;
- padding: 0 !important;
- margin: 0 !important;
- display: block !important;
- }
- .no-print {
- display: none !important;
- }
- .print-card-break {
- page-break-inside: avoid;
- break-inside: avoid;
- }
- }
- `}</style>
+  const handleBgUpload = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        handleSettingChange('bgImage', event.target.result);
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
 
- {/* Header Panel */}
- <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 no-print">
- <div>
- <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-3">
- <CreditCard className="text-primary-400" />
- Staff ID Cards
- </h1>
- <p className="text-xs text-dark-muted font-bold tracking-wider uppercase mt-1">
- Generate and bulk-print professional staff identification badges with Real QR
- </p>
- </div>
- <div className="flex gap-2">
- <button 
- onClick={saveTemplateDesign}
- className="premium-button-secondary py-2.5 px-5 flex items-center justify-center gap-2 font-bold text-xs uppercase"
- >
- <CheckCircle size={15} />
- <span>Save Template</span>
- </button>
- <button 
- onClick={handlePrint}
- className="premium-button-primary py-2.5 px-5 flex items-center justify-center gap-2 font-bold text-xs uppercase shadow-lg shadow-primary-500/20"
- >
- <Printer size={15} />
- <span>Print ID Cards</span>
- </button>
- </div>
- </div>
+  const saveSettings = async () => {
+    try {
+      await updateRecord('schools', schoolId, { staffIdCardSettings: settings });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Failed to save settings.');
+    }
+  };
 
- <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 no-print">
- 
- {/* Left Side: Customize Dashboard */}
- <div className="lg:col-span-1 space-y-6">
- <GlassCard className="p-5 border-dark-border/40 relative overflow-hidden">
- <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/5 rounded-full blur-2xl pointer-events-none" />
- 
- <h2 className="text-sm font-black text-primary-400 uppercase tracking-widest flex items-center gap-2 mb-4">
- <Sliders size={16} />
- <span>Card Customize</span>
- </h2>
+  const handlePrint = () => {
+    window.print();
+  };
 
- <div className="space-y-4 text-xs font-bold relative z-10">
- {/* Class selector */}
- <div className="space-y-1.5">
- <label className="text-[10px] text-dark-muted uppercase tracking-wider flex justify-between">
- <span>Filter by Role</span>
- <span className="text-primary-500">{classesList.length - 1} Roles</span>
- </label>
- <select 
- value={selectedClass}
- onChange={(e) => setSelectedClass(e.target.value)}
- className="w-full premium-input bg-dark-card text-xs text-primary-400"
- >
- {classesList.map(cls => (
- <option key={cls} value={cls}>{cls}</option>
- ))}
- </select>
- </div>
+  const previewStaff = staff.find(s => s.id === previewStaffId) || staff[0] || {};
+  const selectedStaffData = staff.filter(s => selectedStaffIds.includes(s.id));
 
- {/* Layout Picker */}
- <div className="space-y-1.5">
- <label className="text-[10px] text-dark-muted uppercase tracking-wider flex items-center gap-1.5">
- <LayoutTemplate size={12} className="text-primary-400" />
- <span>Card Template Layout</span>
- </label>
- <div className="flex flex-col gap-1.5 mt-1">
- {Object.entries(LAYOUTS).map(([key, label]) => (
- <button
- key={key}
- onClick={() => setCardLayout(key)}
- className={`py-1.5 px-3 rounded-lg border transition-all flex items-center justify-between font-bold text-[10px] ${
- cardLayout === key ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-dark-border/40 text-dark-muted hover:bg-white/5'
- }`}
- >
- <span>{label}</span>
- {cardLayout === key && <CheckCircle size={12} />}
- </button>
- ))}
- </div>
- </div>
+  // Pagination for staff list (simple implementation for UI match)
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+  const paginatedStaff = filteredStaff.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
 
- {/* Theme Picker */}
- <div className="space-y-1.5">
- <label className="text-[10px] text-dark-muted uppercase tracking-wider flex items-center gap-1.5">
- <Palette size={12} className="text-yellow-400" />
- <span>Card Theme color</span>
- </label>
- <div className="grid grid-cols-4 gap-2 mt-1">
- {Object.keys(THEMES).map((themeName) => (
- <button
- key={themeName}
- onClick={() => setCardTheme(themeName)}
- className={`h-7 rounded-lg border-2 transition-all relative flex items-center justify-center capitalize font-bold text-[9px] ${
- cardTheme === themeName ? 'border-primary-500 scale-105 bg-white/10' : 'border-dark-border/40 hover:bg-white/5'
- }`}
- >
- <span className={`w-2.5 h-2.5 rounded-full mr-1 ${
- themeName === 'blue' ? 'bg-[#2563eb]' :
- themeName === 'emerald' ? 'bg-[#059669]' :
- themeName === 'crimson' ? 'bg-[#dc2626]' : 'bg-[#374151]'
- }`} />
- <span className="hidden sm:inline">{themeName.substring(0, 3)}</span>
- </button>
- ))}
- </div>
- </div>
+  const colors = [
+    { name: 'Blue', value: '#1e3a8a', class: 'bg-[#1e3a8a]' },
+    { name: 'Light Blue', value: '#3b82f6', class: 'bg-[#3b82f6]' },
+    { name: 'Green', value: '#059669', class: 'bg-[#059669]' },
+    { name: 'Purple', value: '#7c3aed', class: 'bg-[#7c3aed]' },
+    { name: 'Gray', value: '#4b5563', class: 'bg-[#4b5563]' }
+  ];
 
- {/* School Name */}
- <div className="space-y-1.5">
- <label className="text-[10px] text-dark-muted uppercase tracking-wider">School Name</label>
- <input 
- type="text" 
- value={schoolName}
- onChange={(e) => setSchoolName(e.target.value)}
- className="w-full premium-input bg-dark-card text-xs"
- placeholder="Enter School Name"
- />
- </div>
+  const currentSettings = {
+    ...settings,
+    logoImage: schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo || settings.logoImage || null
+  };
 
- {/* Card Subtitle */}
- <div className="space-y-1.5">
- <label className="text-[10px] text-dark-muted uppercase tracking-wider">Card Title</label>
- <input 
- type="text" 
- value={cardSubtitle}
- onChange={(e) => setCardSubtitle(e.target.value)}
- className="w-full premium-input bg-dark-card text-xs"
- placeholder="Enter Card Subtitle"
- />
- </div>
+  return (
+    <div className="min-h-screen bg-[#f4f7fb] text-gray-800 p-4 md:p-6 font-sans">
+      {/* Print Styles */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #print-area, #print-area * { visibility: visible; }
+          #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+          .print-card-break { page-break-inside: avoid; break-inside: avoid; }
+        }
+      `}</style>
 
- {/* Validity */}
- <div className="space-y-1.5">
- <label className="text-[10px] text-dark-muted uppercase tracking-wider">Validity Period</label>
- <input 
- type="text" 
- value={validity}
- onChange={(e) => setValidity(e.target.value)}
- className="w-full premium-input bg-dark-card text-xs"
- placeholder="e.g. 2026 - 2027"
- />
- </div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 no-print">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-md">
+            <Users size={20} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Staff ID Card</h1>
+            <p className="text-xs text-gray-500">Create, customize and manage staff ID cards for your school.</p>
+          </div>
+        </div>
+        <div className="text-xs text-gray-400 flex items-center gap-2">
+          <span>Home</span> &gt; <span className="font-semibold text-gray-700">Staff ID Card</span>
+        </div>
+      </div>
 
- {/* Principal Name */}
- <div className="space-y-1.5">
- <label className="text-[10px] text-dark-muted uppercase tracking-wider">Principal Signature Label</label>
- <input 
- type="text" 
- value={principalName}
- onChange={(e) => setPrincipalName(e.target.value)}
- className="w-full premium-input bg-dark-card text-xs"
- placeholder="Principal Name"
- />
- </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 no-print">
+        
+        {/* LEFT PANEL: Staff Selection */}
+        <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[700px]">
+          <div className="p-4 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+            <Users size={18} className="text-blue-600" />
+            <h2 className="font-bold text-gray-800 text-sm">Select Staff</h2>
+          </div>
+          <div className="p-4 border-b border-gray-100 space-y-3">
+            <p className="text-xs text-gray-500">Choose a staff member to create ID card.</p>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search by name, staff ID..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div className="relative">
+              <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select 
+                value={selectedDept}
+                onChange={(e) => setSelectedDept(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-xs border border-gray-300 rounded-lg appearance-none focus:outline-none focus:border-blue-500"
+              >
+                {departments.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
 
- {/* Stamp Upload */}
- <div className="space-y-1.5">
- <label className="text-[10px] text-dark-muted uppercase tracking-wider block">Signature Stamp</label>
- <button
- onClick={() => stampInputRef.current?.click()}
- className="w-full py-2 bg-dark-card border border-dashed border-dark-border hover:border-primary-500 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs text-primary-400 font-bold"
- >
- <FileImage size={14} />
- <span>{stampImage ? 'Change Stamp' : 'Upload Stamp'}</span>
- </button>
- <input 
- type="file" 
- ref={stampInputRef}
- onChange={handleStampUpload}
- accept="image/*"
- className="hidden" 
- />
- {stampImage && (
- <div className="relative mt-2 p-1.5 border border-dark-border/40 rounded-xl bg-dark-card/50 flex items-center justify-between">
- <img src={stampImage} alt="Stamp preview" className="h-8 max-w-[80px] object-contain rounded" />
- <button 
- onClick={() => setStampImage(null)}
- className="text-[9px] text-red-400 hover:text-red-300 font-black uppercase mr-1"
- >
- Remove
- </button>
- </div>
- )}
- </div>
- </div>
- </GlassCard>
- </div>
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+            {loading ? (
+              <div className="text-center py-10 text-xs text-gray-400">Loading staff...</div>
+            ) : paginatedStaff.map(st => (
+              <div 
+                key={st.id}
+                onClick={() => toggleStaffSelection(st.id)}
+                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                  previewStaffId === st.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                }`}
+              >
+                <div 
+                  className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                    selectedStaffIds.includes(st.id) ? 'bg-blue-600 border-blue-600' : 'border-gray-300'
+                  }`}
+                >
+                  {selectedStaffIds.includes(st.id) && <Check size={12} className="text-white" />}
+                </div>
+                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0">
+                  {st.profilePhoto || st.photoUrl ? (
+                    <img src={st.profilePhoto || st.photoUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <User size={16} className="m-auto h-full text-gray-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-xs font-bold text-gray-900 truncate">{st.name}</h4>
+                  <p className="text-[10px] text-gray-500 truncate">
+                    {st.employeeId || st.staffId || (st.id ? st.id.substring(0, 8).toUpperCase() : 'STF-001')} • {st.department || st.role || 'Admin'}
+                  </p>
+                </div>
+                <div className="shrink-0 text-[9px] px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-semibold">
+                  Active
+                </div>
+              </div>
+            ))}
+          </div>
 
- {/* Right Side: Visual live preview grid */}
- <div className="lg:col-span-3">
- <GlassCard className="p-6 border-dark-border/40 min-h-[500px]">
- <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-dark-border/40 pb-3 mb-6 gap-3">
- <h2 className="text-sm font-black text-transparent bg-clip-text uppercase tracking-widest flex items-center gap-2">
- <CreditCard size={16} />
- <span>Live View ({filteredStaff.length} Cards)</span>
- </h2>
- <div className="flex gap-2">
- <span className="text-[10px] font-black uppercase text-dark-muted bg-white/5 border border-dark-border/40 py-1.5 px-3 rounded-lg flex items-center gap-1">
- Role: <span className="text-white">{selectedClass}</span>
- </span>
- <span className="text-[10px] font-black uppercase text-primary-400 bg-primary-500/10 border border-primary-500/20 py-1.5 px-3 rounded-lg flex items-center gap-1">
- Layout: <span className="text-white">{LAYOUTS[cardLayout]}</span>
- </span>
- </div>
- </div>
+          <div className="p-3 border-t border-gray-100 flex items-center justify-between bg-gray-50/50">
+            <span className="text-xs text-gray-500">Showing {Math.min(1 + (currentPage - 1) * itemsPerPage, filteredStaff.length)} to {Math.min(currentPage * itemsPerPage, filteredStaff.length)} of {filteredStaff.length}</span>
+            <div className="flex gap-1">
+              <button 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center disabled:opacity-50"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button className="w-6 h-6 rounded bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+                {currentPage}
+              </button>
+              <button 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="w-6 h-6 rounded border border-gray-300 flex items-center justify-center disabled:opacity-50"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
 
- {loading ? (
- <div className="flex flex-col items-center justify-center py-20 gap-3">
- <RefreshCw size={36} className="text-primary-500 animate-spin" />
- <p className="text-xs font-black text-dark-muted uppercase">Fetching Staff Profiles...</p>
- </div>
- ) : filteredStaff.length === 0 ? (
- <div className="flex flex-col items-center justify-center py-20 gap-2">
- <div className="w-14 h-14 rounded-full bg-white/5 border border-dark-border/30 flex items-center justify-center text-dark-muted text-lg">★</div>
- <p className="text-xs font-black text-dark-muted uppercase mt-2">No staff found matching role: {selectedClass}</p>
- </div>
- ) : (
- <div className={`grid gap-6 justify-items-center ${
- cardLayout === 'landscape' ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-2' : 
- 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
- }`}>
- {filteredStaff.map((st) => renderCard(st, { cardTheme, cardLayout, schoolName, cardSubtitle, validity, principalName, disclaimer, stampImage, logoImage, activeTheme }, false))}
- </div>
- )}
- </GlassCard>
- </div>
+        {/* CENTER PANEL: Preview */}
+        <div className="lg:col-span-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-[700px] overflow-hidden">
+          <div className="flex justify-center mb-6">
+            <div className="inline-flex rounded-lg border border-gray-200 p-1 bg-gray-50">
+              <button 
+                onClick={() => handleSettingChange('cardType', 'front')}
+                className={`px-6 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  settings.cardType === 'front' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                Front Side
+              </button>
+              <button 
+                onClick={() => handleSettingChange('cardType', 'back')}
+                className={`px-6 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  settings.cardType === 'back' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                Back Side
+              </button>
+              <button 
+                onClick={() => handleSettingChange('cardType', 'both')}
+                className={`px-6 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  settings.cardType === 'both' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                Both Sides
+              </button>
+            </div>
+          </div>
 
- </div>
+          <div className="flex-1 bg-gray-100 rounded-xl border border-gray-200 overflow-hidden p-4 flex items-center justify-center">
+             {previewStaff.id ? (
+               <div className="scale-[0.75] origin-center flex items-center justify-center w-full h-full">
+                 {renderStaffCard(previewStaff, false, currentSettings)}
+               </div>
+             ) : (
+                <div className="text-gray-400 text-sm">Select a staff member to preview</div>
+             )}
+          </div>
+        </div>
 
- {/* ========================================================
- SECRET PRINT HIDDEN CONTAINER
- ======================================================== */}
- <div id="id-cards-print-area" className="hidden print:block text-black bg-white">
- <div className="flex flex-wrap gap-6 justify-center bg-white p-4">
- {filteredStaff.map((st) => renderCard(st, { cardTheme, cardLayout, schoolName, cardSubtitle, validity, principalName, disclaimer, stampImage, logoImage, activeTheme }, true))}
- </div>
- </div>
+        {/* RIGHT PANEL: Settings */}
+        <div className="lg:col-span-3 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[700px]">
+          <div className="p-4 border-b border-gray-100 flex items-center gap-2 bg-gray-50/50">
+            <Palette size={18} className="text-blue-600" />
+            <h2 className="font-bold text-gray-800 text-sm">Card Settings</h2>
+          </div>
+          
+          <div className="flex border-b border-gray-200">
+            <button onClick={() => setActiveTab('template')} className={`flex-1 py-3 text-[11px] font-bold text-center border-b-2 transition-colors ${activeTab === 'template' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Template</button>
+            <button onClick={() => setActiveTab('fields')} className={`flex-1 py-3 text-[11px] font-bold text-center border-b-2 transition-colors ${activeTab === 'fields' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Fields</button>
+            <button onClick={() => setActiveTab('design')} className={`flex-1 py-3 text-[11px] font-bold text-center border-b-2 transition-colors ${activeTab === 'design' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Design</button>
+          </div>
 
- </div>
- );
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            {activeTab === 'template' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">School Name</label>
+                  <input type="text" value={settings.schoolName} onChange={(e) => handleSettingChange('schoolName', e.target.value)} className="w-full p-2 text-xs border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Card Subtitle</label>
+                  <input type="text" value={settings.cardSubtitle} onChange={(e) => handleSettingChange('cardSubtitle', e.target.value)} className="w-full p-2 text-xs border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">Principal Name</label>
+                  <input type="text" value={settings.principalName} onChange={(e) => handleSettingChange('principalName', e.target.value)} className="w-full p-2 text-xs border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none" />
+                </div>
+                
+                <div>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase block mb-2">Theme Color</label>
+                  <div className="flex flex-wrap gap-2">
+                    {colors.map(color => (
+                      <button 
+                        key={color.value}
+                        onClick={() => handleSettingChange('themeColor', color.value)}
+                        className={`w-6 h-6 rounded-full shadow-sm transition-transform ${settings.themeColor === color.value ? 'ring-2 ring-offset-2 ring-blue-500 scale-110' : 'hover:scale-110'}`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-100">
+                  <label className="text-xs font-bold text-gray-700 block mb-2">Custom Image (Optional)</label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:bg-gray-50 transition-colors">
+                    <ImageIcon className="mx-auto text-gray-400 mb-2" size={20} />
+                    <button onClick={() => bgInputRef.current?.click()} className="text-xs font-semibold text-blue-600 mb-1">
+                      Upload Background Image
+                    </button>
+                    <p className="text-[9px] text-gray-500">Recommended size: 800x1200px</p>
+                    <input type="file" ref={bgInputRef} onChange={handleBgUpload} className="hidden" accept="image/*" />
+                    
+                    {settings.bgImage && (
+                      <div className="mt-2 text-[10px] text-red-500 cursor-pointer font-bold" onClick={() => handleSettingChange('bgImage', null)}>
+                        Remove Image
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'fields' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50/50">
+                  <span className="text-xs font-semibold text-gray-700">Show QR Code</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={settings.showQRCode} onChange={(e) => handleSettingChange('showQRCode', e.target.checked)} />
+                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50/50">
+                  <span className="text-xs font-semibold text-gray-700">Show School Stamp</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={settings.showStamp} onChange={(e) => handleSettingChange('showStamp', e.target.checked)} />
+                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+                <div className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50/50">
+                  <span className="text-xs font-semibold text-gray-700">Show Principal Signature</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" checked={settings.showSignature} onChange={(e) => handleSettingChange('showSignature', e.target.checked)} />
+                    <div className="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+                
+                <div className="pt-2">
+                   <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">School Address (Back Side)</label>
+                   <input 
+                     type="text" 
+                     value={settings.schoolAddress}
+                     onChange={(e) => handleSettingChange('schoolAddress', e.target.value)}
+                     className="w-full p-2 text-xs border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none"
+                   />
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'design' && (
+              <div className="space-y-4 text-center py-10 text-xs text-gray-500">
+                <Palette size={32} className="mx-auto text-gray-300 mb-2" />
+                Additional design settings like custom fonts and overlay opacity can be configured here.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* BOTTOM PANELS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6 no-print">
+        {/* ID Card Actions */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Edit3 size={18} className="text-blue-600" />
+            <h3 className="font-bold text-gray-800 text-sm">Save & Manage</h3>
+          </div>
+          <p className="text-[10px] text-gray-500 mb-4">Save template for future use.</p>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <button className="py-2.5 flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-bold text-xs rounded-lg hover:bg-gray-50">
+              <Eye size={14} /> Preview
+            </button>
+            <button className="py-2.5 flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-bold text-xs rounded-lg hover:bg-gray-50">
+              <Edit3 size={14} /> Edit Design
+            </button>
+          </div>
+          <button 
+            onClick={saveSettings}
+            className="w-full py-3 flex items-center justify-center gap-2 bg-blue-600 text-white font-bold text-xs rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+          >
+            <Save size={16} /> Save Changes
+          </button>
+        </div>
+
+        {/* Bulk Generate */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Users size={18} className="text-blue-600" />
+            <h3 className="font-bold text-gray-800 text-sm">Bulk Generate ID Cards</h3>
+          </div>
+          <p className="text-[10px] text-gray-500 mb-4">Generate multiple staff ID cards at once.</p>
+          
+          <div className="space-y-3 mb-4">
+            <div className="flex items-center gap-4 text-xs font-semibold text-gray-700">
+              <label className="flex items-center gap-2 cursor-pointer" onClick={selectAllStaff}>
+                <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center ${selectedStaffIds.length === filteredStaff.length && filteredStaff.length > 0 ? 'border-blue-600 bg-white' : 'border-gray-300'}`} />
+                All Staff ({filteredStaff.length})
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center ${selectedStaffIds.length > 0 && selectedStaffIds.length < filteredStaff.length ? 'border-blue-600 bg-white' : 'border-gray-300'}`} />
+                Selected Staff ({selectedStaffIds.length})
+              </label>
+            </div>
+            
+            <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Cards Per Page</label>
+              <select className="w-full p-2 text-xs border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none bg-gray-50">
+                <option>4 Cards</option>
+                <option>6 Cards</option>
+                <option>8 Cards</option>
+              </select>
+            </div>
+          </div>
+          
+          <button 
+            onClick={handlePrint}
+            disabled={selectedStaffIds.length === 0}
+            className="w-full py-3 flex items-center justify-center gap-2 bg-blue-600 text-white font-bold text-xs rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            <Copy size={16} /> Generate Bulk Cards
+          </button>
+        </div>
+
+        {/* Print & Download */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Printer size={18} className="text-blue-600" />
+            <h3 className="font-bold text-gray-800 text-sm">Print & Download</h3>
+          </div>
+          <p className="text-[10px] text-gray-500 mb-4">Get your ID cards in different formats.</p>
+          <div className="space-y-3">
+            <button 
+              onClick={handlePrint}
+              disabled={selectedStaffIds.length === 0}
+              className="w-full py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-gray-800 transition-colors disabled:opacity-50"
+            >
+              <Printer size={14} /> Print Now
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Print Area Container */}
+      <div id="print-area" className="hidden">
+        <div className="p-4 bg-white" style={{ minHeight: '100vh', width: '100%', maxWidth: '800px', margin: '0 auto' }}>
+          <div className="grid grid-cols-2 gap-4">
+            {selectedStaffData.map(st => {
+              return (
+                <div key={st.id} className="print-card-break mb-8 inline-block">
+                  {renderStaffCard(st, true, currentSettings)}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default StaffIdCards;
-

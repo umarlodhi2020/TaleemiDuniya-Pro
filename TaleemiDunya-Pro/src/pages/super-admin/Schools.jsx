@@ -24,6 +24,7 @@ const SchoolsManager = () => {
   const [filterPlan, setFilterPlan] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deletePin, setDeletePin] = useState('');
   const [actionLoading, setActionLoading] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -75,6 +76,7 @@ const SchoolsManager = () => {
       await deleteDoc(doc(db, 'schools', id));
       setSchools(prev => prev.filter(s => s.id !== id));
       setDeleteConfirm(null);
+      setDeletePin('');
       showToast('success', 'School permanently deleted.');
     } catch (error) {
       console.error(error);
@@ -82,6 +84,14 @@ const SchoolsManager = () => {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleDeleteAttempt = () => {
+    if (deletePin !== '2121') {
+      showToast('error', 'Incorrect PIN code! Deletion cancelled.');
+      return;
+    }
+    deleteSchool(deleteConfirm);
   };
 
   const filtered = schools.filter(s => {
@@ -368,22 +378,38 @@ const SchoolsManager = () => {
               <Trash2 className="text-red-400" size={26} />
             </div>
             <h2 className="text-xl font-bold mb-2">Delete School?</h2>
-            <p className="text-dark-muted text-sm mb-6">
+            <p className="text-dark-muted text-sm mb-4">
               This will permanently remove <strong className="text-white">
                 {schools.find(s => s.id === deleteConfirm)?.name}
               </strong> from the database. This cannot be undone.
             </p>
+
+            <div className="mb-6 text-left">
+              <label className="text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5 block">Enter PIN to Confirm</label>
+              <input 
+                type="password" 
+                value={deletePin} 
+                onChange={(e) => setDeletePin(e.target.value)}
+                placeholder="Enter PIN code" 
+                className="w-full premium-input bg-dark-bg text-center tracking-[0.5em] font-mono text-lg"
+                maxLength={4}
+              />
+            </div>
+
             <div className="flex gap-3">
               <button
-                onClick={() => deleteSchool(deleteConfirm)}
-                disabled={!!actionLoading}
+                onClick={handleDeleteAttempt}
+                disabled={!!actionLoading || deletePin.length !== 4}
                 className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : null}
                 Yes, Delete
               </button>
               <button
-                onClick={() => setDeleteConfirm(null)}
+                onClick={() => {
+                  setDeleteConfirm(null);
+                  setDeletePin('');
+                }}
                 className="flex-1 premium-button-secondary py-3"
               >
                 Cancel

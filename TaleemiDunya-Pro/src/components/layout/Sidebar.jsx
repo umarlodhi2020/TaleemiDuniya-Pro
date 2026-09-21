@@ -60,6 +60,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
+import FeatureVideoBtn from '../common/FeatureVideoBtn';
 import GlobalSearchModal from '../common/GlobalSearchModal';
 
 const Sidebar = ({ role, isOpen, setIsOpen }) => {
@@ -72,8 +73,8 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
   const [activeCategory, setActiveCategory] = React.useState('All');
   const [collapsedSections, setCollapsedSections] = React.useState({
     'Academic': false,
-    'Resources & Facilities': false,
-    'Portals & Services': false
+    'RESOURCES & FACILITIES': false,
+    'PORTAL & E-SERVICES': false
   });
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -167,6 +168,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
               { name: 'Notifications', icon: BellRing, path: '/super-admin/notifications' },
               { name: 'Support Center', icon: MessageSquare, path: '/super-admin/support' },
               { name: 'Bulk Data Import', icon: UploadCloud, path: '/school-admin/import' },
+              { name: 'Feature Videos Manager', icon: Video, path: '/super-admin/feature-videos' },
               { name: 'Settings', icon: Settings, path: '/super-admin/settings' },
               { name: 'Landing Page', icon: Globe, path: '/super-admin/landing-page' },
             ]
@@ -220,6 +222,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
       default:
         return [
           {
+            id: 'dashboard-core',
             title: 'Dashboard & Core',
             categoryKey: 'Core',
             links: [
@@ -231,6 +234,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             ]
           },
           {
+            id: 'student-management',
             title: 'Student Management',
             categoryKey: 'Student',
             links: [
@@ -256,6 +260,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             ]
           },
           {
+            id: 'staff-management',
             title: 'Staff Management',
             categoryKey: 'Staff',
             links: [
@@ -266,6 +271,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             ]
           },
           {
+            id: 'finance-accounts',
             title: 'FINANCE & ACCOUNTS',
             categoryKey: 'Finance',
             links: [
@@ -281,6 +287,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             ]
           },
           {
+            id: 'academic',
             title: 'Academic',
             categoryKey: 'Academic',
             links: [
@@ -296,6 +303,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             ]
           },
           {
+            id: 'exam-results',
             title: 'EXAMS & RESULTS',
             categoryKey: 'Exams',
             links: [
@@ -309,7 +317,8 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             ]
           },
           {
-            title: 'Resources & Facilities',
+            id: 'resources-facilities',
+            title: 'RESOURCES & FACILITIES',
             categoryKey: 'Resources',
             links: [
               { name: 'Automated Reports & BI Hub', icon: PieChart, path: '/school-admin/reports-hub', featureKey: 'reports-hub' },
@@ -323,6 +332,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
               { name: 'Launch Security & Audit Hub', icon: ShieldCheck, path: '/school-admin/system-health-audit', featureKey: 'system-audit' },
               { name: 'Biometric Integration', icon: Fingerprint, path: '/school-admin/biometric-setup', featureKey: 'gate-scanner' },
               { name: 'Live ID Card Gate Scanner', icon: QrCode, path: '/school-admin/security/gate-scanner', featureKey: 'gate-scanner' },
+              { name: 'QR Attendance Scanner', icon: QrCode, path: '/school-admin/qr-scanner', featureKey: 'gate-scanner' },
               { name: 'Bus & Van Transport Fleet', icon: Bus, path: '/school-admin/transport', featureKey: 'transport-fleet' },
               { name: 'Digital Library & Notes Hub', icon: BookOpen, path: '/school-admin/library', featureKey: 'digital-library' },
               { name: 'Hostel & Dormitory Manager', icon: Bed, path: '/school-admin/hostel', featureKey: 'hostel-manager' },
@@ -334,8 +344,9 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             ]
           },
           {
-            title: 'Portals & Services',
-            categoryKey: 'Portals',
+            id: 'portal-services',
+            title: 'PORTAL & E-SERVICES',
+            categoryKey: 'Portal',
             links: [
               { name: 'Student Portal', icon: UserCircle, path: '/student/dashboard', featureKey: 'student-portal-access' },
               { name: 'Teacher Portal', icon: UserCircle, path: '/teacher/dashboard', featureKey: 'teacher-portal-access' },
@@ -500,7 +511,14 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                     onClick={() => toggleSection(section.title)}
                     className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-dark-muted uppercase tracking-wider cursor-pointer hover:text-white transition-colors group select-none"
                   >
-                    <span>{section.title}</span>
+                    <div className="flex items-center gap-2">
+                      <span>{section.title}</span>
+                      {section.id && (
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <FeatureVideoBtn featureId={section.id} variant="icon" />
+                        </div>
+                      )}
+                    </div>
                     <ChevronDown
                       size={12}
                       className={`text-dark-muted group-hover:text-white transition-transform duration-200 ${

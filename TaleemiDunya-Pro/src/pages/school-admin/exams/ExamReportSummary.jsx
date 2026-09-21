@@ -99,37 +99,67 @@ const ExamReportSummary = () => {
     }
   };
 
-  // Extract active subjects for the selected class and term
-  const getSubjectsForSelection = () => {
-    if (!selectedClass || !selectedTerm) return [];
+  // Helper: Extract active subjects for a given class and specific term name
+  const getActiveSubjectsForTerm = (targetTermName) => {
+    const targetCls = String(selectedClass || '').trim().toLowerCase();
+    const targetT = String(targetTermName || '').trim().toLowerCase();
+    
+    // Find all student IDs that belong to the selected class
+    const classStudentIds = students
+       .filter(s => {
+          const sClass = String(s.class || s.className || '').trim().toLowerCase();
+          return sClass === targetCls;
+       })
+       .map(s => s.id);
 
-    const mDoc = masterFiles.find(m => {
-      const mClass = String(m.className || m.class || '').trim().toLowerCase();
-      const sClass = String(selectedClass || '').trim().toLowerCase();
-      const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
-      const sTerm = String(selectedTerm || '').trim().toLowerCase();
-      return (mClass === sClass || mClass.includes(sClass)) && (mTerm === sTerm || mTerm.includes(sTerm));
+    // 1. Fetch valid results for this class
+    const resForClass = results.filter(r => {
+      const rTerm = String(r.examName || r.term || '').trim().toLowerCase();
+      const termMatches = (!rTerm || rTerm === targetT || rTerm.includes(targetT));
+      
+      const rCls = String(r.class || r.className || '').trim().toLowerCase();
+      // Only include if it explicitly matches class, OR if it belongs to a student in this class
+      const classMatches = rCls === targetCls || rCls.includes(targetCls) || classStudentIds.includes(r.studentId);
+      
+      return termMatches && classMatches;
     });
 
-    if (mDoc?.subjectRows?.length > 0) {
-      return mDoc.subjectRows.map(s => ({
+    // 2. Try to get subjects from master file
+    const mDoc = masterFiles.find(m => {
+      const mClass = String(m.className || m.class || '').trim().toLowerCase();
+      const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
+      return (mClass === targetCls || mClass.includes(targetCls) || targetCls.includes(mClass)) &&
+             (mTerm === targetT || mTerm.includes(targetT) || targetT.includes(mTerm));
+    });
+
+    if (mDoc?.subjects?.length > 0) {
+      return mDoc.subjects.map(s => ({
         name: s.subjectName || s.name,
         totalMarks: Number(s.totalMarks || s.maxMarks || 100),
         passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || 100) * 0.33))
       }));
     }
 
+    // 3. Try to get subjects from Exam definition
     const ex = exams.find(e => {
       const eName = String(e.examName || e.title || e.name || e.id || '').trim().toLowerCase();
-      const sTerm = String(selectedTerm || '').trim().toLowerCase();
-      return eName === sTerm || eName.includes(sTerm) || sTerm.includes(eName);
+      return eName === targetT || eName.includes(targetT) || targetT.includes(eName);
     });
 
     if (ex?.subjects?.length > 0) {
       const classSubjs = ex.subjects.filter(s => {
         const sCls = String(s.classId || s.className || '').trim().toLowerCase();
-        const targetCls = String(selectedClass || '').trim().toLowerCase();
-        return !sCls || sCls === targetCls || sCls.includes(targetCls) || targetCls.includes(sCls);
+        
+        if (sCls === targetCls || sCls.includes(targetCls) || targetCls.includes(sCls)) return true;
+        
+        if (!sCls) {
+           const sName = String(s.subjectName || s.name || '').trim().toLowerCase();
+           return resForClass.some(r => {
+             const rName = String(r.subject || r.subjectName || '').trim().toLowerCase();
+             return rName === sName;
+           });
+        }
+        return false;
       });
       if (classSubjs.length > 0) {
         return classSubjs.map(s => ({
@@ -140,35 +170,30 @@ const ExamReportSummary = () => {
       }
     }
 
-    const resForClass = results.filter(r => {
-      const rCls = String(r.class || r.className || '').trim().toLowerCase();
-      const targetCls = String(selectedClass || '').trim().toLowerCase();
-      const rTerm = String(r.examName || r.term || '').trim().toLowerCase();
-      const targetT = String(selectedTerm || '').trim().toLowerCase();
-      return (!rCls || rCls === targetCls) && (!rTerm || rTerm === targetT);
-    });
-
+    // 4. Fallback to extracting from results
     const resSubjNames = Array.from(new Set(resForClass.map(r => r.subject || r.subjectName).filter(Boolean)));
     if (resSubjNames.length > 0) {
       return resSubjNames.map(name => {
         const sampleRes = resForClass.find(r => (r.subject || r.subjectName) === name);
-        const max = Number(sampleRes?.totalMarks || 100);
+        const max = Number(sampleRes?.totalMarks || 25);
         const pass = Number(sampleRes?.passingMarks || sampleRes?.passMarks || Math.round(max * 0.33));
         return { name, totalMarks: max, passMarks: pass };
       });
     }
 
+    // 5. Hardcoded fallback
     return [
-      { name: 'English', totalMarks: 100, passMarks: 33 },
-      { name: 'Math', totalMarks: 100, passMarks: 33 },
-      { name: 'Science', totalMarks: 100, passMarks: 33 },
-      { name: 'Urdu', totalMarks: 100, passMarks: 33 },
-      { name: 'Islamiat', totalMarks: 100, passMarks: 33 }
+      { name: 'Drawing', totalMarks: 25, passMarks: 8 },
+      { name: 'English', totalMarks: 25, passMarks: 8 },
+      { name: 'G.K + Reader', totalMarks: 25, passMarks: 8 },
+      { name: 'Islamiat', totalMarks: 25, passMarks: 8 },
+      { name: 'Math', totalMarks: 25, passMarks: 8 },
+      { name: 'Urdu', totalMarks: 25, passMarks: 8 }
     ];
   };
 
   // Compute student results for report
-  const activeSubjects = getSubjectsForSelection();
+  const activeSubjects = getActiveSubjectsForTerm(selectedTerm);
 
   const targetStudents = students.filter(s => {
     const sCls = String(s.class || s.className || '').trim().toLowerCase();
@@ -454,30 +479,55 @@ const ExamReportSummary = () => {
   const schoolAddress = schoolData?.address || userData?.schoolAddress || 'Plot #505 Area 36/C Korangi #5, Karachi | Tel: +92 313 2202569';
 
   return (
-    <div className="space-y-6 animate-fade-in p-2 sm:p-4">
+    <div className="space-y-6 animate-fade-in p-2 sm:p-4 print:space-y-0 print:p-0 print:m-0 print:animate-none print:transform-none print:static">
       
-      {/* Printable CSS block */}
+      {/* Dynamic Print Scaling & Elegant Scrollbar */}
       <style>{`
+        /* Thin elegant scrollbar for preview to prevent huge black bars */
+        .preview-scroll-container::-webkit-scrollbar {
+          height: 6px;
+        }
+        .preview-scroll-container::-webkit-scrollbar-track {
+          background: #1e293b; 
+          border-radius: 10px;
+        }
+        .preview-scroll-container::-webkit-scrollbar-thumb {
+          background: #3b82f6; 
+          border-radius: 10px;
+        }
+
         @media print {
-          body * {
-            visibility: hidden;
+          /* Allows user to print in either Portrait or Landscape. The browser handles scaling better if we use table-layout: fixed and small font sizes */
+          @page {
+            margin: 5mm;
           }
-          #printable-report-card, #printable-report-card * {
-            visibility: visible;
+          
+          .printable-report-area {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
-          #printable-report-card {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            margin: 0;
-            padding: 10px;
-            box-shadow: none !important;
-            border: none !important;
+          
+          .printable-report-area table {
+            width: 100% !important;
+            table-layout: fixed !important; 
+          }
+          
+          .printable-report-area th, 
+          .printable-report-area td {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            font-size: ${activeSubjects.length > 8 ? '8px' : '10px'} !important;
+            padding: 2px 1px !important;
+          }
+
+          /* Hide scrollbar completely during print */
+          .preview-scroll-container {
+            overflow: visible !important;
           }
         }
       `}</style>
-
       {/* Top Header Banner matching system design */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-dark-card/60 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-xl">
         <div className="flex items-center gap-4">
@@ -611,7 +661,7 @@ const ExamReportSummary = () => {
       </GlassCard>
 
       {/* LIVE INTERACTIVE REPORT PREVIEW SHEET CONTAINER */}
-      <div className="space-y-3">
+      <div className="space-y-3 print:space-y-0 print:m-0 print:p-0 print:static">
         
         <div className="flex items-center justify-between text-xs font-bold text-dark-muted px-2">
           <div className="flex items-center gap-1.5 text-white">
@@ -624,11 +674,11 @@ const ExamReportSummary = () => {
         </div>
 
         {/* Paper Sheet Container (Resting on dark desk) */}
-        <div className="p-4 sm:p-6 bg-dark-card/40 border border-white/10 rounded-3xl backdrop-blur-md">
+        <div className="p-4 sm:p-6 bg-dark-card/40 border border-white/10 rounded-3xl backdrop-blur-md print:p-0 print:border-none print:m-0 print:bg-transparent print:backdrop-blur-none print:static">
           <div 
             id="printable-report-card" 
             ref={previewRef}
-            className="bg-white rounded-2xl border-2 border-blue-600 shadow-2xl p-6 md:p-8 text-slate-800 space-y-5 overflow-x-auto mx-auto max-w-5xl"
+            className="printable-report-area bg-white rounded-2xl border-2 border-blue-600 shadow-2xl p-6 md:p-8 text-slate-800 space-y-5 overflow-x-auto mx-auto max-w-5xl print:max-w-none print:w-full print:mx-0 print:border-none print:shadow-none"
           >
             {/* Blue Top Stripe */}
             <div className="h-1.5 bg-blue-600 -mx-6 -mt-6 md:-mx-8 md:-mt-8 rounded-t-xl mb-4" />
@@ -674,7 +724,7 @@ const ExamReportSummary = () => {
             </div>
 
             {/* Report Table (Without Sec Column) */}
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto print:overflow-visible preview-scroll-container pb-2">
               <table className="w-full text-left text-xs border-collapse border border-blue-900">
                 <thead className="bg-blue-900 text-white text-[11px]">
                   <tr>
@@ -739,7 +789,7 @@ const ExamReportSummary = () => {
             </div>
 
             {/* Signatures Footer */}
-            <div className="pt-12 flex items-center justify-between text-xs font-bold text-slate-600 px-4">
+            <div className="pt-12 print:pt-6 print:break-inside-avoid flex items-center justify-between text-xs font-bold text-slate-600 px-4">
               <div className="text-center border-t border-slate-400 pt-1 w-44">
                 <span>Class Teacher</span>
               </div>

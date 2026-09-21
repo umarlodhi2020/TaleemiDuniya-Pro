@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   Settings as SettingsIcon, 
@@ -11,6 +11,7 @@ import {
   Trash2,
   Lock,
   Loader2,
+  CheckCircle,
   CheckCircle2,
   AlertCircle,
   Smartphone,
@@ -203,10 +204,90 @@ const SchoolSettings = () => {
     confirmPassword: '',
   });
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [signatureSettings, setSignatureSettings] = useState({
+    rules: []
+  });
+  
+  const [newSignatureRule, setNewSignatureRule] = useState({
+    type: 'Principal',
+    class: '',
+    documents: {
+      idCard: false,
+      reportCard: false,
+      feeVoucher: false,
+      certificate: false
+    },
+    signatureUrl: ''
+  });
+
+  const [staffList, setStaffList] = useState([]);
+  const [classList, setClassList] = useState([]);
+
+  const ruleSignatureInputRef = useRef(null);
 
   const showToast = (type, message) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const handleRuleSignatureUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setSaving(true);
+      const response = await uploadSchoolLogo(file);
+      if (response && response.success) {
+        setNewSignatureRule(prev => ({ ...prev, signatureUrl: response.url }));
+        showToast('success', 'Signature uploaded! Now click Add Rule to save it.');
+      } else {
+        throw new Error(response?.error || 'Upload failed');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('error', 'Failed to upload signature image.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddSignatureRule = () => {
+    if (!newSignatureRule.signatureUrl) {
+      showToast('error', 'Please upload a signature image first.');
+      return;
+    }
+    const hasDocSelected = Object.values(newSignatureRule.documents).some(v => v);
+    if (!hasDocSelected) {
+      showToast('error', 'Please select at least one document type.');
+      return;
+    }
+    if (newSignatureRule.type === 'Teacher' && !newSignatureRule.class) {
+      showToast('error', 'Please enter a class for the teacher signature.');
+      return;
+    }
+
+    const newRule = {
+      ...newSignatureRule,
+      id: Date.now().toString()
+    };
+    
+    setSignatureSettings(prev => ({
+      ...prev,
+      rules: [...(prev.rules || []), newRule]
+    }));
+    
+    setNewSignatureRule({
+      type: 'Principal',
+      class: '',
+      documents: { idCard: false, reportCard: false, feeVoucher: false, certificate: false },
+      signatureUrl: ''
+    });
+  };
+
+  const removeSignatureRule = (id) => {
+    setSignatureSettings(prev => ({
+      ...prev,
+      rules: (prev.rules || []).filter(r => r.id !== id)
+    }));
   };
 
   useEffect(() => {
@@ -242,6 +323,15 @@ const SchoolSettings = () => {
           if (data.securitySettings) {
             setSecurity(data.securitySettings);
           }
+          if (data.faceScan) setFaceScan(data.faceScan);
+          if (data.signatureSettings) {
+            // Check if it's the old format, migrate it softly
+            if (data.signatureSettings.principalSignatureUrl && !data.signatureSettings.rules) {
+               setSignatureSettings({ rules: [] });
+            } else {
+               setSignatureSettings({ rules: data.signatureSettings.rules || [] });
+            }
+          }
 
           let tempIdNumber = data.idNumber;
           let tempPassword = data.password;
@@ -267,6 +357,16 @@ const SchoolSettings = () => {
             idNumber: tempIdNumber,
             password: tempPassword,
           });
+        }
+
+        const staffRecords = await getRecords('staff', userData.schoolId);
+        setStaffList(staffRecords || []);
+
+        const classesRecords = await getRecords('classes', userData.schoolId);
+        if (classesRecords && classesRecords.length > 0) {
+          // Sort classes by order or naturally
+          classesRecords.sort((a, b) => (a.order || 0) - (b.order || 0));
+          setClassList(classesRecords);
         }
       } catch (err) {
         console.error('Error fetching school configuration:', err);
@@ -309,6 +409,7 @@ const SchoolSettings = () => {
         domainVerified: domain.isVerified,
         notificationSettings: notifications,
         securitySettings: security,
+        signatureSettings: signatureSettings,
         password: faceScan.password, // Update Face Scan Password
         updatedAt: serverTimestamp(),
       });
@@ -427,6 +528,7 @@ const SchoolSettings = () => {
             { id: 'holidays', label: '4 Academic Holidays', icon: Calendar },
             { id: 'sessions', label: '5 Academic Sessions', icon: CalendarDays },
             { id: 'face-scan', label: '6 Face Scan App', icon: Scan },
+            { id: 'signatures', label: '7 Signatures & Docs', icon: UserCheck },
             { id: 'branding', label: 'Branding & Logo', icon: ImageIcon },
             { id: 'domain', label: 'Custom Domain', icon: Globe },
             { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -542,6 +644,164 @@ const SchoolSettings = () => {
             </GlassCard>
           )}
 
+          {/* SIGNATURES TAB */}
+          {activeTab === 'signatures' && (
+            <GlassCard className="p-8">
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <UserCheck size={20} className="text-primary-500" />
+                Signatures & Document Rules
+              </h3>
+              
+              <div className="space-y-8">
+                
+                {/* NEW RULE FORM WIZARD */}
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                  <h4 className="text-sm font-bold mb-4 text-primary-400 border-b border-white/5 pb-3">Add New Signature Rule</h4>
+                  
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">1. Authority Type</label>
+                        <select 
+                          className="w-full premium-input"
+                          value={newSignatureRule.type}
+                          onChange={(e) => setNewSignatureRule({...newSignatureRule, type: e.target.value})}
+                        >
+                          <option value="Principal">Principal / Main Authority</option>
+                          <option value="Teacher">Class Teacher</option>
+                        </select>
+                      </div>
+
+                      {newSignatureRule.type === 'Teacher' && (
+                        <div>
+                          <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">2. Select Class</label>
+                          <select 
+                            className="w-full premium-input"
+                            value={newSignatureRule.class}
+                            onChange={(e) => setNewSignatureRule({...newSignatureRule, class: e.target.value})}
+                          >
+                            <option value="">Select a Class</option>
+                            {classList.map(cls => (
+                              <option key={cls.id} value={cls.className || cls.name || cls.class || cls.title}>{cls.className || cls.name || cls.class || cls.title}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-2">
+                        {newSignatureRule.type === 'Teacher' ? '3' : '2'}. Applies to Documents
+                      </label>
+                      <div className="flex flex-wrap gap-4">
+                        {Object.keys(newSignatureRule.documents).map(docType => {
+                          const docLabels = { idCard: 'ID Cards', reportCard: 'Report Cards', feeVoucher: 'Fee Vouchers', certificate: 'Certificates' };
+                          return (
+                            <label key={docType} className="flex items-center gap-2 cursor-pointer bg-dark-bg/50 px-4 py-2 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
+                              <input 
+                                type="checkbox"
+                                checked={newSignatureRule.documents[docType]}
+                                onChange={(e) => setNewSignatureRule({
+                                  ...newSignatureRule,
+                                  documents: { ...newSignatureRule.documents, [docType]: e.target.checked }
+                                })}
+                                className="accent-primary-500 w-4 h-4"
+                              />
+                              <span className="text-sm font-medium">{docLabels[docType]}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-2">
+                        {newSignatureRule.type === 'Teacher' ? '4' : '3'}. Signature Image
+                      </label>
+                      
+                      <div className="flex items-center gap-4">
+                        <div className="w-40 h-20 bg-dark-bg/50 border border-dashed border-dark-border rounded-xl flex items-center justify-center overflow-hidden">
+                          {newSignatureRule.signatureUrl ? (
+                            <img src={newSignatureRule.signatureUrl} alt="Signature" className="max-w-full max-h-full object-contain bg-white p-2" />
+                          ) : (
+                            <span className="text-[10px] text-dark-muted font-bold uppercase text-center leading-tight">No Image<br/>Uploaded</span>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <input 
+                            type="file"
+                            ref={ruleSignatureInputRef}
+                            onChange={handleRuleSignatureUpload}
+                            className="hidden"
+                            accept="image/*"
+                          />
+                          <button
+                            onClick={() => ruleSignatureInputRef.current?.click()}
+                            disabled={saving}
+                            className="premium-button-secondary py-2 px-4 flex items-center gap-2 mb-2 text-sm"
+                          >
+                            <Upload size={14} />
+                            {saving ? 'Uploading...' : (newSignatureRule.signatureUrl ? 'Change Signature' : 'Upload Signature')}
+                          </button>
+                          <p className="text-[10px] text-dark-muted">Transparent PNG max 2MB.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-white/5 flex justify-end">
+                       <button
+                         onClick={handleAddSignatureRule}
+                         className="premium-button flex items-center gap-2"
+                       >
+                         <CheckCircle size={16} /> Save Signature Rule
+                       </button>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* SAVED RULES LIST */}
+                <div className="pt-6">
+                  <h4 className="text-sm font-bold mb-4">Saved Signature Rules</h4>
+                  <div className="space-y-3">
+                    {signatureSettings.rules?.length > 0 ? signatureSettings.rules.map((rule) => (
+                      <div key={rule.id} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center justify-between group hover:border-primary-500/30 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="w-20 h-10 bg-white rounded-md overflow-hidden flex items-center justify-center p-1 shrink-0">
+                            <img src={rule.signatureUrl} alt="sig" className="max-w-full max-h-full object-contain" />
+                          </div>
+                          <div>
+                            <div className="font-bold text-sm">
+                              {rule.type} {rule.type === 'Teacher' && rule.class && <span className="text-primary-400">({rule.class})</span>}
+                            </div>
+                            <div className="text-[10px] text-dark-muted font-medium mt-1 uppercase tracking-wider flex gap-2">
+                               Applies to: {Object.keys(rule.documents).filter(k => rule.documents[k]).map(k => {
+                                 const labels = { idCard: 'ID Card', reportCard: 'Report Card', feeVoucher: 'Fee Voucher', certificate: 'Certificate' };
+                                 return <span key={k} className="bg-white/10 px-2 py-0.5 rounded">{labels[k]}</span>
+                               })}
+                            </div>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => removeSignatureRule(rule.id)}
+                          className="h-8 w-8 flex items-center justify-center bg-red-500/10 text-red-500 rounded-lg hover:bg-red-500/20 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Delete Rule"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )) : (
+                      <div className="text-center p-8 border border-dashed border-dark-border rounded-xl text-dark-muted text-sm">
+                         No signature rules have been created yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          )}
+
           {/* BRANDING TAB */}
           {activeTab === 'branding' && (
             <GlassCard className="p-8">
@@ -553,7 +813,7 @@ const SchoolSettings = () => {
                 <div className="flex items-center gap-8">
                   <div className="w-24 h-24 rounded-3xl bg-dark-hover border-2 border-dashed border-dark-border flex items-center justify-center text-dark-muted overflow-hidden">
                     {branding.logo ? (
-                      <img src={branding.logo} alt="Logo" className="w-full h-full object-cover" />
+                      <img src={branding.logo} alt="Logo" className="w-full h-full object-contain bg-white rounded-lg p-2" />
                     ) : (
                       <School size={32} />
                     )}
@@ -574,12 +834,27 @@ const SchoolSettings = () => {
                             if (file) {
                               try {
                                 showToast('info', 'Uploading logo...');
-                                const url = await uploadSchoolLogo(file, userData?.schoolId);
-                                setBranding({ ...branding, logo: url });
-                                showToast('success', 'Logo uploaded successfully. Save settings to apply.');
+                                const response = await uploadSchoolLogo(file, userData?.schoolId);
+                                
+                                // Robust URL extraction (handles if it returns string or object)
+                                let finalUrl = '';
+                                if (typeof response === 'string') {
+                                  finalUrl = response;
+                                } else if (response && response.url) {
+                                  finalUrl = response.url;
+                                } else if (response && response.secure_url) {
+                                  finalUrl = response.secure_url;
+                                }
+                                
+                                if (finalUrl) {
+                                  setBranding({ ...branding, logo: finalUrl });
+                                  showToast('success', 'Logo uploaded successfully. Save settings to apply.');
+                                } else {
+                                  throw new Error('Upload failed - No URL received');
+                                }
                               } catch (err) {
                                 console.error('Logo upload failed:', err);
-                                showToast('error', 'Failed to upload logo.');
+                                showToast('error', 'Failed to upload logo. Please try again.');
                               }
                             }
                           }} 

@@ -669,11 +669,74 @@ async function getSchoolName(schoolId) {
   return fallbackName;
 }
 
+// Global memory cache for all phone numbers per school to make lookup extremely fast
+const schoolMembersCache = new Map();
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 async function handleAIBotReply(schoolId, senderPhone, queryText) {
   const dynamicSchoolName = await getSchoolName(schoolId);
   let lower = queryText.toLowerCase().trim();
   const cleanSender = senderPhone.replace(/[^0-9]/g, '');
   const rules = getSchoolRules(schoolId);
+
+  // --- 1. STRICT SECURITY AUTHENTICATION: Check if sender phone matches real student in Firestore or verified cache ---
+  let verifiedStudent = null;
+  if (verifiedSenders.has(cleanSender)) {
+    const cached = verifiedSenders.get(cleanSender);
+    if (Date.now() - cached.verifiedAt < 86400000 * 7) { // 7 days verification validity
+      verifiedStudent = cached.student;
+    } else {
+      verifiedSenders.delete(cleanSender);
+    }
+  }
+
+  // If not in cache, check if cleanSender matches any student or staff phone number using fast caching
+  if (!verifiedStudent && db) {
+    try {
+      let membersData = schoolMembersCache.get(schoolId);
+      
+      if (!membersData || (Date.now() - membersData.timestamp > CACHE_TTL)) {
+        // Fetch and cache all members for this school in parallel to save time
+        const [studentsSnap, staffSnap] = await Promise.all([
+          db.collection('students').where('schoolId', '==', schoolId).get(),
+          db.collection('staff').where('schoolId', '==', schoolId).get()
+        ]);
+        
+        let members = [];
+        studentsSnap.forEach(doc => {
+          const st = { id: doc.id, ...doc.data() };
+          const p = (st.phone || st.parentPhone || st.fatherPhone || st.whatsappNumber || '').toString().replace(/[^0-9]/g, '');
+          if (p) members.push({ phone: p, user: st });
+        });
+        
+        staffSnap.forEach(doc => {
+          const stf = { id: doc.id, ...doc.data() };
+          const p = (stf.phone || stf.whatsappNumber || stf.contact || '').toString().replace(/[^0-9]/g, '');
+          if (p) members.push({ phone: p, user: stf });
+        });
+        
+        membersData = { timestamp: Date.now(), members };
+        schoolMembersCache.set(schoolId, membersData);
+      }
+      
+      // Fast memory lookup
+      for (const m of membersData.members) {
+        if (cleanSender.endsWith(m.phone) || m.phone.endsWith(cleanSender) || cleanSender.includes(m.phone)) {
+          verifiedStudent = m.user;
+          verifiedSenders.set(cleanSender, { student: m.user, verifiedAt: Date.now() });
+          break;
+        }
+      }
+    } catch (e) {
+      console.error("[CACHE ERROR] Failed to fetch users for cache:", e);
+    }
+  }
+
+  // IF SENDER IS NOT IN DATABASE, IGNORE COMPLETELY (Normal WhatsApp mode)
+  if (!verifiedStudent) {
+    console.log(`[STRICT MODE] Ignored message from ${cleanSender} as it is not in the database.`);
+    return null;
+  }
 
   // Check if this is the first interaction from this sender in this session
   const isFirstMessage = !activeSenders.has(cleanSender);
@@ -681,7 +744,7 @@ async function handleAIBotReply(schoolId, senderPhone, queryText) {
     activeSenders.add(cleanSender);
   }
 
-  // --- 1. INTERACTIVE MENU & FEATURE SELECTION CHECK ---
+  // --- 2. INTERACTIVE MENU & FEATURE SELECTION CHECK ---
   const menuKeywords = ['menu', 'hi', 'hello', 'helo', 'heelo', 'helloo', 'hllo', 'hii', 'hiii', 'salam', 'slm', 'assalam', 'assalam-o-alaikum', 'assalamualaikum', 'aoa', 'a.o.a', 'options', 'features', 'help', 'start', '0', 'hey', 'heyy', 'heyyy', 'good morning', 'good evening', 'info', 'sir', 'madam', 'hy', 'hyy', 'hlw', 'hlloo', 'hlo', 'ao', 'aoa', 'assalamwalkum', 'asslamualaikum', 'walaikumsalam', 'wsalam', 'wslm'];
   // Also detect typos/variations using fuzzy match: starts with 'hel', 'hll', 'helo', 'sal'
   const isFuzzyGreeting = lower.startsWith('hel') || lower.startsWith('hll') || lower.startsWith('helo') || lower.startsWith('sal') || lower.startsWith('hy') || lower.startsWith('hw');
@@ -704,33 +767,6 @@ async function handleAIBotReply(schoolId, senderPhone, queryText) {
       pendingVerifications.delete(cleanSender); // clear pending state on menu request
     }
     return buildSchoolMenuText(dynamicSchoolName);
-  }
-
-  // --- 2. SECURITY AUTHENTICATION: Check if sender phone matches real student in Firestore or verified cache ---
-  let verifiedStudent = null;
-  if (verifiedSenders.has(cleanSender)) {
-    const cached = verifiedSenders.get(cleanSender);
-    if (Date.now() - cached.verifiedAt < 86400000 * 7) { // 7 days verification validity
-      verifiedStudent = cached.student;
-    } else {
-      verifiedSenders.delete(cleanSender);
-    }
-  }
-
-  // If not in cache, check if cleanSender matches any student phone number directly in real database
-  if (!verifiedStudent && db) {
-    try {
-      const snap = await db.collection('students').where('schoolId', '==', schoolId).get();
-      for (let doc of snap.docs) {
-        const st = { id: doc.id, ...doc.data() };
-        const stPhone = (st.phone || st.parentPhone || st.fatherPhone || st.whatsappNumber || '').toString().replace(/[^0-9]/g, '');
-        if (stPhone && (cleanSender.endsWith(stPhone) || stPhone.endsWith(cleanSender) || cleanSender.includes(stPhone))) {
-          verifiedStudent = st;
-          verifiedSenders.set(cleanSender, { student: st, verifiedAt: Date.now() });
-          break;
-        }
-      }
-    } catch (e) {}
   }
 
   // --- 3. ROLL NUMBER / ID MANUAL SECURITY VERIFICATION HANDLER ---

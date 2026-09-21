@@ -119,6 +119,11 @@ service cloud.firestore {
       allow create, update, delete: if isSuperAdmin() || isSchoolStaff(request.resource.data.schoolId) || isSchoolStaff(resource.data.schoolId);
     }
 
+    match /examMasterFiles/{docId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || belongsToSchool(resource.data.schoolId));
+      allow create, update, delete: if isSuperAdmin() || isSchoolStaff(request.resource.data.schoolId) || isSchoolStaff(resource.data.schoolId);
+    }
+
     match /exam_subjects/{docId} { 
       allow read: if isSignedIn() && (isSuperAdmin() || belongsToSchool(resource.data.schoolId));
       allow create, update, delete: if isSuperAdmin() || isSchoolStaff(request.resource.data.schoolId) || isSchoolStaff(resource.data.schoolId);
@@ -214,6 +219,10 @@ service cloud.firestore {
     match /demoRequests/{docId} {
       allow create: if true;
       allow read, delete: if isSuperAdmin();
+    }
+    match /featureVideos/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSuperAdmin();
     }
     match /plans/{docId} { allow read: if isSignedIn(); allow write: if isSuperAdmin(); }
     match /saas_recharge_requests/{docId} { allow read, write: if isSignedIn(); }

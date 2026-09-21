@@ -50,7 +50,8 @@ export const LAYOUTS = {
   college: 'Classic College (FSc)',
   smart: 'Smart Scholar (NADRA)',
   uni: 'University/College Standard',
-  tech: 'Institute of Technology'
+  tech: 'Institute of Technology',
+  custom: 'Custom Canva Design'
 };
 
 // Internal Renderers
@@ -116,7 +117,7 @@ const renderPortraitCard = (st, isPrint, settings) => {
              <span className="text-[7.5px] font-black text-gray-800 leading-none block">{st.phone || st.contact || 'N/A'}</span>
           </div>
           <div className="bg-white p-0.5 rounded shadow-sm border border-gray-200">
-             <QRCode value={st.registrationNo || st.id || 'UNKNOWN'} size={32} />
+             {(st.rollNo || st.rollNumber) ? <QRCode value={String(st.rollNo || st.rollNumber)} size={32} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[8px] border border-dashed border-red-500">NO ROLL NO</div>}
           </div>
         </div>
 
@@ -201,7 +202,7 @@ const renderLandscapeCard = (st, isPrint, settings) => {
 
           <div className="w-[60px] flex flex-col items-center justify-between border-l border-gray-100 pl-2">
             <div className="bg-white p-0.5 rounded shadow-sm border border-gray-200">
-              <QRCode value={st.registrationNo || st.id || 'UNKNOWN'} size={45} />
+              {(st.rollNo || st.rollNumber) ? <QRCode value={String(st.rollNo || st.rollNumber)} size={45} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[8px] border border-dashed border-red-500">NO ROLL NO</div>}
             </div>
             
             <div className="text-center w-full relative mt-2">
@@ -260,7 +261,7 @@ const renderMinimalCard = (st, isPrint, settings) => {
 
         <div className="mt-auto pt-4 flex flex-col items-center justify-center">
           <div className="p-1 bg-white rounded shadow-sm border border-gray-100 mb-2">
-            <QRCode value={st.registrationNo || st.id || 'UNKNOWN'} size={50} />
+            {(st.rollNo || st.rollNumber) ? <QRCode value={String(st.rollNo || st.rollNumber)} size={50} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[8px] border border-dashed border-red-500">NO ROLL NO</div>}
           </div>
           <span className="text-[7px] font-mono text-gray-400 tracking-widest">
             ID: {st.registrationNo || st.id}
@@ -377,7 +378,7 @@ const renderEliteCard = (st, isPrint, settings) => {
 
       <div className={`w-[60px] ${activeTheme.bg} p-2 flex flex-col items-center justify-center`}>
          <div className="bg-white p-1 rounded-md mb-2">
-           <QRCode value={st.registrationNo || st.id || 'UNKNOWN'} size={38} />
+           {(st.rollNo || st.rollNumber) ? <QRCode value={String(st.rollNo || st.rollNumber)} size={38} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[8px] border border-dashed border-red-500">NO ROLL NO</div>}
          </div>
          <span className="text-[7px] text-white/90 font-bold tracking-widest" style={{writingMode: 'vertical-rl', transform: 'rotate(180deg)'}}>STUDENT</span>
       </div>
@@ -527,7 +528,7 @@ const renderSmartScholarCard = (st, isPrint, settings) => {
               )}
             </div>
             <div className="bg-white p-0.5 rounded-sm border border-gray-200 mt-1">
-              <QRCode value={st.registrationNo || st.id || 'UNKNOWN'} size={32} />
+              {(st.rollNo || st.rollNumber) ? <QRCode value={String(st.rollNo || st.rollNumber)} size={32} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[8px] border border-dashed border-red-500">NO ROLL NO</div>}
             </div>
          </div>
          <div className="flex-1 flex flex-col">
@@ -644,7 +645,7 @@ const renderUniCard = (st, isPrint, settings) => {
 
       <div className="p-3 border-t-2 border-gray-800 flex justify-between items-end bg-gray-50 relative mt-2">
          <div className="bg-white p-1 border border-gray-300 rounded shadow-sm">
-           <QRCode value={st.registrationNo || st.rollNo || st.id || 'UNKNOWN'} size={32} />
+           {(st.rollNo || st.rollNumber) ? <QRCode value={String(st.rollNo || st.rollNumber)} size={32} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[8px] border border-dashed border-red-500">NO ROLL NO</div>}
            <div className="text-[5px] text-center text-gray-500 font-mono mt-0.5 truncate max-w-[32px]">ID:{st.rollNo || st.rollNumber || '000'}</div>
          </div>
          
@@ -755,7 +756,7 @@ const renderTechCard = (st, isPrint, settings) => {
                <div className="w-[3px] h-4 bg-[#1e3a8a]"></div>
                <div className="w-[1px] h-4 bg-[#1e3a8a]"></div>
              </div>
-             <QRCode value={st.registrationNo || st.id || 'UNKNOWN'} size={28} fgColor="#1e3a8a" />
+             {(st.rollNo || st.rollNumber) ? <QRCode value={String(st.rollNo || st.rollNumber)} size={28} fgColor="#1e3a8a" /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[8px] border border-dashed border-red-500">NO ROLL NO</div>}
            </div>
          </div>
          <div className="text-center w-[60px] relative">
@@ -769,8 +770,90 @@ const renderTechCard = (st, isPrint, settings) => {
   );
 };
 
+export const renderCustomCard = (st, isPrint, settings) => {
+  const { customTemplate } = settings;
+  if (!customTemplate) return renderPortraitCard(st, isPrint, settings);
+
+  const scale = isPrint ? 'scale-[0.95]' : '';
+  const scaleRatio = isPrint ? 0.95 : 1;
+  const widthStr = `${customTemplate.width}px`;
+  const heightStr = `${customTemplate.height}px`;
+
+  return (
+    <div 
+      key={st.id} 
+      className={`relative group rounded-[18px] shadow-xl overflow-hidden print-card-break select-text text-black font-sans mx-auto ${scale}`}
+      style={{
+        width: widthStr,
+        height: heightStr,
+        backgroundColor: customTemplate.backgroundColor,
+        border: '1px solid #e5e7eb'
+      }}
+    >
+      {/* Background Image Watermark */}
+      {customTemplate.backgroundImage && (
+        <div 
+          className="absolute inset-0 z-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${customTemplate.backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: (customTemplate.backgroundOpacity || 100) / 100
+          }}
+        />
+      )}
+
+      {customTemplate.elements.map(el => {
+        let content = null;
+        if (el.type === 'profilePhoto') {
+          content = st.profilePhoto || st.photoUrl ? (
+            <img src={st.profilePhoto || st.photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+             <svg style={{ width: '100%', height: '100%', color: '#d1d5db' }} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+            </svg>
+          );
+        } else if (el.type === 'qrCode') {
+          content = (st.rollNo || st.rollNumber) ? <QRCode value={String(st.rollNo || st.rollNumber)} size={el.width} fgColor={el.color || '#000000'} bgColor={el.backgroundColor === 'transparent' ? '#ffffff' : (el.backgroundColor || '#ffffff')} style={{ width: '100%', height: '100%' }} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[8px] border border-dashed border-red-500">NO ROLL NO</div>;
+        } else if (el.type === 'dynamicText') {
+          content = st[el.field] || 'N/A';
+        } else {
+          content = el.text;
+        }
+
+        return (
+          <div
+            key={el.id}
+            style={{
+              position: 'absolute',
+              left: el.x,
+              top: el.y,
+              width: el.width,
+              height: el.height,
+              fontSize: `${el.fontSize}px`,
+              color: el.color,
+              fontWeight: el.fontWeight,
+              textAlign: el.textAlign,
+              backgroundColor: el.backgroundColor,
+              borderRadius: el.borderRadius,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: el.textAlign === 'center' ? 'center' : 'flex-start',
+              overflow: 'hidden',
+              padding: '0 4px'
+            }}
+          >
+            {content}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const renderCard = (st, settings, isPrint = false) => {
   const { cardLayout } = settings;
+  if (cardLayout === 'custom') return renderCustomCard(st, isPrint, settings);
   if (cardLayout === 'landscape') return renderLandscapeCard(st, isPrint, settings);
   if (cardLayout === 'minimal') return renderMinimalCard(st, isPrint, settings);
   if (cardLayout === 'govt') return renderGovtCard(st, isPrint, settings);
@@ -782,3 +865,6 @@ export const renderCard = (st, settings, isPrint = false) => {
   if (cardLayout === 'tech') return renderTechCard(st, isPrint, settings);
   return renderPortraitCard(st, isPrint, settings);
 };
+
+
+

@@ -4,6 +4,7 @@ import {
   Clock, User, CheckSquare, Square, Share2, QrCode, Sparkles, 
   RefreshCw, CheckCircle2, ShieldCheck, Filter, Layers, X
 } from 'lucide-react';
+import FeatureVideoBtn from '../../../components/common/FeatureVideoBtn';
 import { useAuth } from '../../../context/AuthContext';
 import { useSchool } from '../../../context/SchoolContext';
 import { getRecords } from '../../../services/db';
@@ -128,7 +129,14 @@ const AdmitCards = () => {
     );
 
     if (found && Array.isArray(found.subjects) && found.subjects.length > 0) {
-      setSubjectRows(found.subjects.filter(s => s.included));
+      const activeSubjects = found.subjects.filter(s => s.included);
+      // Sort subjects chronologically by examDate
+      activeSubjects.sort((a, b) => {
+        if (!a.examDate) return 1;
+        if (!b.examDate) return -1;
+        return new Date(a.examDate) - new Date(b.examDate);
+      });
+      setSubjectRows(activeSubjects);
     } else {
       setSubjectRows(DEFAULT_SUBJECTS_LIST.map((name, i) => {
         const dummyDate = new Date(2025, 9, 7 + i * 2);
@@ -181,8 +189,9 @@ const AdmitCards = () => {
       {/* Top Header Controls (Hidden during print) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 print:hidden">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black text-[#0070f3] tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-black text-[#0070f3] tracking-tight flex items-center gap-3">
             Student Admit Cards Generator
+            <FeatureVideoBtn featureId="admit-cards" />
           </h1>
           <p className="text-xs md:text-sm text-gray-500 font-medium mt-0.5">
             Generate and print official examination roll number slips with school watermark
@@ -284,7 +293,7 @@ const AdmitCards = () => {
           No student records found for Class {selectedClass}.
         </div>
       ) : (
-        <div ref={printRef} className="space-y-8">
+        <div ref={printRef} className="space-y-8 printable-report-area">
           {filteredStudents
             .filter(s => selectedStudentForAdmitCard === 'ALL' || s.id === selectedStudentForAdmitCard)
             .map((student, idx) => {
@@ -293,7 +302,7 @@ const AdmitCards = () => {
               return (
                 <div 
                   key={idx} 
-                  className="relative overflow-hidden bg-white border-[3px] border-black p-1 max-w-3xl mx-auto shadow-xl print:shadow-none print:page-break-after print:border-[3px] print:border-black"
+                  className="relative overflow-hidden bg-white border-[3px] border-black p-1 max-w-3xl mx-auto shadow-xl mb-8 print:mb-8 print:shadow-none print:break-inside-avoid print:border-[3px] print:border-black"
                   style={{ fontFamily: 'Times New Roman, Georgia, serif' }}
                 >
                   {/* Inner Border Box */}

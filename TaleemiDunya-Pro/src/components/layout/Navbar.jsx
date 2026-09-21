@@ -10,7 +10,7 @@ import GlobalSearchModal from '../common/GlobalSearchModal';
 const Navbar = ({ toggleSidebar }) => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
-  const { theme, setTheme, THEME_OPTIONS } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -87,9 +87,9 @@ const Navbar = ({ toggleSidebar }) => {
               TaleemiDunya
             </h1>
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-[9px] font-black tracking-wider flex items-center gap-1 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping" />
-                v2.5.0 PRO • AI CLOUD SYNC & OFFLINE READY
+              <span className="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-[9px] font-black tracking-wider flex items-center gap-1 shadow-sm max-w-[120px] sm:max-w-none truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping shrink-0" />
+                <span className="truncate">v2.5.0 PRO <span className="hidden sm:inline">• AI CLOUD SYNC & OFFLINE READY</span></span>
               </span>
               <span className="text-[9px] text-dark-muted font-bold uppercase tracking-widest hidden sm:inline">
                 • {userData?.role === 'super-admin' ? 'Super Admin' : 'School Admin'}
@@ -124,9 +124,9 @@ const Navbar = ({ toggleSidebar }) => {
               title="Quick Action Shortcuts (Inquiry, Attendance, Fees, Reports)"
               className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-primary-500/20 to-purple-500/20 hover:from-primary-500/30 hover:to-purple-500/30 border border-primary-500/40 text-primary-300 hover:text-white transition-all duration-300 shadow-sm flex items-center gap-1.5 cursor-pointer font-bold text-xs shrink-0"
             >
-              <Zap size={15} className="text-amber-400 animate-bounce" />
-              <span>⚡ Shortcuts</span>
-              <ChevronDown size={14} className={`transition-transform duration-200 ${isShortcutsOpen ? 'rotate-180' : ''}`} />
+              <Zap size={15} className="text-amber-400 animate-bounce shrink-0" />
+              <span className="hidden sm:inline">⚡ Shortcuts</span>
+              <ChevronDown size={14} className={`transition-transform duration-200 shrink-0 ${isShortcutsOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {isShortcutsOpen && (
@@ -173,54 +173,14 @@ const Navbar = ({ toggleSidebar }) => {
           <span className="hidden sm:inline">{uiZoom === '90' ? '90% Sleek' : uiZoom === '85' ? '85% Compact' : '100% Norm'}</span>
         </button>
 
-        {/* Multi-Theme Selector Dropdown (4 Light Themes + Dark Mode) */}
-        <div className="relative" ref={themeRef}>
-          <button
-            onClick={() => setIsThemeOpen(!isThemeOpen)}
-            title="Change Theme Palette (4 Executive Light Themes + Dark Mode)"
-            className="p-2.5 rounded-xl bg-dark-card border border-dark-border text-dark-muted hover:text-primary-500 hover:border-primary-500/50 transition-all duration-300 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-          >
-            <Palette size={18} className="text-primary-500" />
-            <ChevronDown size={13} className={`transition-transform duration-200 ${isThemeOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {isThemeOpen && (
-            <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-dark-card border border-dark-border shadow-2xl backdrop-blur-xl p-3 z-[9999] animate-fade-in space-y-2">
-              <div className="flex items-center justify-between px-2 pb-2 border-b border-dark-border text-xs font-bold text-dark-text">
-                <span className="flex items-center gap-1.5"><Palette size={14} className="text-primary-500" /> Theme Color Palette</span>
-                <span className="text-[10px] font-mono text-dark-muted uppercase font-semibold">5 Themes</span>
-              </div>
-              <div className="grid grid-cols-1 gap-1">
-                {THEME_OPTIONS?.map((item) => {
-                  const isActive = theme === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setTheme(item.id);
-                        setIsThemeOpen(false);
-                      }}
-                      className={`w-full text-left p-2 rounded-xl border transition-all flex items-center justify-between group cursor-pointer ${
-                        isActive 
-                          ? 'bg-primary-500/10 border-primary-500/50 text-primary-500 font-bold' 
-                          : 'bg-transparent border-transparent hover:bg-dark-hover text-dark-text font-medium'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex items-center -space-x-1 shrink-0">
-                          <span className="w-4 h-4 rounded-full border border-black/20 shadow-sm" style={{ backgroundColor: item.primary }} />
-                          <span className="w-3.5 h-3.5 rounded-full border border-black/20 shadow-sm" style={{ backgroundColor: item.accent }} />
-                        </div>
-                        <span className="text-xs truncate">{item.name}</span>
-                      </div>
-                      {isActive && <Check size={14} className="text-primary-500 shrink-0" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Light/Dark Mode Toggle */}
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          className="p-2.5 rounded-xl bg-dark-card border border-dark-border text-dark-muted hover:text-primary-500 hover:border-primary-500/50 transition-all duration-300 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
 
         <button className="relative p-2 text-dark-muted hover:text-white transition-colors shrink-0">
           <Bell size={22} />

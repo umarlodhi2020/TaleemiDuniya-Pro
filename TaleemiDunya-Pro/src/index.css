@@ -101,139 +101,7 @@ html.light-mode body {
   color: #0f172a !important;
 }
 
-/* --- THEME 1: ROYAL INDIGO & EMERALD (RECOMMENDED) --- */
-html.theme-royal,
-html[data-theme="royal"] {
-  --color-primary-300: #a5b4fc !important;
-  --color-primary-400: #818cf8 !important;
-  --color-primary-500: #4f46e5 !important;
-  --color-primary-600: #4338ca !important;
-  --color-primary-700: #3730a3 !important;
-  --color-secondary-500: #10b981 !important;
-  --background-image-premium-gradient: linear-gradient(135deg, #4f46e5 0%, #10b981 100%) !important;
-}
-html.theme-royal aside,
-html[data-theme="royal"] aside {
-  background-color: #0f172a !important;
-  border-right: 1px solid #1e293b !important;
-}
-html.theme-royal aside .sidebar-item-active,
-html[data-theme="royal"] aside .sidebar-item-active {
-  background-color: #4f46e5 !important;
-  color: #ffffff !important;
-  border-left: none !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4) !important;
-}
-html.theme-royal aside .sidebar-item-active * {
-  color: #ffffff !important;
-}
-
-/* --- THEME 2: OCEAN BLUE & CYAN --- */
-html.theme-ocean,
-html[data-theme="ocean"] {
-  --color-primary-300: #7dd3fc !important;
-  --color-primary-400: #38bdf8 !important;
-  --color-primary-500: #0284c7 !important;
-  --color-primary-600: #0369a1 !important;
-  --color-primary-700: #075985 !important;
-  --color-secondary-500: #06b6d4 !important;
-  --background-image-premium-gradient: linear-gradient(135deg, #0284c7 0%, #06b6d4 100%) !important;
-}
-html.theme-ocean aside,
-html[data-theme="ocean"] aside {
-  background-color: #ffffff !important;
-  border-right: 1px solid #e2e8f0 !important;
-  box-shadow: 1px 0 6px rgba(0, 0, 0, 0.04) !important;
-}
-html.theme-ocean aside .text-white,
-html.theme-ocean aside h2 {
-  color: #0f172a !important;
-}
-html.theme-ocean aside .text-dark-muted {
-  color: #64748b !important;
-}
-html.theme-ocean aside .sidebar-item {
-  color: #475569 !important;
-}
-html.theme-ocean aside .sidebar-item:hover {
-  background-color: #f1f5f9 !important;
-  color: #0f172a !important;
-}
-html.theme-ocean aside .sidebar-item-active,
-html[data-theme="ocean"] aside .sidebar-item-active {
-  background-color: #0284c7 !important;
-  color: #ffffff !important;
-  border-left: none !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4) !important;
-}
-html.theme-ocean aside .sidebar-item-active * {
-  color: #ffffff !important;
-}
-
-/* --- THEME 3: CLASSIC ACADEMIC SAPPHIRE & GOLD --- */
-html.theme-academic,
-html[data-theme="academic"] {
-  --color-primary-300: #93c5fd !important;
-  --color-primary-400: #60a5fa !important;
-  --color-primary-500: #1e3a8a !important;
-  --color-primary-600: #1e40af !important;
-  --color-primary-700: #172554 !important;
-  --color-secondary-500: #f59e0b !important;
-  --background-image-premium-gradient: linear-gradient(135deg, #1e3a8a 0%, #f59e0b 100%) !important;
-}
-html.theme-academic aside,
-html[data-theme="academic"] aside {
-  background-color: #172554 !important;
-  border-right: 1px solid #1e40af !important;
-}
-html.theme-academic aside .text-dark-muted {
-  color: #93c5fd !important;
-}
-html.theme-academic aside .sidebar-item-active,
-html[data-theme="academic"] aside .sidebar-item-active {
-  background-color: #f59e0b !important;
-  color: #0f172a !important;
-  font-weight: 800 !important;
-  border-left: none !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.45) !important;
-}
-html.theme-academic aside .sidebar-item-active * {
-  color: #0f172a !important;
-}
-
-/* --- THEME 4: TEAL & MINT CAMPUS --- */
-html.theme-teal,
-html[data-theme="teal"] {
-  --color-primary-300: #5eead4 !important;
-  --color-primary-400: #2dd4bf !important;
-  --color-primary-500: #0d9488 !important;
-  --color-primary-600: #0f766e !important;
-  --color-primary-700: #115e59 !important;
-  --color-secondary-500: #10b981 !important;
-  --background-image-premium-gradient: linear-gradient(135deg, #0d9488 0%, #10b981 100%) !important;
-}
-html.theme-teal aside,
-html[data-theme="teal"] aside {
-  background-color: #134e4a !important;
-  border-right: 1px solid #115e59 !important;
-}
-html.theme-teal aside .text-dark-muted {
-  color: #99f6e4 !important;
-}
-html.theme-teal aside .sidebar-item-active,
-html[data-theme="teal"] aside .sidebar-item-active {
-  background-color: #0d9488 !important;
-  color: #ffffff !important;
-  border-left: none !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4) !important;
-}
-html.theme-teal aside .sidebar-item-active * {
-  color: #ffffff !important;
-}
+/* MULTI-THEME ENGINE REMOVED: Now using standard Light / Dark mode */
 
 /* --- MIDNIGHT DARK MODE --- */
 html.dark-mode,
@@ -260,6 +128,18 @@ html[data-theme="dark"] body {
   color: #fafafa !important;
 }
 
+/* === GLOBAL TEXT ADJUSTMENTS FOR LIGHT MODE === */
+html.light-mode .text-dark-muted {
+  color: #475569 !important; /* Slate 600 for better readability on white */
+}
+html.light-mode .text-primary-300,
+html.light-mode .text-primary-400 {
+  color: var(--color-primary-600) !important; /* Pastel colors look invisible on white, force them darker */
+}
+html.light-mode .bg-primary-500\/10 {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+}
+
 /* === HEADER / NAVBAR === */
 html.light-mode header {
   background: #ffffff !important;
@@ -276,12 +156,12 @@ html.light-mode header button:not(.bg-primary-500) { color: #64748b !important; 
 html.light-mode header button:hover { color: #0f172a !important; }
 html.light-mode header .bg-dark-card { background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; }
 
-/* === SIDEBAR (Executive Contrast) === */
+/* === SIDEBAR (Clean White per Photo 2) === */
 html.light-mode aside,
 html.light-mode div.fixed.z-40.w-56 {
-  background-color: #0f172a !important;
-  border-right: 1px solid #1e293b !important;
-  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.05) !important;
+  background-color: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: 1px 0 6px rgba(0, 0, 0, 0.03) !important;
 }
 html.light-mode aside .bg-dark-card,
 html.light-mode aside [class*="bg-dark-card"],
@@ -291,26 +171,40 @@ html.light-mode div.fixed.z-40.w-56 [class*="bg-dark-card"] {
 }
 html.light-mode aside .text-dark-muted,
 html.light-mode div.fixed.z-40.w-56 .text-dark-muted { 
-  color: #94a3b8 !important; 
+  color: #64748b !important; 
 }
 html.light-mode aside .text-white,
-html.light-mode div.fixed.z-40.w-56 .text-white { 
-  color: #ffffff !important; 
+html.light-mode div.fixed.z-40.w-56 .text-white,
+html.light-mode aside h2 { 
+  color: #0f172a !important; 
+}
+html.light-mode aside [class*="bg-gradient"] .text-white,
+html.light-mode aside .bg-emerald-500 {
+  color: #ffffff !important;
+}
+html.light-mode aside .text-cyan-400 {
+  color: #0284c7 !important;
+}
+html.light-mode aside .text-gray-300 {
+  color: #475569 !important;
+}
+html.light-mode aside .sidebar-item {
+  color: #475569 !important;
 }
 html.light-mode aside .sidebar-item-active,
 html.light-mode aside .sidebar-item-active *,
 html.light-mode div.fixed.z-40.w-56 .sidebar-item-active,
 html.light-mode div.fixed.z-40.w-56 .sidebar-item-active * { 
-  background-color: rgba(79, 70, 229, 0.15) !important; 
-  color: var(--color-primary-400) !important; 
-  border-left: 3px solid var(--color-primary-500) !important;
-  border-right: none !important;
-  border-radius: 0.5rem !important;
-}
-html.light-mode aside .sidebar-item:hover,
-html.light-mode div.fixed.z-40.w-56 .sidebar-item:hover { 
-  background-color: rgba(255, 255, 255, 0.07) !important; 
+  background-color: var(--color-primary-500) !important; 
   color: #ffffff !important; 
+  border-left: none !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35) !important;
+}
+html.light-mode aside .sidebar-item:hover:not(.sidebar-item-active),
+html.light-mode div.fixed.z-40.w-56 .sidebar-item:hover:not(.sidebar-item-active) { 
+  background-color: #f1f5f9 !important; 
+  color: #0f172a !important; 
 }
 
 /* === MAIN BACKGROUND & CONTAINERS === */
@@ -325,6 +219,11 @@ html.light-mode .bg-dark-card {
 }
 
 /* === TEXT & CARDS === */
+html.light-mode .from-white.bg-clip-text {
+  --tw-gradient-from: #0f172a !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+
 html.light-mode .glass-card .text-white,
 html.light-mode .bg-dark-card .text-white,
 html.light-mode main .text-white { color: #0f172a !important; }
@@ -528,7 +427,7 @@ html.light-mode header .absolute .border-dark-border {
    ========================================================================== */
 @media print {
   @page {
-    size: A4 landscape;
+    size: A4 portrait;
     margin: 8mm;
   }
 
@@ -601,6 +500,15 @@ html.light-mode header .absolute .border-dark-border {
     color: #000000 !important;
     padding: 4px 6px !important;
     font-size: 11px !important;
+  }
+
+  .printable-report-area .bg-black,
+  .printable-report-area .bg-black th,
+  .printable-report-area .bg-black td {
+    background-color: #000000 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .printable-report-area .bg-\[\#c6d9f1\] {

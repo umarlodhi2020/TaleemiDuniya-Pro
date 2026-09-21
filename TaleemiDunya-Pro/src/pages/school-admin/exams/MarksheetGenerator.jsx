@@ -222,34 +222,65 @@ const MarksheetGenerator = () => {
 
   // Helper: Extract active subjects for a given class and specific term name
   const getActiveSubjectsForTerm = (targetTermName) => {
-    const mDoc = masterFiles.find(m => {
-      const mClass = String(m.className || m.class || '').trim().toLowerCase();
-      const sClass = String(selectedClass || '').trim().toLowerCase();
-      const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
-      const sTerm = String(targetTermName || '').trim().toLowerCase();
-      return (mClass === sClass || mClass.includes(sClass) || sClass.includes(mClass)) &&
-             (mTerm === sTerm || mTerm.includes(sTerm) || sTerm.includes(mTerm));
+    const targetCls = String(selectedClass || '').trim().toLowerCase();
+    const targetT = String(targetTermName || '').trim().toLowerCase();
+    
+    // Find all student IDs that belong to the selected class
+    const classStudentIds = students
+       .filter(s => {
+          const sClass = String(s.class || s.className || '').trim().toLowerCase();
+          return sClass === targetCls;
+       })
+       .map(s => s.id);
+
+    // 1. Fetch valid results for this class
+    const resForClass = results.filter(r => {
+      const rTerm = String(r.examName || r.term || '').trim().toLowerCase();
+      const termMatches = (!rTerm || rTerm === targetT || rTerm.includes(targetT));
+      
+      const rCls = String(r.class || r.className || '').trim().toLowerCase();
+      // Only include if it explicitly matches class, OR if it belongs to a student in this class
+      const classMatches = rCls === targetCls || rCls.includes(targetCls) || classStudentIds.includes(r.studentId);
+      
+      return termMatches && classMatches;
     });
 
-    if (mDoc?.subjectRows?.length > 0) {
-      return mDoc.subjectRows.map(s => ({
+    // 2. Try to get subjects from master file
+    const mDoc = masterFiles.find(m => {
+      const mClass = String(m.className || m.class || '').trim().toLowerCase();
+      const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
+      return (mClass === targetCls || mClass.includes(targetCls) || targetCls.includes(mClass)) &&
+             (mTerm === targetT || mTerm.includes(targetT) || targetT.includes(mTerm));
+    });
+
+    if (mDoc?.subjects?.length > 0) {
+      return mDoc.subjects.map(s => ({
         name: s.subjectName || s.name,
         totalMarks: Number(s.totalMarks || s.maxMarks || 25),
         passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || 25) * 0.33))
       }));
     }
 
+    // 3. Try to get subjects from Exam definition
     const ex = exams.find(e => {
       const eName = String(e.examName || e.title || e.name || e.id || '').trim().toLowerCase();
-      const sTerm = String(targetTermName || '').trim().toLowerCase();
-      return eName === sTerm || eName.includes(sTerm) || sTerm.includes(eName);
+      return eName === targetT || eName.includes(targetT) || targetT.includes(eName);
     });
 
     if (ex?.subjects?.length > 0) {
       const classSubjs = ex.subjects.filter(s => {
         const sCls = String(s.classId || s.className || '').trim().toLowerCase();
-        const targetCls = String(selectedClass || '').trim().toLowerCase();
-        return !sCls || sCls === targetCls || sCls.includes(targetCls) || targetCls.includes(sCls);
+        
+        if (sCls === targetCls || sCls.includes(targetCls) || targetCls.includes(sCls)) return true;
+        
+        if (!sCls) {
+           const sName = String(s.subjectName || s.name || '').trim().toLowerCase();
+           return resForClass.some(r => {
+             const rName = String(r.subject || r.subjectName || '').trim().toLowerCase();
+             return rName === sName;
+           });
+        }
+        return false;
       });
       if (classSubjs.length > 0) {
         return classSubjs.map(s => ({
@@ -260,15 +291,7 @@ const MarksheetGenerator = () => {
       }
     }
 
-    const resForClass = results.filter(r => {
-      const rCls = String(r.class || r.className || '').trim().toLowerCase();
-      const targetCls = String(selectedClass || '').trim().toLowerCase();
-      const rTerm = String(r.examName || r.term || '').trim().toLowerCase();
-      const targetT = String(targetTermName || '').trim().toLowerCase();
-      return (!rCls || rCls === targetCls || rCls.includes(targetCls)) &&
-             (!rTerm || rTerm === targetT || rTerm.includes(targetT));
-    });
-
+    // 4. Fallback to extracting from results
     const resSubjNames = Array.from(new Set(resForClass.map(r => r.subject || r.subjectName).filter(Boolean)));
     if (resSubjNames.length > 0) {
       return resSubjNames.map(name => {
@@ -279,6 +302,7 @@ const MarksheetGenerator = () => {
       });
     }
 
+    // 5. Hardcoded fallback
     return [
       { name: 'Drawing', totalMarks: 25, passMarks: 8 },
       { name: 'English', totalMarks: 25, passMarks: 8 },

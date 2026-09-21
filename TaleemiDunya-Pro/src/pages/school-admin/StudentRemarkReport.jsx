@@ -490,40 +490,39 @@ const StudentRemarkReport = () => {
           REPORT DISPLAY AREA (A4 Printable Preview & Print Target)
          ═══════════════════════════════════════════════════════ */}
       {!loading && (
-        <div className="printable-report text-slate-900 bg-white p-6 sm:p-10 rounded-2xl shadow-xl border border-slate-200 max-w-4xl mx-auto print:max-w-none print:w-full print:p-0 print:border-none print:shadow-none font-sans">
+        <div className="printable-report-area text-slate-900 bg-white p-6 sm:p-10 rounded-2xl shadow-xl border border-slate-200 max-w-4xl mx-auto print:max-w-none print:w-full print:p-0 print:border-none print:shadow-none font-sans">
           
           {/* TAB 1: CLASS-WISE PRINTABLE REPORT */}
           {activeTab === 'class' && selectedClass && classStudents.length > 0 && (
             <div className="space-y-6">
               {/* Document School Header */}
               <div className="border-b-2 border-slate-900 pb-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    {schoolData?.branding?.logo || schoolData?.logo ? (
-                      <img 
-                        src={schoolData.branding?.logo || schoolData.logo} 
-                        alt="School Logo" 
-                        className="w-16 h-16 object-contain shrink-0" 
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-2xl shrink-0">
-                        TD
-                      </div>
-                    )}
-                    <div>
-                      <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 uppercase">
-                        {schoolData?.name || 'Taleemi Duniya School'}
-                      </h1>
-                      <p className="text-xs text-slate-600 font-medium mt-0.5">
-                        {schoolData?.address || 'Main Campus, Pakistan'} {schoolData?.phone ? `| Ph: ${schoolData.phone}` : ''}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-right shrink-0">
+                <div className="flex flex-col items-center justify-center text-center relative">
+                  {/* Tag positioned absolutely to right so it doesn't affect centering */}
+                  <div className="absolute right-0 top-0 hidden sm:block">
                     <span className="inline-block bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider px-3 py-1 rounded">
                       Hardcopy PTM Sheet
                     </span>
+                  </div>
+
+                  {schoolData?.branding?.logo || schoolData?.logo ? (
+                    <img 
+                      src={schoolData.branding?.logo || schoolData.logo} 
+                      alt="School Logo" 
+                      className="w-20 h-20 object-contain shrink-0 mb-2" 
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-2xl shrink-0 mb-2">
+                      TD
+                    </div>
+                  )}
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 uppercase">
+                      {schoolData?.name || 'Taleemi Duniya School'}
+                    </h1>
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">
+                      {schoolData?.address || 'Main Campus, Pakistan'} {schoolData?.phone ? `| Ph: ${schoolData.phone}` : ''}
+                    </p>
                   </div>
                 </div>
 
@@ -623,33 +622,31 @@ const StudentRemarkReport = () => {
             <div className="space-y-6">
               {/* Document Header */}
               <div className="border-b-2 border-slate-900 pb-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    {schoolData?.branding?.logo || schoolData?.logo ? (
-                      <img 
-                        src={schoolData.branding?.logo || schoolData.logo} 
-                        alt="School Logo" 
-                        className="w-16 h-16 object-contain shrink-0" 
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-2xl shrink-0">
-                        TD
-                      </div>
-                    )}
-                    <div>
-                      <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 uppercase">
-                        {schoolData?.name || 'Taleemi Duniya School'}
-                      </h1>
-                      <p className="text-xs text-slate-600 font-medium mt-0.5">
-                        {schoolData?.address || 'Main Campus, Pakistan'} {schoolData?.phone ? `| Ph: ${schoolData.phone}` : ''}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="text-right shrink-0">
+                <div className="flex flex-col items-center justify-center text-center relative">
+                  <div className="absolute right-0 top-0 hidden sm:block">
                     <span className="inline-block bg-slate-900 text-white font-extrabold text-[11px] uppercase tracking-wider px-3 py-1 rounded">
                       Consolidated Family Report
                     </span>
+                  </div>
+
+                  {schoolData?.branding?.logo || schoolData?.logo ? (
+                    <img 
+                      src={schoolData.branding?.logo || schoolData.logo} 
+                      alt="School Logo" 
+                      className="w-20 h-20 object-contain shrink-0 mb-2" 
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-2xl shrink-0 mb-2">
+                      TD
+                    </div>
+                  )}
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 uppercase">
+                      {schoolData?.name || 'Taleemi Duniya School'}
+                    </h1>
+                    <p className="text-xs text-slate-600 font-medium mt-0.5">
+                      {schoolData?.address || 'Main Campus, Pakistan'} {schoolData?.phone ? `| Ph: ${schoolData.phone}` : ''}
+                    </p>
                   </div>
                 </div>
 

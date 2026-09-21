@@ -12,6 +12,7 @@ import Checkout from './pages/public/Checkout';
 import PrivacyPolicy from './pages/public/PrivacyPolicy';
 import TermsOfService from './pages/public/TermsOfService';
 import PublicFamilyUpdate from './pages/public/PublicFamilyUpdate';
+import MobilePhotoCapture from './pages/public/MobilePhotoCapture';
 import Login from './pages/auth/Login';
 import SuperAdminSetup from './pages/auth/SuperAdminSetup';
 import SuperAdminDashboard from './pages/super-admin/Dashboard';
@@ -39,6 +40,7 @@ import ExamAnalytics from './pages/school-admin/ExamAnalytics';
 import ExamResultsDashboard from './pages/school-admin/ExamResultsDashboard';
 import GradingRules from './pages/school-admin/GradingRules';
 import FaceScannerApp from './pages/school-admin/FaceScannerApp';
+import QrScannerApp from './pages/school-admin/QrScannerApp';
 import SchoolWebsiteCMS from './pages/school-admin/SchoolWebsiteCMS';
 import ParentProfile from './pages/school-admin/ParentProfile';
 import StudentManager from './pages/school-admin/Students';
@@ -72,6 +74,7 @@ import CustomReportCard from './pages/school-admin/CustomReportCard';
 import ReportCardTemplates from './pages/school-admin/ReportCardTemplates';
 import TimetableBuilder from './pages/school-admin/TimetableBuilder';
 import StudentIdCards from './pages/school-admin/StudentIdCards';
+import IdCardDesigner from './pages/school-admin/IdCardDesigner';
 import ExpenseManager from './pages/school-admin/ExpenseManager';
 import ExamManagement from './pages/school-admin/exams/ExamManagement';
 import ExamMasterFile from './pages/school-admin/exams/ExamMasterFile';
@@ -142,6 +145,7 @@ import MultiBranchHub from './pages/school-admin/MultiBranchHub';
 import FranchiseManager from './pages/school-admin/FranchiseManager';
 import ComingSoon from './pages/school-admin/ComingSoon';
 import GlassCard from './components/common/GlassCard';
+import FeatureVideos from './pages/super-admin/FeatureVideos';
 
 const getRoleDashboard = (role) => {
   switch (role) {
@@ -248,6 +252,7 @@ const AppRoutes = () => {
         <Route path="revenue" element={<Revenue />} />
         <Route path="notifications" element={<NotificationsCenter />} />
         <Route path="support" element={<SupportCenter />} />
+        <Route path="feature-videos" element={<FeatureVideos />} />
         <Route path="settings" element={<SuperAdminSettings />} />
         <Route path="landing-page" element={<LandingPageCMS />} />
       </Route>
@@ -305,6 +310,7 @@ const AppRoutes = () => {
         <Route path="academics/live-classes" element={<LiveClasses />} />
         <Route path="academics/proxy-engine" element={<StaffSubstitution />} />
         <Route path="students/id-cards" element={<StudentIdCards />} />
+        <Route path="id-card-designer" element={<IdCardDesigner />} />
         <Route path="accounts/expenses" element={<ExpenseManager />} />
         <Route path="accounts/payroll" element={<PayrollManager />} />
         <Route path="accounts/payroll-reports" element={<PayrollReports />} />
@@ -363,6 +369,7 @@ const AppRoutes = () => {
         <Route path="security/cctv" element={<CCTVMonitoring />} />
         <Route path="cctv" element={<CCTVMonitoring />} />
         <Route path="face-scanner" element={<FaceScannerApp />} />
+        <Route path="qr-scanner" element={<QrScannerApp />} />
         <Route path="website-cms" element={<SchoolWebsiteCMS />} />
         <Route path="period-bell" element={<PeriodBell />} />
         <Route path="certificates" element={<CertificateGenerator />} />
@@ -442,6 +449,7 @@ const AppRoutes = () => {
 
       <Route path="/" element={isFirebaseHosting ? <Navigate to="/login" replace /> : <LandingPage />} />
       <Route path="/family-update/:schoolId/:phone" element={<PublicFamilyUpdate />} />
+      <Route path="/snap/:sessionId" element={<MobilePhotoCapture />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

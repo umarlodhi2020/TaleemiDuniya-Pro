@@ -27,7 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import { uploadStudentPhoto, getThumbnailUrl, markForDeletion } from '../../services/cloudinary';
 import Swal from 'sweetalert2';
 import QRCode from 'react-qr-code';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const AddStaff = () => {
@@ -38,6 +38,8 @@ const AddStaff = () => {
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [signatureFile, setSignatureFile] = useState(null);
+  const [signaturePreview, setSignaturePreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
@@ -74,6 +76,8 @@ const AddStaff = () => {
     address: '',
     photoUrl: '',
     photoPublicId: '',
+    signatureUrl: '',
+    signaturePublicId: '',
     // Teacher Assignment Fields
     assignedClass: '',
     assignedSection: '',
@@ -138,6 +142,8 @@ const AddStaff = () => {
               address: staffData.address || '',
               photoUrl: staffData.photoUrl || '',
               photoPublicId: staffData.photoPublicId || '',
+              signatureUrl: staffData.signatureUrl || '',
+              signaturePublicId: staffData.signaturePublicId || '',
               assignedClass: staffData.assignedClass || '',
               assignedSection: staffData.assignedSection || '',
               subjects: staffData.subjects || [],
@@ -147,6 +153,9 @@ const AddStaff = () => {
             if (staffData.subjects) setSubjectInput('');
             if (staffData.photoUrl) {
               setPhotoPreview(staffData.photoUrl);
+            }
+            if (staffData.signatureUrl) {
+              setSignaturePreview(staffData.signatureUrl);
             }
           }
         } catch (error) {
@@ -201,6 +210,26 @@ const AddStaff = () => {
     setPhotoPreview(formData.photoUrl || null);
   };
 
+  const handleSignatureSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (JPG, PNG)');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Image size must be under 2MB');
+      return;
+    }
+    setSignatureFile(file);
+    setSignaturePreview(URL.createObjectURL(file));
+  };
+
+  const removeSignature = () => {
+    setSignatureFile(null);
+    setSignaturePreview(formData.signatureUrl || null);
+  };
+
   const dataURLtoFile = (dataurl, filename) => {
     let arr = dataurl.split(','),
         mime = arr[0].match(/:(.*?);/)[1],
@@ -214,22 +243,36 @@ const AddStaff = () => {
   };
 
   const startMobileQRConnect = () => {
-    const newSessionId = 'snap_stf_' + Math.random().toString(36).substring(2, 10);
-    setQrSessionId(newSessionId);
-    setMobileConnected(false);
+    let session = localStorage.getItem('taleemi_qr_session');
+    if (!session) {
+      session = 'snap_' + Math.random().toString(36).substring(2, 10);
+      localStorage.setItem('taleemi_qr_session', session);
+      setMobileConnected(false);
+    } else {
+      setMobileConnected(true);
+    }
+    
+    setQrSessionId(session);
     setShowQRModal(true);
 
-    const unsub = onSnapshot(doc(db, 'photo_sessions', newSessionId), (snapshot) => {
+    const unsub = onSnapshot(doc(db, 'photo_sessions', session), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        if (data.status === 'connected') {
+        if (data.status === 'connected' || data.device_connected) {
           setMobileConnected(true);
-        } else if (data.status === 'captured' && data.photoData) {
+        }
+        if (data.status === 'completed' && data.photoData) {
           try {
             const file = dataURLtoFile(data.photoData, `mobile_capture_${Date.now()}.jpg`);
             setPhotoFile(file);
             setPhotoPreview(URL.createObjectURL(file));
             setShowQRModal(false);
+
+            updateDoc(doc(db, 'photo_sessions', session), {
+              status: 'connected',
+              photoData: null
+            }).catch(console.error);
+
             unsub();
           } catch (e) {
             console.error("Error converting photo data", e);
@@ -239,6 +282,13 @@ const AddStaff = () => {
     });
 
     return unsub;
+  };
+
+  const disconnectMobileQR = () => {
+    localStorage.removeItem('taleemi_qr_session');
+    setMobileConnected(false);
+    setQrSessionId('');
+    alert('Mobile camera disconnected.');
   };
 
   const handleSubmit = async (e) => {
@@ -269,6 +319,8 @@ const AddStaff = () => {
     setUploading(true);
     let finalPhotoUrl = formData.photoUrl;
     let finalPublicId = formData.photoPublicId;
+    let finalSignatureUrl = formData.signatureUrl;
+    let finalSignaturePublicId = formData.signaturePublicId;
 
     try {
       if (photoFile) {
@@ -284,6 +336,19 @@ const AddStaff = () => {
         } else {
           throw new Error('Image upload failed');
         }
+        setUploadProgress(45);
+      }
+
+      if (signatureFile) {
+        setUploadProgress(50);
+        const folder = `schools/${userData?.schoolId || 'default-school'}/staff_signatures`;
+        const uploadResult = await uploadStudentPhoto(signatureFile, folder);
+        if (uploadResult.secure_url) {
+          finalSignatureUrl = uploadResult.secure_url;
+          finalSignaturePublicId = uploadResult.public_id;
+        } else {
+          throw new Error('Signature upload failed');
+        }
         setUploadProgress(90);
       }
 
@@ -291,7 +356,9 @@ const AddStaff = () => {
         ...formData, 
         phone: sanitizedPhone,
         photoUrl: finalPhotoUrl,
-        photoPublicId: finalPublicId
+        photoPublicId: finalPublicId,
+        signatureUrl: finalSignatureUrl,
+        signaturePublicId: finalSignaturePublicId
       };
       
       let result;
@@ -1027,54 +1094,104 @@ const AddStaff = () => {
 
         <div className="space-y-6">
           <GlassCard className="p-8 text-center flex flex-col items-center relative overflow-hidden">
-            <h2 className="text-lg font-bold mb-6 w-full text-left">Staff Photo</h2>
+            <h2 className="text-lg font-bold mb-6 w-full text-left">Staff Photo & Signature</h2>
             
-            <div className="relative group">
-              <div className="w-32 h-32 rounded-full bg-dark-hover border-2 border-dashed border-dark-border flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-primary-500 transition-all">
-                {photoPreview ? (
-                  <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                ) : (
-                  <>
-                    <Camera size={32} className="text-dark-muted group-hover:text-primary-500 transition-all" />
-                    <span className="text-[10px] uppercase font-black tracking-widest text-dark-muted group-hover:text-primary-500">Upload</span>
-                  </>
-                )}
+            <div className="flex flex-col sm:flex-row gap-6 w-full justify-center items-start">
+              {/* Photo Upload */}
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-dark-muted">Photo</span>
+                <div className="relative group">
+                  <div className="w-24 h-24 rounded-full bg-dark-hover border-2 border-dashed border-dark-border flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-primary-500 transition-all">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <>
+                        <Camera size={24} className="text-dark-muted group-hover:text-primary-500 transition-all" />
+                        <span className="text-[9px] uppercase font-black tracking-widest text-dark-muted group-hover:text-primary-500">Upload</span>
+                      </>
+                    )}
+                  </div>
+                  {photoPreview && (
+                    <button
+                      type="button"
+                      onClick={removePhoto}
+                      className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+                <div className="relative mt-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoSelect}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <button type="button" className="px-3 py-1.5 rounded-lg bg-dark-hover border border-dark-border text-[10px] font-bold text-dark-text hover:bg-dark-border transition-colors">
+                    Upload Photo
+                  </button>
+                </div>
               </div>
-              
-              {photoPreview && (
-                <button
-                  type="button"
-                  onClick={removePhoto}
-                  className="absolute top-0 right-0 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
-                >
-                  <X size={14} />
-                </button>
-              )}
+
+              {/* Signature Upload */}
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-bold text-dark-muted">Signature</span>
+                <div className="relative group">
+                  <div className="w-32 h-24 rounded-lg bg-dark-hover border-2 border-dashed border-dark-border flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-primary-500 transition-all">
+                    {signaturePreview ? (
+                      <img src={signaturePreview} alt="Signature Preview" className="w-full h-full object-contain bg-white" />
+                    ) : (
+                      <>
+                        <Upload size={24} className="text-dark-muted group-hover:text-primary-500 transition-all" />
+                        <span className="text-[9px] uppercase font-black tracking-widest text-dark-muted group-hover:text-primary-500">Upload</span>
+                      </>
+                    )}
+                  </div>
+                  {signaturePreview && (
+                    <button
+                      type="button"
+                      onClick={removeSignature}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+                <div className="relative mt-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSignatureSelect}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <button type="button" className="px-3 py-1.5 rounded-lg bg-dark-hover border border-dark-border text-[10px] font-bold text-dark-text hover:bg-dark-border transition-colors">
+                    Upload Signature
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="w-full flex flex-col gap-2 mt-6">
-              <div className="relative">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoSelect}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <button type="button" className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-dark-hover border border-dark-border text-xs font-bold text-dark-text hover:bg-dark-border transition-colors">
-                  <Upload size={16} /> Choose from PC
-                </button>
-              </div>
-
+            <div className="flex gap-2 mt-6 w-full justify-center">
               <button 
                 type="button" 
                 onClick={startMobileQRConnect}
                 className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors"
               >
-                <Smartphone size={16} /> Scan QR & Upload from Phone
+                <Smartphone size={16} /> {localStorage.getItem('taleemi_qr_session') ? 'Open Camera' : 'Connect Mobile'}
               </button>
+              {localStorage.getItem('taleemi_qr_session') && (
+                <button
+                  type="button"
+                  onClick={disconnectMobileQR}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors"
+                >
+                  <X size={16} /> Disconnect
+                </button>
+              )}
             </div>
 
-            <p className="text-[10px] text-dark-muted mt-4">Passport size photo, max 2MB</p>
+            <p className="text-[10px] text-dark-muted mt-4">Passport size photo & transparent signature, max 2MB</p>
 
             {uploading && (
               <div className="absolute inset-0 bg-dark-bg/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">
@@ -1150,7 +1267,7 @@ const AddStaff = () => {
             {!mobileConnected && (
               <div className="bg-white p-4 rounded-2xl shadow-xl mb-6">
                 <QRCode 
-                  value={`${window.location.origin}/mobile-photo?session=${qrSessionId}&role=staff`}
+                  value={`https://taleemidunya-pro-ed44e.web.app/#/snap/${qrSessionId}`}
                   size={200}
                   level="H"
                 />

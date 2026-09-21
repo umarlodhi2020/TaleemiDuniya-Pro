@@ -291,12 +291,20 @@ export const uploadDocument = async (file, schoolId, docType = 'documents', onPr
  */
 export const uploadSchoolLogo = async (file, schoolId, onProgress) => {
   const ext = file.name.split('.').pop() || 'png';
-  return uploadToCloudinary(file, {
+  const response = await uploadToCloudinary(file, {
     folder: `taleemidunya/${schoolId}/branding`,
     publicId: `logo_${schoolId}.${ext}`,
     onProgress,
     compress: false,
   });
+
+  if (response && response.success && response.url) {
+    // Make white background transparent and resize
+    // e_make_transparent:10 makes near-white colors transparent
+    response.url = response.url.replace('/upload/', '/upload/e_make_transparent:10,w_400,h_400,c_fit,f_png/');
+  }
+
+  return response;
 };
 
 // ═══════════════════════════════════════════════════════

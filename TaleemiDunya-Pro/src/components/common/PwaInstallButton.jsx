@@ -55,8 +55,8 @@ const PwaInstallButton = () => {
         className="px-3.5 py-1.5 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/10 to-primary-500/10 hover:from-cyan-500/20 hover:to-primary-500/20 text-cyan-400 hover:text-cyan-300 font-bold text-xs flex items-center gap-2 transition-all shadow-sm hover:shadow-cyan-500/10 no-print"
         title="Install TaleemiDunya Pro on your device for quick 1-click access"
       >
-        <Smartphone size={15} className="animate-pulse" />
-        <span>📲 Install App</span>
+        <Smartphone size={15} className="animate-pulse shrink-0" />
+        <span className="hidden sm:inline">📲 Install App</span>
       </button>
 
       {/* Manual Install Instructions Modal if browser block prompt */}

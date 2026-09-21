@@ -25,7 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { uploadStudentPhoto, getThumbnailUrl, markForDeletion } from '../../services/cloudinary';
 import QRCode from 'react-qr-code';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const AddStudent = () => {
@@ -233,12 +233,19 @@ const AddStudent = () => {
   };
 
   const startMobileQRConnect = () => {
-    const newSessionId = 'snap_' + Math.random().toString(36).substring(2, 10);
-    setQrSessionId(newSessionId);
-    setMobileConnected(false);
+    let session = localStorage.getItem('taleemi_qr_session');
+    if (!session) {
+      session = 'snap_' + Math.random().toString(36).substring(2, 10);
+      localStorage.setItem('taleemi_qr_session', session);
+      setMobileConnected(false);
+    } else {
+      setMobileConnected(true);
+    }
+    
+    setQrSessionId(session);
     setShowQRModal(true);
 
-    const unsub = onSnapshot(doc(db, 'photo_sessions', newSessionId), (snapshot) => {
+    const unsub = onSnapshot(doc(db, 'photo_sessions', session), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
         if (data.device_connected) {
@@ -249,10 +256,23 @@ const AddStudent = () => {
           const file = dataURLtoFile(data.photoData, 'mobile_capture.jpg');
           setPhotoFile(file);
           setShowQRModal(false);
+
+          updateDoc(doc(db, 'photo_sessions', session), {
+            status: 'connected',
+            photoData: null
+          }).catch(console.error);
+
           unsub();
         }
       }
     });
+  };
+
+  const disconnectMobileQR = () => {
+    localStorage.removeItem('taleemi_qr_session');
+    setMobileConnected(false);
+    setQrSessionId('');
+    alert('Mobile camera disconnected.');
   };
 
   const handleSubmit = async (e) => {
@@ -837,14 +857,26 @@ const AddStudent = () => {
               />
             </label>
 
-            <button
-              type="button"
-              onClick={startMobileQRConnect}
-              className="mt-4 px-4 py-2 rounded-xl bg-dark-hover border border-dark-border flex items-center justify-center gap-2 cursor-pointer hover:border-primary-500 transition-all text-dark-muted hover:text-primary-400 w-full max-w-[200px]"
-            >
-              <Smartphone size={16} />
-              <span className="text-[10px] uppercase font-black tracking-widest">Connect Mobile</span>
-            </button>
+            <div className="flex gap-2 mt-4 w-full justify-center">
+              <button
+                type="button"
+                onClick={startMobileQRConnect}
+                className="px-4 py-2 rounded-xl bg-dark-hover border border-dark-border flex items-center justify-center gap-2 cursor-pointer hover:border-primary-500 transition-all text-dark-muted hover:text-primary-400 w-full max-w-[150px]"
+              >
+                <Smartphone size={16} />
+                <span className="text-[10px] uppercase font-black tracking-widest">{localStorage.getItem('taleemi_qr_session') ? 'Open Camera' : 'Connect'}</span>
+              </button>
+              {localStorage.getItem('taleemi_qr_session') && (
+                <button
+                  type="button"
+                  onClick={disconnectMobileQR}
+                  className="px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center gap-2 cursor-pointer hover:bg-red-500/20 transition-all text-red-400 w-full max-w-[150px]"
+                >
+                  <X size={16} />
+                  <span className="text-[10px] uppercase font-black tracking-widest">Disconnect</span>
+                </button>
+              )}
+            </div>
 
             {/* Upload Progress Bar */}
             {uploading && (
@@ -950,7 +982,7 @@ const AddStudent = () => {
 
             <div className="bg-white p-4 rounded-xl inline-block shadow-lg mx-auto mb-6">
               <QRCode
-                value={`https://taleemidunya-pro-ed44e.web.app/snap/${qrSessionId}`}
+                value={`https://taleemidunya-pro-ed44e.web.app/#/snap/${qrSessionId}`}
                 size={200}
                 level="H"
               />
