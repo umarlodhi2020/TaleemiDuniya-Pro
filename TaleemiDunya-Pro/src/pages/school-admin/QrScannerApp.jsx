@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, RefreshCcw, CheckCircle, Scan, X, User, ShieldCheck, Lock, AlertCircle, Search, QrCode } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, addDoc, setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { Html5Qrcode } from 'html5-qrcode';
 
@@ -255,7 +255,9 @@ export default function QrScannerApp() {
         const docId = `${member.id}_${today}`;
         const docRef = doc(db, 'attendance', docId);
         
-        await setDoc(docRef, {
+        const existingDoc = await getDoc(docRef);
+        const nowTime = new Date().toLocaleTimeString();
+        let payload = {
           id: docId,
           staffId: member.id,
           employeeId: member.employeeId || member.id,
@@ -263,20 +265,30 @@ export default function QrScannerApp() {
           department: member.department || 'General',
           designation: member.designation || member.role || '',
           date: today,
-          time: new Date().toLocaleTimeString(),
-          status: 'present',
           type: 'staff',
           schoolId: activeSchoolId,
           updatedAt: serverTimestamp()
-        }, { merge: true });
+        };
+
+        if (existingDoc.exists() && existingDoc.data().timeIn) {
+          // It's a checkout scan
+          payload.timeOut = nowTime;
+        } else {
+          // It's a checkin scan
+          payload.timeIn = nowTime;
+          payload.time = nowTime;
+          payload.status = 'present';
+        }
+
+        await setDoc(docRef, payload, { merge: true });
         
         setScanResult({
           name: member.name || 'Staff',
           class: member.department || 'Staff',
           rollNo: member.staffId || member.employeeId || member.id,
           fatherName: member.designation || member.role || '-',
-          time: new Date().toLocaleTimeString(),
-          status: 'Present',
+          time: nowTime,
+          status: payload.timeOut ? 'Time Out Logged' : 'Present (Time In)',
           photo: member.photoUrl || member.profilePhoto || null
         });
       }

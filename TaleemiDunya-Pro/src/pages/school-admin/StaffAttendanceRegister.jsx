@@ -131,7 +131,7 @@ const StaffAttendanceRegister = () => {
           map[key] = {
             status: r.status || 'present',
             notes: r.notes || '',
-            timeIn: r.timeIn || '',
+            timeIn: r.timeIn || r.time || '',
             timeOut: r.timeOut || '',
             existingDocId: r.id
           };
@@ -607,7 +607,7 @@ const StaffAttendanceRegister = () => {
                   <tbody className="divide-y divide-dark-border/50 text-sm">
                     {filteredStaff.map((staff) => {
                       const att = dailyAttendanceMap[staff.id] || {};
-                      const currentStatus = att.status || 'present';
+                      const currentStatus = att.status || '';
                       const savedAtt = savedDailyAttendanceMap[staff.id] || {};
                       const isEdited = att.status !== savedAtt.status || (att.notes || '') !== (savedAtt.notes || '');
 

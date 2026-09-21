@@ -744,7 +744,15 @@ export const getStaffAttendanceByDate = async (schoolId, date) => {
       .filter((rec) => rec.staffId || rec.type === "staff");
   } catch (error) {
     console.error("Error fetching staff attendance by date:", error);
-    return [];
+    try {
+      const fallbackQ = query(collection(db, "attendance"), where("schoolId", "==", schoolId));
+      const fallbackSnap = await getDocs(fallbackQ);
+      return fallbackSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((rec) => (rec.staffId || rec.type === "staff") && rec.date === date);
+    } catch (err2) {
+      return [];
+    }
   }
 };
 
@@ -756,22 +764,31 @@ export const getStaffAttendanceByDate = async (schoolId, date) => {
  */
 export const getStaffAttendanceByMonth = async (schoolId, period) => {
   try {
-    const startDate = `${period}-01`;
-    const endDate = `${period}-31`;
-
+    // Avoid range queries on 'date' to prevent Firestore Missing Index errors.
+    // We query by schoolId and type="staff", then filter by period in JS.
     const q = query(
       collection(db, "attendance"),
       where("schoolId", "==", schoolId),
-      where("date", ">=", startDate),
-      where("date", "<=", endDate)
+      where("type", "==", "staff")
     );
+    
     const snapshot = await getDocs(q);
     return snapshot.docs
       .map((d) => ({ id: d.id, ...d.data() }))
-      .filter((rec) => (rec.staffId || rec.type === "staff") && rec.date?.startsWith(period));
+      .filter((rec) => rec.date?.startsWith(period));
   } catch (error) {
     console.error("Error fetching staff attendance by month:", error);
-    return [];
+    
+    // Fallback if type=="staff" index is also missing
+    try {
+      const fallbackQ = query(collection(db, "attendance"), where("schoolId", "==", schoolId));
+      const fallbackSnap = await getDocs(fallbackQ);
+      return fallbackSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((rec) => (rec.staffId || rec.type === "staff") && rec.date?.startsWith(period));
+    } catch (err2) {
+      return [];
+    }
   }
 };
 
