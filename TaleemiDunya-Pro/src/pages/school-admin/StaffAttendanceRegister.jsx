@@ -633,7 +633,7 @@ const StaffAttendanceRegister = () => {
 
                           {/* Employee ID */}
                           <td className="py-3.5 px-4 font-mono text-xs text-dark-muted font-medium">
-                            {staff.employeeId || staff.id}
+                            {staff.staffId || staff.employeeId || staff.id}
                           </td>
 
                           {/* Department */}
@@ -853,7 +853,7 @@ const StaffAttendanceRegister = () => {
                             <div className="truncate font-bold max-w-[160px]" title={staff.name}>
                               {staff.name || 'Unnamed'}
                             </div>
-                            <div className="text-[10px] text-dark-muted font-mono">{staff.employeeId || staff.id}</div>
+                            <div className="text-[10px] text-dark-muted font-mono">{staff.staffId || staff.employeeId || staff.id}</div>
                           </td>
 
                           {/* Dept */}
