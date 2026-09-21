@@ -1062,7 +1062,7 @@ export const getDashboardStats = async (schoolId) => {
 };
 
 // ═══════════════════════════════════════════════════════
-//  CCTV CAMERA MONITORING HELPERS
+//  CCTV CAMERA MONITORING & DAHUA DVR HELPERS
 // ═══════════════════════════════════════════════════════
 
 export const subscribeToRecords = subscribeToCollection;
@@ -1082,4 +1082,30 @@ export const updateCameraRecord = async (id, data) => {
 export const deleteCameraRecord = async (id) => {
   return deleteRecord("cctv_cameras", id);
 };
+
+// CCTV Recorders (Dahua XVR/DVR) Helpers
+export const subscribeToRecorders = (schoolId, callback) => {
+  return subscribeToCollection("cctv_recorders", schoolId, callback);
+};
+
+export const getRecorders = async (schoolId) => {
+  return getRecords("cctv_recorders", schoolId);
+};
+
+export const addRecorderRecord = async (recorderData, schoolId) => {
+  return addRecord("cctv_recorders", recorderData, schoolId);
+};
+
+export const updateRecorderRecord = async (id, data) => {
+  return updateRecord("cctv_recorders", id, data);
+};
+
+export const deleteRecorderRecord = async (id) => {
+  return deleteRecord("cctv_recorders", id);
+};
+
+export const saveCctvCamerasBatch = async (camerasArray, schoolId) => {
+  return batchWrite("cctv_cameras", camerasArray, schoolId);
+};
+
 

@@ -1,9 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { dahuaStreamGatewayPlugin } from './vite-plugin-dahua-gateway.js'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), dahuaStreamGatewayPlugin()],
   base: '/',
   server: {
     watch: {

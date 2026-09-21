@@ -529,6 +529,7 @@ const SchoolSettings = () => {
             { id: 'sessions', label: '5 Academic Sessions', icon: CalendarDays },
             { id: 'face-scan', label: '6 Face Scan App', icon: Scan },
             { id: 'signatures', label: '7 Signatures & Docs', icon: UserCheck },
+            { id: 'cctv', label: '8 CCTV & Recorder', icon: Tv },
             { id: 'branding', label: 'Branding & Logo', icon: ImageIcon },
             { id: 'domain', label: 'Custom Domain', icon: Globe },
             { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -1390,6 +1391,42 @@ const SchoolSettings = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </GlassCard>
+            </div>
+          )}
+
+          {/* TAB 7: CCTV & RECORDER MANAGEMENT (`cctv`) */}
+          {activeTab === 'cctv' && (
+            <div className="space-y-6">
+              <GlassCard className="p-8 border-t-4 border-t-primary-500">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold flex items-center gap-2 text-primary-400">
+                      <Tv size={22} className="text-primary-500" />
+                      Multi-Tenant CCTV & Recorder Configuration
+                    </h3>
+                    <p className="text-xs text-dark-muted mt-1">
+                      Configure your school's DVR/NVR hardware (Dahua, Hikvision, etc.), test remote connectivity, and manage channel discovery.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => navigate('/school-admin/security/cctv?tab=recorders')}
+                    className="premium-button-primary py-2.5 px-5 text-xs font-bold flex items-center gap-2"
+                  >
+                    <Plus size={16} /> Manage School Recorders
+                  </button>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white/5 border border-dark-border space-y-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-xs font-mono font-bold text-white">Multi-School Isolation Active</span>
+                  </div>
+                  <p className="text-xs text-dark-muted leading-relaxed">
+                    Recorders and camera streams configured for <span className="text-primary-400 font-bold">{userData?.schoolId}</span> are strictly isolated to your school tenant. Cross-school stream access is blocked by secure token gateway.
+                  </p>
                 </div>
               </GlassCard>
             </div>
