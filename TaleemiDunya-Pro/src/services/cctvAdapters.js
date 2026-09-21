@@ -1,8 +1,8 @@
 /**
  * Multi-Brand CCTV Adapter & Driver System — TaleemiDunya-Pro
  * 
- * Provides pluggable drivers for different CCTV recorder brands (Dahua, Hikvision, etc.)
- * Supports multi-tenant schoolId isolation, automated channel discovery, and secure stream routing.
+ * Provides drivers for Dahua, Hikvision, and Generic CCTV recorders.
+ * All tests and channel discoveries execute real gateway & socket probes.
  */
 
 export const SUPPORTED_BRANDS = [
@@ -12,7 +12,7 @@ export const SUPPORTED_BRANDS = [
 ];
 
 export const CONNECTION_METHODS = [
-  { id: 'cloud-gateway', name: 'Cloud Stream Gateway (Secure Proxy)', default: true },
+  { id: 'cloud-gateway', name: 'School LAN Connector Gateway', default: true },
   { id: 'outbound-connector', name: 'Secure Outbound Connector' },
   { id: 'vpn', name: 'Site-to-Site VPN' },
   { id: 'direct-ip', name: 'Direct IP / DDNS' }
@@ -22,13 +22,12 @@ export const CONNECTION_METHODS = [
 // DAHUA BRAND ADAPTER
 // -------------------------------------------------------------
 export const DahuaAdapter = {
-  brand: 'Dahua',
+  brand: 'Dahua Technology',
   validateConfig: (config) => {
     const errors = [];
     if (!config.name?.trim()) errors.push('Recorder name is required.');
     if (!config.ipAddress?.trim()) errors.push('IP address / host is required.');
     if (!config.username?.trim()) errors.push('Username is required.');
-    if (!config.password?.trim()) errors.push('Password is required.');
     return { isValid: errors.length === 0, errors };
   },
 
@@ -37,25 +36,24 @@ export const DahuaAdapter = {
       const response = await fetch('/api/cctv/test-connection', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schoolId, brand: 'Dahua', ...config })
-      }).catch(() => null);
+        body: JSON.stringify({ schoolId, brand: 'Dahua Technology', ...config })
+      });
 
-      if (response && response.ok) {
+      if (response.ok) {
         return await response.json();
       }
 
-      await new Promise(r => setTimeout(r, 600));
+      const errData = await response.json().catch(() => ({}));
       return {
-        success: true,
-        brand: 'Dahua',
-        model: config.model || 'DH-XVR1B16-I/T',
-        totalChannels: config.model?.includes('08') ? 8 : (config.model?.includes('04') ? 4 : 16),
-        message: `Connected successfully to Dahua ${config.model || 'XVR'} for ${schoolId}`
+        success: false,
+        diagnosticCode: errData.diagnosticCode || 'DVR_UNREACHABLE',
+        message: errData.message || `Unable to connect to Dahua DVR at ${config.ipAddress}.`
       };
     } catch (err) {
       return {
         success: false,
-        message: 'Unable to connect to Dahua DVR. Check IP address, port, username, password and network connectivity.'
+        diagnosticCode: 'CONNECTOR_OFFLINE',
+        message: `Connection request failed: ${err.message}. Check if School LAN Connector is running.`
       };
     }
   },
@@ -65,44 +63,19 @@ export const DahuaAdapter = {
       const response = await fetch('/api/cctv/discover-channels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ schoolId, brand: 'Dahua', ...config })
-      }).catch(() => null);
+        body: JSON.stringify({ schoolId, brand: 'Dahua Technology', ...config })
+      });
 
-      if (response && response.ok) {
+      if (response.ok) {
         const data = await response.json();
         if (data && data.channels) return data.channels;
       }
     } catch (err) {
-      console.warn('Dahua discovery fallback:', err);
+      console.warn('Dahua discovery API query failed:', err.message);
     }
 
-    const channelCount = config.model?.includes('08') ? 8 : (config.model?.includes('04') ? 4 : 16);
-    const channelNames = [
-      'Main Gate & Entry Barrier', 'Admin Block Reception', 'Principal Office Corridor',
-      'Main Assembly Playground', 'Primary Block Corridor A', 'Secondary Block Corridor B',
-      'Science & Chemistry Lab', 'Computer & Robotics Lab', 'Central Library Hall',
-      'Cafeteria & Dining Area', 'Back Entrance & Parking', 'Staff Room & Faculty Lounge',
-      'Boys Hostel Entrance', 'Girls Hostel Entrance', 'Auditorium & Stage', 'Generator & Substation'
-    ];
-
-    return Array.from({ length: channelCount }, (_, i) => {
-      const chNum = i + 1;
-      const isOffline = chNum > (channelCount - 2); // Last 2 channels offline for realism
-      const loc = channelNames[i % channelNames.length];
-
-      return {
-        channelNumber: chNum,
-        cameraId: `DH-CH${String(chNum).padStart(2, '0')}`,
-        name: `Channel ${chNum} - ${loc}`,
-        location: config.location ? `${config.location} - ${loc}` : loc,
-        type: 'DVR Channel',
-        status: isOffline ? 'offline' : 'online',
-        streamStatus: isOffline ? 'No Signal' : 'Active Stream',
-        active: true,
-        resolution: '1080P',
-        fps: 25
-      };
-    });
+    // Return empty array when unreachable (no mock fallback)
+    return [];
   }
 };
 
@@ -110,13 +83,12 @@ export const DahuaAdapter = {
 // HIKVISION BRAND ADAPTER
 // -------------------------------------------------------------
 export const HikvisionAdapter = {
-  brand: 'Hikvision',
+  brand: 'Hikvision Digital',
   validateConfig: (config) => {
     const errors = [];
     if (!config.name?.trim()) errors.push('Recorder name is required.');
     if (!config.ipAddress?.trim()) errors.push('IP address / host is required.');
     if (!config.username?.trim()) errors.push('Username is required.');
-    if (!config.password?.trim()) errors.push('Password is required.');
     return { isValid: errors.length === 0, errors };
   },
 
@@ -126,24 +98,23 @@ export const HikvisionAdapter = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ schoolId, brand: 'Hikvision', ...config })
-      }).catch(() => null);
+      });
 
-      if (response && response.ok) {
+      if (response.ok) {
         return await response.json();
       }
 
-      await new Promise(r => setTimeout(r, 600));
+      const errData = await response.json().catch(() => ({}));
       return {
-        success: true,
-        brand: 'Hikvision',
-        model: config.model || 'DS-7608NI-K2',
-        totalChannels: config.model?.includes('16') ? 16 : 8,
-        message: `Connected successfully to Hikvision ISAPI NVR at ${config.ipAddress}`
+        success: false,
+        diagnosticCode: errData.diagnosticCode || 'DVR_UNREACHABLE',
+        message: errData.message || `Unable to connect to Hikvision NVR at ${config.ipAddress}.`
       };
     } catch (err) {
       return {
         success: false,
-        message: 'Unable to connect to Hikvision NVR. Verify IP, port 8000/80, username and password.'
+        diagnosticCode: 'CONNECTOR_OFFLINE',
+        message: `Connection request failed: ${err.message}.`
       };
     }
   },
@@ -154,41 +125,17 @@ export const HikvisionAdapter = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ schoolId, brand: 'Hikvision', ...config })
-      }).catch(() => null);
+      });
 
-      if (response && response.ok) {
+      if (response.ok) {
         const data = await response.json();
         if (data && data.channels) return data.channels;
       }
     } catch (err) {
-      console.warn('Hikvision discovery fallback:', err);
+      console.warn('Hikvision discovery API query failed:', err.message);
     }
 
-    const channelCount = config.model?.includes('16') ? 16 : 8;
-    const channelNames = [
-      'Front Security Gate', 'Main Admin Corridor', 'Exam Hall B',
-      'Sports Field South', 'Computer Lab 2', 'Library Reading Room',
-      'Faculty Parking', 'Student Canteen Entrance'
-    ];
-
-    return Array.from({ length: channelCount }, (_, i) => {
-      const chNum = i + 1;
-      const isOffline = chNum === channelCount;
-      const loc = channelNames[i % channelNames.length];
-
-      return {
-        channelNumber: chNum,
-        cameraId: `HK-CH${String(chNum).padStart(2, '0')}`,
-        name: `Hikvision CH${chNum} - ${loc}`,
-        location: config.location ? `${config.location} - ${loc}` : loc,
-        type: 'NVR Channel',
-        status: isOffline ? 'offline' : 'online',
-        streamStatus: isOffline ? 'No Signal' : 'Active Stream',
-        active: true,
-        resolution: '1080P',
-        fps: 25
-      };
-    });
+    return [];
   }
 };
 
@@ -206,7 +153,7 @@ export const getBrandAdapter = (brandName) => {
 };
 
 /**
- * Generate secure tokenized stream URL for browser (with schoolId isolation check)
+ * Generate secure tokenized stream URL for browser
  */
 export const getSecureStreamUrl = (schoolId, recorderId, channelNumber) => {
   return `/api/cctv/stream?schoolId=${encodeURIComponent(schoolId || 'default')}&recorderId=${encodeURIComponent(recorderId || 'rec-1')}&channel=${channelNumber}&t=${Date.now()}`;

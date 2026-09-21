@@ -1093,11 +1093,23 @@ export const getRecorders = async (schoolId) => {
 };
 
 export const addRecorderRecord = async (recorderData, schoolId) => {
-  return addRecord("cctv_recorders", recorderData, schoolId);
+  const sanitized = { ...recorderData };
+  if (sanitized.password) {
+    sanitized.passwordConfigured = true;
+    sanitized.passwordMasked = "••••••••";
+    delete sanitized.password;
+  }
+  return addRecord("cctv_recorders", sanitized, schoolId);
 };
 
 export const updateRecorderRecord = async (id, data) => {
-  return updateRecord("cctv_recorders", id, data);
+  const sanitized = { ...data };
+  if (sanitized.password) {
+    sanitized.passwordConfigured = true;
+    sanitized.passwordMasked = "••••••••";
+    delete sanitized.password;
+  }
+  return updateRecord("cctv_recorders", id, sanitized);
 };
 
 export const deleteRecorderRecord = async (id) => {
