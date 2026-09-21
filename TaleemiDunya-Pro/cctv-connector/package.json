@@ -1,0 +1,21 @@
+{
+  "name": "taleemidunya-cctv-connector",
+  "version": "1.0.0",
+  "description": "Outbound CCTV Gateway Connector for Dahua XVR/DVR inside School LAN",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "test:dvr": "node index.js --test-dvr"
+  },
+  "keywords": [
+    "dahua",
+    "xvr",
+    "dvr",
+    "cctv",
+    "connector",
+    "taleemidunya"
+  ],
+  "author": "TaleemiDunya Engineering",
+  "license": "MIT"
+}

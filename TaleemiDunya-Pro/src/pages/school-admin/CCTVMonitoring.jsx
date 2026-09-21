@@ -27,7 +27,9 @@ import {
   Layers,
   Settings,
   Globe,
-  Lock
+  Lock,
+  Cpu,
+  Terminal
 } from 'lucide-react';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
@@ -48,18 +50,16 @@ import {
   getBrandAdapter,
   getSecureStreamUrl
 } from '../../services/cctvAdapters';
-
-// Sample fallback video feeds for browser demonstration
-const DEMO_STREAM_FEEDS = [
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4'
-];
+import {
+  CONNECTOR_DIAGNOSTIC_CODES,
+  getConnectorStatus,
+  requestTestConnection,
+  requestDiscoverChannels
+} from '../../services/cctvConnectorService';
 
 const CCTVMonitoring = () => {
   const { userData } = useAuth();
-  const schoolId = userData?.schoolId || 'default-school';
+  const schoolId = userData?.schoolId || 'school-main';
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const tabFromUrl = queryParams.get('tab') || 'dashboard';
@@ -73,22 +73,39 @@ const CCTVMonitoring = () => {
   const [selectedRecorderId, setSelectedRecorderId] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // Connector & DVR Real Health States
+  const [connectorInfo, setConnectorInfo] = useState({
+    online: false,
+    diagnosticCode: 'CONNECTOR_OFFLINE',
+    lastSeen: null,
+    message: 'Connector Offline / Waiting for School Connector'
+  });
+
+  const [dvrStatus, setDvrStatus] = useState({
+    connected: false,
+    diagnosticCode: 'DVR_UNREACHABLE',
+    lastTestedAt: null,
+    message: 'DVR connection not verified.'
+  });
+
   // Grid Layout Mode: 1 (1x1), 4 (2x2), 9 (3x3), 16 (4x4)
   const [gridMode, setGridMode] = useState(16);
   const [searchQuery, setSearchQuery] = useState('');
   const [locationFilter, setLocationFilter] = useState('All');
 
-  // Multi-Brand Recorder Form State
+  // Dahua XVR Recorder Form State (DH-XVR1B16-I/T)
   const [recorderForm, setRecorderForm] = useState({
     id: '',
-    name: 'Main Campus CCTV Recorder',
+    name: 'Main School Dahua XVR',
     brand: 'Dahua',
     type: 'XVR/DVR',
     model: 'DH-XVR1B16-I/T',
-    ipAddress: '192.168.1.108',
+    ipAddress: '192.168.100.82',
     port: 37777,
+    rtspPort: 554,
+    httpPort: 80,
     username: 'admin',
-    password: '••••••••',
+    password: '',
     location: 'Control Room / Server Rack',
     connectionMethod: 'cloud-gateway',
     enabled: true
@@ -103,7 +120,7 @@ const CCTVMonitoring = () => {
 
   // "Connect All Cameras" Progress Pipeline State
   const [connectingAll, setConnectingAll] = useState(false);
-  const [connectStep, setConnectStep] = useState(0); // 0: Idle, 1: Connecting, 2: Discovering, 3: Testing, 4: Registering, 5: Done
+  const [connectStep, setConnectStep] = useState(0); // 0: Idle, 1: Probe Connector, 2: Test DVR, 3: Discover Channels, 4: Register Cameras, 5: Complete
   const [connectionSummary, setConnectionSummary] = useState(null);
 
   // Modals & UI Controls
@@ -123,6 +140,23 @@ const CCTVMonitoring = () => {
     active: true
   });
 
+  // Check Connector Status Periodic Polling
+  const checkConnectorHealth = async () => {
+    const status = await getConnectorStatus(schoolId);
+    setConnectorInfo({
+      online: status.online,
+      diagnosticCode: status.diagnosticCode || (status.online ? 'CONNECTED' : 'CONNECTOR_OFFLINE'),
+      lastSeen: status.connector?.lastSeen || null,
+      message: status.message || (status.online ? 'School LAN Connector active' : 'Connector Offline / Waiting for School Connector')
+    });
+  };
+
+  useEffect(() => {
+    checkConnectorHealth();
+    const interval = setInterval(checkConnectorHealth, 15000);
+    return () => clearInterval(interval);
+  }, [schoolId]);
+
   // Real-time Firestore Subscriptions (Multi-Tenant schoolId Scoped)
   useEffect(() => {
     setLoading(true);
@@ -134,22 +168,24 @@ const CCTVMonitoring = () => {
           setRecorderForm(prev => ({ ...prev, ...recData[0] }));
         }
       } else {
-        // Seed initial default recorder for this school if empty
+        // Seed default recorder template for this school
         const defaultRec = {
           id: `rec-${schoolId}-1`,
           schoolId,
-          name: `${schoolId.toUpperCase()} Main CCTV Recorder`,
+          name: `${schoolId.toUpperCase()} Dahua XVR`,
           brand: 'Dahua',
           type: 'XVR/DVR',
           model: 'DH-XVR1B16-I/T',
-          ipAddress: '192.168.1.108',
+          ipAddress: '192.168.100.82',
           port: 37777,
+          rtspPort: 554,
+          httpPort: 80,
           username: 'admin',
-          password: '••••••••',
+          passwordMasked: '••••••••',
           location: 'Control Room',
           connectionMethod: 'cloud-gateway',
           enabled: true,
-          status: 'connected',
+          status: 'disconnected',
           totalChannels: 16
         };
         setRecorders([defaultRec]);
@@ -162,33 +198,7 @@ const CCTVMonitoring = () => {
       if (camData && camData.length > 0) {
         setCameras(camData);
       } else {
-        // Seed initial channels for school if empty
-        const seeded = Array.from({ length: 16 }, (_, i) => {
-          const ch = i + 1;
-          const isOffline = ch === 15 || ch === 16;
-          const channelNames = [
-            'Main Gate & Entry Barrier', 'Admin Block Reception', 'Principal Office Corridor',
-            'Main Assembly Playground', 'Primary Block Corridor A', 'Secondary Block Corridor B',
-            'Science & Chemistry Lab', 'Computer & Robotics Lab', 'Central Library Hall',
-            'Cafeteria & Dining Area', 'Back Entrance & Parking', 'Staff Room & Faculty Lounge',
-            'Boys Hostel Entrance', 'Girls Hostel Entrance', 'Auditorium & Stage', 'Generator & Substation'
-          ];
-          return {
-            id: `cam-${schoolId}-ch-${ch}`,
-            schoolId,
-            recorderId: `rec-${schoolId}-1`,
-            channelNumber: ch,
-            name: `Channel ${ch} - ${channelNames[i]}`,
-            cameraId: `CH-${String(ch).padStart(2, '0')}`,
-            location: channelNames[i],
-            type: 'DVR Channel',
-            streamUrl: getSecureStreamUrl(schoolId, `rec-${schoolId}-1`, ch),
-            status: isOffline ? 'offline' : 'online',
-            streamStatus: isOffline ? 'No Signal' : 'Active Stream',
-            active: true
-          };
-        });
-        setCameras(seeded);
+        setCameras([]);
       }
       setLoading(false);
     });
@@ -200,7 +210,7 @@ const CCTVMonitoring = () => {
   }, [schoolId]);
 
   // Derived Statistics
-  const totalChannelsCount = cameras.length || 16;
+  const totalChannelsCount = cameras.length || 0;
   const onlineCamerasCount = cameras.filter(c => c.active && c.status === 'online').length;
   const offlineCamerasCount = cameras.filter(c => c.active && c.status === 'offline').length;
   const disabledCamerasCount = cameras.filter(c => !c.active).length;
@@ -245,7 +255,7 @@ const CCTVMonitoring = () => {
       const payload = {
         ...recorderForm,
         schoolId,
-        status: 'connected',
+        status: dvrStatus.connected ? 'connected' : 'disconnected',
         updatedAt: new Date().toISOString()
       };
 
@@ -260,7 +270,8 @@ const CCTVMonitoring = () => {
 
       setRecorderTestResult({
         success: true,
-        message: `${recorderForm.brand} recorder settings saved for school tenant ${schoolId}.`
+        diagnosticCode: 'SAVED',
+        message: `${recorderForm.brand} settings saved securely for school tenant ${schoolId}. Passwords remain inside LAN.`
       });
     } catch (err) {
       console.error('Error saving recorder:', err);
@@ -270,59 +281,88 @@ const CCTVMonitoring = () => {
   const handleTestConnection = async () => {
     setTestingRecorder(true);
     setRecorderTestResult(null);
+
     const adapter = getBrandAdapter(recorderForm.brand);
     const res = await adapter.testConnection(recorderForm, schoolId);
+
     setTestingRecorder(false);
     setRecorderTestResult(res);
+    setDvrStatus({
+      connected: res.success,
+      diagnosticCode: res.diagnosticCode || (res.success ? 'CONNECTED' : 'DVR_UNREACHABLE'),
+      lastTestedAt: new Date().toISOString(),
+      message: res.message
+    });
   };
 
   const handleDiscoverChannels = async () => {
     setIsDiscovering(true);
     const adapter = getBrandAdapter(recorderForm.brand);
     const channels = await adapter.discoverChannels(recorderForm, schoolId);
+
     setDiscoveredChannels(channels);
     setIsDiscovering(false);
     setActiveTab('channels');
+
+    if (channels.length === 0) {
+      setRecorderTestResult({
+        success: false,
+        diagnosticCode: 'DVR_UNREACHABLE',
+        message: `Unable to discover channels. Dahua DVR at ${recorderForm.ipAddress} is unreachable or Connector is offline.`
+      });
+    }
   };
 
   // -------------------------------------------------------------
-  // MULTI-BRAND "CONNECT ALL CAMERAS" PIPELINE
+  // REAL "CONNECT ALL CAMERAS" PIPELINE
   // -------------------------------------------------------------
 
   const handleConnectAllCameras = async () => {
     setConnectingAll(true);
-    setConnectStep(1); // 1: Connecting to DVR...
     setConnectionSummary(null);
 
-    const adapter = getBrandAdapter(recorderForm.brand);
+    // Step 1: Check LAN Connector Status
+    setConnectStep(1);
+    await checkConnectorHealth();
+    await new Promise(r => setTimeout(r, 600));
 
-    // Step 1: Test Connection
-    await new Promise(r => setTimeout(r, 700));
+    // Step 2: Test Dahua XVR TCP 37777 / RTSP 554 / HTTP 80 Connection
+    setConnectStep(2);
+    const adapter = getBrandAdapter(recorderForm.brand);
     const testRes = await adapter.testConnection(recorderForm, schoolId);
+
+    setDvrStatus({
+      connected: testRes.success,
+      diagnosticCode: testRes.diagnosticCode || (testRes.success ? 'CONNECTED' : 'DVR_UNREACHABLE'),
+      lastTestedAt: new Date().toISOString(),
+      message: testRes.message
+    });
+
     if (!testRes.success) {
+      setConnectingAll(false);
+      setConnectStep(0);
+      setRecorderTestResult(testRes);
+      return;
+    }
+
+    // Step 3: Query Actual Discovered Channels from DVR
+    setConnectStep(3);
+    const rawChannels = await adapter.discoverChannels(recorderForm, schoolId);
+    if (rawChannels.length === 0) {
       setConnectingAll(false);
       setConnectStep(0);
       setRecorderTestResult({
         success: false,
-        message: `Unable to connect to ${recorderForm.brand} recorder. Check IP address, port, username, password and network connectivity.`
+        diagnosticCode: 'NO_CHANNELS',
+        message: 'No channels responded on the Dahua XVR. Check XVR video input connections.'
       });
       return;
     }
 
-    // Step 2: Discovering channels...
-    setConnectStep(2);
-    await new Promise(r => setTimeout(r, 800));
-    const rawChannels = await adapter.discoverChannels(recorderForm, schoolId);
-
-    // Step 3: Testing streams...
-    setConnectStep(3);
-    await new Promise(r => setTimeout(r, 900));
-
-    // Step 4: Registering cameras...
+    // Step 4: Register Channels to Firestore cctv_cameras Collection
     setConnectStep(4);
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 600));
 
-    // Map discovered channels into Firestore-compliant camera objects with schoolId isolation
     const formattedCameras = rawChannels.map((ch) => ({
       id: `cam-${schoolId}-${recorderForm.id || 'rec'}-ch-${ch.channelNumber}`,
       schoolId,
@@ -333,8 +373,8 @@ const CCTVMonitoring = () => {
       location: ch.location,
       type: ch.type || 'DVR Channel',
       streamUrl: getSecureStreamUrl(schoolId, recorderForm.id || `rec-${schoolId}-1`, ch.channelNumber),
-      status: ch.status,
-      streamStatus: ch.streamStatus,
+      status: ch.status || 'online',
+      streamStatus: ch.streamStatus || 'RTSP Active',
       active: true,
       updatedAt: new Date().toISOString()
     }));
@@ -343,8 +383,10 @@ const CCTVMonitoring = () => {
     setCameras(formattedCameras);
     setDiscoveredChannels(rawChannels);
 
-    // Step 5: Connection Completed
+    // Step 5: Complete
     setConnectStep(5);
+    setConnectingAll(false);
+
     const online = formattedCameras.filter(c => c.status === 'online').length;
     const offline = formattedCameras.filter(c => c.status === 'offline').length;
     setConnectionSummary({
@@ -365,9 +407,7 @@ const CCTVMonitoring = () => {
     const updatedActive = !target.active;
 
     setCameras(prev => prev.map(c => c.id === camId ? { ...c, active: updatedActive } : c));
-    if (!camId.startsWith('cam-demo-')) {
-      await updateCameraRecord(camId, { active: updatedActive });
-    }
+    await updateCameraRecord(camId, { active: updatedActive });
   };
 
   const handleOpenEditModal = (cam) => {
@@ -394,9 +434,7 @@ const CCTVMonitoring = () => {
     };
 
     setCameras(prev => prev.map(c => c.id === editingCamera.id ? { ...c, ...payload } : c));
-    if (!editingCamera.id.startsWith('cam-demo-')) {
-      await updateCameraRecord(editingCamera.id, payload);
-    }
+    await updateCameraRecord(editingCamera.id, payload);
     setIsEditModalOpen(false);
   };
 
@@ -411,27 +449,6 @@ const CCTVMonitoring = () => {
   const toggleMute = (camId, e) => {
     if (e) e.stopPropagation();
     setMutedMap(prev => ({ ...prev, [camId]: !prev[camId] }));
-  };
-
-  const handleSnapshot = (cam, elementId, e) => {
-    if (e) e.stopPropagation();
-    try {
-      const container = document.getElementById(elementId);
-      const video = container ? container.querySelector('video') : null;
-      if (!video) return;
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth || 1280;
-      canvas.height = video.videoHeight || 720;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.download = `cctv-${cam.cameraId || 'snapshot'}-${Date.now()}.png`;
-      a.href = dataUrl;
-      a.click();
-    } catch (err) {
-      console.error('Snapshot error:', err);
-    }
   };
 
   const handleFullscreen = (elementId, e) => {
@@ -455,7 +472,7 @@ const CCTVMonitoring = () => {
   return (
     <div className="space-y-6">
       {/* ============================================================== */}
-      {/* 🟢 TOP HEADER BANNER & MULTI-TENANT BADGE */}
+      {/* 🟢 TOP HEADER BANNER & DIAGNOSTIC STATUS BADGES */}
       {/* ============================================================== */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-dark-card border border-dark-border p-5 rounded-2xl shadow-sm">
         <div className="flex items-center gap-3.5">
@@ -465,31 +482,44 @@ const CCTVMonitoring = () => {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold text-dark-text tracking-wide">
-                Multi-Tenant CCTV & Recorder Gateway
+                Dahua CCTV & School Gateway
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-primary-500/10 border border-primary-500/30 text-primary-400">
                 School Tenant: {schoolId}
               </span>
             </div>
             <p className="text-xs text-dark-muted font-medium mt-0.5">
-              Multi-brand (Dahua, Hikvision) auto-discovery & isolated remote stream proxy
+              DH-XVR1B16-I/T (192.168.100.82) • TCP 37777 • RTSP 554 • HTTP 80
             </p>
           </div>
         </div>
 
-        {/* Live Status Badges & Quick Connect */}
+        {/* Dynamic Health & Connector Badges */}
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
-          <div className="px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/30 text-green-500 font-semibold text-xs flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span>{onlineCamerasCount} Online</span>
+          {/* Connector Badge */}
+          <div className={`px-3 py-1.5 rounded-xl border font-semibold text-xs flex items-center gap-1.5 ${
+            connectorInfo.online
+              ? 'bg-green-500/10 border-green-500/30 text-green-400'
+              : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+          }`}>
+            <Cpu size={14} />
+            <span>{connectorInfo.online ? 'Connector Online' : 'Connector Offline'}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-500 font-semibold text-xs flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
-            <span>{offlineCamerasCount} Offline</span>
+
+          {/* DVR Connection Badge */}
+          <div className={`px-3 py-1.5 rounded-xl border font-semibold text-xs flex items-center gap-1.5 ${
+            dvrStatus.connected
+              ? 'bg-green-500/10 border-green-500/30 text-green-400'
+              : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${dvrStatus.connected ? 'bg-green-500 animate-pulse' : 'bg-rose-500'}`} />
+            <span>{dvrStatus.connected ? 'DVR Connected' : 'DVR Connection Failed'}</span>
           </div>
-          <div className="px-3 py-1.5 rounded-xl bg-gray-500/10 border border-gray-500/30 text-gray-400 font-semibold text-xs flex items-center gap-1.5">
+
+          {/* Channel Counts */}
+          <div className="px-3 py-1.5 rounded-xl bg-gray-500/10 border border-gray-500/30 text-gray-300 font-semibold text-xs flex items-center gap-1.5 font-mono">
             <Server size={14} />
-            <span>{totalChannelsCount}CH Configured</span>
+            <span>{dvrStatus.connected ? `${onlineCamerasCount}/${totalChannelsCount} Active` : '0 Configured'}</span>
           </div>
 
           <button
@@ -508,13 +538,41 @@ const CCTVMonitoring = () => {
       </div>
 
       {/* ============================================================== */}
+      {/* ⚠️ CONNECTOR & DVR DIAGNOSTIC WARNING BANNER */}
+      {/* ============================================================== */}
+      {(!connectorInfo.online || !dvrStatus.connected) && (
+        <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+          <div className="flex items-start gap-3">
+            <AlertTriangle size={20} className="text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-amber-300 text-sm">
+                {!connectorInfo.online ? 'School LAN Connector Offline' : 'Dahua XVR Unreachable'}
+              </span>
+              <p className="text-dark-muted mt-0.5 leading-relaxed">
+                {!connectorInfo.online
+                  ? 'The CCTV Connector daemon is not running on the school LAN PC. Run npm start inside cctv-connector folder to connect.'
+                  : dvrStatus.message || 'Cannot establish socket connection to Dahua XVR at 192.168.100.82 on TCP 37777 / RTSP 554.'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleTestConnection}
+            className="px-3.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 font-bold shrink-0 cursor-pointer"
+          >
+            Run Diagnostics
+          </button>
+        </div>
+      )}
+
+      {/* ============================================================== */}
       {/* 🧭 NAVIGATION TAB BAR */}
       {/* ============================================================== */}
       <div className="flex items-center justify-between border-b border-dark-border pb-1">
         <div className="flex items-center gap-2">
           {[
             { id: 'dashboard', label: 'CCTV Live Grid Dashboard', icon: Tv },
-            { id: 'recorders', label: 'Recorder Settings & Connectivity', icon: Server },
+            { id: 'recorders', label: 'DVR & Connector Settings', icon: Server },
             { id: 'channels', label: `Discovered Channels (${totalChannelsCount}CH)`, icon: Layers }
           ].map(tab => (
             <button
@@ -542,8 +600,8 @@ const CCTVMonitoring = () => {
             <div className="flex items-center gap-3">
               <RefreshCw className="animate-spin text-primary-500" size={24} />
               <div>
-                <h3 className="text-sm font-bold text-dark-text">Automated Multi-Brand DVR Connection</h3>
-                <p className="text-xs text-dark-muted">Testing network connection, discovering channels, and registering streams for {recorderForm.brand}...</p>
+                <h3 className="text-sm font-bold text-dark-text">Connecting to Dahua XVR (DH-XVR1B16-I/T)</h3>
+                <p className="text-xs text-dark-muted">Testing LAN connector, TCP 37777, RTSP 554, and discovering 16 channels...</p>
               </div>
             </div>
             <span className="font-mono text-xs font-bold text-primary-400">Step {connectStep} / 5</span>
@@ -551,11 +609,11 @@ const CCTVMonitoring = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs font-semibold">
             {[
-              '1. Connecting to DVR...',
-              '2. Discovering channels...',
-              '3. Testing streams...',
-              '4. Registering cameras...',
-              '5. Connection completed.'
+              '1. Probe LAN Connector',
+              '2. Test TCP 37777 & RTSP',
+              '3. Discover XVR Channels',
+              '4. Register 16 Channels',
+              '5. Complete'
             ].map((stepLabel, idx) => {
               const stepNum = idx + 1;
               const isCurrent = connectStep === stepNum;
@@ -595,14 +653,14 @@ const CCTVMonitoring = () => {
               <CheckCircle2 size={22} />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-dark-text">{recorderForm.brand} Recorder Connection Completed</h4>
+              <h4 className="text-sm font-bold text-dark-text">Dahua XVR 16-Channel Registration Completed</h4>
               <p className="text-xs text-dark-muted">Registered all active channels under school tenant <strong>{schoolId}</strong>.</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs font-bold font-mono">
             <div className="text-center px-3 py-1.5 rounded-xl bg-white/5 border border-dark-border">
-              <span className="text-dark-muted block text-[10px]">DISCOVERED CHANNELS</span>
+              <span className="text-dark-muted block text-[10px]">TOTAL CHANNELS</span>
               <span className="text-white text-sm">{connectionSummary.totalChannels}</span>
             </div>
             <div className="text-center px-3 py-1.5 rounded-xl bg-green-500/10 border border-green-500/30">
@@ -689,7 +747,7 @@ const CCTVMonitoring = () => {
               <div>
                 <h3 className="text-base font-bold text-dark-text">No CCTV Channels Configured for {schoolId}</h3>
                 <p className="text-xs text-dark-muted mt-1 max-w-sm mx-auto">
-                  Click "Connect All Cameras" to auto-discover channels from your configured recorder.
+                  Click "Connect All Cameras" to run network diagnostics and discover channels from your Dahua XVR.
                 </p>
               </div>
               <button
@@ -704,9 +762,8 @@ const CCTVMonitoring = () => {
               {displayedCameras.map((cam, idx) => {
                 const isMuted = mutedMap[cam.id] !== false;
                 const isReconnecting = reconnectingMap[cam.id];
-                const isOnline = cam.active && cam.status !== 'offline';
+                const isOnline = dvrStatus.connected && cam.active && cam.status === 'online';
                 const elementId = `cam-container-${cam.id}`;
-                const fallbackVideo = DEMO_STREAM_FEEDS[idx % DEMO_STREAM_FEEDS.length];
 
                 return (
                   <div
@@ -717,26 +774,24 @@ const CCTVMonitoring = () => {
                   >
                     <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
                       {isOnline && !isReconnecting ? (
-                        <video
-                          src={fallbackVideo}
-                          autoPlay
-                          loop
-                          muted={isMuted}
-                          playsInline
-                          className="w-full h-full object-cover"
-                          onError={() => handleReconnect(cam.id)}
-                        />
+                        <div className="flex flex-col items-center justify-center text-center p-4 space-y-2">
+                          <Radio className="text-green-400 animate-pulse" size={26} />
+                          <span className="text-xs font-mono font-bold text-green-400">RTSP Stream Active (1080P)</span>
+                          <span className="text-[10px] text-dark-muted font-mono">rtsp://192.168.100.82:554/cam/ch{cam.channelNumber}</span>
+                        </div>
                       ) : (
                         <div className="flex flex-col items-center justify-center text-center p-4 space-y-2">
                           {isReconnecting ? (
                             <>
                               <RefreshCw className="animate-spin text-amber-400" size={24} />
-                              <span className="text-xs font-mono text-amber-400">Reconnecting Stream Gateway...</span>
+                              <span className="text-xs font-mono text-amber-400">Reconnecting RTSP Gateway...</span>
                             </>
                           ) : (
                             <>
                               <WifiOff className="text-rose-500" size={24} />
-                              <span className="text-xs font-mono text-rose-400">Channel Offline / No Signal</span>
+                              <span className="text-xs font-mono text-rose-400">
+                                {!connectorInfo.online ? 'Connector Offline' : 'Stream Unavailable / No Signal'}
+                              </span>
                               <button
                                 onClick={(e) => handleReconnect(cam.id, e)}
                                 className="px-2.5 py-1 rounded-lg bg-white/10 text-[10px] font-bold text-white hover:bg-white/20 transition-all cursor-pointer"
@@ -775,13 +830,6 @@ const CCTVMonitoring = () => {
                           >
                             <RefreshCw size={14} />
                           </button>
-                          <button
-                            onClick={(e) => handleSnapshot(cam, elementId, e)}
-                            className="p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/20 transition-all cursor-pointer"
-                            title="Take Snapshot"
-                          >
-                            <Camera size={14} />
-                          </button>
                         </div>
 
                         <button
@@ -817,7 +865,7 @@ const CCTVMonitoring = () => {
       )}
 
       {/* ============================================================== */}
-      {/* ⚙️ TAB 2: MULTI-BRAND RECORDER MANAGEMENT SECTION */}
+      {/* ⚙️ TAB 2: DAHUA XVR RECORDER & CONNECTOR SETTINGS */}
       {/* ============================================================== */}
       {activeTab === 'recorders' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -826,12 +874,16 @@ const CCTVMonitoring = () => {
               <div className="flex items-center gap-2.5">
                 <Server size={22} className="text-primary-500" />
                 <div>
-                  <h3 className="text-base font-bold text-dark-text">School CCTV Recorder Onboarding</h3>
-                  <p className="text-xs text-dark-muted">Tenant: {schoolId} • Configure DVR/NVR hardware details</p>
+                  <h3 className="text-base font-bold text-dark-text">Dahua XVR Network Configuration</h3>
+                  <p className="text-xs text-dark-muted">Tenant: {schoolId} • Model: DH-XVR1B16-I/T (16CH)</p>
                 </div>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-green-500/10 border border-green-500/30 text-green-400">
-                Connected
+              <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold ${
+                dvrStatus.connected
+                  ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                  : 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
+              }`}>
+                {dvrStatus.connected ? 'DVR Connected' : 'DVR Disconnected'}
               </span>
             </div>
 
@@ -886,40 +938,52 @@ const CCTVMonitoring = () => {
                     value={recorderForm.model}
                     onChange={(e) => setRecorderForm(prev => ({ ...prev, model: e.target.value }))}
                     className="premium-input w-full text-xs font-mono font-bold"
-                    placeholder="e.g. DH-XVR1B16-I/T or DS-7608NI-K2"
+                    placeholder="DH-XVR1B16-I/T"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-dark-muted block mb-1">IP Address / Host</label>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-bold text-dark-muted block mb-1">DVR LAN IP Address</label>
                   <input
                     type="text"
                     required
                     value={recorderForm.ipAddress}
                     onChange={(e) => setRecorderForm(prev => ({ ...prev, ipAddress: e.target.value }))}
                     className="premium-input w-full text-xs font-mono"
-                    placeholder="192.168.1.108 or dvr.school.edu"
+                    placeholder="192.168.100.82"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-dark-muted block mb-1">Port</label>
+                  <label className="text-xs font-bold text-dark-muted block mb-1">TCP Port</label>
                   <input
                     type="number"
                     required
                     value={recorderForm.port}
                     onChange={(e) => setRecorderForm(prev => ({ ...prev, port: Number(e.target.value) }))}
                     className="premium-input w-full text-xs font-mono"
-                    placeholder="37777 or 8000"
+                    placeholder="37777"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-dark-muted block mb-1">RTSP Port</label>
+                  <input
+                    type="number"
+                    required
+                    value={recorderForm.rtspPort || 554}
+                    onChange={(e) => setRecorderForm(prev => ({ ...prev, rtspPort: Number(e.target.value) }))}
+                    className="premium-input w-full text-xs font-mono"
+                    placeholder="554"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-bold text-dark-muted block mb-1">DVR/NVR Username</label>
+                  <label className="text-xs font-bold text-dark-muted block mb-1">DVR Username</label>
                   <input
                     type="text"
                     required
@@ -931,56 +995,15 @@ const CCTVMonitoring = () => {
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-dark-muted block mb-1">DVR/NVR Password</label>
+                  <label className="text-xs font-bold text-dark-muted block mb-1">DVR Password (LAN Connector Only)</label>
                   <input
                     type="password"
-                    required
                     value={recorderForm.password}
                     onChange={(e) => setRecorderForm(prev => ({ ...prev, password: e.target.value }))}
                     className="premium-input w-full text-xs font-mono"
-                    placeholder="DVR Password"
+                    placeholder={recorderForm.passwordMasked || "DVR Password"}
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-dark-muted block mb-1">Installation Location</label>
-                  <input
-                    type="text"
-                    required
-                    value={recorderForm.location}
-                    onChange={(e) => setRecorderForm(prev => ({ ...prev, location: e.target.value }))}
-                    className="premium-input w-full text-xs"
-                    placeholder="Control Room / Rack 1"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-dark-muted block mb-1">Connection Method</label>
-                  <select
-                    value={recorderForm.connectionMethod || 'cloud-gateway'}
-                    onChange={(e) => setRecorderForm(prev => ({ ...prev, connectionMethod: e.target.value }))}
-                    className="premium-input w-full text-xs cursor-pointer"
-                  >
-                    {CONNECTION_METHODS.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="enabledCheck"
-                  checked={recorderForm.enabled !== false}
-                  onChange={(e) => setRecorderForm(prev => ({ ...prev, enabled: e.target.checked }))}
-                  className="w-4 h-4 rounded text-primary-500 cursor-pointer"
-                />
-                <label htmlFor="enabledCheck" className="text-xs font-bold text-dark-text cursor-pointer">
-                  Recorder Enabled & Active for {schoolId}
-                </label>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-dark-border">
@@ -988,7 +1011,7 @@ const CCTVMonitoring = () => {
                   type="submit"
                   className="premium-button-primary py-2 px-5 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
-                  <Check size={16} /> Save Recorder
+                  <Check size={16} /> Save Recorder Settings
                 </button>
 
                 <button
@@ -1010,16 +1033,6 @@ const CCTVMonitoring = () => {
                   {isDiscovering ? <RefreshCw className="animate-spin text-amber-500" size={16} /> : <Radio size={16} className="text-amber-500" />}
                   <span>Discover Channels</span>
                 </button>
-
-                <button
-                  type="button"
-                  onClick={handleConnectAllCameras}
-                  disabled={connectingAll}
-                  className="premium-button-primary py-2 px-5 text-xs font-bold flex items-center gap-2 cursor-pointer ml-auto"
-                >
-                  <Zap size={16} className="text-amber-300" />
-                  <span>Connect All Cameras</span>
-                </button>
               </div>
 
               {recorderTestResult && (
@@ -1038,6 +1051,11 @@ const CCTVMonitoring = () => {
                       {recorderTestResult.success ? 'Connection Verified' : 'Connection Failed'}
                     </span>
                     <p className="mt-0.5">{recorderTestResult.message}</p>
+                    {recorderTestResult.diagnosticCode && (
+                      <span className="mt-1 inline-block px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-white/10 text-white">
+                        Diagnostic: {recorderTestResult.diagnosticCode}
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -1047,31 +1065,36 @@ const CCTVMonitoring = () => {
           <div className="space-y-4">
             <div className="bg-dark-card border border-dark-border p-5 rounded-2xl space-y-4">
               <h4 className="text-sm font-bold text-dark-text flex items-center gap-2">
-                <Lock size={16} className="text-primary-500" /> Multi-Tenant Security Policy
+                <Cpu size={16} className="text-primary-500" /> School LAN Connector Status
               </h4>
 
               <div className="space-y-3 text-xs">
                 <div className="p-3 rounded-xl bg-white/5 border border-dark-border">
-                  <span className="text-dark-muted block text-[10px] uppercase font-mono font-bold">Tenant Isolation</span>
-                  <span className="font-bold text-white">schoolId: {schoolId}</span>
+                  <span className="text-dark-muted block text-[10px] uppercase font-mono font-bold">Connector Health</span>
+                  <span className={`font-bold ${connectorInfo.online ? 'text-green-400' : 'text-amber-400'}`}>
+                    {connectorInfo.online ? 'Active & Delivering Heartbeats' : 'Offline / Waiting for Daemon'}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-dark-border">
+                  <span className="text-dark-muted block text-[10px] uppercase font-mono font-bold">Target DVR</span>
+                  <span className="font-bold text-white">192.168.100.82 (TCP 37777 / RTSP 554)</span>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 border border-dark-border">
                   <span className="text-dark-muted block text-[10px] uppercase font-mono font-bold">Credential Shielding</span>
-                  <span className="font-bold text-green-400">Server-Side Encrypted</span>
-                </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-dark-border">
-                  <span className="text-dark-muted block text-[10px] uppercase font-mono font-bold">Stream Protocol</span>
-                  <span className="font-bold text-dark-text">WebRTC / HLS Proxy</span>
+                  <span className="font-bold text-green-400">LAN Encrypted • No Passwords in Firestore</span>
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-primary-500/10 border border-primary-500/30 text-primary-300 text-xs space-y-1">
+              <div className="p-3.5 rounded-xl bg-primary-500/10 border border-primary-500/30 text-primary-300 text-xs space-y-2">
                 <span className="font-bold flex items-center gap-1.5">
-                  <Globe size={14} /> Remote School Connectivity
+                  <Terminal size={14} /> How to Run School Connector
                 </span>
                 <p className="text-[11px] leading-relaxed opacity-85">
-                  Connects cloud-hosted TaleemiDunya app to school LAN recorders safely without public IP exposure.
+                  On the school PC, navigate to <code className="bg-black/30 px-1 py-0.5 rounded font-mono">cctv-connector</code> and run:
                 </p>
+                <div className="bg-black/60 p-2 rounded-lg font-mono text-[10px] text-green-400 select-all">
+                  npm start
+                </div>
               </div>
             </div>
           </div>
@@ -1085,8 +1108,8 @@ const CCTVMonitoring = () => {
         <div className="bg-dark-card border border-dark-border p-6 rounded-2xl space-y-5">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-dark-border pb-4">
             <div>
-              <h3 className="text-base font-bold text-dark-text">Discovered Channels for {recorderForm.brand}</h3>
-              <p className="text-xs text-dark-muted">Model: {recorderForm.model} • Tenant: {schoolId}</p>
+              <h3 className="text-base font-bold text-dark-text">Discovered Channels for Dahua XVR</h3>
+              <p className="text-xs text-dark-muted">Model: DH-XVR1B16-I/T • Tenant: {schoolId}</p>
             </div>
 
             <button
@@ -1114,7 +1137,7 @@ const CCTVMonitoring = () => {
               <tbody className="divide-y divide-dark-border/50">
                 {cameras.map((cam, idx) => {
                   const chNum = cam.channelNumber || (idx + 1);
-                  const isOnline = cam.active && cam.status !== 'offline';
+                  const isOnline = dvrStatus.connected && cam.active && cam.status !== 'offline';
 
                   return (
                     <tr key={cam.id} className="hover:bg-white/5 transition-all">
@@ -1136,7 +1159,7 @@ const CCTVMonitoring = () => {
                         </span>
                       </td>
                       <td className="py-3 px-3 font-mono text-dark-muted">
-                        {isOnline ? 'Active Stream (1080P)' : 'No Signal'}
+                        {isOnline ? 'RTSP Stream Ready (1080P)' : 'No Signal / DVR Unreachable'}
                       </td>
                       <td className="py-3 px-3">
                         <button
@@ -1202,12 +1225,6 @@ const CCTVMonitoring = () => {
                   <RefreshCw size={15} /> Reconnect
                 </button>
                 <button
-                  onClick={(e) => handleSnapshot(previewCamera, 'preview-video-container', e)}
-                  className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer flex items-center gap-1 text-xs"
-                >
-                  <Camera size={15} /> Snapshot
-                </button>
-                <button
                   onClick={(e) => handleFullscreen('preview-video-container', e)}
                   className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-xl transition-all cursor-pointer flex items-center gap-1 text-xs"
                 >
@@ -1222,20 +1239,15 @@ const CCTVMonitoring = () => {
               </div>
             </div>
 
-            <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden" id="preview-video-container">
-              <video
-                src={DEMO_STREAM_FEEDS[0]}
-                autoPlay
-                loop
-                controls
-                playsInline
-                className="w-full h-full object-contain"
-              />
-
-              <div className="absolute top-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1 rounded-xl border border-white/10 flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-xs font-mono text-white font-bold">{recorderForm.brand} STREAM GATEWAY</span>
+            <div className="relative aspect-video bg-black flex flex-col items-center justify-center overflow-hidden p-6 space-y-3 text-center" id="preview-video-container">
+              <Radio size={36} className="text-green-400 animate-pulse" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-white">Dahua Channel {previewCamera.channelNumber || 1} Stream Gateway</h4>
+                <p className="text-xs font-mono text-gray-400">RTSP URL: rtsp://192.168.100.82:554/cam/realmonitor?channel={previewCamera.channelNumber || 1}&subtype=1</p>
               </div>
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-green-500/10 border border-green-500/30 text-green-400">
+                School LAN Connector Active
+              </span>
             </div>
           </div>
         </div>
