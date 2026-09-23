@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useDeferredValue, useCallback } from 'react';
 import { 
   Printer, 
   Download, 
@@ -17,7 +17,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import GlassCard from '../../components/common/GlassCard';
 import { Link } from 'react-router-dom';
-import { renderCustomCard } from '../../components/id-cards/IdCardRenderers';
 import QRCode from 'react-qr-code';
 
 const THEMES = {
@@ -59,6 +58,166 @@ const THEMES = {
   }
 };
 
+const SmitCombinedCard = React.memo(({ 
+  st, 
+  isPrint = false,
+  schoolName,
+  cardSubtitle,
+  cardTheme,
+  validity,
+  principalName,
+  disclaimer,
+  schoolLogo,
+  showFields,
+  customFields,
+  getSignatureForStudent
+}) => {
+  const scale = isPrint ? 'scale-[0.95]' : '';
+  const wrapperWidth = isPrint ? 'w-[680px]' : 'w-[700px]';
+  const height = isPrint ? 'h-[210px]' : 'h-[220px]';
+
+  const getThemeColors = (themeKey) => {
+    switch (themeKey) {
+      case 'emerald': return { primary: '#064e3b', secondary: '#10b981' };
+      case 'crimson': return { primary: '#7f1d1d', secondary: '#ef4444' };
+      case 'charcoal': return { primary: '#111827', secondary: '#9ca3af' };
+      case 'blue':
+      default: return { primary: '#0160b0', secondary: '#6eb838' };
+    }
+  };
+
+  const colors = getThemeColors(cardTheme);
+
+  const WavesTop = () => (
+    <div className="absolute top-0 left-0 w-full h-[40px] overflow-hidden rounded-t-[12px]">
+      <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full">
+        <path d="M0,0 L500,0 L500,60 Q375,10 250,60 Q125,110 0,60 Z" fill={colors.secondary} />
+        <path d="M0,0 L500,0 L500,40 Q375,-10 250,40 Q125,90 0,40 Z" fill={colors.primary} />
+      </svg>
+    </div>
+  );
+
+  const WavesBottom = () => (
+    <div className="absolute bottom-0 left-0 w-full h-[40px] overflow-hidden rounded-b-[12px]">
+      <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full">
+        <path d="M0,150 L500,150 L500,90 Q375,140 250,90 Q125,40 0,90 Z" fill={colors.secondary} />
+        <path d="M0,150 L500,150 L500,110 Q375,160 250,110 Q125,60 0,110 Z" fill={colors.primary} />
+      </svg>
+    </div>
+  );
+
+  const FieldRow = ({ label, value }) => (
+    <div className="flex items-end mb-[10px] w-full">
+      <span className="text-[13px] font-bold text-black min-w-[90px]">{label}</span>
+      <div className="flex-1 border-b pb-0.5 relative" style={{ borderColor: colors.primary }}>
+        <span className="text-[13px] font-black absolute bottom-0.5 left-2 truncate w-[90%]" style={{ color: colors.primary }}>{value || 'N/A'}</span>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={`flex gap-4 rounded-[12px] print-card-break select-text transition-all duration-300 hover:scale-[1.02] mx-auto shrink-0 print:scale-[0.95] print:w-[680px] print:h-[210px] w-[700px] h-[220px] bg-white`}>
+      
+      {/* FRONT SIDE (Left) */}
+      <div className="w-[50%] h-full relative bg-white rounded-[12px] border border-gray-300 shadow-md overflow-hidden flex flex-col">
+        <WavesTop />
+        
+        {schoolLogo && (
+          <div className="absolute inset-0 m-auto w-[120px] h-[120px] opacity-[0.08] pointer-events-none flex items-center justify-center">
+            <img src={schoolLogo} alt="Watermark" className="w-full h-full object-contain" />
+          </div>
+        )}
+
+        <div className="flex flex-col items-center justify-center pt-1 relative z-10 px-2 mt-4">
+          <div className="flex items-center justify-center gap-2">
+            {schoolLogo && (
+              <img src={schoolLogo} alt="Logo" className="w-[40px] h-[40px] object-contain shrink-0" />
+            )}
+            <h1 className="text-[14px] font-black m-0 tracking-tight leading-tight whitespace-nowrap" style={{ color: colors.primary }}>
+              {schoolName?.toUpperCase() || 'SMART ANGELS GRAMMAR SCHOOL'}
+            </h1>
+          </div>
+          {cardSubtitle && (
+            <div className="text-[10px] font-bold mt-0.5 tracking-widest uppercase" style={{ color: colors.secondary }}>
+              {cardSubtitle}
+            </div>
+          )}
+        </div>
+
+        <div className="flex px-4 pt-3 pb-2 relative z-10 flex-1">
+          <div className="w-[80px] h-[100px] shrink-0 border-[3px] rounded-md overflow-hidden bg-blue-100 flex items-center justify-center mr-4" style={{ borderColor: colors.secondary }}>
+            {(st.photoUrl || st.profilePhoto) ? (
+              <img src={st.photoUrl || st.profilePhoto} alt="Student" className="w-full h-full object-cover" />
+            ) : (
+              <User size={40} className="opacity-50" style={{ color: colors.primary }} />
+            )}
+          </div>
+          
+          <div className="flex-1 flex flex-col justify-center mt-[-10px]">
+            {showFields.name && <FieldRow label="Name:" value={st.name} />}
+            {showFields.class && <FieldRow label="Class:" value={st.class} />}
+            {showFields.rollNo && <FieldRow label="Roll Number:" value={st.rollNo || st.rollNumber} />}
+          </div>
+        </div>
+
+        {/* Validity on front bottom left */}
+        <div className="absolute bottom-2 left-4 z-10 text-[9px] font-bold text-white bg-black/30 px-2 py-0.5 rounded-full">
+          Valid: {validity}
+        </div>
+
+        <WavesBottom />
+      </div>
+
+      {/* BACK SIDE (Right) */}
+      <div className="w-[50%] h-full relative bg-white rounded-[12px] border border-gray-300 shadow-md overflow-hidden flex flex-col justify-between">
+        <WavesTop />
+        
+        {schoolLogo && (
+          <div className="absolute inset-0 m-auto w-[120px] h-[120px] opacity-[0.08] pointer-events-none flex items-center justify-center">
+            <img src={schoolLogo} alt="Watermark" className="w-full h-full object-contain" />
+          </div>
+        )}
+
+        <div className="px-6 pt-12 pb-1 flex-1 flex flex-col justify-center relative z-10">
+          <div className="flex w-full gap-2 items-center">
+            <div className="flex-1 pr-2">
+              {showFields.fatherName && <FieldRow label="Father Name:" value={st.fatherName} />}
+              {showFields.cnic && <FieldRow label="CNIC No:" value={st.fatherCnic || st.cnic} />}
+              {showFields.grNo && <FieldRow label="Gr No:" value={st.grNumber || st.grNo} />}
+              {showFields.contact && <FieldRow label="Contact No:" value={st.phone || st.contact} />}
+              {customFields.map((field, idx) => field.label && (
+                <FieldRow key={idx} label={`${field.label}:`} value={st[field.value] || 'N/A'} />
+              ))}
+            </div>
+            <div className="w-[85px] h-[85px] p-1 border-2 rounded flex items-center justify-center shrink-0" style={{ borderColor: colors.primary }}>
+              {(st.id || st.registrationNo || st.rollNo || st.rollNumber) ? <QRCode value={String(st.id || st.registrationNo || st.rollNo || st.rollNumber)} style={{ width: '100%', height: '100%' }} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[10px] border border-dashed border-red-500 w-full h-full">NO ID</div>}
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full flex justify-between items-end px-6 relative z-10 mb-3">
+          <div className="w-[60%] text-[8px] leading-tight text-gray-600 font-medium italic pr-2">
+            {disclaimer}
+          </div>
+          <div className="flex flex-col items-center">
+            {getSignatureForStudent(st.class, 'Principal') ? (
+              <img src={getSignatureForStudent(st.class, 'Principal')} alt="Principal" className="h-[25px] object-contain mb-[-4px]" />
+            ) : (
+              <span className="font-['Dancing_Script',cursive] text-lg text-black mb-[-4px]">Signature</span>
+            )}
+            <div className="border-t border-black w-[90px] text-center pt-0.5 text-[9px] font-bold text-black uppercase">
+              {principalName || 'Principal'}
+            </div>
+          </div>
+        </div>
+
+        <WavesBottom />
+      </div>
+
+    </div>
+  );
+});
+
 const StudentIdCards = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
@@ -68,6 +227,7 @@ const StudentIdCards = () => {
   const [teachers, setTeachers] = useState([]);
   const [selectedClass, setSelectedClass] = useState('ALL');
   const [loading, setLoading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   // ID Card customizations - pre-fill from school profile
   const [schoolName, setSchoolName] = useState(
@@ -75,17 +235,33 @@ const StudentIdCards = () => {
   );
   const [cardSubtitle, setCardSubtitle] = useState('Student Identity Card');
   const [cardTheme, setCardTheme] = useState('blue');
-  const [cardLayout, setCardLayout] = useState('portrait');
   const [validity, setValidity] = useState('2026 - 2027');
   const [principalName, setPrincipalName] = useState('Principal Office');
   const [disclaimer, setDisclaimer] = useState('This card is non-transferable and remains the property of the school. If found, please return to the school administration office.');
   
+  const [showFields, setShowFields] = useState({
+    name: true,
+    class: true,
+    rollNo: true,
+    fatherName: true,
+    cnic: true,
+    grNo: true,
+    contact: true,
+  });
+  const [customFields, setCustomFields] = useState([]);
+
   // School logo from context (auto-loaded)
   const schoolLogo = schoolData?.logo || null;
 
-  // Custom stamp upload
-  const [stampImage, setStampImage] = useState(null);
-  const stampInputRef = useRef(null);
+  // Defer heavy UI updates to prevent input/checkbox lag
+  const deferredSchoolName = useDeferredValue(schoolName);
+  const deferredCardSubtitle = useDeferredValue(cardSubtitle);
+  const deferredCardTheme = useDeferredValue(cardTheme);
+  const deferredValidity = useDeferredValue(validity);
+  const deferredPrincipalName = useDeferredValue(principalName);
+  const deferredDisclaimer = useDeferredValue(disclaimer);
+  const deferredShowFields = useDeferredValue(showFields);
+  const deferredCustomFields = useDeferredValue(customFields);
 
   useEffect(() => {
     if (schoolData?.name || schoolData?.schoolName || userData?.schoolName) {
@@ -114,19 +290,25 @@ const StudentIdCards = () => {
     }
   };
 
-  const getSignatureForStudent = (studentClass) => {
+  const getSignatureForStudent = useCallback((studentClass, type = 'Principal') => {
     const rules = schoolData?.signatureSettings?.rules || [];
     
-    // 1. Look for a teacher rule matching this class for ID Cards
-    const teacherRule = rules.find(r => r.type === 'Teacher' && String(r.class).trim().toUpperCase() === String(studentClass).trim().toUpperCase() && r.documents?.idCard);
-    if (teacherRule && teacherRule.signatureUrl) {
-      return teacherRule.signatureUrl;
+    if (type === 'Teacher') {
+      const teacherRule = rules.find(r => r.type === 'Teacher' && String(r.class).trim().toUpperCase() === String(studentClass).trim().toUpperCase());
+      if (teacherRule && teacherRule.signatureUrl) {
+        return teacherRule.signatureUrl;
+      }
+      return null;
     }
 
-    // 2. Look for a principal rule for ID Cards
-    const principalRule = rules.find(r => r.type === 'Principal' && r.documents?.idCard);
-    if (principalRule && principalRule.signatureUrl) {
-      return principalRule.signatureUrl;
+    if (type === 'Principal') {
+      const principalRule = rules.find(r => r.type === 'Principal');
+      if (principalRule && principalRule.signatureUrl) {
+        return principalRule.signatureUrl;
+      }
+      if (schoolData?.signatureSettings?.principalSignatureUrl) {
+         return schoolData.signatureSettings.principalSignatureUrl;
+      }
     }
 
     // 3. Legacy Fallback (for old configs)
@@ -146,22 +328,11 @@ const StudentIdCards = () => {
         );
         if (teacher && teacher.signatureUrl) return teacher.signatureUrl;
       }
-      return schoolData.signatureSettings.principalSignatureUrl || stampImage || null;
+      return schoolData.signatureSettings.principalSignatureUrl || null;
     }
 
-    return stampImage || null;
-  };
-
-  const handleStampUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        setStampImage(uploadEvent.target.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+    return null;
+  }, [schoolData, teachers]);
 
   // Procedural authentic SVG barcode based on student registration number
   const renderBarcodeSVG = (text) => {
@@ -196,133 +367,14 @@ const StudentIdCards = () => {
     : students.filter(s => String(s.class || '').trim().toUpperCase() === selectedClass);
 
   const handlePrint = () => {
-    window.print();
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrinting(false);
+    }, 500);
   };
 
-  const SmitCombinedCard = ({ st, isPrint = false }) => {
-    const scale = isPrint ? 'scale-[0.95]' : '';
-    const wrapperWidth = isPrint ? 'w-[680px]' : 'w-[700px]';
-    const height = isPrint ? 'h-[210px]' : 'h-[220px]';
 
-    const WavesTop = () => (
-      <div className="absolute top-0 left-0 w-full h-[40px] overflow-hidden rounded-t-[12px]">
-        <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full">
-          {/* Outer wave: was blue, now Light Green */}
-          <path d="M0,0 L500,0 L500,60 Q375,10 250,60 Q125,110 0,60 Z" fill="#6eb838" />
-          {/* Inner wave: was green, now Dark Blue */}
-          <path d="M0,0 L500,0 L500,40 Q375,-10 250,40 Q125,90 0,40 Z" fill="#0160b0" />
-        </svg>
-      </div>
-    );
-
-    const WavesBottom = () => (
-      <div className="absolute bottom-0 left-0 w-full h-[40px] overflow-hidden rounded-b-[12px]">
-        <svg viewBox="0 0 500 150" preserveAspectRatio="none" className="w-full h-full">
-          {/* Outer wave: was blue, now Light Green */}
-          <path d="M0,150 L500,150 L500,90 Q375,140 250,90 Q125,40 0,90 Z" fill="#6eb838" />
-          {/* Inner wave: was green, now Dark Blue */}
-          <path d="M0,150 L500,150 L500,110 Q375,160 250,110 Q125,60 0,110 Z" fill="#0160b0" />
-        </svg>
-      </div>
-    );
-
-    const FieldRow = ({ label, value }) => (
-      <div className="flex items-end mb-[10px] w-full">
-        <span className="text-[13px] font-bold text-black min-w-[90px]">{label}</span>
-        <div className="flex-1 border-b border-[#0160b0] pb-0.5 relative">
-          <span className="text-[13px] font-black text-[#0160b0] absolute bottom-0.5 left-2 truncate w-[90%]">{value || 'N/A'}</span>
-        </div>
-      </div>
-    );
-
-    return (
-      <div className={`flex gap-4 rounded-[12px] print-card-break select-text transition-all duration-300 hover:scale-[1.02] mx-auto shrink-0 print:scale-[0.95] print:w-[680px] print:h-[210px] w-[700px] h-[220px] bg-white`}>
-        
-        {/* FRONT SIDE (Left) */}
-        <div className="w-[50%] h-full relative bg-white rounded-[12px] border border-gray-300 shadow-md overflow-hidden flex flex-col">
-          <WavesTop />
-          
-          {/* Watermark Logo */}
-          {schoolLogo && (
-            <div className="absolute inset-0 m-auto w-[120px] h-[120px] opacity-[0.08] pointer-events-none flex items-center justify-center">
-              <img src={schoolLogo} alt="Watermark" className="w-full h-full object-contain" />
-            </div>
-          )}
-
-          {/* Header */}
-          <div className="flex items-center justify-center pt-2 relative z-10 px-2 gap-2 mt-4">
-            {schoolLogo && (
-              <img src={schoolLogo} alt="Logo" className="w-[50px] h-[50px] object-contain shrink-0" />
-            )}
-            <h1 className="text-[14px] font-black text-[#0160b0] m-0 tracking-tight leading-tight whitespace-nowrap">
-              {schoolName?.toUpperCase() || 'SMART ANGELS GRAMMAR SCHOOL'}
-            </h1>
-          </div>
-
-          {/* Body */}
-          <div className="flex px-4 pt-4 pb-2 relative z-10 flex-1">
-            <div className="w-[80px] h-[100px] shrink-0 border-[3px] border-[#6eb838] rounded-md overflow-hidden bg-blue-100 flex items-center justify-center mr-4">
-              {st.profilePhoto ? (
-                <img src={st.profilePhoto} alt="Student" className="w-full h-full object-cover" />
-              ) : (
-                <User size={40} className="text-[#0160b0]/50" />
-              )}
-            </div>
-            
-            <div className="flex-1 flex flex-col justify-center mt-[-10px]">
-              <FieldRow label="Name:" value={st.name} />
-              <FieldRow label="Class:" value={st.class} />
-              <FieldRow label="Roll Number:" value={st.rollNo || st.rollNumber} />
-            </div>
-          </div>
-
-          <WavesBottom />
-        </div>
-
-        {/* BACK SIDE (Right) */}
-        <div className="w-[50%] h-full relative bg-white rounded-[12px] border border-gray-300 shadow-md overflow-hidden flex flex-col justify-between">
-          <WavesTop />
-          
-          {/* Watermark Logo */}
-          {schoolLogo && (
-            <div className="absolute inset-0 m-auto w-[120px] h-[120px] opacity-[0.08] pointer-events-none flex items-center justify-center">
-              <img src={schoolLogo} alt="Watermark" className="w-full h-full object-contain" />
-            </div>
-          )}
-
-          <div className="px-6 pt-12 pb-2 flex-1 flex flex-col justify-center relative z-10">
-            <div className="flex w-full gap-2 items-center">
-              <div className="flex-1 pr-2">
-                <FieldRow label="Father Name:" value={st.fatherName} />
-                <FieldRow label="CNIC No:" value={st.fatherCnic || st.cnic} />
-                <FieldRow label="Gr No:" value={st.grNumber || st.grNo} />
-                <FieldRow label="Contact No:" value={st.phone || st.contact} />
-              </div>
-              <div className="w-[85px] h-[85px] p-1 border-2 border-[#0160b0] rounded flex items-center justify-center shrink-0">
-                {(st.id || st.registrationNo || st.rollNo || st.rollNumber) ? <QRCode value={String(st.id || st.registrationNo || st.rollNo || st.rollNumber)} style={{ width: '100%', height: '100%' }} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[10px] border border-dashed border-red-500 w-full h-full">NO ID</div>}
-              </div>
-            </div>
-          </div>
-
-          <div className="w-full flex justify-end px-6 relative z-10 mb-4">
-            <div className="flex flex-col items-center">
-              {getSignatureForStudent(st.class) ? (
-                <img src={getSignatureForStudent(st.class)} alt="Signature" className="h-[25px] object-contain mb-[-4px]" />
-              ) : (
-                <span className="font-['Dancing_Script',cursive] text-lg text-black mb-[-4px]">Signature</span>
-              )}
-              <div className="border-t border-black w-[100px] text-center pt-0.5 text-[10px] font-bold text-black">
-                {principalName || 'Issuing Authority'}
-              </div>
-            </div>
-          </div>
-
-          <WavesBottom />
-        </div>
-
-      </div>
-    );
-  };
 
   return (
     <div className="p-4 md:p-6 min-h-screen bg-dark-bg text-dark-text select-none">
@@ -425,30 +477,6 @@ const StudentIdCards = () => {
                 />
               </div>
 
-              {/* Layout Picker */}
-              <div className="space-y-1.5 mt-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-dark-muted uppercase tracking-wider flex items-center gap-1.5">
-                    <span>Card Template Layout</span>
-                  </label>
-                  <Link to="/school-admin/id-card-designer" className="text-[9px] font-bold text-primary-400 hover:text-primary-300 underline">Open Designer</Link>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-1">
-                  <button
-                    onClick={() => setCardLayout('portrait')}
-                    className={`py-1.5 px-3 rounded-lg border transition-all font-bold text-[10px] ${
-                      cardLayout === 'portrait' ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-dark-border/40 text-dark-muted hover:bg-white/5'
-                    }`}
-                  >Standard Portrait</button>
-                  <button
-                    onClick={() => setCardLayout('custom')}
-                    className={`py-1.5 px-3 rounded-lg border transition-all font-bold text-[10px] ${
-                      cardLayout === 'custom' ? 'border-primary-500 bg-primary-500/10 text-primary-400' : 'border-dark-border/40 text-dark-muted hover:bg-white/5'
-                    }`}
-                  >Custom Canva Design</button>
-                </div>
-              </div>
-
               {/* Theme Picker */}
               <div className="space-y-1.5">
                 <label className="text-[10px] text-dark-muted uppercase tracking-wider flex items-center gap-1.5">
@@ -498,37 +526,6 @@ const StudentIdCards = () => {
                   placeholder="Principal Name"
                 />
               </div>
-
-              {/* Stamp Upload */}
-              <div className="space-y-1.5">
-                <label className="text-[10px] text-dark-muted uppercase tracking-wider block">Principal Signature Stamp</label>
-                <button
-                  onClick={() => stampInputRef.current?.click()}
-                  className="w-full py-2 bg-dark-card border border-dashed border-dark-border hover:border-primary-500 rounded-xl transition-all flex items-center justify-center gap-1.5 text-xs text-primary-400 font-bold"
-                >
-                  <FileImage size={14} />
-                  <span>{stampImage ? 'Change Stamp' : 'Upload Stamp'}</span>
-                </button>
-                <input 
-                  type="file" 
-                  ref={stampInputRef}
-                  onChange={handleStampUpload}
-                  accept="image/*"
-                  className="hidden" 
-                />
-                {stampImage && (
-                  <div className="relative mt-2 p-1.5 border border-dark-border/40 rounded-xl bg-dark-card/50 flex items-center justify-between">
-                    <img src={stampImage} alt="Stamp preview" className="h-8 max-w-[80px] object-contain rounded" />
-                    <button 
-                      onClick={() => setStampImage(null)}
-                      className="text-[9px] text-red-400 hover:text-red-300 font-black uppercase mr-1"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                )}
-              </div>
-
               {/* Disclaimer */}
               <div className="space-y-1.5">
                 <label className="text-[10px] text-dark-muted uppercase tracking-wider">Backside Disclaimer Note</label>
@@ -539,6 +536,80 @@ const StudentIdCards = () => {
                   className="w-full premium-input bg-dark-card text-xs resize-none"
                   placeholder="Card backside terms..."
                 />
+              </div>
+
+              {/* Field Toggles */}
+              <div className="space-y-1.5 mt-4 border-t border-dark-border/40 pt-4">
+                <label className="text-[10px] text-dark-muted uppercase tracking-wider block mb-2">Show/Hide Fields</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'name', label: 'Name' },
+                    { key: 'class', label: 'Class' },
+                    { key: 'rollNo', label: 'Roll No' },
+                    { key: 'fatherName', label: 'Father Name' },
+                    { key: 'cnic', label: 'CNIC' },
+                    { key: 'grNo', label: 'Gr No' },
+                    { key: 'contact', label: 'Contact' }
+                  ].map((field) => (
+                    <div key={field.key} className="flex items-center gap-2">
+                      <input 
+                        type="checkbox" 
+                        id={`show-${field.key}`}
+                        checked={!!showFields[field.key]} 
+                        onChange={(e) => setShowFields(prev => ({ ...prev, [field.key]: e.target.checked }))}
+                        className="rounded border-dark-border/40 text-primary-500 bg-dark-card focus:ring-primary-500/30 w-4 h-4 cursor-pointer"
+                      />
+                      <label htmlFor={`show-${field.key}`} className="text-xs text-dark-text capitalize cursor-pointer select-none font-medium">
+                        {field.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom Fields */}
+              <div className="space-y-1.5 border-t border-dark-border/40 pt-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] text-dark-muted uppercase tracking-wider block">Custom Fields</label>
+                  <button 
+                    onClick={(e) => { e.preventDefault(); setCustomFields([...customFields, { label: '', value: '' }]); }}
+                    className="text-[9px] text-primary-400 hover:text-primary-300 font-bold uppercase"
+                  >
+                    + Add Other
+                  </button>
+                </div>
+                {customFields.map((field, idx) => (
+                  <div key={idx} className="flex gap-2 items-center mt-2">
+                    <input 
+                      type="text" 
+                      placeholder="Label (e.g. Blood Gr)" 
+                      value={field.label}
+                      onChange={(e) => {
+                        const newFields = [...customFields];
+                        newFields[idx].label = e.target.value;
+                        setCustomFields(newFields);
+                      }}
+                      className="w-[45%] premium-input bg-dark-card text-xs py-1 px-2"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="DB Key (e.g. bloodGroup)" 
+                      value={field.value}
+                      onChange={(e) => {
+                        const newFields = [...customFields];
+                        newFields[idx].value = e.target.value;
+                        setCustomFields(newFields);
+                      }}
+                      className="w-[45%] premium-input bg-dark-card text-xs py-1 px-2"
+                    />
+                    <button 
+                      onClick={(e) => { e.preventDefault(); setCustomFields(customFields.filter((_, i) => i !== idx)); }}
+                      className="text-red-400 hover:text-red-300 font-bold px-1 w-[10%]"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           </GlassCard>
@@ -568,19 +639,37 @@ const StudentIdCards = () => {
                 <p className="text-xs font-black text-dark-muted uppercase mt-2">No students found matching class: {selectedClass}</p>
               </div>
             ) : (
-              /* A4 Vertical List container */
-              <div className="flex flex-col gap-6 items-center w-full">
-                {filteredStudents.map((st) => {
-                  if (cardLayout === 'custom') {
-                    return renderCustomCard(st, false, { customTemplate: schoolData?.customIdCardTemplate });
-                  }
+              <>
+                {/* A4 Vertical List container */}
+                {!isPrinting && filteredStudents.length > 10 && (
+                  <div className="bg-primary-50/50 border border-primary-200 text-primary-800 text-xs font-bold p-3 rounded-lg flex items-center justify-center mb-6 print:hidden w-full max-w-3xl text-center">
+                    Showing 10 preview cards for performance. All {filteredStudents.length} cards will be generated when you click Print.
+                  </div>
+                )}
+                
+                <div className="flex flex-col gap-6 items-center w-full">
+                  {(isPrinting ? filteredStudents : filteredStudents.slice(0, 10)).map((st) => {
                   return (
                     <div key={st.id} className="flex flex-col items-center mb-6 border-b border-dark-border/30 pb-6 print:pb-2 print:border-0 last:border-0 last:pb-0 w-full overflow-hidden print:mb-0">
-                      <SmitCombinedCard st={st} isPrint={false} />
+                      <SmitCombinedCard 
+                        st={st} 
+                        isPrint={false} 
+                        schoolName={deferredSchoolName}
+                        cardSubtitle={deferredCardSubtitle}
+                        cardTheme={deferredCardTheme}
+                        validity={deferredValidity}
+                        principalName={deferredPrincipalName}
+                        disclaimer={deferredDisclaimer}
+                        schoolLogo={schoolLogo}
+                        showFields={deferredShowFields}
+                        customFields={deferredCustomFields}
+                        getSignatureForStudent={getSignatureForStudent}
+                      />
                     </div>
                   );
                 })}
               </div>
+            </>
             )}
           </GlassCard>
         </div>

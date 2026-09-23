@@ -183,6 +183,11 @@ const AdmitCards = () => {
   const schoolLogo = schoolData?.branding?.logo || schoolData?.logo || schoolData?.logoUrl || null;
   const schoolSlogan = schoolData?.slogan || schoolData?.tagline || 'A Unique Balance between Deen – O – Dunya';
 
+  const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+  const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
+  const teacherRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass));
+  const teacherSignatureUrl = teacherRule?.signatureUrl || null;
+
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto font-sans animate-fade-in pb-24 text-black">
       
@@ -464,6 +469,31 @@ const AdmitCards = () => {
                         <span className="border-t border-black flex-1 max-w-[160px]"></span>
                         <span className="px-2 text-xs font-serif">❖</span>
                         <span className="border-t border-black flex-1 max-w-[160px]"></span>
+                      </div>
+
+                      {/* Signatures Footer */}
+                      <div className="flex justify-between items-end px-8 pt-8 pb-4">
+                        <div className="flex flex-col items-center">
+                          {teacherSignatureUrl ? (
+                            <img src={teacherSignatureUrl} alt="Class Teacher" className="h-10 object-contain -mb-1" />
+                          ) : (
+                            <div className="h-9"></div>
+                          )}
+                          <div className="w-36 border-t-2 border-black pt-1 text-center">
+                            <span className="text-xs font-bold uppercase">Class Teacher</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-center">
+                          {principalSignatureUrl ? (
+                            <img src={principalSignatureUrl} alt="Principal" className="h-10 object-contain -mb-1" />
+                          ) : (
+                            <div className="h-9"></div>
+                          )}
+                          <div className="w-36 border-t-2 border-black pt-1 text-center">
+                            <span className="text-xs font-bold uppercase">Principal</span>
+                          </div>
+                        </div>
                       </div>
 
                     </div>

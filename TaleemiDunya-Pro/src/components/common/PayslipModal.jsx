@@ -21,6 +21,10 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
   const schoolPhone = finalSchoolData?.phone || finalUserData?.schoolPhone || '';
   const schoolEmail = finalSchoolData?.email || finalUserData?.schoolEmail || '';
   const schoolLogo = finalSchoolData?.logo || finalUserData?.schoolLogo || null;
+  const adminRule = finalSchoolData?.signatureSettings?.rules?.find(r => r.type === 'Admin');
+  const adminSignatureUrl = adminRule?.signatureUrl || null;
+  const principalRule = finalSchoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+  const principalSignatureUrl = finalSchoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
 
   const handlePrint = () => {
     const printContent = document.getElementById('payslip-printable-area');
@@ -352,14 +356,24 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-12 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">
-              <div>
-                <div className="w-56 border-b-2 border-gray-400 mx-auto mb-2"></div>
-                School Administrator Signature
+            <div className="grid grid-cols-2 gap-12 text-center text-[10px] md:text-xs font-bold text-gray-600 uppercase tracking-wider">
+              <div className="flex flex-col items-center justify-end">
+                {adminSignatureUrl ? (
+                  <img src={adminSignatureUrl} alt="Admin Signature" className="h-8 object-contain -mb-1 opacity-90 mix-blend-multiply" />
+                ) : (
+                  <div className="h-7" />
+                )}
+                <div className="w-full max-w-[150px] border-b-2 border-gray-400 mx-auto mb-2"></div>
+                Admin
               </div>
-              <div>
-                <div className="w-56 border-b-2 border-gray-400 mx-auto mb-2"></div>
-                Staff Member Signature
+              <div className="flex flex-col items-center justify-end">
+                {principalSignatureUrl ? (
+                  <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 opacity-90 mix-blend-multiply" />
+                ) : (
+                  <div className="h-7" />
+                )}
+                <div className="w-full max-w-[150px] border-b-2 border-gray-400 mx-auto mb-2"></div>
+                Principal
               </div>
             </div>
 

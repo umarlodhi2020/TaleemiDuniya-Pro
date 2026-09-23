@@ -49,6 +49,21 @@ const StudentRemarkReport = () => {
   const [loading, setLoading] = useState(true);
   const [reportGenerated, setReportGenerated] = useState(false);
 
+  // Helper for signatures
+  const getSignatureUrl = (type, studentClass = null) => {
+    if (!schoolData?.signatureSettings?.rules) return null;
+    
+    if (type === 'Teacher') {
+      const rule = schoolData.signatureSettings.rules.find(r => r.type === 'Teacher' && String(r.class).trim().toUpperCase() === String(studentClass).trim().toUpperCase());
+      return rule?.signatureUrl || null;
+    }
+    if (type === 'Principal') {
+      const rule = schoolData.signatureSettings.rules.find(r => r.type === 'Principal');
+      return rule?.signatureUrl || schoolData?.signatureSettings?.principalSignatureUrl || null;
+    }
+    return null;
+  };
+
   // Fetch student records on mount
   useEffect(() => {
     if (!schoolId) return;
@@ -605,12 +620,20 @@ const StudentRemarkReport = () => {
 
               {/* Signatures & Footer */}
               <div className="pt-8 mt-6 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-xs font-bold text-slate-800 print-page-break-inside-avoid">
-                <div>
-                  <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
+                <div className="flex flex-col items-center justify-end h-16">
+                  {getSignatureUrl('Teacher', selectedClass) ? (
+                    <img src={getSignatureUrl('Teacher', selectedClass)} alt="Teacher Signature" className="h-10 object-contain mb-1" />
+                  ) : (
+                    <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
+                  )}
                   <span>Class Teacher Signature</span>
                 </div>
-                <div>
-                  <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
+                <div className="flex flex-col items-center justify-end h-16">
+                  {getSignatureUrl('Principal') ? (
+                    <img src={getSignatureUrl('Principal')} alt="Principal Signature" className="h-10 object-contain mb-1" />
+                  ) : (
+                    <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
+                  )}
                   <span>Principal / Coordinator Signature</span>
                 </div>
               </div>
@@ -752,12 +775,16 @@ const StudentRemarkReport = () => {
 
               {/* Signatures & Footer */}
               <div className="pt-8 mt-6 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-xs font-bold text-slate-800 print-page-break-inside-avoid">
-                <div>
+                <div className="flex flex-col items-center justify-end h-16">
                   <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
                   <span>Parent / Guardian Signature</span>
                 </div>
-                <div>
-                  <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
+                <div className="flex flex-col items-center justify-end h-16">
+                  {getSignatureUrl('Principal') ? (
+                    <img src={getSignatureUrl('Principal')} alt="Principal Signature" className="h-10 object-contain mb-1" />
+                  ) : (
+                    <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
+                  )}
                   <span>Principal Signature & Stamp</span>
                 </div>
               </div>

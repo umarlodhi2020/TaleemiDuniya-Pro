@@ -650,6 +650,11 @@ const FeeRecord = () => {
       </tr>
     `;
 
+    const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+    const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
+    const accountantRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Accountant' || r.type === 'Clerk');
+    const accountantSignatureUrl = accountantRule?.signatureUrl || null;
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -701,8 +706,16 @@ const FeeRecord = () => {
           </tbody>
         </table>
         <div style="margin-top:35px; display:flex; justify-content:space-between; padding:0 20px;">
-          <div><div style="width:160px; border-bottom:1px solid #000; margin-bottom:4px;"></div><span style="font-size:11px; font-weight:bold;">Accountant Signature</span></div>
-          <div><div style="width:160px; border-bottom:1px solid #000; margin-bottom:4px;"></div><span style="font-size:11px; font-weight:bold;">Principal Signature</span></div>
+          <div style="text-align: center;">
+            ${accountantSignatureUrl ? `<img src="${accountantSignatureUrl}" style="height:35px; object-fit:contain; margin-bottom:-4px;" />` : `<div style="height:31px;"></div>`}
+            <div style="width:160px; border-bottom:1px solid #000; margin-bottom:4px;"></div>
+            <span style="font-size:11px; font-weight:bold;">Accountant Signature</span>
+          </div>
+          <div style="text-align: center;">
+            ${principalSignatureUrl ? `<img src="${principalSignatureUrl}" style="height:35px; object-fit:contain; margin-bottom:-4px;" />` : `<div style="height:31px;"></div>`}
+            <div style="width:160px; border-bottom:1px solid #000; margin-bottom:4px;"></div>
+            <span style="font-size:11px; font-weight:bold;">Principal Signature</span>
+          </div>
         </div>
         <script>window.onload = function(){ window.print(); window.onafterprint = function(){ window.close(); }; }</script>
       </body>

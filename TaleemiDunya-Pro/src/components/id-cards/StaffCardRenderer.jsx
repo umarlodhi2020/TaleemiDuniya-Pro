@@ -120,12 +120,12 @@ export const renderStaffCard = (staff, isPrint, settings) => {
           </span>
           {showSignature && (
             <div className="flex flex-col items-center">
-              {showStamp && stampImage ? (
-                <img src={stampImage} alt="Stamp" className="h-6 object-contain -mb-1 opacity-80" />
+              {stampImage ? (
+                <img src={stampImage} alt="Signature" className="h-[25px] object-contain -mb-1" />
               ) : (
                 <div className="h-6" /> // spacer
               )}
-              <span className="text-[6.5px] font-medium text-white/90 border-t border-white/50 pt-0.5 min-w-[50px] text-center">
+              <span className="text-[7px] font-bold text-black border-t border-black pt-0.5 min-w-[50px] text-center">
                 {principalName}
               </span>
             </div>

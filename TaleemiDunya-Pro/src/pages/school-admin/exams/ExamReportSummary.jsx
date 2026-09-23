@@ -339,6 +339,14 @@ const ExamReportSummary = () => {
 
       const logoBase64 = logoUrl ? await getBase64ImageFromUrl(logoUrl) : null;
 
+      const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+      const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
+      const teacherRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass));
+      const teacherSignatureUrl = teacherRule?.signatureUrl || null;
+
+      const principalB64 = principalSignatureUrl ? await getBase64ImageFromUrl(principalSignatureUrl) : null;
+      const teacherB64 = teacherSignatureUrl ? await getBase64ImageFromUrl(teacherSignatureUrl) : null;
+
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -438,20 +446,19 @@ const ExamReportSummary = () => {
       });
 
       // Footer Signatures
-      const finalY = Math.min(doc.lastAutoTable.finalY + 18, pageHeight - 20);
+      const finalY = Math.min(doc.lastAutoTable.finalY + 25, pageHeight - 30);
       doc.setDrawColor(148, 163, 184);
       doc.setLineWidth(0.4);
       doc.setFontSize(8);
       doc.setTextColor(71, 85, 105);
 
-      doc.line(20, finalY, 70, finalY);
-      doc.text("Class Teacher", 45, finalY + 4, { align: 'center' });
+      if (teacherB64) doc.addImage(teacherB64, 'PNG', 35, finalY - 15, 30, 12);
+      doc.line(20, finalY, 80, finalY);
+      doc.text("Class Teacher", 50, finalY + 4, { align: 'center' });
 
-      doc.line(pageWidth / 2 - 25, finalY, pageWidth / 2 + 25, finalY);
-      doc.text("Exam Controller", pageWidth / 2, finalY + 4, { align: 'center' });
-
-      doc.line(pageWidth - 70, finalY, pageWidth - 20, finalY);
-      doc.text("Principal Signature", pageWidth - 45, finalY + 4, { align: 'center' });
+      if (principalB64) doc.addImage(principalB64, 'PNG', pageWidth - 65, finalY - 15, 30, 12);
+      doc.line(pageWidth - 80, finalY, pageWidth - 20, finalY);
+      doc.text("Principal Signature", pageWidth - 50, finalY + 4, { align: 'center' });
 
       const safeTerm = selectedTerm.replace(/[^a-zA-Z0-9]/g, '_');
       doc.save(`Class_Term_Report_${selectedClass}_${safeTerm}.pdf`);
@@ -789,15 +796,27 @@ const ExamReportSummary = () => {
             </div>
 
             {/* Signatures Footer */}
-            <div className="pt-12 print:pt-6 print:break-inside-avoid flex items-center justify-between text-xs font-bold text-slate-600 px-4">
-              <div className="text-center border-t border-slate-400 pt-1 w-44">
-                <span>Class Teacher</span>
+            <div className="pt-20 print:pt-10 print:break-inside-avoid flex items-end justify-between text-xs font-bold text-slate-600 px-10 pb-8">
+              <div className="flex flex-col items-center">
+                {schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass))?.signatureUrl ? (
+                  <img src={schoolData.signatureSettings.rules.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass)).signatureUrl} alt="Class Teacher" className="h-10 object-contain -mb-2" />
+                ) : (
+                  <div className="h-8"></div>
+                )}
+                <div className="w-44 border-t border-slate-400 pt-1 mt-1 text-center">
+                  <span>Class Teacher</span>
+                </div>
               </div>
-              <div className="text-center border-t border-slate-400 pt-1 w-44">
-                <span>Exam Controller</span>
-              </div>
-              <div className="text-center border-t border-slate-400 pt-1 w-44">
-                <span>Principal Signature</span>
+
+              <div className="flex flex-col items-center">
+                {schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl ? (
+                  <img src={schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl} alt="Principal" className="h-10 object-contain -mb-2" />
+                ) : (
+                  <div className="h-8"></div>
+                )}
+                <div className="w-44 border-t border-slate-400 pt-1 mt-1 text-center">
+                  <span>Principal Signature</span>
+                </div>
               </div>
             </div>
 

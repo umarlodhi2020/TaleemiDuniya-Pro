@@ -137,9 +137,13 @@ const StaffIdCards = () => {
     { name: 'Gray', value: '#4b5563', class: 'bg-[#4b5563]' }
   ];
 
+  const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+  const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
+
   const currentSettings = {
     ...settings,
-    logoImage: schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo || settings.logoImage || null
+    logoImage: schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo || settings.logoImage || null,
+    stampImage: principalSignatureUrl || settings.stampImage || null
   };
 
   return (

@@ -21,6 +21,7 @@ import {
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, addRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import jsPDF from 'jspdf';
@@ -83,6 +84,8 @@ const logoPresets = [
 const ReportCardTemplates = () => {
   const navigate = useNavigate();
   const { userData } = useAuth();
+  const { schoolData } = useSchool();
+  const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || null;
   const schoolId = userData?.schoolId || 'default-school';
 
   const [activeTemplate, setActiveTemplate] = useState('traditional');
@@ -739,7 +742,12 @@ const ReportCardTemplates = () => {
                   <div className="pl-4 pr-2 pt-2 relative z-20 text-[10px] font-black text-black uppercase tracking-wider">
                     {/* Head & Teacher sign red lines */}
                     <div className="grid grid-cols-2 gap-12 text-center">
-                      <div className="flex flex-col items-center">
+                      <div className="flex flex-col items-center justify-end">
+                        {principalSignatureUrl ? (
+                          <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 mix-blend-multiply opacity-90" />
+                        ) : (
+                          <div className="h-7" />
+                        )}
                         <div className="w-36 border-t-2 border-red-500 pt-1 font-extrabold text-[9px]">
                           School Head Signature
                         </div>
@@ -934,7 +942,12 @@ const ReportCardTemplates = () => {
                   <div className="px-8 pt-2 pb-2 relative z-20 text-[10px] font-black text-black uppercase tracking-wider">
                     {/* Head & Teacher signature gold lines */}
                     <div className="grid grid-cols-2 gap-12 text-center">
-                      <div className="flex flex-col items-center">
+                      <div className="flex flex-col items-center justify-end">
+                        {principalSignatureUrl ? (
+                          <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 mix-blend-multiply opacity-90" />
+                        ) : (
+                          <div className="h-7" />
+                        )}
                         <div className="w-36 border-t-2 border-[#d97706] pt-1 font-extrabold text-[8px] text-[#065f46]">
                           School Head Signature
                         </div>
@@ -1117,7 +1130,12 @@ const ReportCardTemplates = () => {
                       <div className="w-32 border-b border-indigo-950/20 pb-0.5 font-serif italic text-indigo-950/30 text-xs">Class Teacher</div>
                       <span className="mt-1 font-black text-slate-800">{customizer.teacherName}</span>
                     </div>
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center justify-end">
+                      {principalSignatureUrl ? (
+                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 mix-blend-multiply opacity-90" />
+                      ) : (
+                        <div className="h-7" />
+                      )}
                       <div className="w-32 border-b border-indigo-950/20 pb-0.5 font-serif italic text-indigo-950/30 text-xs">Headmaster</div>
                       <span className="mt-1 font-black text-slate-800">{customizer.principalName}</span>
                     </div>
@@ -1218,7 +1236,12 @@ const ReportCardTemplates = () => {
                       <p className="text-slate-800 font-black">{customizer.teacherName}</p>
                       <p className="text-[9px] text-slate-400 mt-0.5">Assigned Class Teacher</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex flex-col items-end justify-end">
+                      {principalSignatureUrl ? (
+                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain mix-blend-multiply opacity-90" />
+                      ) : (
+                        <div className="h-8" />
+                      )}
                       <p className="text-slate-800 font-black">{customizer.principalName}</p>
                       <p className="text-[9px] text-slate-400 mt-0.5">School headmaster approval</p>
                     </div>
@@ -1320,7 +1343,12 @@ const ReportCardTemplates = () => {
                       <div className="w-32 border-b-2 border-pink-300 pb-1 font-serif italic text-pink-300">Class Mum</div>
                       <span className="mt-1">{customizer.teacherName}</span>
                     </div>
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center justify-end">
+                      {principalSignatureUrl ? (
+                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 mix-blend-multiply opacity-90" />
+                      ) : (
+                        <div className="h-7" />
+                      )}
                       <div className="w-32 border-b-2 border-pink-300 pb-1 font-serif italic text-pink-300">Big Chief</div>
                       <span className="mt-1">{customizer.principalName}</span>
                     </div>
@@ -1419,8 +1447,12 @@ const ReportCardTemplates = () => {
                       <span className="font-serif italic text-xs text-indigo-950/40 select-none mb-2">Class Incharge</span>
                       <span className="border-t border-amber-600 w-32 pt-1 block font-bold">{customizer.teacherName}</span>
                     </div>
-                    <div className="flex flex-col items-center">
-                      <div className="w-12 h-12 rounded-full border border-amber-600 border-dashed flex items-center justify-center text-[8px] text-amber-600 rotate-12 select-none mb-2 font-sans font-black">SEAL</div>
+                    <div className="flex flex-col items-center justify-end">
+                      {principalSignatureUrl ? (
+                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain mb-2 mix-blend-multiply opacity-90" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full border border-amber-600 border-dashed flex items-center justify-center text-[8px] text-amber-600 rotate-12 select-none mb-2 font-sans font-black">SEAL</div>
+                      )}
                       <span className="border-t border-amber-600 w-32 pt-1 block font-bold">{customizer.principalName}</span>
                     </div>
                   </div>

@@ -170,10 +170,6 @@ const MarkSheetPrintTemplate = ({ student, schoolData, studentMarks = [] }) => {
         </div>
         <div className="text-center">
           <div className="border-b-2 border-black w-40 mb-2"></div>
-          <p className="text-xs font-bold uppercase text-gray-600">Exam Controller</p>
-        </div>
-        <div className="text-center">
-          <div className="border-b-2 border-black w-40 mb-2"></div>
           <p className="text-xs font-bold uppercase text-gray-600">Principal</p>
         </div>
       </div>

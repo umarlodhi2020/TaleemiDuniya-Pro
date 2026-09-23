@@ -769,8 +769,32 @@ const MarksheetGenerator = () => {
   };
 
   // 🖨️ PDF EXPORT ENGINE MATCHING EXACT REFERENCE DESIGN
-  const generatePDFDocument = (marksheetsArray, filename) => {
+  // 🖨️ PDF EXPORT ENGINE MATCHING EXACT REFERENCE DESIGN
+  const generatePDFDocument = async (marksheetsArray, filename) => {
     try {
+      const getBase64ImageFromUrl = async (imageUrl) => {
+        if (!imageUrl) return null;
+        try {
+          const res = await fetch(imageUrl);
+          const blob = await res.blob();
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {
+          return null;
+        }
+      };
+
+      const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+      const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
+      const teacherRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass));
+      const teacherSignatureUrl = teacherRule?.signatureUrl || null;
+
+      const principalB64 = await getBase64ImageFromUrl(principalSignatureUrl);
+      const teacherB64 = await getBase64ImageFromUrl(teacherSignatureUrl);
+
       const doc = new jsPDF('portrait', 'mm', 'a4');
       const instName = activeSchoolName;
       const instSub = schoolData?.tagline || 'A Unique Balance Between Deen-O-Duniya';
@@ -969,23 +993,22 @@ const MarksheetGenerator = () => {
         doc.text(stMarksheet.position, 168, finalY + 18);
 
         // Signatures Block at Bottom
-        const sigRow1Y = finalY + 45;
+        const sigRow1Y = finalY + 55;
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
 
-        doc.text('SUB-INCHARG', 30, sigRow1Y);
-        doc.text('CLASS TEACHER', 140, sigRow1Y);
+        if (teacherB64) {
+          doc.addImage(teacherB64, 'PNG', 35, sigRow1Y - 15, 30, 12);
+        }
+        doc.line(30, sigRow1Y, 70, sigRow1Y);
+        doc.text('CLASS TEACHER', 36, sigRow1Y + 5);
 
-        const sigRow2Y = finalY + 75;
-        doc.line(20, sigRow2Y - 5, 55, sigRow2Y - 5);
-        doc.text('DIRECTOR', 25, sigRow2Y);
-
-        doc.line(85, sigRow2Y - 5, 125, sigRow2Y - 5);
-        doc.text('PRINCIPLE', 92, sigRow2Y);
-
-        doc.line(155, sigRow2Y - 5, 190, sigRow2Y - 5);
-        doc.text('INCHARG', 162, sigRow2Y);
+        if (principalB64) {
+          doc.addImage(principalB64, 'PNG', 135, sigRow1Y - 15, 30, 12);
+        }
+        doc.line(130, sigRow1Y, 170, sigRow1Y);
+        doc.text('PRINCIPAL', 142, sigRow1Y + 5);
       });
 
       doc.save(filename);
@@ -1005,15 +1028,15 @@ const MarksheetGenerator = () => {
   const activeSchoolLogo = schoolData?.branding?.logo || schoolData?.logo || schoolData?.logoUrl || schoolData?.schoolLogo || userData?.schoolLogo || userData?.logo || null;
   const activeSchoolName = schoolData?.name || schoolData?.schoolName || userData?.schoolName || userData?.name || 'Smart Angels Grammar School';
 
-  const handleDownloadSinglePDF = () => {
+  const handleDownloadSinglePDF = async () => {
     const current = generatedMarksheets[activePreviewIndex];
     if (!current) return;
-    generatePDFDocument([current], `${current.studentName.replace(/\s+/g, '_')}_Marksheet.pdf`);
+    await generatePDFDocument([current], `${current.studentName.replace(/\s+/g, '_')}_Marksheet.pdf`);
   };
 
-  const handleDownloadBulkPDF = () => {
+  const handleDownloadBulkPDF = async () => {
     if (generatedMarksheets.length === 0) return;
-    generatePDFDocument(
+    await generatePDFDocument(
       generatedMarksheets, 
       `Class_${selectedClass}_${reportMode === 'combined' ? 'Combined' : selectedTerm.replace(/\s+/g, '_')}_Marksheets.pdf`
     );
@@ -1770,27 +1793,25 @@ const MarksheetGenerator = () => {
                   </div>
 
                   {/* 5. Signatures Footer */}
-                  <div className="pt-16 space-y-12 text-xs md:text-sm font-bold text-slate-900">
-                    <div className="flex justify-between items-center px-8">
-                      <span>SUB-INCHARG</span>
+                  <div className="pt-20 flex justify-between items-end px-16 text-xs md:text-sm font-bold text-slate-900 pb-8">
+                    <div className="flex flex-col items-center">
+                      {schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass))?.signatureUrl ? (
+                        <img src={schoolData.signatureSettings.rules.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass)).signatureUrl} alt="Class Teacher" className="h-10 object-contain -mb-2" />
+                      ) : (
+                        <div className="h-8"></div>
+                      )}
+                      <div className="w-40 border-b-2 border-slate-900 mx-auto mb-1"></div>
                       <span>CLASS TEACHER</span>
                     </div>
 
-                    <div className="flex justify-between items-center px-4 pt-4">
-                      <div className="text-center space-y-1">
-                        <div className="w-28 border-b-2 border-slate-900 mx-auto"></div>
-                        <p>DIRECTOR</p>
-                      </div>
-
-                      <div className="text-center space-y-1">
-                        <div className="w-28 border-b-2 border-slate-900 mx-auto"></div>
-                        <p>PRINCIPLE</p>
-                      </div>
-
-                      <div className="text-center space-y-1">
-                        <div className="w-28 border-b-2 border-slate-900 mx-auto"></div>
-                        <p>INCHARG</p>
-                      </div>
+                    <div className="flex flex-col items-center">
+                      {schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl ? (
+                        <img src={schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl} alt="Principal" className="h-10 object-contain -mb-2" />
+                      ) : (
+                        <div className="h-8"></div>
+                      )}
+                      <div className="w-40 border-b-2 border-slate-900 mx-auto mb-1"></div>
+                      <span>PRINCIPAL</span>
                     </div>
                   </div>
 

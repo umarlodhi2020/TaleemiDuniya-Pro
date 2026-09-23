@@ -5,13 +5,17 @@ import {
   RefreshCw, User, ShieldCheck, Download, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const CertificateGenerator = () => {
   const { userData } = useAuth();
+  const { schoolData } = useSchool();
   const schoolId = userData?.schoolId || 'default-school';
-  const schoolName = userData?.schoolName || 'TALEEMIDUNYA GRAMMAR HIGH SCHOOL';
+  const schoolName = schoolData?.name || userData?.schoolName || 'TALEEMIDUNYA GRAMMAR HIGH SCHOOL';
+  const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+  const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
 
   const [students, setStudents] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -241,9 +245,13 @@ const CertificateGenerator = () => {
             </p>
           </div>
 
-          <div className="text-right space-y-4">
-            <div className="h-14 border-b-2 border-gray-800 w-52 ml-auto"></div>
-            <div>
+          <div className="text-right flex flex-col items-end">
+            <div className="h-16 flex items-end justify-end w-52 mb-1 border-b-2 border-gray-800">
+              {principalSignatureUrl && (
+                <img src={principalSignatureUrl} alt="Principal Signature" className="h-12 object-contain mix-blend-multiply opacity-90 -mb-1" />
+              )}
+            </div>
+            <div className="text-right">
               <p className="font-black text-amber-950 uppercase tracking-widest text-base">Principal / Head of Institution</p>
               <p className="text-xs text-gray-600 font-sans">{schoolName}</p>
             </div>

@@ -196,9 +196,9 @@ const AttendanceRegister = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in pb-12">
+    <div className="space-y-6 animate-fade-in pb-12 print:space-y-0 print:pb-0">
       {/* Top Banner exactly matching target aesthetic */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-white/10">
+      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-500 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-white/10 print:hidden">
         <div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3">
             <Calendar className="w-8 h-8 text-cyan-200 animate-pulse" />
@@ -220,7 +220,7 @@ const AttendanceRegister = () => {
       </div>
 
       {/* Main Title / Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-2 text-dark-text font-bold text-lg">
           <FileText className="text-primary-500" size={24} />
           <span>Generate Attendance Register</span>
@@ -234,7 +234,7 @@ const AttendanceRegister = () => {
       </div>
 
       {/* Settings Card EXACTLY resembling the target UI screenshot */}
-      <div className="max-w-xl mx-auto">
+      <div className="max-w-xl mx-auto print:hidden">
         <div className="bg-dark-card rounded-2xl border border-dark-border shadow-2xl overflow-hidden">
           {/* Header Bar */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 text-white font-bold text-base flex items-center gap-2 shadow-md">
@@ -298,7 +298,7 @@ const AttendanceRegister = () => {
 
       {/* MONTHLY ATTENDANCE SHEET GRID (When generated) */}
       {showGrid && (
-        <div className="mt-8 space-y-4 animate-fade-in">
+        <div className="mt-8 space-y-4 animate-fade-in print:hidden">
           <div className="flex items-center justify-between bg-dark-card p-4 rounded-2xl border border-dark-border flex-wrap gap-4">
             <div>
               <h2 className="text-xl font-bold text-dark-text">
@@ -399,7 +399,7 @@ const AttendanceRegister = () => {
       )}
 
       {/* PRINT ONLY STYLES AND CONTAINER */}
-      <div className="hidden print:block fixed inset-0 bg-white text-black p-8 z-[9999] overflow-auto">
+      <div className="hidden print:block bg-white text-black w-full min-h-screen">
         <div className="text-center pb-4 border-b-2 border-black mb-6">
           <h1 className="text-2xl font-bold uppercase tracking-wider">TaleemiDunya Pro School System</h1>
           <h2 className="text-lg font-semibold mt-1">Official Monthly Attendance Register</h2>

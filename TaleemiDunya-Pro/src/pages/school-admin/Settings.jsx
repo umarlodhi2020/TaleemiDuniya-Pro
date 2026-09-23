@@ -35,7 +35,7 @@ import { db, auth } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, updateRecord, deleteRecord } from '../../services/db';
-import { uploadSchoolLogo } from '../../services/cloudinary';
+import { uploadSchoolLogo, uploadToCloudinary } from '../../services/cloudinary';
 
 const SchoolSettings = () => {
   const location = useLocation();
@@ -222,7 +222,9 @@ const SchoolSettings = () => {
       idCard: false,
       reportCard: false,
       feeVoucher: false,
-      certificate: false
+      certificate: false,
+      payslip: false,
+      admitCard: false
     },
     signatureUrl: ''
   });
@@ -242,7 +244,11 @@ const SchoolSettings = () => {
     if (!file) return;
     try {
       setSaving(true);
-      const response = await uploadSchoolLogo(file);
+      const response = await uploadToCloudinary(file, {
+        folder: `taleemidunya/${userData?.schoolId}/signatures`,
+        publicId: `signature_${userData?.schoolId}_${Date.now()}`,
+        compress: true,
+      });
       if (response && response.success) {
         setNewSignatureRule(prev => ({ ...prev, signatureUrl: response.url }));
         showToast('success', 'Signature uploaded! Now click Add Rule to save it.');
@@ -676,10 +682,16 @@ const SchoolSettings = () => {
                         <select 
                           className="w-full premium-input"
                           value={newSignatureRule.type}
-                          onChange={(e) => setNewSignatureRule({...newSignatureRule, type: e.target.value})}
+                          onChange={(e) => setNewSignatureRule({
+                            ...newSignatureRule, 
+                            type: e.target.value,
+                            documents: { idCard: false, reportCard: false, feeVoucher: false, certificate: false, payslip: false, admitCard: false }
+                          })}
                         >
                           <option value="Principal">Principal / Main Authority</option>
                           <option value="Teacher">Class Teacher</option>
+                          <option value="Accountant">Accountant</option>
+                          <option value="Admin">Admin</option>
                         </select>
                       </div>
 
@@ -705,8 +717,19 @@ const SchoolSettings = () => {
                         {newSignatureRule.type === 'Teacher' ? '3' : '2'}. Applies to Documents
                       </label>
                       <div className="flex flex-wrap gap-4">
-                        {Object.keys(newSignatureRule.documents).map(docType => {
-                          const docLabels = { idCard: 'ID Cards', reportCard: 'Report Cards', feeVoucher: 'Fee Vouchers', certificate: 'Certificates' };
+                        {Object.keys(newSignatureRule.documents)
+                          .filter(docType => {
+                            if (newSignatureRule.type === 'Teacher') {
+                              return ['reportCard', 'admitCard'].includes(docType);
+                            } else if (newSignatureRule.type === 'Principal') {
+                              return ['idCard', 'reportCard', 'feeVoucher', 'certificate', 'payslip', 'admitCard'].includes(docType);
+                            } else if (newSignatureRule.type === 'Accountant' || newSignatureRule.type === 'Admin') {
+                              return ['feeVoucher', 'payslip'].includes(docType);
+                            }
+                            return true;
+                          })
+                          .map(docType => {
+                          const docLabels = { idCard: 'ID Cards', reportCard: 'Report Cards', feeVoucher: 'Fee Vouchers', certificate: 'Certificates', payslip: 'Payslips', admitCard: 'Admit Cards' };
                           return (
                             <label key={docType} className="flex items-center gap-2 cursor-pointer bg-dark-bg/50 px-4 py-2 rounded-lg border border-white/5 hover:border-white/10 transition-colors">
                               <input 
@@ -788,8 +811,8 @@ const SchoolSettings = () => {
                             </div>
                             <div className="text-[10px] text-dark-muted font-medium mt-1 uppercase tracking-wider flex gap-2">
                                Applies to: {Object.keys(rule.documents).filter(k => rule.documents[k]).map(k => {
-                                 const labels = { idCard: 'ID Card', reportCard: 'Report Card', feeVoucher: 'Fee Voucher', certificate: 'Certificate' };
-                                 return <span key={k} className="bg-white/10 px-2 py-0.5 rounded">{labels[k]}</span>
+                                 const labels = { idCard: 'ID Card', reportCard: 'Report Card', feeVoucher: 'Fee Voucher', certificate: 'Certificate', payslip: 'Payslip', admitCard: 'Admit Card' };
+                                 return <span key={k} className="bg-white/10 px-2 py-0.5 rounded">{labels[k] || k}</span>
                                })}
                             </div>
                           </div>

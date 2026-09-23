@@ -3,11 +3,13 @@ import { Award, Printer, Search, LayoutDashboard, Calendar, MapPin, Clock } from
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import { jsPDF } from 'jspdf';
 import Swal from 'sweetalert2';
 
 const AdmitCard = () => {
   const { userData } = useAuth();
+  const { schoolData } = useSchool();
   const schoolId = userData?.schoolId;
 
   const [exams, setExams] = useState([]);
@@ -61,6 +63,29 @@ const AdmitCard = () => {
     setGenerating(true);
     
     try {
+      const getBase64ImageFromUrl = async (imageUrl) => {
+        if (!imageUrl) return null;
+        try {
+          const res = await fetch(imageUrl);
+          const blob = await res.blob();
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
+        } catch (e) {
+          return null;
+        }
+      };
+
+      const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+      const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
+      const teacherRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass));
+      const teacherSignatureUrl = teacherRule?.signatureUrl || null;
+
+      const principalB64 = await getBase64ImageFromUrl(principalSignatureUrl);
+      const teacherB64 = await getBase64ImageFromUrl(teacherSignatureUrl);
+
       const exam = exams.find(e => e.id === selectedExamId);
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       
@@ -174,11 +199,17 @@ const AdmitCard = () => {
 
         // Signatures
         doc.setDrawColor(0, 0, 0);
+        if (teacherB64) {
+          doc.addImage(teacherB64, 'PNG', marginX + 25, currentY + 112, 30, 12);
+        }
         doc.line(marginX + 15, currentY + 125, marginX + 65, currentY + 125);
-        doc.text("Student Signature", marginX + 40, currentY + 130, { align: 'center' });
+        doc.text("Class Teacher", marginX + 40, currentY + 130, { align: 'center' });
 
+        if (principalB64) {
+          doc.addImage(principalB64, 'PNG', cardWidth - 45, currentY + 112, 30, 12);
+        }
         doc.line(cardWidth - 55, currentY + 125, cardWidth - 5, currentY + 125);
-        doc.text("Principal / Controller", cardWidth - 30, currentY + 130, { align: 'center' });
+        doc.text("Principal", cardWidth - 30, currentY + 130, { align: 'center' });
 
         currentY += cardHeight + 10;
         cardsOnPage++;

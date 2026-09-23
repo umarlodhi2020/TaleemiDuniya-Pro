@@ -3,10 +3,12 @@ import { useAuth } from '../../context/AuthContext';
 
 const CertificatePrintTemplate = ({ student, schoolData }) => {
   const { userData } = useAuth();
-  const schoolName = userData?.schoolName || schoolData?.name || 'TaleemiDunya School';
+  const schoolName = schoolData?.name || userData?.schoolName || 'TaleemiDunya School';
 
   const themeColor = schoolData?.primaryColor || '#0ea5e9';
   const bgTemplate = schoolData?.templates?.certificateBg;
+  const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+  const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
 
   return (
     <div 
@@ -80,7 +82,12 @@ const CertificatePrintTemplate = ({ student, schoolData }) => {
           </div>
         </div>
         
-        <div className="text-center">
+        <div className="text-center flex flex-col items-center justify-end">
+          {principalSignatureUrl ? (
+            <img src={principalSignatureUrl} alt="Principal Signature" className="h-12 object-contain -mb-2 mix-blend-multiply opacity-90" />
+          ) : (
+            <div className="h-10" />
+          )}
           <div className="border-b-2 w-64 mb-2" style={{ borderColor: themeColor }}></div>
           <p className="font-bold uppercase tracking-widest" style={{ color: themeColor }}>Principal Signature</p>
           <p className="text-xs uppercase mt-1" style={{ color: themeColor }}>{schoolName}</p>
