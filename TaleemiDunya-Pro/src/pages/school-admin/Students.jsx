@@ -202,7 +202,9 @@ const StudentManager = () => {
   const filteredStudents = students.filter(student => {
     const q = (searchTerm || '').toLowerCase().trim();
     const matchSearch = !q || (
-      String(student.fatherName || '').toLowerCase().includes(q)
+      String(student.fatherName || '').toLowerCase().includes(q) ||
+      String(student.name || '').toLowerCase().includes(q) ||
+      String(student.rollNumber || '').toLowerCase().includes(q)
     );
 
     const matchClass = !filterClass || student.class === filterClass;
@@ -362,7 +364,7 @@ const StudentManager = () => {
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted" size={18} />
             <input 
               type="text" 
-              placeholder="Search by Father Name only..." 
+              placeholder="Search by Student, Father Name, or Roll No..." 
               className="w-full premium-input pl-12"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
