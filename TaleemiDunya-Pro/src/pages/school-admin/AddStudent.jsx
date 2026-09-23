@@ -290,16 +290,19 @@ const AddStudent = () => {
         }
       }
 
-      // Roll Number Uniqueness Validation
+      // Roll Number Uniqueness Validation (Per Class & Section)
       if (formData.rollNumber) {
         const allStudents = await getRecords('students', schoolId);
         const duplicate = allStudents.find(s =>
-          s.rollNumber && String(s.rollNumber).trim() === String(formData.rollNumber).trim() &&
+          s.rollNumber && 
+          String(s.rollNumber).trim() === String(formData.rollNumber).trim() &&
+          s.class === formData.class &&
+          (formData.section ? s.section === formData.section : true) &&
           s.id !== studentId
         );
 
         if (duplicate) {
-          alert(`Error: Roll Number "${formData.rollNumber}" is already assigned to another student (${duplicate.name} in Class ${duplicate.class || duplicate.standard}). Please use a unique Roll Number.`);
+          alert(`Error: Roll Number "${formData.rollNumber}" is already assigned to another student (${duplicate.name} in Class ${duplicate.class || duplicate.standard} - ${duplicate.section || ''}). Please use a unique Roll Number for this class.`);
           setLoading(false);
           return;
         }
