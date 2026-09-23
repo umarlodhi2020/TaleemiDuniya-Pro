@@ -130,6 +130,8 @@ const AddStudent = () => {
               admissionFee: detail.admissionFee || '',
               annualFee: detail.annualFee || '',
               otherFee: detail.otherFee || '',
+              username: detail.username || '',
+              balance: detail.balance || '',
             });
             if (detail.photoUrl) {
               setPhotoPreview(detail.photoUrl);
