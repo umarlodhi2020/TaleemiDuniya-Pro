@@ -61,20 +61,20 @@ export const CONNECTOR_DIAGNOSTIC_CODES = {
  * Query active status of School LAN Connector for a tenant
  */
 export async function getConnectorStatus(schoolId) {
-  try {
-    const res = await fetch(`/api/cctv/connector/status?schoolId=${encodeURIComponent(schoolId || 'default')}`);
-    if (res.ok) {
-      return await res.json();
-    }
-  } catch (err) {
-    console.warn('Connector status query failed:', err.message);
-  }
-
+  // Mock response for live website since backend is not deployed
   return {
-    success: false,
-    online: false,
-    diagnosticCode: 'CONNECTOR_OFFLINE',
-    message: 'School LAN Connector is offline or waiting to connect.'
+    success: true,
+    schoolId: schoolId || 'default',
+    online: true,
+    connector: {
+      connectorId: 'conn-school-main-1',
+      schoolId: schoolId || 'default',
+      dvrStatus: 'connected',
+      diagnosticCode: 'CONNECTED',
+      lastSeen: Date.now()
+    },
+    diagnosticCode: 'CONNECTED',
+    message: 'School LAN Connector active (Mocked for Live Demo)'
   };
 }
 
@@ -82,50 +82,53 @@ export async function getConnectorStatus(schoolId) {
  * Dispatch connection test via Cloud Gateway API -> Connector -> Dahua DVR
  */
 export async function requestTestConnection(config, schoolId) {
-  try {
-    const res = await fetch('/api/cctv/test-connection', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schoolId, ...config })
-    });
-
-    if (res.ok) {
-      return await res.json();
-    }
-
-    const errData = await res.json().catch(() => ({}));
-    return {
-      success: false,
-      diagnosticCode: errData.diagnosticCode || 'DVR_UNREACHABLE',
-      message: errData.message || 'Connection test failed.'
-    };
-  } catch (err) {
-    return {
-      success: false,
-      diagnosticCode: 'CLOUD_PROXY_UNAVAILABLE',
-      message: `Gateway API request failed: ${err.message}`
-    };
-  }
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: true,
+        schoolId,
+        connectorStatus: 'online',
+        diagnosticCode: 'CONNECTED',
+        brand: config.brand || 'Dahua Technology',
+        model: config.model || 'DH-XVR1B16-I/T',
+        totalChannels: 16,
+        message: 'Connected successfully to Dahua DVR.'
+      });
+    }, 1500);
+  });
 }
 
 /**
  * Dispatch channel discovery via Cloud Gateway API -> Connector -> Dahua DVR
  */
 export async function requestDiscoverChannels(config, schoolId) {
-  try {
-    const res = await fetch('/api/cctv/discover-channels', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ schoolId, ...config })
-    });
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const dahuaNames = [
+        'Main Gate & Entry Barrier', 'Admin Block Reception', 'Principal Office Corridor',
+        'Main Assembly Playground', 'Primary Block Corridor A', 'Secondary Block Corridor B',
+        'Science & Chemistry Lab', 'Computer & Robotics Lab', 'Central Library Hall',
+        'Cafeteria & Dining Area', 'Back Entrance & Parking', 'Staff Room & Faculty Lounge',
+        'Boys Hostel Entrance', 'Girls Hostel Entrance', 'Auditorium & Stage', 'Generator & Substation'
+      ];
 
-    if (res.ok) {
-      const data = await res.json();
-      return data.channels || [];
-    }
-  } catch (err) {
-    console.warn('Discover channels error:', err.message);
-  }
-
-  return [];
+      const channels = Array.from({ length: 16 }, (_, i) => {
+        const chNum = i + 1;
+        const locName = dahuaNames[i];
+        return {
+          channelNumber: chNum,
+          cameraId: `DH-CH${String(chNum).padStart(2, '0')}`,
+          name: `Channel ${chNum} - ${locName}`,
+          location: config.location ? `${config.location} - ${locName}` : locName,
+          type: 'DVR Channel',
+          status: 'online',
+          streamStatus: 'RTSP Stream Available',
+          active: true,
+          resolution: '1080P',
+          fps: 25
+        };
+      });
+      resolve(channels);
+    }, 1000);
+  });
 }

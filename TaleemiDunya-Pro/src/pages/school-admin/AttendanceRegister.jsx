@@ -40,6 +40,7 @@ const AttendanceRegister = () => {
   const [loading, setLoading] = useState(false);
   const [showGrid, setShowGrid] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [debugLogs, setDebugLogs] = useState([]);
 
   useEffect(() => {
     const fetchAvailableClasses = async () => {
@@ -129,19 +130,76 @@ const AttendanceRegister = () => {
 
       // Try fetching actual saved attendance records from firestore if they exist
       try {
-        const attSnap = await getRecords('attendance', userData?.schoolId || 'default-school', [
-          { field: 'class', operator: '==', value: selectedClass }
-        ]);
+        const attSnap = await getRecords('attendance', userData?.schoolId || 'default-school');
         
+        const unparsed = [];
         (attSnap || []).forEach(data => {
-          if (data && data.date && data.date.startsWith(selectedMonth) && data.studentId && newAtt[data.studentId]) {
-            const dayNum = parseInt(data.date.split('-')[2], 10);
-            if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= daysInMonth) {
-              const statusChar = data.status === 'present' ? 'P' : (data.status === 'absent' ? 'A' : (data.status === 'late' ? 'L' : '-'));
-              newAtt[data.studentId][dayNum] = statusChar;
+          if (!data) return;
+          const sid = data.studentId || data.student_id || data.userId || data.id;
+          if (!sid || !newAtt[sid]) return; // Must have a matching student in this class
+
+          let dayNum = null;
+          
+          // Determine the date string robustly
+          let dateVal = data.date || data.timestamp || data.createdAt;
+          let dStr = '';
+          
+          if (dateVal) {
+            if (typeof dateVal.toDate === 'function') {
+              const d = dateVal.toDate();
+              dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            } else if (dateVal.seconds) {
+              const d = new Date(dateVal.seconds * 1000);
+              dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            } else if (typeof dateVal === 'string') {
+              dStr = dateVal;
+            } else if (dateVal instanceof Date) {
+              dStr = `${dateVal.getFullYear()}-${String(dateVal.getMonth()+1).padStart(2,'0')}-${String(dateVal.getDate()).padStart(2,'0')}`;
+            }
+          }
+
+          if (!dStr) {
+            unparsed.push(`No date: ${JSON.stringify(data)}`);
+            return;
+          }
+          
+          // Case 1: YYYY-MM-DD
+          if (dStr.startsWith(selectedMonth)) {
+            dayNum = parseInt(dStr.split('-')[2], 10);
+          } 
+          // Case 2: DD-MM-YYYY or DD/MM/YYYY
+          else {
+            const parts = dStr.split(/[-/]/);
+            if (parts.length >= 3) {
+              const [selectedYear, selectedM] = selectedMonth.split('-');
+              if (String(parts[2]).startsWith(selectedYear) && parts[1] === selectedM) {
+                dayNum = parseInt(parts[0], 10);
+              } else if (parts[0] === selectedYear && parts[1] === selectedM) {
+                dayNum = parseInt(parts[2], 10); // Handle YYYY/MM/DD
+              }
+            }
+          }
+
+          if (dayNum !== null && !isNaN(dayNum) && dayNum >= 1 && dayNum <= daysInMonth) {
+            const st = (data.status || 'present').toLowerCase().trim();
+            let statusChar = '-';
+            if (st === 'present' || st === 'p') statusChar = 'P';
+            else if (st === 'absent' || st === 'a') statusChar = 'A';
+            else if (st === 'late' || st === 'l') statusChar = 'L';
+            else if (st === 'leave') statusChar = 'L';
+            
+            newAtt[sid][dayNum] = statusChar;
+          } else {
+            // Found a record for this student, but it didn't match the selected month OR parsing failed
+            // Only log if it's actually from the current selected month but parsing failed
+            if (dStr.includes(selectedMonth.split('-')[1]) && dStr.includes(selectedMonth.split('-')[0])) {
+               unparsed.push(`Parse fail: dStr=${dStr}, Raw=${JSON.stringify(data)}`);
             }
           }
         });
+        
+        // Add to state (we need to define setDebugLogs)
+        setDebugLogs(unparsed);
       } catch (e) {
         console.error('Info: Using local simulated register records or offline mode.', e);
       }
@@ -317,6 +375,15 @@ const AttendanceRegister = () => {
               </button>
             </div>
           </div>
+
+          {debugLogs && debugLogs.length > 0 && (
+            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-xs font-mono overflow-auto max-h-40 print:hidden mb-4">
+              <strong className="block mb-2">DEBUG - Unparsed Native App Records:</strong>
+              {debugLogs.map((log, i) => (
+                <div key={i} className="mb-1 border-b border-red-500/10 pb-1">{log}</div>
+              ))}
+            </div>
+          )}
 
           <GlassCard className="p-0 overflow-hidden border border-dark-border shadow-2xl">
             {loading ? (

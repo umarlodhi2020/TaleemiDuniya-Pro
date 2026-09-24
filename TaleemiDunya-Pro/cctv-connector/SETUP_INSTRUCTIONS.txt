@@ -1,0 +1,33 @@
+=======================================================
+TALEEMI DUNYA - CCTV CONNECTOR SETUP GUIDE
+=======================================================
+
+Yeh folder school ke PC mein copy karein aur neechay diye gaye 3 steps follow karein:
+
+STEP 1: NODE.JS INSTALL KAREIN (Zaroori Hai)
+-------------------------------------------------------
+1. Isi folder mein mojood "node-v20-installer.msi" par double-click karein.
+2. Next > Next kar ke isay install kar lein (is mein koi tabdeeli nahi karni, sirf next karte jayen).
+3. Install mukammal hone ke baad "Finish" par click karein.
+
+
+STEP 2: DVR KA PASSWORD SET KAREIN
+-------------------------------------------------------
+1. Isi folder mein ek ".env" naam ki file mojood hai.
+2. Us ".env" file ko Notepad (ya kisi bhi text editor) mein open karein.
+3. Us file mein sabse neechay likha hoga: DVR_PASS=admin123
+4. "admin123" ko mita kar apne DVR ka ASAL password wahan likhein aur file ko Save (Ctrl+S) kar dein.
+
+
+STEP 3: CONNECTOR KO START KAREIN (Final Step)
+-------------------------------------------------------
+1. Isi folder mein upar address bar (jahan folder ka path likha hota hai) par click karein.
+2. Wahan sab kuch mita kar likhein: cmd
+3. Aur Enter daba dein. Ek black color ki screen (Command Prompt) khul jayegi.
+4. Us black screen par likhein: npm start
+5. Aur Enter daba dein. 
+
+Bas! Aapka software start ho jayega. 
+Ab aap Taleemi Dunya website par ja kar "CCTV Monitoring" page mein "Connect All Cameras" button par click kar sakte hain.
+
+(Note: Yeh black screen wali window ko band nahi karna, isay chota (minimize) kar ke chor dein taake cameras live rahen).

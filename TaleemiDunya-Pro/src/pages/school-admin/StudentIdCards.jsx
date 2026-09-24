@@ -70,7 +70,9 @@ const SmitCombinedCard = React.memo(({
   schoolLogo,
   showFields,
   customFields,
-  getSignatureForStudent
+  getSignatureForStudent,
+  cardWidth,
+  cardHeight
 }) => {
   const scale = isPrint ? 'scale-[0.95]' : '';
   const wrapperWidth = isPrint ? 'w-[680px]' : 'w-[700px]';
@@ -116,7 +118,10 @@ const SmitCombinedCard = React.memo(({
   );
 
   return (
-    <div className={`flex gap-4 rounded-[12px] print-card-break select-text transition-all duration-300 hover:scale-[1.02] mx-auto shrink-0 print:scale-[0.95] print:w-[680px] print:h-[210px] w-[700px] h-[220px] bg-white`}>
+    <div 
+      className={`flex gap-4 rounded-[12px] print-card-break select-text transition-all duration-300 hover:scale-[1.02] mx-auto shrink-0 bg-white`}
+      style={{ width: `${cardWidth}px`, height: `${cardHeight}px` }}
+    >
       
       {/* FRONT SIDE (Left) */}
       <div className="w-[50%] h-full relative bg-white rounded-[12px] border border-gray-300 shadow-md overflow-hidden flex flex-col">
@@ -199,13 +204,13 @@ const SmitCombinedCard = React.memo(({
           <div className="w-[60%] text-[8px] leading-tight text-gray-600 font-medium italic pr-2">
             {disclaimer}
           </div>
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center relative min-w-[90px]">
             {getSignatureForStudent(st.class, 'Principal') ? (
-              <img src={getSignatureForStudent(st.class, 'Principal')} alt="Principal" className="h-[25px] object-contain mb-[-4px]" />
+              <img src={getSignatureForStudent(st.class, 'Principal')} alt="Principal" className="absolute bottom-3 h-[55px] max-w-[120px] object-contain pointer-events-none drop-shadow-sm" />
             ) : (
-              <span className="font-['Dancing_Script',cursive] text-lg text-black mb-[-4px]">Signature</span>
+              <span className="font-['Dancing_Script',cursive] text-lg text-black mb-[-4px] absolute bottom-3">Signature</span>
             )}
-            <div className="border-t border-black w-[90px] text-center pt-0.5 text-[9px] font-bold text-black uppercase">
+            <div className="border-t border-black w-[90px] text-center pt-0.5 text-[9px] font-bold text-black uppercase mt-6">
               {principalName || 'Principal'}
             </div>
           </div>
@@ -249,6 +254,9 @@ const StudentIdCards = () => {
     contact: true,
   });
   const [customFields, setCustomFields] = useState([]);
+  
+  const [cardWidth, setCardWidth] = useState(696);
+  const [cardHeight, setCardHeight] = useState(215);
 
   // School logo from context (auto-loaded)
   const schoolLogo = schoolData?.logo || null;
@@ -262,6 +270,8 @@ const StudentIdCards = () => {
   const deferredDisclaimer = useDeferredValue(disclaimer);
   const deferredShowFields = useDeferredValue(showFields);
   const deferredCustomFields = useDeferredValue(customFields);
+  const deferredCardWidth = useDeferredValue(cardWidth);
+  const deferredCardHeight = useDeferredValue(cardHeight);
 
   useEffect(() => {
     if (schoolData?.name || schoolData?.schoolName || userData?.schoolName) {
@@ -538,6 +548,32 @@ const StudentIdCards = () => {
                 />
               </div>
 
+              {/* Custom Dimensions */}
+              <div className="grid grid-cols-2 gap-2 mt-4 border-t border-dark-border/40 pt-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-dark-muted uppercase tracking-wider block">Width (px)</label>
+                  <input 
+                    type="number" 
+                    value={cardWidth}
+                    onChange={(e) => setCardWidth(Number(e.target.value))}
+                    className="w-full premium-input bg-dark-card text-xs font-mono"
+                    min="400"
+                    max="1200"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-dark-muted uppercase tracking-wider block">Height (px)</label>
+                  <input 
+                    type="number" 
+                    value={cardHeight}
+                    onChange={(e) => setCardHeight(Number(e.target.value))}
+                    className="w-full premium-input bg-dark-card text-xs font-mono"
+                    min="150"
+                    max="600"
+                  />
+                </div>
+              </div>
+
               {/* Field Toggles */}
               <div className="space-y-1.5 mt-4 border-t border-dark-border/40 pt-4">
                 <label className="text-[10px] text-dark-muted uppercase tracking-wider block mb-2">Show/Hide Fields</label>
@@ -664,6 +700,8 @@ const StudentIdCards = () => {
                         showFields={deferredShowFields}
                         customFields={deferredCustomFields}
                         getSignatureForStudent={getSignatureForStudent}
+                        cardWidth={deferredCardWidth}
+                        cardHeight={deferredCardHeight}
                       />
                     </div>
                   );

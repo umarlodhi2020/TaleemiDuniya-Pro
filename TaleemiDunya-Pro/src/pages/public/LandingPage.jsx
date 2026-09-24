@@ -242,6 +242,7 @@ const LandingPage = () => {
               <button onClick={() => scrollToSection('features')} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Features</button>
               <button onClick={() => scrollToSection('demo')} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Demo</button>
               <button onClick={() => scrollToSection('pricing')} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Pricing</button>
+              <button onClick={() => scrollToSection('downloads')} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Downloads</button>
               <a href="https://taleemidunya-pro-ed44e.web.app/#/login" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                 Login
               </a>
@@ -309,6 +310,10 @@ const LandingPage = () => {
               <button onClick={() => setShowDemoForm(true)} className="bg-white hover:bg-gray-50 text-indigo-950 border border-gray-200 px-8 py-4 rounded-full font-bold text-lg transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2">
                 <Play className="w-5 h-5 text-indigo-600 fill-indigo-600" />
                 Try Interactive Demo
+              </button>
+              <button onClick={() => scrollToSection('downloads')} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 px-8 py-4 rounded-full font-bold text-lg transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2">
+                <Monitor className="w-5 h-5 text-indigo-600" />
+                Download Apps
               </button>
             </motion.div>
           </div>
@@ -401,10 +406,16 @@ const LandingPage = () => {
                   </li>
                 ))}
               </ul>
-              <button onClick={() => setShowDemoForm(true)} className="inline-flex items-center gap-2 bg-white text-indigo-950 px-8 py-4 rounded-full font-bold text-lg hover:bg-indigo-50 transition-colors shadow-lg hover:shadow-xl">
-                Access Live Demo
-                <ArrowRight className="w-5 h-5" />
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button onClick={() => setShowDemoForm(true)} className="inline-flex items-center justify-center gap-2 bg-white text-indigo-950 px-8 py-4 rounded-full font-bold text-lg hover:bg-indigo-50 transition-colors shadow-lg hover:shadow-xl">
+                  Access Live Demo
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+                <button onClick={() => scrollToSection('downloads')} className="inline-flex items-center justify-center gap-2 bg-indigo-500 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-indigo-400 transition-colors shadow-lg hover:shadow-xl border border-indigo-400">
+                  <Monitor className="w-5 h-5" />
+                  Download Apps
+                </button>
+              </div>
             </div>
             <div className="mt-12 lg:mt-0">
               <div className="bg-indigo-900/50 p-2 rounded-2xl border border-indigo-800 backdrop-blur-sm shadow-2xl">
@@ -471,6 +482,81 @@ const LandingPage = () => {
             {isLoadingPlans && (
               <div className="col-span-3 text-center py-12 text-indigo-500 font-bold">Loading live pricing...</div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Downloads Section */}
+      <div id="downloads" className="py-24 bg-white relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-indigo-600 font-bold tracking-wide uppercase text-sm mb-2">Apps & Software</h2>
+            <h3 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">Download TaleemiDunya Pro</h3>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">Get our mobile apps for parents and students, or download the Windows Desktop App for school reception.</p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="bg-gray-50 border border-gray-200 rounded-3xl p-8 text-center hover:shadow-xl transition-all"
+            >
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Smartphone size={32} />
+              </div>
+              <h4 className="text-2xl font-bold text-gray-900 mb-2">Android App</h4>
+              <p className="text-gray-600 mb-8">For Parents, Students & Teachers on Android devices.</p>
+              {gateways?.appLinks?.android ? (
+                <a href={gateways.appLinks.android} target="_blank" rel="noreferrer" className="inline-block w-full bg-gray-900 hover:bg-black text-white py-4 rounded-xl font-bold transition-colors">
+                  Get on Play Store
+                </a>
+              ) : (
+                <button disabled className="w-full bg-gray-200 text-gray-500 py-4 rounded-xl font-bold cursor-not-allowed">Coming Soon</button>
+              )}
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="bg-gray-50 border border-gray-200 rounded-3xl p-8 text-center hover:shadow-xl transition-all"
+            >
+              <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Smartphone size={32} />
+              </div>
+              <h4 className="text-2xl font-bold text-gray-900 mb-2">iOS App</h4>
+              <p className="text-gray-600 mb-8">For Parents, Students & Teachers on iPhone & iPad.</p>
+              {gateways?.appLinks?.ios ? (
+                <a href={gateways.appLinks.ios} target="_blank" rel="noreferrer" className="inline-block w-full bg-gray-900 hover:bg-black text-white py-4 rounded-xl font-bold transition-colors">
+                  Get on App Store
+                </a>
+              ) : (
+                <button disabled className="w-full bg-gray-200 text-gray-500 py-4 rounded-xl font-bold cursor-not-allowed">Coming Soon</button>
+              )}
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="bg-indigo-50 border border-indigo-200 rounded-3xl p-8 text-center hover:shadow-xl transition-all"
+            >
+              <div className="w-20 h-20 bg-indigo-200 text-indigo-700 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Monitor size={32} />
+              </div>
+              <h4 className="text-2xl font-bold text-gray-900 mb-2">Windows App</h4>
+              <p className="text-gray-600 mb-8">For School Administration and local CCTV network viewing.</p>
+              {gateways?.appLinks?.windows ? (
+                <a href={gateways.appLinks.windows} target="_blank" rel="noreferrer" className="inline-block w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold transition-colors shadow-lg shadow-indigo-200">
+                  Download .exe File
+                </a>
+              ) : (
+                <button disabled className="w-full bg-indigo-200 text-indigo-400 py-4 rounded-xl font-bold cursor-not-allowed">Coming Soon</button>
+              )}
+            </motion.div>
           </div>
         </div>
       </div>

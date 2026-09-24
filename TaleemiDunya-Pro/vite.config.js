@@ -1,11 +1,18 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import electron from 'vite-plugin-electron'
 import { dahuaStreamGatewayPlugin } from './vite-plugin-dahua-gateway.js'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), dahuaStreamGatewayPlugin()],
-  base: '/',
+  plugins: [
+    react(),
+    dahuaStreamGatewayPlugin(),
+    electron({
+      entry: 'electron/main.js',
+    })
+  ],
+  base: './', // Use relative paths for Electron
   server: {
     watch: {
       ignored: ['**/TaleemiDunya-Android-App/**', '**/whatsapp-ai-server/**', '**/dist/**', '**/node_modules/**'],

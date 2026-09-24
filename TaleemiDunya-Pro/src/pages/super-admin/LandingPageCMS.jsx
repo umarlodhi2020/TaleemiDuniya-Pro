@@ -22,7 +22,12 @@ const LandingPageCMS = () => {
       easypaisa: { accountTitle: '', accountNumber: '' },
       bank: { bankName: '', accountTitle: '', accountNumber: '' }
     },
-    landingFeatures: []
+    landingFeatures: [],
+    appLinks: {
+      android: '',
+      ios: '',
+      windows: ''
+    }
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,6 +82,18 @@ const LandingPageCMS = () => {
         ...s,
         hero: {
           ...s.hero,
+          [field]: value
+        }
+      }));
+      return;
+    }
+    // Check if it's an app link field
+    if (name.startsWith('appLink_')) {
+      const field = name.split('_')[1];
+      setGateways(s => ({
+        ...s,
+        appLinks: {
+          ...s.appLinks,
           [field]: value
         }
       }));
@@ -355,6 +372,58 @@ const LandingPageCMS = () => {
                 </label>
               );
             })}
+          </div>
+        </GlassCard>
+
+        {/* App Download Links Configuration */}
+        <GlassCard className="p-8 border border-primary-500/20">
+          <div className="mb-8 pb-4 border-b border-dark-border">
+            <h2 className="text-xl font-bold flex items-center gap-3 text-rose-400">
+              <Smartphone size={24} /> App Download Links
+            </h2>
+            <p className="text-xs text-dark-muted mt-2">Provide the download links for your mobile and desktop applications. These will be shown on the public Download page.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-dark-muted uppercase tracking-widest flex items-center gap-2">
+                Android App Link (Play Store)
+              </label>
+              <input 
+                name="appLink_android" 
+                type="url" 
+                placeholder="https://play.google.com/store/apps/details?id=com.taleemidunya.app"
+                value={gateways?.appLinks?.android || ''} 
+                onChange={handleChange} 
+                className="w-full premium-input focus:ring-rose-500/50" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-dark-muted uppercase tracking-widest flex items-center gap-2">
+                iOS App Link (App Store)
+              </label>
+              <input 
+                name="appLink_ios" 
+                type="url" 
+                placeholder="https://apps.apple.com/app/id123456789"
+                value={gateways?.appLinks?.ios || ''} 
+                onChange={handleChange} 
+                className="w-full premium-input focus:ring-rose-500/50" 
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-dark-muted uppercase tracking-widest flex items-center gap-2">
+                Windows App Link (.exe / Drive)
+              </label>
+              <input 
+                name="appLink_windows" 
+                type="url" 
+                placeholder="https://drive.google.com/file/d/..."
+                value={gateways?.appLinks?.windows || ''} 
+                onChange={handleChange} 
+                className="w-full premium-input focus:ring-rose-500/50" 
+              />
+            </div>
           </div>
         </GlassCard>
       </div>

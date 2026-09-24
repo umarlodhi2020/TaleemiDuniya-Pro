@@ -128,7 +128,7 @@ const renderPortraitCard = (st, isPrint, settings) => {
           </div>
           <div className="text-right relative min-w-[70px]">
             {stampImage ? (
-              <img src={stampImage} alt="Stamp" className="absolute -top-6 right-2 h-7 max-w-[48px] object-contain opacity-85 select-none pointer-events-none" />
+              <img src={stampImage} alt="Stamp" className="absolute -top-10 right-0 h-12 max-w-[70px] object-contain opacity-90 select-none pointer-events-none" />
             ) : (
               <div className="absolute -top-4 right-4 text-[7px] text-gray-300 font-semibold italic border border-dashed border-gray-200 px-1 select-none pointer-events-none">STAMP</div>
             )}
@@ -143,9 +143,9 @@ const renderPortraitCard = (st, isPrint, settings) => {
 
 const renderLandscapeCard = (st, isPrint, settings) => {
   const { schoolName, cardSubtitle, validity, principalName, stampImage, activeTheme } = settings;
-  const scale = isPrint ? 'scale-[0.95]' : '';
-  const width = isPrint ? 'w-[325px]' : 'w-[340px]';
-  const height = isPrint ? 'h-[205px]' : 'h-[215px]';
+  const scale = '';
+  const width = 'w-[340px]';
+  const height = 'h-[215px]';
   
   return (
     <div key={st.id} className={`relative group ${width} ${height} rounded-[18px] bg-white border border-gray-200 shadow-xl overflow-hidden print-card-break select-text text-black flex font-sans transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl ${scale} mx-auto`}>
@@ -207,7 +207,7 @@ const renderLandscapeCard = (st, isPrint, settings) => {
             
             <div className="text-center w-full relative mt-2">
               {stampImage && (
-                <img src={stampImage} alt="Stamp" className="absolute -top-4 left-1/2 -translate-x-1/2 h-6 max-w-[40px] object-contain opacity-85 select-none pointer-events-none" />
+                <img src={stampImage} alt="Stamp" className="absolute -top-8 left-1/2 -translate-x-1/2 h-10 max-w-[70px] object-contain opacity-90 select-none pointer-events-none" />
               )}
               <span className="block text-[5.5px] text-gray-400 uppercase font-black leading-none mt-4">Authorized By</span>
               <span className="text-[6.5px] font-black text-gray-900 font-serif leading-none truncate block mt-0.5">{principalName}</span>
@@ -326,9 +326,9 @@ const renderGovtCard = (st, isPrint, settings) => {
         <div className="text-left text-[7px] text-gray-600">
           <strong>Emergency:</strong><br/>{st.phone || st.contact || 'N/A'}
         </div>
-        <div className="text-center">
-          {stampImage && <img src={stampImage} alt="Stamp" className="h-6 object-contain mb-1" />}
-          <div className="border-t border-black text-[7px] font-bold px-2 pt-0.5">{principalName}</div>
+        <div className="text-center relative">
+          {stampImage && <img src={stampImage} alt="Stamp" className="absolute -top-8 left-1/2 -translate-x-1/2 h-10 max-w-[70px] object-contain mb-1" />}
+          <div className="border-t border-black text-[7px] font-bold px-2 pt-0.5 mt-4">{principalName}</div>
         </div>
       </div>
     </div>
@@ -337,9 +337,9 @@ const renderGovtCard = (st, isPrint, settings) => {
 
 const renderEliteCard = (st, isPrint, settings) => {
   const { schoolName, validity, principalName, activeTheme } = settings;
-  const scale = isPrint ? 'scale-[0.95]' : '';
-  const width = isPrint ? 'w-[325px]' : 'w-[340px]';
-  const height = isPrint ? 'h-[205px]' : 'h-[215px]';
+  const scale = '';
+  const width = 'w-[340px]';
+  const height = 'h-[215px]';
   
   return (
     <div key={st.id} className={`relative group ${width} ${height} rounded-xl bg-white border border-gray-200 shadow-md overflow-hidden print-card-break select-text text-black flex font-sans transition-all duration-300 hover:scale-[1.02] ${scale} mx-auto`}>
@@ -496,7 +496,7 @@ const renderCollegeCard = (st, isPrint, settings) => {
       </div>
 
       <div className="p-2 pt-0 flex justify-end items-end relative h-10">
-         {stampImage && <img src={stampImage} alt="Stamp" className="absolute bottom-4 right-4 h-6 object-contain opacity-70" />}
+         {stampImage && <img src={stampImage} alt="Stamp" className="absolute bottom-6 right-2 h-12 max-w-[70px] object-contain opacity-85" />}
          <div className="border-t border-black text-[7px] font-bold px-2 pt-0.5 text-center min-w-[70px]">
            {principalName}
          </div>
@@ -507,9 +507,9 @@ const renderCollegeCard = (st, isPrint, settings) => {
 
 const renderSmartScholarCard = (st, isPrint, settings) => {
   const { schoolName, validity, principalName, activeTheme } = settings;
-  const scale = isPrint ? 'scale-[0.95]' : '';
-  const width = isPrint ? 'w-[325px]' : 'w-[340px]';
-  const height = isPrint ? 'h-[205px]' : 'h-[215px]';
+  const scale = '';
+  const width = 'w-[340px]';
+  const height = 'h-[215px]';
   
   return (
     <div key={st.id} className={`relative group ${width} ${height} rounded-lg bg-[#f0f4f8] border border-gray-300 shadow-sm overflow-hidden print-card-break select-text text-black flex flex-col font-sans transition-all duration-300 hover:scale-[1.02] ${scale} mx-auto`}>
@@ -650,7 +650,7 @@ const renderUniCard = (st, isPrint, settings) => {
          </div>
          
          <div className="text-center w-[75px] relative">
-            {stampImage && <img src={stampImage} alt="Stamp" className="absolute -top-8 left-1/2 -translate-x-1/2 h-8 object-contain opacity-60" />}
+            {stampImage && <img src={stampImage} alt="Stamp" className="absolute -top-10 left-1/2 -translate-x-1/2 h-12 max-w-[80px] object-contain opacity-80" />}
             <div className="border-t border-black pt-1 mt-6">
               <span className="text-[8px] font-bold text-gray-800 uppercase block">Principal Sign</span>
             </div>
@@ -760,7 +760,7 @@ const renderTechCard = (st, isPrint, settings) => {
            </div>
          </div>
          <div className="text-center w-[60px] relative">
-            {stampImage && <img src={stampImage} alt="Stamp" className="absolute bottom-6 left-1/2 -translate-x-1/2 h-8 object-contain opacity-50" />}
+            {stampImage && <img src={stampImage} alt="Stamp" className="absolute bottom-6 left-1/2 -translate-x-1/2 h-10 max-w-[70px] object-contain opacity-80" />}
             <div className="border-t border-gray-400 pt-0.5 pb-1">
               <span className="text-[6px] font-bold text-gray-600 uppercase block tracking-wider">REGISTRAR SIGNATURE</span>
             </div>
