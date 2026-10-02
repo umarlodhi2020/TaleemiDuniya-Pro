@@ -210,7 +210,7 @@ const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: p
                     <div className="mt-auto pt-2 grid grid-cols-2 gap-4 text-center text-[7px] text-gray-500 font-bold uppercase">
                       <div className="flex flex-col items-center justify-end">
                         {adminSignatureUrl ? (
-                          <img src={adminSignatureUrl} alt="Admin Signature" className="h-6 object-contain -mb-1 opacity-90 mix-blend-multiply" />
+                          <img src={adminSignatureUrl} alt="Admin Signature" className="h-24 object-contain -mb-1 opacity-90 mix-blend-multiply" />
                         ) : (
                           <div className="h-5" />
                         )}
@@ -219,7 +219,7 @@ const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: p
                       </div>
                       <div className="flex flex-col items-center justify-end">
                         {principalSignatureUrl ? (
-                          <img src={principalSignatureUrl} alt="Principal Signature" className="h-6 object-contain -mb-1 opacity-90 mix-blend-multiply" />
+                          <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain -mb-1 opacity-90" />
                         ) : (
                           <div className="h-5" />
                         )}

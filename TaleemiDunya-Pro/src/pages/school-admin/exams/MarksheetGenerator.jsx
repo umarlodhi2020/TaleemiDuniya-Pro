@@ -113,16 +113,10 @@ const MarksheetGenerator = () => {
 
       setDbClasses(existingClassesList);
 
-      // Extract unique terms/exam names
+      // Extract unique terms/exam names strictly from the Exams collection
       const dbExamNames = (examsData || []).map(e => e.examName || e.title || e.name).filter(Boolean);
-      const masterTermNames = (masterFilesData || []).map(m => m.termName || m.term || m.examName).filter(Boolean);
-      const resultTermNames = (resultsData || []).map(r => r.examName || r.term).filter(Boolean);
 
-      const createdTerms = Array.from(new Set([
-        ...dbExamNames,
-        ...masterTermNames,
-        ...resultTermNames
-      ]));
+      const createdTerms = Array.from(new Set([...dbExamNames]));
 
       setTermsList(createdTerms);
 
@@ -240,17 +234,28 @@ const MarksheetGenerator = () => {
       
       const rCls = String(r.class || r.className || '').trim().toLowerCase();
       // Only include if it explicitly matches class, OR if it belongs to a student in this class
-      const classMatches = rCls === targetCls || rCls.includes(targetCls) || classStudentIds.includes(r.studentId);
+      const classMatches = rCls === targetCls || rCls.split(',').map(s=>s.trim()).includes(targetCls) || classStudentIds.includes(r.studentId);
       
       return termMatches && classMatches;
     });
 
-    // 2. Try to get subjects from master file
+    // 2. Extract from actual entered results FIRST. This is the most accurate source of truth for which subjects were actually evaluated.
+    const resSubjNames = Array.from(new Set(resForClass.map(r => r.subject || r.subjectName).filter(Boolean)));
+    if (resSubjNames.length > 0) {
+      return resSubjNames.map(name => {
+        const sampleRes = resForClass.find(r => (r.subject || r.subjectName) === name);
+        const max = Number(sampleRes?.totalMarks || 25);
+        const pass = Number(sampleRes?.passingMarks || sampleRes?.passMarks || Math.round(max * 0.33));
+        return { name, totalMarks: max, passMarks: pass };
+      });
+    }
+
+    // 3. Fallback to master file ONLY if no results exist
     const mDoc = masterFiles.find(m => {
       const mClass = String(m.className || m.class || '').trim().toLowerCase();
       const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
-      return (mClass === targetCls || mClass.includes(targetCls) || targetCls.includes(mClass)) &&
-             (mTerm === targetT || mTerm.includes(targetT) || targetT.includes(mTerm));
+      const isClassMatch = mClass === targetCls || mClass.split(',').map(s=>s.trim()).includes(targetCls);
+      return isClassMatch && (mTerm === targetT || mTerm.includes(targetT) || targetT.includes(mTerm));
     });
 
     if (mDoc?.subjects?.length > 0) {
@@ -261,7 +266,7 @@ const MarksheetGenerator = () => {
       }));
     }
 
-    // 3. Try to get subjects from Exam definition
+    // 4. Fallback to Exam definition ONLY if no results and no master file exist
     const ex = exams.find(e => {
       const eName = String(e.examName || e.title || e.name || e.id || '').trim().toLowerCase();
       return eName === targetT || eName.includes(targetT) || targetT.includes(eName);
@@ -270,16 +275,7 @@ const MarksheetGenerator = () => {
     if (ex?.subjects?.length > 0) {
       const classSubjs = ex.subjects.filter(s => {
         const sCls = String(s.classId || s.className || '').trim().toLowerCase();
-        
-        if (sCls === targetCls || sCls.includes(targetCls) || targetCls.includes(sCls)) return true;
-        
-        if (!sCls) {
-           const sName = String(s.subjectName || s.name || '').trim().toLowerCase();
-           return resForClass.some(r => {
-             const rName = String(r.subject || r.subjectName || '').trim().toLowerCase();
-             return rName === sName;
-           });
-        }
+        if (sCls === targetCls || sCls.split(',').map(s=>s.trim()).includes(targetCls)) return true;
         return false;
       });
       if (classSubjs.length > 0) {
@@ -291,26 +287,8 @@ const MarksheetGenerator = () => {
       }
     }
 
-    // 4. Fallback to extracting from results
-    const resSubjNames = Array.from(new Set(resForClass.map(r => r.subject || r.subjectName).filter(Boolean)));
-    if (resSubjNames.length > 0) {
-      return resSubjNames.map(name => {
-        const sampleRes = resForClass.find(r => (r.subject || r.subjectName) === name);
-        const max = Number(sampleRes?.totalMarks || 25);
-        const pass = Number(sampleRes?.passingMarks || sampleRes?.passMarks || Math.round(max * 0.33));
-        return { name, totalMarks: max, passMarks: pass };
-      });
-    }
-
-    // 5. Hardcoded fallback
-    return [
-      { name: 'Drawing', totalMarks: 25, passMarks: 8 },
-      { name: 'English', totalMarks: 25, passMarks: 8 },
-      { name: 'G.K + Reader', totalMarks: 25, passMarks: 8 },
-      { name: 'Islamiat', totalMarks: 25, passMarks: 8 },
-      { name: 'Math', totalMarks: 25, passMarks: 8 },
-      { name: 'Urdu', totalMarks: 25, passMarks: 8 }
-    ];
+    // 5. Dynamic Fallback (No Hardcoding)
+    return [];
   };
 
   // Compile subjects list for single-term mode
@@ -888,7 +866,7 @@ const MarksheetGenerator = () => {
         let totalPassMarksSum = 0;
 
         if (reportMode === 'single') {
-          tableHeaders = ['Subjects', 'M.Marks', 'Secured Marks', 'M.Obtained', 'Remarks'];
+          tableHeaders = ['Subjects', 'M.Marks', 'Pass Marks', 'M.Obtained', 'Remarks'];
           tableBody = stMarksheet.subjectRows.map(sub => {
             totalPassMarksSum += Number(sub.passMarks || 0);
             return [
@@ -1026,7 +1004,7 @@ const MarksheetGenerator = () => {
   };
 
   const activeSchoolLogo = schoolData?.branding?.logo || schoolData?.logo || schoolData?.logoUrl || schoolData?.schoolLogo || userData?.schoolLogo || userData?.logo || null;
-  const activeSchoolName = schoolData?.name || schoolData?.schoolName || userData?.schoolName || userData?.name || 'Smart Angels Grammar School';
+  const activeSchoolName = schoolData?.name || schoolData?.schoolName || userData?.schoolName || userData?.name || 'Your School Name';
 
   const handleDownloadSinglePDF = async () => {
     const current = generatedMarksheets[activePreviewIndex];
@@ -1600,10 +1578,12 @@ const MarksheetGenerator = () => {
             </div>
 
             {/* 🏫 SMART ANGELS GRAMMAR SCHOOL OFFICIAL MARKSHEET DESIGN */}
-            {currentPreviewMarksheet && (
+            <div ref={printableAreaRef} className="printable-report-area">
+            {generatedMarksheets.map((currentPreviewMarksheet, mapIndex) => (
               <div 
-                ref={printableAreaRef} 
-                className="printable-report-area bg-white text-slate-900 border-4 border-slate-900 p-6 md:p-8 space-y-4 font-sans relative shadow-2xl rounded-none"
+                key={currentPreviewMarksheet.studentId}
+                className={`bg-white text-slate-900 border-4 border-slate-900 p-6 md:p-8 space-y-4 font-sans relative shadow-2xl rounded-none ${mapIndex === activePreviewIndex ? 'block' : 'hidden print:block'}`}
+                style={{ pageBreakAfter: 'always', breakAfter: 'page' }}
               >
                 
                 {/* Background Watermark Logo */}
@@ -1701,7 +1681,7 @@ const MarksheetGenerator = () => {
                           <tr className="border-b-2 border-slate-900 bg-slate-100 font-black text-slate-900">
                             <th className="p-2 border-r-2 border-slate-900 text-left pl-3 w-1/3">Subjects</th>
                             <th className="p-2 border-r-2 border-slate-900 w-24">M.Marks</th>
-                            <th className="p-2 border-r-2 border-slate-900 w-28">Secured Marks</th>
+                            <th className="p-2 border-r-2 border-slate-900 w-28">Pass Marks</th>
                             <th className="p-2 border-r-2 border-slate-900 w-28">M.Obtained</th>
                             <th className="p-2 border-slate-900 w-32">Remarks</th>
                           </tr>
@@ -1796,9 +1776,9 @@ const MarksheetGenerator = () => {
                   <div className="pt-20 flex justify-between items-end px-16 text-xs md:text-sm font-bold text-slate-900 pb-8">
                     <div className="flex flex-col items-center">
                       {schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass))?.signatureUrl ? (
-                        <img src={schoolData.signatureSettings.rules.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass)).signatureUrl} alt="Class Teacher" className="h-10 object-contain -mb-2" />
+                        <img src={schoolData.signatureSettings.rules.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass)).signatureUrl} alt="Class Teacher" className="h-24 max-w-[180px] scale-125 origin-bottom mix-blend-multiply object-contain -mb-2" />
                       ) : (
-                        <div className="h-8"></div>
+                        <div className="h-16"></div>
                       )}
                       <div className="w-40 border-b-2 border-slate-900 mx-auto mb-1"></div>
                       <span>CLASS TEACHER</span>
@@ -1806,9 +1786,9 @@ const MarksheetGenerator = () => {
 
                     <div className="flex flex-col items-center">
                       {schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl ? (
-                        <img src={schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl} alt="Principal" className="h-10 object-contain -mb-2" />
+                        <img src={schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl} alt="Principal" className="h-24 max-w-[180px] scale-125 origin-bottom mix-blend-multiply object-contain -mb-2" />
                       ) : (
-                        <div className="h-8"></div>
+                        <div className="h-16"></div>
                       )}
                       <div className="w-40 border-b-2 border-slate-900 mx-auto mb-1"></div>
                       <span>PRINCIPAL</span>
@@ -1818,7 +1798,8 @@ const MarksheetGenerator = () => {
                 </div>
 
               </div>
-            )}
+            ))}
+            </div>
 
           </div>
         )}

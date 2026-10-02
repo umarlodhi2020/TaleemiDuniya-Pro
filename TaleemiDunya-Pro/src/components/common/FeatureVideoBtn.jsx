@@ -52,10 +52,10 @@ const FeatureVideoBtn = ({ featureId, variant = 'default' }) => {
       {variant === 'icon' ? (
         <button 
           onClick={(e) => { e.stopPropagation(); setShowModal(true); }}
-          className="p-0.5 rounded-md hover:bg-white/10 text-cyan-400 hover:text-cyan-300 transition-all flex items-center justify-center group"
+          className="p-0.5 rounded-md hover:bg-white/10 transition-all flex items-center justify-center group"
           title="Watch tutorial video"
         >
-          <Play size={14} className="fill-current group-hover:scale-110 transition-transform" />
+          <Play size={14} style={{ color: '#ef4444' }} className="fill-current group-hover:scale-110 transition-transform" />
         </button>
       ) : (
         <button 

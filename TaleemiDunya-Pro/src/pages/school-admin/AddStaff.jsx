@@ -352,8 +352,15 @@ const AddStaff = () => {
         setUploadProgress(90);
       }
 
+      const toTitleCase = (str) => {
+        if (!str) return '';
+        return str.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      };
+
       const payload = { 
         ...formData, 
+        name: toTitleCase(formData.name),
+        fatherName: toTitleCase(formData.fatherName),
         phone: sanitizedPhone,
         photoUrl: finalPhotoUrl,
         photoPublicId: finalPublicId,
@@ -413,7 +420,26 @@ const AddStaff = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+
+    if (name === 'cnic') {
+      let digits = value.replace(/\D/g, '');
+      if (digits.length > 13) digits = digits.substring(0, 13);
+      let formatted = digits;
+      if (digits.length > 5 && digits.length <= 12) {
+          formatted = digits.replace(/(\d{5})(\d+)/, '$1-$2');
+      } else if (digits.length > 12) {
+          formatted = digits.replace(/(\d{5})(\d{7})(\d+)/, '$1-$2-$3');
+      }
+      value = formatted;
+    }
+
+    if (name === 'phone' || name === 'contact') {
+      let digits = value.replace(/\D/g, '');
+      if (digits.length > 11) digits = digits.substring(0, 11);
+      value = digits;
+    }
+
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
       

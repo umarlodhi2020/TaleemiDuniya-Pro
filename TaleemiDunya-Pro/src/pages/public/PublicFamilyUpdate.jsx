@@ -380,7 +380,7 @@ export default function PublicFamilyUpdate() {
             <button 
               type="submit" 
               disabled={submitting || students.length === 0}
-              className="px-10 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black uppercase tracking-widest shadow-xl shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all active:scale-95 flex items-center gap-3 disabled:opacity-70"
+              className="px-10 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black uppercase tracking-widest shadow-xl shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all active:scale-[0.99] flex items-center gap-3 disabled:opacity-70"
             >
               {submitting ? (
                 <><Loader2 size={20} className="animate-spin" /> Saving Data...</>

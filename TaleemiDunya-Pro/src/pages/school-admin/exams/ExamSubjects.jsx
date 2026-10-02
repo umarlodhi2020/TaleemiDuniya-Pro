@@ -217,7 +217,7 @@ const ExamSubjects = () => {
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-2.5 bg-[#0070f3] hover:bg-blue-600 active:scale-95 text-white font-bold text-sm rounded-lg shadow-md transition-all disabled:opacity-50"
+              className="px-6 py-2.5 bg-[#0070f3] hover:bg-blue-600 active:scale-[0.99] text-white font-bold text-sm rounded-lg shadow-md transition-all disabled:opacity-50"
             >
               {saving ? 'Saving...' : editingId ? 'Update Subject' : 'Add Subject'}
             </button>
@@ -284,7 +284,7 @@ const ExamSubjects = () => {
                         <button
                           type="button"
                           onClick={() => handleEdit(subject)}
-                          className="px-3.5 py-1 bg-[#0d6efd] hover:bg-blue-600 active:scale-95 text-white font-bold text-xs rounded transition-all shadow"
+                          className="px-3.5 py-1 bg-[#0d6efd] hover:bg-blue-600 active:scale-[0.99] text-white font-bold text-xs rounded transition-all shadow"
                         >
                           Edit
                         </button>
@@ -293,7 +293,7 @@ const ExamSubjects = () => {
                         <button
                           type="button"
                           onClick={() => handleDelete(subject)}
-                          className="px-3.5 py-1 bg-[#dc3545] hover:bg-red-600 active:scale-95 text-white font-bold text-xs rounded transition-all shadow"
+                          className="px-3.5 py-1 bg-[#dc3545] hover:bg-red-600 active:scale-[0.99] text-white font-bold text-xs rounded transition-all shadow"
                         >
                           Delete
                         </button>

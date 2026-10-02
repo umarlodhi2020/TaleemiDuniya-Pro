@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
@@ -7,145 +7,154 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 import MainLayout from './components/layout/MainLayout';
 
 // Pages
-import LandingPage from './pages/public/LandingPage';
-import Checkout from './pages/public/Checkout';
-import PrivacyPolicy from './pages/public/PrivacyPolicy';
-import TermsOfService from './pages/public/TermsOfService';
-import PublicFamilyUpdate from './pages/public/PublicFamilyUpdate';
-import MobilePhotoCapture from './pages/public/MobilePhotoCapture';
-import Login from './pages/auth/Login';
-import SuperAdminSetup from './pages/auth/SuperAdminSetup';
-import SuperAdminDashboard from './pages/super-admin/Dashboard';
-import SchoolsManager from './pages/super-admin/Schools';
-import AddSchool from './pages/super-admin/AddSchool';
-import EditSchool from './pages/super-admin/EditSchool';
-import Subscriptions from './pages/super-admin/Subscriptions';
-import Revenue from './pages/super-admin/Revenue';
-import NotificationsCenter from './pages/super-admin/Notifications';
-import SupportCenter from './pages/super-admin/Support';
-import SuperAdminSettings from './pages/super-admin/SuperAdminSettings';
-import SuperAdminAiAgent from './pages/super-admin/AiAgent';
-import LandingPageCMS from './pages/super-admin/LandingPageCMS';
-import EServices from './pages/school-admin/EServices';
-import SchoolAdminDashboard from './pages/school-admin/Dashboard';
-import InquiryManager from './pages/school-admin/InquiryManager';
-import AddInquiry from './pages/school-admin/AddInquiry';
-import ParentManager from './pages/school-admin/ParentManager';
-import EditParent from './pages/school-admin/EditParent';
-import FeeRecord from './pages/school-admin/FeeRecord';
-import SubjectManager from './pages/school-admin/SubjectManager';
-import AdmitCard from './pages/school-admin/AdmitCard';
-import ReportCard from './pages/school-admin/ReportCard';
-import ExamAnalytics from './pages/school-admin/ExamAnalytics';
-import ExamResultsDashboard from './pages/school-admin/ExamResultsDashboard';
-import GradingRules from './pages/school-admin/GradingRules';
-import FaceScannerApp from './pages/school-admin/FaceScannerApp';
-import QrScannerApp from './pages/school-admin/QrScannerApp';
-import SchoolWebsiteCMS from './pages/school-admin/SchoolWebsiteCMS';
-import ParentProfile from './pages/school-admin/ParentProfile';
-import StudentManager from './pages/school-admin/Students';
-import CollectFee from './pages/school-admin/CollectFee';
-import ClassManager from './pages/school-admin/ClassManager';
-import ClassFeesSetup from './pages/school-admin/ClassFeesSetup';
-import StaffIdCards from './pages/school-admin/StaffIdCards';
-import StaffProfile from './pages/school-admin/StaffProfile';
-import AddStudent from './pages/school-admin/AddStudent';
-import StudentRemarkReport from './pages/school-admin/StudentRemarkReport';
-import StaffManager from './pages/school-admin/StaffManager';
-import StaffAttendanceRegister from './pages/school-admin/StaffAttendanceRegister';
-import AddStaff from './pages/school-admin/AddStaff';
-import FeeManager from './pages/school-admin/FeeManager';
-import GenerateVoucher from './pages/school-admin/GenerateVoucher';
-import PrintFee from './pages/school-admin/PrintFee';
-import AttendanceManager from './pages/school-admin/AttendanceManager';
-import AttendanceRegister from './pages/school-admin/AttendanceRegister';
-import FeeDefaulters from './pages/school-admin/FeeDefaulters';
-import DailyDiary from './pages/school-admin/DailyDiary';
-import PayrollManager from './pages/school-admin/PayrollManager';
-import PayrollReports from './pages/school-admin/PayrollReports';
-import SalarySetup from './pages/school-admin/SalarySetup';
-import AdmissionCRM from './pages/school-admin/AdmissionCRM';
-import OnlineQuizEngine from './pages/school-admin/OnlineQuizEngine';
-import GatePassManager from './pages/school-admin/GatePassManager';
-import MiniPocketApp from './pages/school-admin/MiniPocketApp';
-import SchoolSubscriptionPortal from './pages/school-admin/SchoolSubscriptionPortal';
-import Academics from './pages/school-admin/Academics';
-import CustomReportCard from './pages/school-admin/CustomReportCard';
-import ReportCardTemplates from './pages/school-admin/ReportCardTemplates';
-import TimetableBuilder from './pages/school-admin/TimetableBuilder';
-import StudentIdCards from './pages/school-admin/StudentIdCards';
-import IdCardDesigner from './pages/school-admin/IdCardDesigner';
-import ExpenseManager from './pages/school-admin/ExpenseManager';
-import ExamManagement from './pages/school-admin/exams/ExamManagement';
-import ExamMasterFile from './pages/school-admin/exams/ExamMasterFile';
-import ExamSubjects from './pages/school-admin/exams/ExamSubjects';
-import AdmitCards from './pages/school-admin/exams/AdmitCards';
-import MarksEntry from './pages/school-admin/exams/MarksEntry';
-import GradingManagement from './pages/school-admin/exams/GradingManagement';
-import ExamReportSummary from './pages/school-admin/exams/ExamReportSummary';
-import MarksheetGenerator from './pages/school-admin/exams/MarksheetGenerator';
-import AccountsManager from './pages/school-admin/AccountsManager';
-import InventoryManager from './pages/school-admin/InventoryManager';
-import SMSPanel from './pages/school-admin/SMSPanel';
-import MarkResults from './pages/school-admin/MarkResults';
-import FamilyTree from './pages/school-admin/FamilyTree';
-import SingleStudent360 from './pages/school-admin/SingleStudent360';
-import SpeakerPASystem from './pages/school-admin/SpeakerPASystem';
-import StaffAttendanceHub from './pages/school-admin/StaffAttendanceHub';
-import OtherIncomeManager from './pages/school-admin/OtherIncomeManager';
-import ComprehensiveReportsHub from './pages/school-admin/ComprehensiveReportsHub';
-import TeacherDashboard from './pages/teacher/Dashboard';
-import TeacherStudents from './pages/teacher/Students';
-import TeacherAttendance from './pages/teacher/Attendance';
-import TeacherExams from './pages/teacher/ExamsAndMarks';
-import TeacherHomework from './pages/teacher/Homework';
-import TeacherTimetable from './pages/teacher/Timetable';
-import TeacherCommunication from './pages/teacher/Communication';
-import TeacherLeave from './pages/teacher/LeaveManager';
-import TeacherMaterial from './pages/teacher/StudyMaterial';
-import TeacherPayslips from './pages/teacher/MyPayslips';
-import StudentDashboard from './pages/student/Dashboard';
-import StudentAttendance from './pages/student/Attendance';
-import StudentExams from './pages/student/Exams';
-import StudentHomework from './pages/student/Homework';
-import StudentTimetable from './pages/student/Timetable';
-import StudentMaterial from './pages/student/StudyMaterial';
-import ParentDashboard from './pages/parent/Dashboard';
-import ParentAttendance from './pages/parent/Attendance';
-import ParentFees from './pages/parent/Fees';
-import ParentExams from './pages/parent/Exams';
-import ParentAiChatbot from './pages/parent/AiChatbot';
-import SchoolSettings from './pages/school-admin/Settings';
-import DigitalLibrary from './pages/school-admin/DigitalLibrary';
-import TransportManager from './pages/school-admin/TransportManager';
-import RolesManager from './pages/school-admin/RolesManager';
-import Migration from './pages/school-admin/Migration';
-import Collection from './pages/school-admin/Collection';
-import PeriodBell from './pages/school-admin/PeriodBell';
-import CertificateGenerator from './pages/school-admin/CertificateGenerator';
+const LandingPage = React.lazy(() => import('./pages/public/LandingPage'));
+const Checkout = React.lazy(() => import('./pages/public/Checkout'));
+const PrivacyPolicy = React.lazy(() => import('./pages/public/PrivacyPolicy'));
+const TermsOfService = React.lazy(() => import('./pages/public/TermsOfService'));
+const PublicFamilyUpdate = React.lazy(() => import('./pages/public/PublicFamilyUpdate'));
+const MobilePhotoCapture = React.lazy(() => import('./pages/public/MobilePhotoCapture'));
+const Login = React.lazy(() => import('./pages/auth/Login'));
+const SuperAdminSetup = React.lazy(() => import('./pages/auth/SuperAdminSetup'));
+const SuperAdminDashboard = React.lazy(() => import('./pages/super-admin/Dashboard'));
+const SchoolsManager = React.lazy(() => import('./pages/super-admin/Schools'));
+const AddSchool = React.lazy(() => import('./pages/super-admin/AddSchool'));
+const EditSchool = React.lazy(() => import('./pages/super-admin/EditSchool'));
+const Subscriptions = React.lazy(() => import('./pages/super-admin/Subscriptions'));
+const Revenue = React.lazy(() => import('./pages/super-admin/Revenue'));
+const NotificationsCenter = React.lazy(() => import('./pages/super-admin/Notifications'));
+const SupportCenter = React.lazy(() => import('./pages/super-admin/Support'));
+const SuperAdminSettings = React.lazy(() => import('./pages/super-admin/SuperAdminSettings'));
+const SuperAdminAiAgent = React.lazy(() => import('./pages/super-admin/AiAgent'));
+const LandingPageCMS = React.lazy(() => import('./pages/super-admin/LandingPageCMS'));
+const SchoolBackups = React.lazy(() => import('./pages/super-admin/SchoolBackups'));
+const BulkPromotionEngine = React.lazy(() => import('./pages/school-admin/BulkPromotionEngine'));
+const BulkFeeUpdate = React.lazy(() => import('./pages/school-admin/BulkFeeUpdate'));
+const BulkStudentEdit = React.lazy(() => import('./pages/school-admin/BulkStudentEdit'));
+const LiveAnalyticsHub = React.lazy(() => import('./pages/school-admin/LiveAnalyticsHub'));
+const PayrollDashboard = React.lazy(() => import('./pages/school-admin/PayrollDashboard'));
+const PortalsHub = React.lazy(() => import('./pages/school-admin/PortalsHub'));
+const ParentsDirectory = React.lazy(() => import('./pages/school-admin/ParentsDirectory'));
+const ChallanBook = React.lazy(() => import('./pages/school-admin/ChallanBook'));
+const EServices = React.lazy(() => import('./pages/school-admin/EServices'));
+const SchoolAdminDashboard = React.lazy(() => import('./pages/school-admin/Dashboard'));
+const InquiryManager = React.lazy(() => import('./pages/school-admin/InquiryManager'));
+const AddInquiry = React.lazy(() => import('./pages/school-admin/AddInquiry'));
+const ParentManager = React.lazy(() => import('./pages/school-admin/ParentManager'));
+const EditParent = React.lazy(() => import('./pages/school-admin/EditParent'));
+const FeeRecord = React.lazy(() => import('./pages/school-admin/FeeRecord'));
+const SubjectManager = React.lazy(() => import('./pages/school-admin/SubjectManager'));
+const AdmitCard = React.lazy(() => import('./pages/school-admin/AdmitCard'));
+const ReportCard = React.lazy(() => import('./pages/school-admin/ReportCard'));
+const ExamAnalytics = React.lazy(() => import('./pages/school-admin/ExamAnalytics'));
+const ExamResultsDashboard = React.lazy(() => import('./pages/school-admin/ExamResultsDashboard'));
+const GradingRules = React.lazy(() => import('./pages/school-admin/GradingRules'));
+const FaceScannerApp = React.lazy(() => import('./pages/school-admin/FaceScannerApp'));
+const QrScannerApp = React.lazy(() => import('./pages/school-admin/QrScannerApp'));
+const SchoolWebsiteCMS = React.lazy(() => import('./pages/school-admin/SchoolWebsiteCMS'));
+const ParentProfile = React.lazy(() => import('./pages/school-admin/ParentProfile'));
+const StudentManager = React.lazy(() => import('./pages/school-admin/Students'));
+const CollectFee = React.lazy(() => import('./pages/school-admin/CollectFee'));
+const ClassManager = React.lazy(() => import('./pages/school-admin/ClassManager'));
+const ClassFeesSetup = React.lazy(() => import('./pages/school-admin/ClassFeesSetup'));
+const StaffIdCards = React.lazy(() => import('./pages/school-admin/StaffIdCards'));
+const StaffProfile = React.lazy(() => import('./pages/school-admin/StaffProfile'));
+const AddStudent = React.lazy(() => import('./pages/school-admin/AddStudent'));
+const StudentRemarkReport = React.lazy(() => import('./pages/school-admin/StudentRemarkReport'));
+const StaffManager = React.lazy(() => import('./pages/school-admin/StaffManager'));
+const StaffAttendanceRegister = React.lazy(() => import('./pages/school-admin/StaffAttendanceRegister'));
+const AddStaff = React.lazy(() => import('./pages/school-admin/AddStaff'));
+const FeeManager = React.lazy(() => import('./pages/school-admin/FeeManager'));
+const GenerateVoucher = React.lazy(() => import('./pages/school-admin/GenerateVoucher'));
+const PrintFee = React.lazy(() => import('./pages/school-admin/PrintFee'));
+const AttendanceManager = React.lazy(() => import('./pages/school-admin/AttendanceManager'));
+const AttendanceRegister = React.lazy(() => import('./pages/school-admin/AttendanceRegister'));
+const FeeDefaulters = React.lazy(() => import('./pages/school-admin/FeeDefaulters'));
+const DailyDiary = React.lazy(() => import('./pages/school-admin/DailyDiary'));
+const PayrollManager = React.lazy(() => import('./pages/school-admin/PayrollManager'));
+const PayrollReports = React.lazy(() => import('./pages/school-admin/PayrollReports'));
+const SalarySetup = React.lazy(() => import('./pages/school-admin/SalarySetup'));
+const AdmissionCRM = React.lazy(() => import('./pages/school-admin/AdmissionCRM'));
+const OnlineQuizEngine = React.lazy(() => import('./pages/school-admin/OnlineQuizEngine'));
+const GatePassManager = React.lazy(() => import('./pages/school-admin/GatePassManager'));
+const MiniPocketApp = React.lazy(() => import('./pages/school-admin/MiniPocketApp'));
+const SchoolSubscriptionPortal = React.lazy(() => import('./pages/school-admin/SchoolSubscriptionPortal'));
+const Academics = React.lazy(() => import('./pages/school-admin/Academics'));
+const CustomReportCard = React.lazy(() => import('./pages/school-admin/CustomReportCard'));
+const ReportCardTemplates = React.lazy(() => import('./pages/school-admin/ReportCardTemplates'));
+const TimetableBuilder = React.lazy(() => import('./pages/school-admin/TimetableBuilder'));
+const StudentIdCards = React.lazy(() => import('./pages/school-admin/StudentIdCards'));
+const IdCardDesigner = React.lazy(() => import('./pages/school-admin/IdCardDesigner'));
+const ExpenseManager = React.lazy(() => import('./pages/school-admin/ExpenseManager'));
+const ExamManagement = React.lazy(() => import('./pages/school-admin/exams/ExamManagement'));
+const ExamMasterFile = React.lazy(() => import('./pages/school-admin/exams/ExamMasterFile'));
+const ExamSubjects = React.lazy(() => import('./pages/school-admin/exams/ExamSubjects'));
+const AdmitCards = React.lazy(() => import('./pages/school-admin/exams/AdmitCards'));
+const MarksEntry = React.lazy(() => import('./pages/school-admin/exams/MarksEntry'));
+const GradingManagement = React.lazy(() => import('./pages/school-admin/exams/GradingManagement'));
+const ExamReportSummary = React.lazy(() => import('./pages/school-admin/exams/ExamReportSummary'));
+const MarksheetGenerator = React.lazy(() => import('./pages/school-admin/exams/MarksheetGenerator'));
+const AccountsManager = React.lazy(() => import('./pages/school-admin/AccountsManager'));
+const InventoryManager = React.lazy(() => import('./pages/school-admin/InventoryManager'));
+const SMSPanel = React.lazy(() => import('./pages/school-admin/SMSPanel'));
+const MarkResults = React.lazy(() => import('./pages/school-admin/MarkResults'));
+const FamilyTree = React.lazy(() => import('./pages/school-admin/FamilyTree'));
+const SingleStudent360 = React.lazy(() => import('./pages/school-admin/SingleStudent360'));
+const SpeakerPASystem = React.lazy(() => import('./pages/school-admin/SpeakerPASystem'));
+const StaffAttendanceHub = React.lazy(() => import('./pages/school-admin/StaffAttendanceHub'));
+const OtherIncomeManager = React.lazy(() => import('./pages/school-admin/OtherIncomeManager'));
+const ComprehensiveReportsHub = React.lazy(() => import('./pages/school-admin/ComprehensiveReportsHub'));
+const TeacherDashboard = React.lazy(() => import('./pages/teacher/Dashboard'));
+const TeacherStudents = React.lazy(() => import('./pages/teacher/Students'));
+const TeacherAttendance = React.lazy(() => import('./pages/teacher/Attendance'));
+const TeacherExams = React.lazy(() => import('./pages/teacher/ExamsAndMarks'));
+const TeacherHomework = React.lazy(() => import('./pages/teacher/Homework'));
+const TeacherTimetable = React.lazy(() => import('./pages/teacher/Timetable'));
+const TeacherCommunication = React.lazy(() => import('./pages/teacher/Communication'));
+const TeacherLeave = React.lazy(() => import('./pages/teacher/LeaveManager'));
+const TeacherMaterial = React.lazy(() => import('./pages/teacher/StudyMaterial'));
+const TeacherPayslips = React.lazy(() => import('./pages/teacher/MyPayslips'));
+const StudentDashboard = React.lazy(() => import('./pages/student/Dashboard'));
+const StudentAttendance = React.lazy(() => import('./pages/student/Attendance'));
+const StudentExams = React.lazy(() => import('./pages/student/Exams'));
+const StudentHomework = React.lazy(() => import('./pages/student/Homework'));
+const StudentTimetable = React.lazy(() => import('./pages/student/Timetable'));
+const StudentMaterial = React.lazy(() => import('./pages/student/StudyMaterial'));
+const ParentDashboard = React.lazy(() => import('./pages/parent/Dashboard'));
+const ParentAttendance = React.lazy(() => import('./pages/parent/Attendance'));
+const ParentFees = React.lazy(() => import('./pages/parent/Fees'));
+const ParentExams = React.lazy(() => import('./pages/parent/Exams'));
+const ParentAiChatbot = React.lazy(() => import('./pages/parent/AiChatbot'));
+const SchoolSettings = React.lazy(() => import('./pages/school-admin/Settings'));
+const DigitalLibrary = React.lazy(() => import('./pages/school-admin/DigitalLibrary'));
+const TransportManager = React.lazy(() => import('./pages/school-admin/TransportManager'));
+const RolesManager = React.lazy(() => import('./pages/school-admin/RolesManager'));
+const Migration = React.lazy(() => import('./pages/school-admin/Migration'));
+const Collection = React.lazy(() => import('./pages/school-admin/Collection'));
+const PeriodBell = React.lazy(() => import('./pages/school-admin/PeriodBell'));
+const CertificateGenerator = React.lazy(() => import('./pages/school-admin/CertificateGenerator'));
 
-import CCTVMonitoring from './pages/school-admin/CCTVMonitoring';
-import HostelManager from './pages/school-admin/HostelManager';
-import GatePassScanner from './pages/school-admin/GatePassScanner';
-import BiometricSetup from './pages/school-admin/BiometricSetup';
-import AIGrader from './pages/school-admin/AIGrader';
-import LiveClasses from './pages/school-admin/LiveClasses';
-import StaffSubstitution from './pages/school-admin/StaffSubstitution';
-import Reminders from './pages/school-admin/Reminders';
-import CallLog from './pages/school-admin/CallLog';
-import Social from './pages/school-admin/Social';
-import AiAgent from './pages/school-admin/AiAgent';
-import DataImport from './pages/school-admin/DataImport';
-import DemoDataInjector from './pages/school-admin/DemoDataInjector';
-import GoogleDriveBackupVault from './pages/school-admin/GoogleDriveBackupVault';
-import WhatsAppCronAutomation from './pages/school-admin/WhatsAppCronAutomation';
-import MobileAppPwaOffline from './pages/school-admin/MobileAppPwaOffline';
-import CommercialLaunchAudit from './pages/school-admin/CommercialLaunchAudit';
-import MultiBranchHub from './pages/school-admin/MultiBranchHub';
-import FranchiseManager from './pages/school-admin/FranchiseManager';
-import ComingSoon from './pages/school-admin/ComingSoon';
+const CCTVMonitoring = React.lazy(() => import('./pages/school-admin/CCTVMonitoring'));
+const HostelManager = React.lazy(() => import('./pages/school-admin/HostelManager'));
+const GatePassScanner = React.lazy(() => import('./pages/school-admin/GatePassScanner'));
+const BiometricSetup = React.lazy(() => import('./pages/school-admin/BiometricSetup'));
+const AIGrader = React.lazy(() => import('./pages/school-admin/AIGrader'));
+const LiveClasses = React.lazy(() => import('./pages/school-admin/LiveClasses'));
+const StaffSubstitution = React.lazy(() => import('./pages/school-admin/StaffSubstitution'));
+const Reminders = React.lazy(() => import('./pages/school-admin/Reminders'));
+const CallLog = React.lazy(() => import('./pages/school-admin/CallLog'));
+const Social = React.lazy(() => import('./pages/school-admin/Social'));
+const AiAgent = React.lazy(() => import('./pages/school-admin/AiAgent'));
+const DataImport = React.lazy(() => import('./pages/school-admin/DataImport'));
+const DemoDataInjector = React.lazy(() => import('./pages/school-admin/DemoDataInjector'));
+const GoogleDriveBackupVault = React.lazy(() => import('./pages/school-admin/GoogleDriveBackupVault'));
+const WhatsAppCronAutomation = React.lazy(() => import('./pages/school-admin/WhatsAppCronAutomation'));
+const MobileAppPwaOffline = React.lazy(() => import('./pages/school-admin/MobileAppPwaOffline'));
+const CommercialLaunchAudit = React.lazy(() => import('./pages/school-admin/CommercialLaunchAudit'));
+const MultiBranchHub = React.lazy(() => import('./pages/school-admin/MultiBranchHub'));
+const FranchiseManager = React.lazy(() => import('./pages/school-admin/FranchiseManager'));
+const ComingSoon = React.lazy(() => import('./pages/school-admin/ComingSoon'));
 import GlassCard from './components/common/GlassCard';
-import FeatureVideos from './pages/super-admin/FeatureVideos';
+const FeatureVideos = React.lazy(() => import('./pages/super-admin/FeatureVideos'));
 
 const getRoleDashboard = (role) => {
   switch (role) {
@@ -223,10 +232,11 @@ const UnauthorizedPage = () => {
 };
 
 const AppRoutes = () => {
-  const isFirebaseHosting = window.location.hostname.includes('web.app') || window.location.hostname.includes('firebaseapp.com');
+  const isFirebaseHosting = window.location.hostname.includes('web.app') || window.location.hostname.includes('firebaseapp.com'); const isDesktopApp = window.location.protocol === 'file:' || navigator.userAgent.toLowerCase().includes('electron');
 
   return (
-    <Routes>
+    <Suspense fallback={<div className='flex h-screen items-center justify-center bg-[#09090b] text-cyan-400'><div className='animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500'></div></div>}>
+          <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -255,6 +265,7 @@ const AppRoutes = () => {
         <Route path="feature-videos" element={<FeatureVideos />} />
         <Route path="settings" element={<SuperAdminSettings />} />
         <Route path="landing-page" element={<LandingPageCMS />} />
+        <Route path="school-backups" element={<SchoolBackups />} />
       </Route>
 
       {/* School Admin Routes */}
@@ -297,6 +308,7 @@ const AppRoutes = () => {
         <Route path="security/gate-scanner" element={<GatePassScanner />} />
         <Route path="fees" element={<FeeManager />} />
         <Route path="fees/generate" element={<GenerateVoucher />} />
+        <Route path="fees/generate-voucher" element={<GenerateVoucher />} />
         <Route path="fees/print/:type/:id" element={<PrintFee />} />
         <Route path="fees/defaulters" element={<FeeDefaulters />} />
         <Route path="academics" element={<Academics />} />
@@ -387,6 +399,14 @@ const AppRoutes = () => {
         <Route path="franchise-manager" element={<FranchiseManager />} />
         <Route path="copilot" element={<AiAgent />} />
         <Route path="billing" element={<SchoolSubscriptionPortal />} />
+        <Route path="bulk-promotion" element={<BulkPromotionEngine />} />
+        <Route path="bulk-fee-update" element={<BulkFeeUpdate />} />
+        <Route path="bulk-student-edit" element={<BulkStudentEdit />} />
+        <Route path="live-analytics" element={<LiveAnalyticsHub />} />
+        <Route path="payroll-dashboard" element={<PayrollDashboard />} />
+        <Route path="portals-hub" element={<PortalsHub />} />
+        <Route path="parents-directory" element={<ParentsDirectory />} />
+        <Route path="challan-book" element={<ChallanBook />} />
         <Route path="*" element={<ComingSoon />} />
       </Route>
 
@@ -447,12 +467,13 @@ const AppRoutes = () => {
         <Route path="*" element={<ComingSoon />} />
       </Route>
 
-      <Route path="/" element={isFirebaseHosting ? <Navigate to="/login" replace /> : <LandingPage />} />
+      <Route path="/" element={(isFirebaseHosting || isDesktopApp) ? <Navigate to="/login" replace /> : <LandingPage />} />
       <Route path="/family-update/:schoolId/:phone" element={<PublicFamilyUpdate />} />
       <Route path="/snap/:sessionId" element={<MobilePhotoCapture />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+        </Suspense>
   );
 };
 

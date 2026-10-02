@@ -167,6 +167,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
               { name: 'Revenue & Billing', icon: BookOpen, path: '/super-admin/revenue' },
               { name: 'Notifications', icon: BellRing, path: '/super-admin/notifications' },
               { name: 'Support Center', icon: MessageSquare, path: '/super-admin/support' },
+              { name: 'School Backups', icon: HardDrive, path: '/super-admin/school-backups' },
               { name: 'Bulk Data Import', icon: UploadCloud, path: '/school-admin/import' },
               { name: 'Feature Videos Manager', icon: Video, path: '/super-admin/feature-videos' },
               { name: 'Settings', icon: Settings, path: '/super-admin/settings' },
@@ -238,7 +239,6 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             title: 'Student Management',
             categoryKey: 'Student',
             links: [
-              { name: 'Student Inquiry & CRM', icon: Users, path: '/school-admin/inquiries', featureKey: 'inquiry-student' },
               { name: 'Inquiry Student', icon: UserPlus, path: '/school-admin/inquiry-student', featureKey: 'inquiry-student' },
               { name: 'Online Admission CRM', icon: UserPlus, path: '/school-admin/admissions/crm', featureKey: 'admission-crm' },
               { name: 'Add Student', icon: PlusCircle, path: '/school-admin/students/add', featureKey: 'students-manager' },
@@ -420,29 +420,24 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
         {/* Sleek Sidebar Header Emblem (Clickable to navigate Home) */}
         <div className="flex items-center justify-between border-b border-dark-border px-3 h-16 flex-shrink-0 bg-dark-card/95">
           <NavLink to={getHomePath()} className="flex items-center gap-2.5 hover:opacity-90 transition-opacity flex-1 overflow-hidden" title="Go to Dashboard Home">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-600 flex items-center justify-center text-white relative shrink-0 shadow-md shadow-cyan-500/20 overflow-hidden">
-              {schoolData?.branding?.logo ? (
-                <img src={schoolData.branding.logo} alt="School Logo" className="w-full h-full object-cover bg-white" />
+              {(schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo) ? (
+                <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0 overflow-hidden">
+                  <img src={schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo} alt="School Logo" className="w-full h-full object-contain p-0.5" />
+                </div>
               ) : (
-                <GraduationCap size={18} className="text-white" />
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-indigo-600 flex items-center justify-center text-white relative shrink-0 shadow-md shadow-cyan-500/20 overflow-hidden">
+                  <GraduationCap size={18} className="text-white" />
+                </div>
               )}
-            </div>
             <div className="flex flex-col overflow-hidden">
-              <h2 className="text-xs font-black text-white tracking-wide leading-tight truncate">
-                {schoolData?.name || 'TaleemiDunya'}
+              <h2 className="text-xs font-black text-black tracking-wide leading-tight truncate">
+                {schoolData?.name || userData?.schoolName || userData?.name || 'TaleemiDunya'}
               </h2>
-              <span className="text-[9px] font-bold text-cyan-400 tracking-wider font-mono">
+              <span className="text-[9px] font-bold text-cyan-700 tracking-wider font-mono">
                 v2.5.0 PRO
               </span>
             </div>
           </NavLink>
-          <button 
-            onClick={() => setIsSearchOpen(true)}
-            title="Global Command+K Search"
-            className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-primary-400 hover:bg-primary-500/20 hover:border-primary-500/40 transition-all shrink-0"
-          >
-            <Command size={14} />
-          </button>
         </div>
 
         {/* Return to Admin Button if Sandbox Mode */}
@@ -473,7 +468,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             {menuSearch && (
               <button
                 onClick={() => setMenuSearch('')}
-                className="absolute right-2 text-[10px] text-dark-muted hover:text-white bg-white/10 rounded px-1"
+                className="absolute right-2 text-[10px] text-dark-muted hover:text-white bg-dark-card/10 rounded px-1"
               >
                 ✕
               </button>
@@ -491,7 +486,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap transition-all ${
                   activeCategory === cat
                     ? 'bg-primary-500 text-white shadow-sm'
-                    : 'text-dark-muted hover:text-white hover:bg-white/5'
+                    : 'text-dark-muted hover:text-white hover:bg-dark-card/5'
                 }`}
               >
                 {cat}
@@ -521,7 +516,8 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                     </div>
                     <ChevronDown
                       size={12}
-                      className={`text-dark-muted group-hover:text-white transition-transform duration-200 ${
+                      style={{ color: '#ef4444' }}
+                      className={`transition-transform duration-200 ${
                         isCollapsed ? '-rotate-90' : 'rotate-0'
                       }`}
                     />
@@ -534,7 +530,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                         <div key={link.name} className="space-y-0.5">
                           <div
                             onClick={() => setExpanded(prev => ({ ...prev, [link.name]: !prev[link.name] }))}
-                            className="sidebar-item flex items-center justify-between cursor-pointer px-2.5 py-1.5 gap-2 transition-all hover:bg-white/5 rounded-xl"
+                            className="sidebar-item flex items-center justify-between cursor-pointer px-2.5 py-1.5 gap-2 transition-all hover:bg-dark-card/5 rounded-xl"
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
                               <link.icon size={15} className="flex-shrink-0 text-primary-400" />
@@ -550,7 +546,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                                   to={subLink.path}
                                   onClick={handleItemClick}
                                   className={({ isActive }) =>
-                                    `${isActive ? 'text-primary-400 font-bold bg-primary-500/10 border border-primary-500/20 shadow-sm' : 'text-dark-muted hover:text-white hover:bg-white/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg`
+                                    `${isActive ? 'text-primary-400 font-bold bg-primary-500/10 border border-primary-500/20 shadow-sm' : 'text-dark-muted hover:text-white hover:bg-dark-card/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg`
                                   }
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
@@ -583,12 +579,12 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
 
         {/* Dynamic SaaS Plan & Active Features Badge for School Admin */}
         {displayRole === 'school-admin' && showPlanBanner && (
-          <div className="mx-2 mb-2 p-2.5 rounded-2xl bg-gradient-to-tr from-cyan-950/40 via-blue-950/30 to-purple-950/40 border border-cyan-500/30 text-white shrink-0 shadow-lg relative overflow-hidden">
+          <div className="mx-2 mb-2 p-2.5 rounded-2xl bg-gradient-to-tr from-cyan-100 via-blue-100 to-purple-100 border border-cyan-500/30 text-slate-800 shrink-0 shadow-lg relative overflow-hidden">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1">
-                <Zap size={12} className="text-amber-400 animate-pulse" /> {currentSaaSPlan || 'Premium'} Plan
+              <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 flex items-center gap-1">
+                <Zap size={12} className="text-amber-500 animate-pulse" /> {currentSaaSPlan || 'Premium'} Plan
               </span>
-              <span className="text-[9px] font-black bg-white/10 px-1.5 py-0.5 rounded text-gray-300">
+              <span className="text-[9px] font-black bg-dark-card/50 px-1.5 py-0.5 rounded text-slate-700 shadow-sm border border-black/5">
                 {activeFeaturesCount}/{totalCatalogFeatures} Active
               </span>
             </div>
@@ -600,7 +596,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             </div>
             <NavLink
               to="/school-admin/billing"
-              className="w-full py-1.5 px-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition-all active:scale-95"
+              className="w-full py-1.5 px-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition-all active:scale-[0.99]"
             >
               <span>⚡ Online Pay & Add-ons</span>
             </NavLink>
@@ -613,7 +609,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             <p className="text-[10px] font-bold mb-2 text-white">Get the Mobile App!</p>
             <button 
               onClick={handleInstallClick}
-              className="w-full py-1.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition-all active:scale-95"
+              className="w-full py-1.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow transition-all active:scale-[0.99]"
             >
               <Smartphone size={12} /> Install TaleemiDunya
             </button>
@@ -624,7 +620,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
         <div className="p-2 border-t border-dark-border bg-dark-card flex items-center gap-1.5 shrink-0">
           <button
             onClick={logout}
-            className="flex-1 flex items-center rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all font-semibold cursor-pointer px-3 py-2 gap-2 justify-start text-xs border border-transparent hover:border-red-500/20"
+            className="flex-1 flex items-center rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700 transition-all font-bold cursor-pointer px-3 py-2 gap-2 justify-start text-xs border border-transparent hover:border-red-200"
           >
             <LogOut size={16} className="flex-shrink-0" />
             <span className="truncate">Logout</span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Search, User, ChevronDown, ChevronLeft, ChevronRight, Sun, Moon, Command, Monitor, Zap, UserPlus, CalendarCheck, DollarSign, Activity, BarChart3, Settings, Menu, Palette, Check } from 'lucide-react';
+import { Bell, Search, User, ChevronDown, ChevronLeft, ChevronRight, Sun, Moon, Command, Monitor, Zap, UserPlus, CalendarCheck, DollarSign, Activity, BarChart3, Settings, Menu, Palette, Check, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -87,8 +87,8 @@ const Navbar = ({ toggleSidebar }) => {
               TaleemiDunya
             </h1>
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-[9px] font-black tracking-wider flex items-center gap-1 shadow-sm max-w-[120px] sm:max-w-none truncate">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-ping shrink-0" />
+              <span className="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-700 font-mono text-[9px] font-black tracking-wider flex items-center gap-1 shadow-sm max-w-[120px] sm:max-w-none truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-600 animate-ping shrink-0" />
                 <span className="truncate">v2.5.0 PRO <span className="hidden sm:inline">• AI CLOUD SYNC & OFFLINE READY</span></span>
               </span>
               <span className="text-[9px] text-dark-muted font-bold uppercase tracking-widest hidden sm:inline">
@@ -106,7 +106,7 @@ const Navbar = ({ toggleSidebar }) => {
               <Search size={15} className="text-primary-500 shrink-0" />
               <span className="text-xs font-medium truncate">Search students, records...</span>
             </div>
-            <kbd className="hidden xl:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/5 border border-dark-border text-[9px] font-mono text-dark-muted uppercase font-bold group-hover:border-primary-500/40 group-hover:text-primary-400 transition-all">
+            <kbd className="hidden xl:flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-dark-card/5 border border-dark-border text-[9px] font-mono text-dark-muted uppercase font-bold group-hover:border-primary-500/40 group-hover:text-primary-400 transition-all">
               <span className="text-[10px]">⌘</span>K
             </kbd>
           </div>
@@ -122,10 +122,10 @@ const Navbar = ({ toggleSidebar }) => {
             <button
               onClick={() => setIsShortcutsOpen(!isShortcutsOpen)}
               title="Quick Action Shortcuts (Inquiry, Attendance, Fees, Reports)"
-              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-primary-500/20 to-purple-500/20 hover:from-primary-500/30 hover:to-purple-500/30 border border-primary-500/40 text-primary-300 hover:text-white transition-all duration-300 shadow-sm flex items-center gap-1.5 cursor-pointer font-bold text-xs shrink-0"
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-primary-500/20 to-purple-500/20 hover:from-primary-500/30 hover:to-purple-500/30 border border-primary-500/40 !text-primary-600 hover:!text-primary-700 transition-all duration-300 shadow-sm flex items-center gap-1.5 cursor-pointer font-bold text-xs shrink-0"
             >
-              <Zap size={15} className="text-amber-400 animate-bounce shrink-0" />
-              <span className="hidden sm:inline">⚡ Shortcuts</span>
+              <Zap size={15} className="text-amber-500 animate-bounce shrink-0" />
+              <span className="hidden lg:inline">⚡ Shortcuts</span>
               <ChevronDown size={14} className={`transition-transform duration-200 shrink-0 ${isShortcutsOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -145,9 +145,9 @@ const Navbar = ({ toggleSidebar }) => {
                           setIsShortcutsOpen(false);
                           navigate(item.path);
                         }}
-                        className="w-full text-left p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-all flex items-center gap-3 group"
+                        className="w-full text-left p-2.5 rounded-xl bg-dark-card/5 hover:bg-dark-card/10 transition-all flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                        <div className="w-8 h-8 rounded-lg bg-dark-card/5 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                           <IconComp size={16} className={item.color} />
                         </div>
                         <div className="truncate">
@@ -167,21 +167,22 @@ const Navbar = ({ toggleSidebar }) => {
         <button
           onClick={cycleZoom}
           title="Adjust Screen Scale (90% Compact / 85% High Density / 100% Normal)"
-          className="px-2.5 py-1.5 rounded-xl bg-dark-card border border-dark-border text-dark-muted hover:text-cyan-400 hover:border-cyan-500/50 transition-all duration-300 shadow-sm flex items-center gap-1.5 cursor-pointer font-mono text-[11px] font-bold shrink-0"
+          className="px-2.5 py-1.5 rounded-xl bg-dark-card border border-dark-border !text-slate-700 hover:!text-cyan-600 hover:border-cyan-500/50 transition-all duration-300 shadow-sm flex items-center gap-1.5 cursor-pointer font-mono text-[11px] font-bold shrink-0"
         >
-          <Monitor size={15} className="text-cyan-400 shrink-0" />
-          <span className="hidden sm:inline">{uiZoom === '90' ? '90% Sleek' : uiZoom === '85' ? '85% Compact' : '100% Norm'}</span>
+          <Monitor size={15} className="!text-cyan-600 shrink-0" />
+          <span className="hidden lg:inline">{uiZoom === '90' ? '90% Sleek' : uiZoom === '85' ? '85% Compact' : '100% Norm'}</span>
         </button>
 
-        {/* Light/Dark Mode Toggle */}
+        {/* Theme Toggle Switch */}
         <button
           onClick={toggleTheme}
-          title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-          className="p-2.5 rounded-xl bg-dark-card border border-dark-border text-dark-muted hover:text-primary-500 hover:border-primary-500/50 transition-all duration-300 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+          title="Toggle Light/Dark Mode"
+          className={`relative inline-flex items-center h-7 rounded-full w-14 transition-colors shrink-0 border ${theme === 'dark' ? 'bg-[#0f172a] border-slate-700' : 'bg-slate-200 border-slate-300'}`}
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          <span className={`inline-block w-5 h-5 transform rounded-full bg-white shadow-md transition-transform flex items-center justify-center ${theme === 'dark' ? 'translate-x-7' : 'translate-x-1'}`}>
+            {theme === 'dark' ? <Moon size={12} className="text-indigo-600" /> : <Sun size={12} className="text-amber-500" />}
+          </span>
         </button>
-
         <button className="relative p-2 text-dark-muted hover:text-white transition-colors shrink-0">
           <Bell size={22} />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary-500 rounded-full border-2 border-dark-bg"></span>

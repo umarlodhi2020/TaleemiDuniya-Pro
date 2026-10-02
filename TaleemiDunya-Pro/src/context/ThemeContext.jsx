@@ -16,11 +16,7 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setThemeState] = useState(() => {
-    const saved = localStorage.getItem('taleemi_theme');
-    if (saved && THEME_OPTIONS.some(t => t.id === saved)) {
-      return saved;
-    }
-    // Default light theme is Clean Light
+    // Always start with light mode when the page opens
     localStorage.setItem('taleemi_theme', 'light');
     return 'light';
   });

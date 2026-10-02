@@ -21,6 +21,8 @@ export const CONNECTION_METHODS = [
 // -------------------------------------------------------------
 // DAHUA BRAND ADAPTER
 // -------------------------------------------------------------
+import { requestTestConnection, requestDiscoverChannels } from './cctvConnectorService';
+
 export const DahuaAdapter = {
   brand: 'Dahua Technology',
   validateConfig: (config) => {
@@ -32,47 +34,18 @@ export const DahuaAdapter = {
   },
 
   testConnection: async (config, schoolId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          success: true,
-          diagnosticCode: 'CONNECTED',
-          message: `Connected successfully to Dahua DVR at ${config.ipAddress}.`
-        });
-      }, 1500);
-    });
+    // Ping the real connector
+    return await requestTestConnection(schoolId, config);
   },
 
   discoverChannels: async (config, schoolId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const dahuaNames = [
-          'Main Gate & Entry Barrier', 'Admin Block Reception', 'Principal Office Corridor',
-          'Main Assembly Playground', 'Primary Block Corridor A', 'Secondary Block Corridor B',
-          'Science & Chemistry Lab', 'Computer & Robotics Lab', 'Central Library Hall',
-          'Cafeteria & Dining Area', 'Back Entrance & Parking', 'Staff Room & Faculty Lounge',
-          'Boys Hostel Entrance', 'Girls Hostel Entrance', 'Auditorium & Stage', 'Generator & Substation'
-        ];
-
-        const channels = Array.from({ length: 16 }, (_, i) => {
-          const chNum = i + 1;
-          const locName = dahuaNames[i];
-          return {
-            channelNumber: chNum,
-            cameraId: `DH-CH${String(chNum).padStart(2, '0')}`,
-            name: `Channel ${chNum} - ${locName}`,
-            location: config.location ? `${config.location} - ${locName}` : locName,
-            type: 'DVR Channel',
-            status: 'online',
-            streamStatus: 'RTSP Stream Available',
-            active: true,
-            resolution: '1080P',
-            fps: 25
-          };
-        });
-        resolve(channels);
-      }, 1000);
-    });
+    // Discover from the real connector
+    const result = await requestDiscoverChannels(schoolId, config);
+    if (result.success && result.channels) {
+      return result.channels;
+    }
+    // Fallback or empty if failed
+    return [];
   }
 };
 

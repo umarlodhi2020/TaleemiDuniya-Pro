@@ -56,7 +56,7 @@ const PwaInstallButton = () => {
         title="Install TaleemiDunya Pro on your device for quick 1-click access"
       >
         <Smartphone size={15} className="animate-pulse shrink-0" />
-        <span className="hidden sm:inline">📲 Install App</span>
+        <span className="hidden lg:inline">📲 Install App</span>
       </button>
 
       {/* Manual Install Instructions Modal if browser block prompt */}

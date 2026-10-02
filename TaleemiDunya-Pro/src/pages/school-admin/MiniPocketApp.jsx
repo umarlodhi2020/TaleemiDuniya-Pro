@@ -383,7 +383,7 @@ const MiniPocketApp = () => {
             {!isStandalone && (
               <button
                 onClick={handleInstallApp}
-                className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-md active:scale-95 transition-all animate-pulse"
+                className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1 shadow-md active:scale-[0.99] transition-all animate-pulse"
               >
                 <Download size={13} />
                 <span>Install</span>
@@ -391,7 +391,7 @@ const MiniPocketApp = () => {
             )}
             <button
               onClick={() => navigate('/school-admin')}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 active:scale-95 transition-all"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 active:scale-[0.99] transition-all"
             >
               <ArrowLeft size={16} />
             </button>
@@ -445,7 +445,7 @@ const MiniPocketApp = () => {
             </span>
             <button
               onClick={handleSyncOfflineQueue}
-              className="px-3 py-1 bg-yellow-500 text-black font-black rounded-lg text-[10px] uppercase active:scale-95 transition-all shadow-sm"
+              className="px-3 py-1 bg-yellow-500 text-black font-black rounded-lg text-[10px] uppercase active:scale-[0.99] transition-all shadow-sm"
             >
               Sync Now ☁️
             </button>
@@ -941,7 +941,7 @@ const MiniPocketApp = () => {
                   <div className="grid grid-cols-2 gap-2 pt-2">
                     <button
                       onClick={() => setShowPaymentModal(true)}
-                      className="py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black text-xs uppercase flex items-center justify-center gap-1.5 shadow-lg active:scale-95 transition-all"
+                      className="py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-black text-xs uppercase flex items-center justify-center gap-1.5 shadow-lg active:scale-[0.99] transition-all"
                     >
                       <QrCode size={16} /> Pay Online Now
                     </button>

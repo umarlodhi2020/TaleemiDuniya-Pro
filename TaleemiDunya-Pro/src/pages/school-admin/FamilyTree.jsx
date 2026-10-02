@@ -859,7 +859,7 @@ const FamilyTree = () => {
             <div key={fam.key || idx} className={`bg-dark-card border rounded-2xl overflow-hidden shadow-sm transition-all ${selectedFamilies.includes(fam.key) ? 'border-primary-500 shadow-primary-500/10' : 'border-dark-border hover:border-primary-500/30'}`}>
               
               {/* Blue / Primary Family Bar Header */}
-              <div className="bg-gradient-to-r from-blue-600 via-primary-600 to-cyan-600 text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-4">
+              <div className="bg-blue-600 keep-white text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs sm:text-sm font-bold">
                   <div className="flex items-center gap-3 mr-2 no-print">
                     <input 
@@ -1352,3 +1352,4 @@ const FamilyTree = () => {
 };
 
 export default FamilyTree;
+

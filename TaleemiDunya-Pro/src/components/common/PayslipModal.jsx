@@ -359,7 +359,7 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
             <div className="grid grid-cols-2 gap-12 text-center text-[10px] md:text-xs font-bold text-gray-600 uppercase tracking-wider">
               <div className="flex flex-col items-center justify-end">
                 {adminSignatureUrl ? (
-                  <img src={adminSignatureUrl} alt="Admin Signature" className="h-8 object-contain -mb-1 opacity-90 mix-blend-multiply" />
+                  <img src={adminSignatureUrl} alt="Admin Signature" className="h-24 object-contain -mb-1 opacity-90 mix-blend-multiply" />
                 ) : (
                   <div className="h-7" />
                 )}
@@ -368,7 +368,7 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
               </div>
               <div className="flex flex-col items-center justify-end">
                 {principalSignatureUrl ? (
-                  <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 opacity-90 mix-blend-multiply" />
+                  <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain -mb-1 opacity-90" />
                 ) : (
                   <div className="h-7" />
                 )}

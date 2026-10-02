@@ -77,7 +77,7 @@ export const renderStaffCard = (staff, isPrint, settings) => {
           />
         )}
         <div className="relative z-10 flex flex-col items-center w-full">
-          <h4 className="text-[14px] font-black text-gray-900 uppercase mt-1 mb-0.5 truncate text-center">
+          <h4 className="text-[14px] font-black text-gray-900 capitalize mt-1 mb-0.5 truncate text-center">
           {staff.name || 'Staff Name'}
         </h4>
         <span className="text-[9px] font-bold text-gray-600 tracking-wider mb-2 border-b border-gray-100 pb-1 w-full text-center" style={{ color: themeColor }}>
@@ -121,7 +121,7 @@ export const renderStaffCard = (staff, isPrint, settings) => {
           {showSignature && (
             <div className="flex flex-col items-center">
               {stampImage ? (
-                <img src={stampImage} alt="Signature" className="h-[25px] object-contain -mb-1" />
+                <img src={stampImage} alt="Signature" className="h-16 max-w-[150px] object-contain -mb-1 origin-bottom scale-[1.25] mix-blend-multiply" />
               ) : (
                 <div className="h-6" /> // spacer
               )}

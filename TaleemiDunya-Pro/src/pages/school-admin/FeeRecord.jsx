@@ -707,12 +707,12 @@ const FeeRecord = () => {
         </table>
         <div style="margin-top:35px; display:flex; justify-content:space-between; padding:0 20px;">
           <div style="text-align: center;">
-            ${accountantSignatureUrl ? `<img src="${accountantSignatureUrl}" style="height:35px; object-fit:contain; margin-bottom:-4px;" />` : `<div style="height:31px;"></div>`}
+            ${accountantSignatureUrl ? `<img src="${accountantSignatureUrl}" style="height:80px; object-fit:contain; margin-bottom:-4px;" />` : `<div style="height:80px;"></div>`}
             <div style="width:160px; border-bottom:1px solid #000; margin-bottom:4px;"></div>
             <span style="font-size:11px; font-weight:bold;">Accountant Signature</span>
           </div>
           <div style="text-align: center;">
-            ${principalSignatureUrl ? `<img src="${principalSignatureUrl}" style="height:35px; object-fit:contain; margin-bottom:-4px;" />` : `<div style="height:31px;"></div>`}
+            ${principalSignatureUrl ? `<img src="${principalSignatureUrl}" style="height:80px; object-fit:contain; margin-bottom:-4px;" />` : `<div style="height:80px;"></div>`}
             <div style="width:160px; border-bottom:1px solid #000; margin-bottom:4px;"></div>
             <span style="font-size:11px; font-weight:bold;">Principal Signature</span>
           </div>
@@ -793,15 +793,15 @@ const FeeRecord = () => {
             {fixingVouchers ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Remove Annual Fund
           </button>
           <button onClick={() => handlePrint('blank')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-dark-card border border-dark-border rounded-xl text-xs font-black text-white hover:bg-white/5 hover:border-blue-500/40 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-xl text-xs font-black text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-white/5 transition-all uppercase tracking-widest">
             <FileText size={14} /> Blank Register
           </button>
           <button onClick={() => handlePrint('paid')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-dark-card border border-dark-border rounded-xl text-xs font-black text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/40 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-dark-card border border-emerald-200 dark:border-dark-border rounded-xl text-xs font-black text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 transition-all uppercase tracking-widest">
             <CheckCircle size={14} /> Paid Record
           </button>
           <button onClick={() => handlePrint('unpaid')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-dark-card border border-dark-border rounded-xl text-xs font-black text-rose-400 hover:bg-rose-500/10 hover:border-rose-500/40 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-dark-card border border-rose-200 dark:border-dark-border rounded-xl text-xs font-black text-rose-700 dark:text-rose-400 hover:bg-rose-100 transition-all uppercase tracking-widest">
             <AlertCircle size={14} /> Unpaid Record
           </button>
           <button onClick={() => handlePrint('all')}

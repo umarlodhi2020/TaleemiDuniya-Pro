@@ -160,9 +160,9 @@ const PrintFee = () => {
  <div className="flex-1 ml-4">
  <h1 className="text-[16px] font-bold text-black leading-tight mb-1">{
  (() => {
- let name = schoolData?.name || schoolData?.schoolName || userData?.schoolName || userData?.name || 'Smart Angels Grammar School';
+ let name = schoolData?.name || schoolData?.schoolName || userData?.schoolName || userData?.name || 'Your School Name';
  if (name.toUpperCase() === 'TALEEMI DUNYA SCHOOL' || name === 'Lodhi School System') {
- name = userData?.schoolName || userData?.name || 'Smart Angels Grammar School';
+ name = userData?.schoolName || userData?.name || 'Your School Name';
  }
  return name;
  })()
@@ -366,9 +366,7 @@ const PrintFee = () => {
  background: white !important;
  color: black !important;
  }
- .pdf-page, .pdf-page * {
- background: white !important;
- color: black !important;
+ .pdf-page {
  -webkit-print-color-adjust: exact;
  print-color-adjust: exact;
  }
@@ -378,69 +376,71 @@ const PrintFee = () => {
  }
 `}</style>
 
- {/* Printable Area - Designed for A4 2x2 grid (2 students per page) */}
- {pages.map((page, pageIndex) => (
- <div key={pageIndex} className="pdf-page mx-auto bg-white print:m-0 print:shadow-none shadow-lg w-[210mm] h-[297mm] overflow-hidden box-border relative print:break-after-page mb-8">
- 
- {/* Vertical Cutting Line (Center X) */}
- <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-6 z-10 flex flex-col justify-between py-10 items-center">
- {/* The actual dashed line, perfectly centered */}
- <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 border-l-2 border-dashed border-gray-400 w-0 z-0"></div>
- {/* Scissors on top of the line */}
- <Scissors size={20} className="text-gray-400 rotate-90 bg-white z-10 py-1" />
- <Scissors size={20} className="text-gray-400 rotate-90 bg-white z-10 py-1" />
- <Scissors size={20} className="text-gray-400 rotate-90 bg-white z-10 py-1" />
- <Scissors size={20} className="text-gray-400 rotate-90 bg-white z-10 py-1" />
- </div>
+  {/* Printable Area - Designed for A4 2x2 grid (2 students per page) */}
+  <div className="printable-report-area">
+  {pages.map((page, pageIndex) => (
+  <div key={pageIndex} className="pdf-page mx-auto bg-white print:m-0 print:shadow-none shadow-lg w-[210mm] h-[297mm] overflow-hidden box-border relative print:break-after-page mb-8">
+  
+  {/* Vertical Cutting Line (Center X) */}
+  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-6 z-10 flex flex-col justify-between py-10 items-center">
+  {/* The actual dashed line, perfectly centered */}
+  <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 border-l-2 border-dashed border-gray-400 w-0 z-0"></div>
+  {/* Scissors on top of the line */}
+  <Scissors size={20} className="text-gray-400 rotate-90 bg-white z-10 py-1" />
+  <Scissors size={20} className="text-gray-400 rotate-90 bg-white z-10 py-1" />
+  <Scissors size={20} className="text-gray-400 rotate-90 bg-white z-10 py-1" />
+  <Scissors size={20} className="text-gray-400 rotate-90 bg-white z-10 py-1" />
+  </div>
 
- {/* Horizontal Cutting Line (Center Y) */}
- <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-6 z-10 flex justify-between px-10 items-center">
- {/* The actual dashed line, perfectly centered */}
- <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-gray-400 h-0 z-0"></div>
- {/* Scissors on top of the line */}
- <Scissors size={20} className="text-gray-400 bg-white z-10 px-1" />
- <Scissors size={20} className="text-gray-400 bg-white z-10 px-1" />
- <Scissors size={20} className="text-gray-400 bg-white z-10 px-1" />
- </div>
+  {/* Horizontal Cutting Line (Center Y) */}
+  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-6 z-10 flex justify-between px-10 items-center">
+  {/* The actual dashed line, perfectly centered */}
+  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 border-t-2 border-dashed border-gray-400 h-0 z-0"></div>
+  {/* Scissors on top of the line */}
+  <Scissors size={20} className="text-gray-400 bg-white z-10 px-1" />
+  <Scissors size={20} className="text-gray-400 bg-white z-10 px-1" />
+  <Scissors size={20} className="text-gray-400 bg-white z-10 px-1" />
+  </div>
 
- <div className="grid grid-cols-2 grid-rows-2 w-full h-full relative">
- 
- {/* Top Left: Student 1 School Copy */}
- <div className="w-full h-full overflow-hidden p-[5mm]">
- <VoucherBox copyType="SCHOOL COPY" record={page[0]} recordId={page[0].id} />
- </div>
- 
- {/* Top Right: Student 1 Parent Copy */}
- <div className="w-full h-full overflow-hidden p-[5mm]">
- <VoucherBox copyType="PARENT COPY" record={page[0]} recordId={page[0].id} />
- </div>
- 
- {/* Bottom Left: Student 2 School Copy (if exists) */}
- <div className={`w-full h-full overflow-hidden p-[5mm] ${!page[1] ? 'opacity-30' : ''}`}>
- {page[1] ? (
- <VoucherBox copyType="SCHOOL COPY" record={page[1]} recordId={page[1].id} />
- ) : (
- <div className="w-full h-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400">
- Box 3 (Empty / Next Student)
- </div>
- )}
- </div>
- 
- {/* Bottom Right: Student 2 Parent Copy (if exists) */}
- <div className={`w-full h-full overflow-hidden p-[5mm] ${!page[1] ? 'opacity-30' : ''}`}>
- {page[1] ? (
- <VoucherBox copyType="PARENT COPY" record={page[1]} recordId={page[1].id} />
- ) : (
- <div className="w-full h-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400">
- Box 4 (Empty / Next Student)
- </div>
- )}
- </div>
+  <div className="grid grid-cols-2 grid-rows-2 w-full h-full relative">
+  
+  {/* Top Left: Student 1 School Copy */}
+  <div className="w-full h-full overflow-hidden p-[5mm]">
+  <VoucherBox copyType="SCHOOL COPY" record={page[0]} recordId={page[0].id} />
+  </div>
+  
+  {/* Top Right: Student 1 Parent Copy */}
+  <div className="w-full h-full overflow-hidden p-[5mm]">
+  <VoucherBox copyType="PARENT COPY" record={page[0]} recordId={page[0].id} />
+  </div>
+  
+  {/* Bottom Left: Student 2 School Copy (if exists) */}
+  <div className={`w-full h-full overflow-hidden p-[5mm] ${!page[1] ? 'opacity-30' : ''}`}>
+  {page[1] ? (
+  <VoucherBox copyType="SCHOOL COPY" record={page[1]} recordId={page[1].id} />
+  ) : (
+  <div className="w-full h-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+  Box 3 (Empty / Next Student)
+  </div>
+  )}
+  </div>
+  
+  {/* Bottom Right: Student 2 Parent Copy (if exists) */}
+  <div className={`w-full h-full overflow-hidden p-[5mm] ${!page[1] ? 'opacity-30' : ''}`}>
+  {page[1] ? (
+  <VoucherBox copyType="PARENT COPY" record={page[1]} recordId={page[1].id} />
+  ) : (
+  <div className="w-full h-full border border-dashed border-gray-300 flex items-center justify-center text-gray-400">
+  Box 4 (Empty / Next Student)
+  </div>
+  )}
+  </div>
 
- </div>
- </div>
- ))}
- </div>
+  </div>
+  </div>
+  ))}
+  </div>
+  </div>
  );
 };
 

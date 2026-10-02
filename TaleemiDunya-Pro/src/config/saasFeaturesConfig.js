@@ -194,7 +194,7 @@ export const SAAS_FEATURE_CATALOG = [
   {
     key: 'challan-generate',
     title: 'Bulk Fee Voucher & Challan Generator Engine',
-    path: '/school-admin/fees/generate-voucher',
+    path: '/school-admin/fees/generate',
     module: 'finance',
     defaultPlans: ['basic', 'standard', 'premium', 'enterprise'],
     addonPriceMonthly: 0,
@@ -221,7 +221,7 @@ export const SAAS_FEATURE_CATALOG = [
   {
     key: 'challan-book',
     title: 'Multi-part Bank Challan Book Press',
-    path: '/school-admin/fees/challan-book',
+    path: '/school-admin/challan-book',
     module: 'finance',
     defaultPlans: ['basic', 'standard', 'premium', 'enterprise'],
     addonPriceMonthly: 0,
@@ -482,12 +482,57 @@ export const SAAS_FEATURE_CATALOG = [
   },
   {
     key: 'saas-billing-portal',
-    title: 'SaaS Plan & Online Payment Portal',
+    title: 'SaaS Plan \u0026 Online Payment Portal',
     path: '/school-admin/billing',
     module: 'core',
     defaultPlans: ['basic', 'standard', 'premium', 'enterprise'],
     addonPriceMonthly: 0,
     description: 'Online rent payment, plan upgrades, transaction history, and custom feature add-on store.'
+  },
+  {
+    key: 'bulk-promotion',
+    title: 'Bulk Promotion Engine',
+    path: '/school-admin/bulk-promotion',
+    module: 'core',
+    defaultPlans: ['standard', 'premium', 'enterprise'],
+    addonPriceMonthly: 1500,
+    description: 'Promote entire classes to next grade with a single click, with history tracking.'
+  },
+  {
+    key: 'live-analytics',
+    title: 'Live Analytics Hub',
+    path: '/school-admin/live-analytics',
+    module: 'core',
+    defaultPlans: ['premium', 'enterprise'],
+    addonPriceMonthly: 2000,
+    description: 'Real-time school analytics with live charts, KPIs, and automated insights.'
+  },
+  {
+    key: 'payroll-dashboard',
+    title: 'Payroll Dashboard',
+    path: '/school-admin/payroll-dashboard',
+    module: 'finance',
+    defaultPlans: ['premium', 'enterprise'],
+    addonPriceMonthly: 2000,
+    description: 'Visual payroll summary, salary trends, and staff compensation analytics.'
+  },
+  {
+    key: 'portals-hub',
+    title: 'Portals Management Hub',
+    path: '/school-admin/portals-hub',
+    module: 'portals',
+    defaultPlans: ['standard', 'premium', 'enterprise'],
+    addonPriceMonthly: 1500,
+    description: 'Centralized management of all student, teacher, and parent portals.'
+  },
+  {
+    key: 'parents-directory',
+    title: 'Parents Directory',
+    path: '/school-admin/parents-directory',
+    module: 'crm',
+    defaultPlans: ['basic', 'standard', 'premium', 'enterprise'],
+    addonPriceMonthly: 0,
+    description: 'Complete directory of all parents with contact info and linked students.'
   }
 ];
 
@@ -529,8 +574,20 @@ export const getAllowedFeaturesForPlan = (planId = 'basic', customOverrides = {}
 export const isFeatureAllowedByMap = (keyOrPath, allowedMap = {}) => {
   if (!keyOrPath) return true;
   
-  // If it's a super-admin route or basic core route, allow by default
-  if (keyOrPath.startsWith('/super-admin') || keyOrPath === '/school-admin/dashboard' || keyOrPath === '/school-admin/billing' || keyOrPath === '/school-admin/settings') {
+  // If it's a super-admin route or core always-allowed route, allow by default
+  const alwaysAllowed = [
+    '/super-admin',
+    '/school-admin/dashboard',
+    '/school-admin/billing',
+    '/school-admin/settings',
+    '/school-admin/fees/collect',
+    '/school-admin/fees/record',
+    '/school-admin/fees/print',
+    '/school-admin/parents-directory',
+    '/school-admin/students/',
+    '/school-admin/staff/',
+  ];
+  if (alwaysAllowed.some(p => keyOrPath === p || keyOrPath.startsWith(p))) {
     return true;
   }
 

@@ -34,7 +34,7 @@ function createWindow() {
       contextIsolation: true
     },
     title: "TaleemiDunya Pro — School Management SaaS",
-    icon: path.join(__dirname, 'dist', 'favicon.ico')
+    icon: path.join(__dirname, 'dist', 'icon.png')
   });
 
   // Load the compiled index.html from dist

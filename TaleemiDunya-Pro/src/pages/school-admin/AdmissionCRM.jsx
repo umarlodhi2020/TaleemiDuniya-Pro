@@ -24,19 +24,9 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassCard from '../../components/common/GlassCard';
-import { getRecords, addRecord, deleteRecord } from '../../services/db';
+import { getRecords, addRecord, updateRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
-import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
-import { db as firestore } from '../../services/firebase';
-
-const mockLeads = [
-  { id: 'lead1', childName: 'Daniyal Lodhi', fatherName: 'Mustafa Lodhi', phone: '03009876543', classApplied: '9', status: 'new', dateApplied: '2026-07-14', previousSchool: 'City Grammar', notes: 'Interested in Science Group' },
-  { id: 'lead2', childName: 'Mahnoor Fatima', fatherName: 'Ahsan Tariq', phone: '03211234567', classApplied: '10', status: 'interview', dateApplied: '2026-07-12', previousSchool: 'Educators', notes: 'Excellence in Mathematics' },
-  { id: 'lead3', childName: 'Ayan Ali Raza', fatherName: 'Ali Raza', phone: '03337654321', classApplied: '6', status: 'offered', dateApplied: '2026-07-10', previousSchool: 'Beaconhouse', notes: 'Offer letter issued on July 13' },
-  { id: 'lead4', childName: 'Khadija Bibi', fatherName: 'Muhammad Saleem', phone: '03129988776', classApplied: '5', status: 'enrolled', dateApplied: '2026-07-05', previousSchool: 'Dar-e-Arqam', notes: 'Fees paid, admitted to Grade 5-A' },
-  { id: 'lead5', childName: 'Zain Mehmood', fatherName: 'Mehmood Khan', phone: '03014455667', classApplied: '8', status: 'new', dateApplied: '2026-07-15', previousSchool: 'Public School', notes: 'Walk-in inquiry at school office' }
-];
 
 const AdmissionCRM = () => {
   const { userData } = useAuth();
@@ -70,20 +60,11 @@ const AdmissionCRM = () => {
   const fetchLeads = async () => {
     setLoading(true);
     try {
-      const q = query(collection(firestore, 'admission_leads'), where('schoolId', '==', schoolId));
-      const snap = await getDocs(q);
-      const list = [];
-      snap.forEach(d => {
-        list.push({ id: d.id, ...d.data() });
-      });
-      if (list.length > 0) {
-        setLeads(list);
-      } else {
-        setLeads(mockLeads);
-      }
+      const list = await getRecords('admission_leads', schoolId);
+      setLeads(list || []);
     } catch (e) {
       console.error(e);
-      setLeads(mockLeads);
+      setLeads([]);
     } finally {
       setLoading(false);
     }
@@ -103,23 +84,24 @@ const AdmissionCRM = () => {
         status: 'new',
         dateApplied: new Date().toISOString().split('T')[0]
       };
-      setLeads([leadObj, ...leads]);
+      const savedLeadId = await addRecord('admission_leads', leadObj);
+      setLeads([{...leadObj, id: savedLeadId || leadObj.id}, ...leads]);
       setShowAddModal(false);
       setNewLead({ childName: '', fatherName: '', phone: '', classApplied: '9', previousSchool: '', notes: '' });
-      await setDoc(doc(firestore, 'admission_leads', leadObj.id), leadObj);
       alert('New Admission Inquiry Lead registered successfully!');
     } catch (e) {
       console.error(e);
-      alert('Lead added to current session.');
+      alert('Failed to save lead. Please try again.');
     }
   };
 
   const handleUpdateStatus = async (id, nextStatus) => {
-    setLeads(leads.map(l => l.id === id ? { ...l, status: nextStatus } : l));
     try {
-      await setDoc(doc(firestore, 'admission_leads', id), { status: nextStatus }, { merge: true });
+      await updateRecord('admission_leads', id, { status: nextStatus });
+      setLeads(leads.map(l => l.id === id ? { ...l, status: nextStatus } : l));
     } catch (e) {
       console.error(e);
+      alert('Failed to update status.');
     }
   };
 

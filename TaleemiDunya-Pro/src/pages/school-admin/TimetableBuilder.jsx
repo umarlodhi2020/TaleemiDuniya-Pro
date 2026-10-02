@@ -29,9 +29,9 @@ const SUBJECTS = [
 
 const TimetableBuilder = () => {
   const { userData } = useAuth();
-  const { classesList } = useSchool();
+  const { classesList, schoolData } = useSchool();
   const schoolId = userData?.schoolId || 'default-school';
-  const schoolName = userData?.schoolName || 'Lodhi School System';
+  const schoolName = schoolData?.name || schoolData?.schoolName || userData?.schoolName || 'School Name';
 
   const [staff, setStaff] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
@@ -601,9 +601,35 @@ const TimetableBuilder = () => {
           </table>
 
           {/* Footer signatures */}
-          <div className="mt-16 pt-4 border-t border-gray-200 flex justify-between text-[8px] font-black text-gray-500 uppercase">
-            <span className="border-t border-gray-300 pt-1 px-2">Class Coordinator</span>
-            <span className="border-t border-gray-300 pt-1 px-2 text-right">Principal Office Stamp</span>
+          <div className="mt-12 pt-4 border-t border-gray-300 flex justify-between items-end">
+            <div className="flex flex-col items-center">
+              {(() => {
+                const teacherRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass));
+                const teacherSignatureUrl = teacherRule?.signatureUrl || null;
+                return teacherSignatureUrl ? (
+                  <img src={teacherSignatureUrl} alt="Class Coordinator Signature" className="h-16 max-w-[180px] object-contain mix-blend-multiply" />
+                ) : (
+                  <div className="h-10"></div>
+                );
+              })()}
+              <div className="border-t border-gray-400 pt-1 mt-1 min-w-[150px] text-center">
+                <span className="text-[8px] font-black text-gray-600 uppercase">Class Coordinator</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-center">
+              {(() => {
+                const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+                const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
+                return principalSignatureUrl ? (
+                  <img src={principalSignatureUrl} alt="Principal Signature" className="h-16 max-w-[180px] object-contain mix-blend-multiply" />
+                ) : (
+                  <div className="h-10"></div>
+                );
+              })()}
+              <div className="border-t border-gray-400 pt-1 mt-1 min-w-[150px] text-center">
+                <span className="text-[8px] font-black text-gray-600 uppercase">Principal Office Stamp</span>
+              </div>
+            </div>
           </div>
 
         </div>

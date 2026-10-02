@@ -152,7 +152,7 @@ const SchoolWebsiteView = ({ data }) => {
             <a
               href="#"
               onClick={(e) => scrollToSection(e, 'about')}
-              className="px-8 py-4 text-sm rounded-2xl font-bold text-white shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:scale-105 active:scale-95 transition-all duration-300 flex items-center gap-2 group"
+              className="px-8 py-4 text-sm rounded-2xl font-bold text-white shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:scale-105 active:scale-[0.99] transition-all duration-300 flex items-center gap-2 group"
               style={themeStyle}
             >
               Explore Campus <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
@@ -160,7 +160,7 @@ const SchoolWebsiteView = ({ data }) => {
             <a
               href="#"
               onClick={(e) => scrollToSection(e, 'contact')}
-              className="px-8 py-4 text-sm rounded-2xl font-bold text-white border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-md hover:scale-105 active:scale-95 transition-all duration-300"
+              className="px-8 py-4 text-sm rounded-2xl font-bold text-white border border-white/10 bg-white/5 hover:bg-white/10 backdrop-blur-md hover:scale-105 active:scale-[0.99] transition-all duration-300"
             >
               Contact Us
             </a>

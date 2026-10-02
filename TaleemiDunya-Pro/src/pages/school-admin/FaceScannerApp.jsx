@@ -272,7 +272,7 @@ export default function FaceScannerApp() {
                 </div>
               </div>
 
-              <button type="submit" disabled={loginLoading} className="w-full py-4 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-black font-black text-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_20px_rgba(34,211,238,0.3)]">
+              <button type="submit" disabled={loginLoading} className="w-full py-4 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-black font-black text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-[0_0_20px_rgba(34,211,238,0.3)]">
                 {loginLoading ? 'Authenticating...' : 'Access Scanner Terminal'}
               </button>
             </form>
@@ -319,11 +319,11 @@ export default function FaceScannerApp() {
         </div>
         
         <div className="flex items-center gap-4">
-          <button onClick={toggleCamera} className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-95 transition-all hover:bg-white/20">
+          <button onClick={toggleCamera} className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-[0.99] transition-all hover:bg-white/20">
             <RefreshCcw size={20} />
           </button>
           
-          <button onClick={handleLogout} className="w-12 h-12 rounded-full bg-red-500/20 backdrop-blur-md border border-red-500/30 flex items-center justify-center text-red-400 active:scale-95 transition-all hover:bg-red-500/30">
+          <button onClick={handleLogout} className="w-12 h-12 rounded-full bg-red-500/20 backdrop-blur-md border border-red-500/30 flex items-center justify-center text-red-400 active:scale-[0.99] transition-all hover:bg-red-500/30">
             <X size={24} />
           </button>
         </div>
@@ -397,7 +397,7 @@ export default function FaceScannerApp() {
             </div>
             <button 
               onClick={() => setScanResult(null)}
-              className="w-full mt-5 py-3.5 rounded-2xl bg-white text-emerald-600 font-black text-base active:scale-95 transition-transform shadow-lg"
+              className="w-full mt-5 py-3.5 rounded-2xl bg-white text-emerald-600 font-black text-base active:scale-[0.99] transition-transform shadow-lg"
             >
               Scan Next Student
             </button>

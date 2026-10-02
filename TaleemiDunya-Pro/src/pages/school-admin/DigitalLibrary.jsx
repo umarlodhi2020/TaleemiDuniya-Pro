@@ -172,7 +172,9 @@ const DigitalLibrary = () => {
               key={c.id}
               onClick={() => setSelectedCategory(c.id)}
               className={`px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wider transition-all ${
-                selectedCategory === c.id ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/30' : 'bg-white/5 hover:bg-white/10 text-gray-400'
+                selectedCategory === c.id 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
+                  : 'bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 text-gray-700 dark:text-gray-400'
               }`}
             >
               {c.label}
@@ -238,7 +240,7 @@ const DigitalLibrary = () => {
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => setResources(prev => prev.map(r => r.id === res.id ? { ...r, downloadsCount: (r.downloadsCount || 0) + 1 } : r))}
-                  className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 text-white ${
+                  className={`w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all active:scale-[0.99] text-white ${
                     isVideo ? 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-500' : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500'
                   }`}
                 >

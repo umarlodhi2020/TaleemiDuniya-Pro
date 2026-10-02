@@ -259,7 +259,7 @@ const StudentRemarkReport = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all transform active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-xs shadow-lg shadow-cyan-500/25 transition-all transform active:scale-[0.99] cursor-pointer"
           >
             <Printer size={16} />
             <span>Print Report</span>
@@ -630,7 +630,7 @@ const StudentRemarkReport = () => {
                 </div>
                 <div className="flex flex-col items-center justify-end h-16">
                   {getSignatureUrl('Principal') ? (
-                    <img src={getSignatureUrl('Principal')} alt="Principal Signature" className="h-10 object-contain mb-1" />
+                    <img src={getSignatureUrl('Principal')} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain mb-1" />
                   ) : (
                     <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
                   )}
@@ -781,7 +781,7 @@ const StudentRemarkReport = () => {
                 </div>
                 <div className="flex flex-col items-center justify-end h-16">
                   {getSignatureUrl('Principal') ? (
-                    <img src={getSignatureUrl('Principal')} alt="Principal Signature" className="h-10 object-contain mb-1" />
+                    <img src={getSignatureUrl('Principal')} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain mb-1" />
                   ) : (
                     <div className="border-b-2 border-slate-800 w-48 mx-auto mb-1 h-8" />
                   )}

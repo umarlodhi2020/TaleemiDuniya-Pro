@@ -22,27 +22,15 @@ const SchoolSubscriptionPortal = () => {
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState([
     {
-      id: 'basic', name: 'Basic (Starter) Plan', priceMonthly: 3500, priceYearly: 35000,
-      maxStudents: '200', maxStaff: '20', recommended: false,
-      features: ['Student & Staff Directory', 'Daily Attendance Register', 'Challan Manager & Fee Collection', 'Academic Gradebook & Exams Hub', 'Expense & Cashbook Tracker', 'Standard Email Support'],
-      locked: ['SMS & WhatsApp Alerts', 'Parent & Student Portals', 'Online MCQ Quizzes', 'Biometric Gate Scanner', 'AI Copilot Assistant', 'Multi-Branch Campus Network']
+      id: 'standard', name: 'Standard Plan', priceMonthly: 3500, priceYearly: 35000,
+      maxStudents: '500', maxStaff: '30', recommended: false,
+      features: ['Student & Staff Management', 'Fee & Challan Management', 'Attendance Tracking', 'Basic Reports & Analytics'],
+      locked: ['Exams & Grading System', 'Timetable & SMS Alerts', 'AI Copilot & Features', 'Digital Library Hub', 'Custom School Website Domain', '24/7 Dedicated Support']
     },
     {
-      id: 'standard', name: 'Standard (Plus) Plan', priceMonthly: 6500, priceYearly: 65000,
-      maxStudents: '600', maxStaff: '50', recommended: false,
-      features: ['All Basic Starter Features Included', 'Instant SMS Alerts & Broadcasts', 'Parent & Student Mobile Portals', 'Exam Date Sheet & Report Cards', 'AI Timetable & Clash Resolver', 'Digital Library & E-Books Hub', 'School Inventory & Asset Ledger', 'School E-Services Website'],
-      locked: ['WhatsApp Bot Automation', 'Online MCQ Quiz Engine', 'Biometric & RFID Gate IoT', 'AI School Copilot Assistant', 'Multi-Branch Hub & Franchises']
-    },
-    {
-      id: 'premium', name: 'Premium (Pro) Plan', priceMonthly: 10000, priceYearly: 100000,
-      maxStudents: '1,500', maxStaff: '150', recommended: true,
-      features: ['All Standard Plus Features Included', 'Automated WhatsApp Alerts & Bots', 'Online MCQ Quiz & Auto-Marking Engine', 'Live ID Card Gate Scanner & Security IoT', 'Double-Entry Accounting & Ledger', 'Hostel & Bus Fleet Tracking', 'Staff Payroll & Salary Slips', 'Automated BI Reports Hub', 'AI School Copilot Assistant'],
-      locked: ['Multi-Branch Campus Network', 'Custom Branding & White-Label', 'Developer API & Webhooks', 'Dedicated 24/7 Account Manager']
-    },
-    {
-      id: 'enterprise', name: 'Enterprise VIP Plan', priceMonthly: 18000, priceYearly: 180000,
-      maxStudents: 'Unlimited', maxStaff: 'Unlimited', recommended: false,
-      features: ['All Premium Pro Features Included', 'Unlimited Students, Staff & Classes', 'Multi-Branch Hub & Campus Network', 'Franchise Network & Royalty Management', 'Custom Branding & White-Labeling', 'Developer REST API & Webhooks', 'Mobile App PWA Offline Sync', 'Commercial Security & Audit Hub', 'Dedicated 24/7 VIP Account Manager'],
+      id: 'premium', name: 'Premium Pro Plan', priceMonthly: 5000, priceYearly: 50000,
+      maxStudents: 'Unlimited', maxStaff: 'Unlimited', recommended: true,
+      features: ['Everything in Standard Plus:', 'Exams & Grading System', 'Timetable & SMS Alerts', 'AI Copilot & Digital Library', 'Custom School Website Domain', '24/7 Dedicated Support'],
       locked: []
     }
   ]);
@@ -124,53 +112,21 @@ const SchoolSubscriptionPortal = () => {
         alert('⚠️ Please complete valid 16-digit credit/debit card details.');
         return;
       }
-      setCardProcessingStep('Contacting Stripe / Visa Secure Gateway...');
+      setCardProcessingStep('Contacting Secure Gateway...');
       await new Promise(r => setTimeout(r, 1200));
-      setCardProcessingStep('Verifying 3D Secure Authentication...');
+      setCardProcessingStep('Verifying Payment Details...');
       await new Promise(r => setTimeout(r, 1200));
-      setCardProcessingStep('Payment Authorized & Plan Activated Instantly!');
-      await new Promise(r => setTimeout(r, 800));
       setCardProcessingStep(null);
-
-      const amount = billingCycle === 'monthly' ? selectedPlan.priceMonthly : selectedPlan.priceYearly;
-      const daysToAdd = billingCycle === 'yearly' ? 365 : 30;
-      const newExpiry = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
-      const newInvoice = {
-        id: `INV-2026-${String(invoicesList.length + 1).padStart(3, '0')}`,
-        date: new Date().toISOString().split('T')[0],
-        item: `${selectedPlan.name} (${billingCycle.toUpperCase()})`,
-        amount,
-        gateway: 'Stripe Online Card Checkout',
-        status: 'Paid',
-        tid: `ch_live_${Math.random().toString(36).substring(2, 11)}`
-      };
-
-      setInvoicesList(prev => [newInvoice, ...prev]);
-
-      // Update local and firestore school plan directly because card paid instantly!
-      try {
-        await updateDoc(doc(db, 'schools', schoolId), {
-          plan: selectedPlan.id,
-          subscriptionPlan: selectedPlan.id,
-          subscriptionStatus: 'active',
-          expiryDate: newExpiry,
-          updatedAt: serverTimestamp()
-        });
-      } catch (err) {
-        console.warn('Instant card update via firestore fallback:', err);
+      
+      // Proceed to submit pending request
+    } else {
+      // Manual payment method (JazzCash, Easypaisa, Bank QR)
+      if (!tidInput.trim() && !proofAttached) {
+        alert('⚠️ Please enter Transaction ID (TID) or attach payment screenshot.');
+        return;
       }
-
-      alert(`✅ STRIPE ONLINE PAYMENT SUCCESSFUL!\n\nYour school rent of Rs. ${amount.toLocaleString()} has been charged to Card ending in ${cardNumber.slice(-4)}.\n\n🎉 ${selectedPlan.name} is now ACTIVE! All features are unlocked instantly.`);
-      setShowPayModal(false);
-      fetchSubscriptionInfo();
-      return;
     }
 
-    // Manual payment method (JazzCash, Easypaisa, Bank QR)
-    if (!tidInput.trim() && !proofAttached) {
-      alert('⚠️ Please enter Transaction ID (TID) or attach payment screenshot.');
-      return;
-    }
     setSubmittingPay(true);
     try {
       const amount = billingCycle === 'monthly' ? selectedPlan.priceMonthly : selectedPlan.priceYearly;
@@ -182,12 +138,14 @@ const SchoolSubscriptionPortal = () => {
         billingCycle,
         amount,
         payMethod,
-        tid: tidInput || 'Screenshot Attached',
+        tid: payMethod === 'STRIPE_CARD' ? `card_${cardNumber.slice(-4)}` : (tidInput || 'Screenshot Attached'),
         status: 'pending_verification',
         createdAt: new Date().toISOString()
       };
+      
       await addDoc(collection(db, 'saas_recharge_requests'), reqPayload);
-      alert(`✅ RECHARGE REQUEST SUBMITTED!\n\nPlan: ${selectedPlan.name} (${billingCycle.toUpperCase()})\nAmount: Rs. ${amount.toLocaleString()}\nTID: ${reqPayload.tid}\n\nYour request has been delivered to TaleemiDunya SaaS Super Admin Panel for instant verification and activation.`);
+      
+      alert(`✅ RECHARGE REQUEST SUBMITTED!\n\nPlan: ${selectedPlan.name} (${billingCycle.toUpperCase()})\nAmount: Rs. ${amount.toLocaleString()}\nMethod: ${payMethod}\n\nYour request has been delivered to TaleemiDunya Super Admin Panel for verification. Your plan will be renewed once the admin confirms the payment.`);
       setShowPayModal(false);
       setTidInput('');
       setProofAttached(false);
@@ -198,6 +156,7 @@ const SchoolSubscriptionPortal = () => {
       setSubmittingPay(false);
     }
   };
+
 
   const toggleAddonSelection = (featKey) => {
     setSelectedAddons(prev => 
@@ -230,41 +189,46 @@ const SchoolSubscriptionPortal = () => {
     }, 0);
 
     setSubmittingPay(true);
-    setCardProcessingStep('Verifying Payment Gateway & Processing Add-on Order...');
+    setCardProcessingStep('Processing Add-on Order Request...');
     await new Promise(r => setTimeout(r, 1200));
-    setCardProcessingStep('Unlocking Selected Feature Modules in Real-time...');
-    await new Promise(r => setTimeout(r, 800));
     setCardProcessingStep(null);
-    setSubmittingPay(false);
 
-    // Build overrides object
-    const overrides = {};
-    selectedAddons.forEach(k => { overrides[k] = true; });
-    await updateSchoolAllowedFeatures(overrides);
+    try {
+      const reqPayload = {
+        schoolId,
+        schoolName: schoolData?.name || schoolName,
+        requestedPlan: 'add_ons',
+        planName: `A la Carte Features (${selectedAddons.length} Modules)`,
+        billingCycle: 'monthly',
+        amount: totalAddonPrice,
+        payMethod,
+        tid: payMethod === 'STRIPE_CARD' ? `card_${cardNumber?.slice(-4) || 'xxxx'}` : (tidInput || 'Screenshot Attached'),
+        status: 'pending_verification',
+        addonsRequested: selectedAddons,
+        createdAt: new Date().toISOString()
+      };
+      
+      await addDoc(collection(db, 'saas_recharge_requests'), reqPayload);
 
-    const newInvoice = {
-      id: `INV-2026-${String(invoicesList.length + 1).padStart(3, '0')}`,
-      date: new Date().toISOString().split('T')[0],
-      item: `A la Carte Feature Add-ons (${selectedAddons.length} Modules Unlocked)`,
-      amount: totalAddonPrice,
-      gateway: payMethod === 'STRIPE_CARD' ? 'Stripe Online Card Checkout' : payMethod === 'JAZZCASH' ? 'JazzCash Mobile Wallet' : payMethod === 'EASYPAISA' ? 'EasyPaisa Mobile Wallet' : 'Bank QR Deposit',
-      status: 'Paid',
-      tid: payMethod === 'STRIPE_CARD' ? `ch_addon_${Math.random().toString(36).substring(2, 11)}` : (tidInput || 'Screenshot Attached')
-    };
-    setInvoicesList(prev => [newInvoice, ...prev]);
-
-    alert(`✅ ADD-ON MODULES UNLOCKED SUCCESSFULLY!\n\nTotal Paid: Rs. ${totalAddonPrice.toLocaleString()}/month via ${newInvoice.gateway}\n\n🎉 ${selectedAddons.length} advanced feature(s) have been activated for your school and added to your left sidebar navigation bar automatically!`);
-    setShowAddonPayModal(false);
-    setSelectedAddons([]);
-    setTidInput('');
-    setProofAttached(false);
+      alert(`✅ ADD-ON REQUEST SUBMITTED!\n\nTotal Amount: Rs. ${totalAddonPrice.toLocaleString()}/month\nMethod: ${payMethod}\n\n🎉 Your request for ${selectedAddons.length} advanced feature(s) has been submitted to the Super Admin. It will be activated in your panel once the payment is verified!`);
+      
+      setShowAddonPayModal(false);
+      setSelectedAddons([]);
+      setTidInput('');
+      setProofAttached(false);
+      fetchSubscriptionInfo();
+    } catch (err) {
+      alert(`❌ Error submitting add-on request: ${err.message}`);
+    } finally {
+      setSubmittingPay(false);
+    }
   };
 
   const currentPlanId = (schoolData?.plan || schoolData?.subscriptionPlan || 'premium').toLowerCase();
-  const currentPlanObj = plans.find(p => p.id === currentPlanId) || plans[1];
+  const currentPlanObj = plans.find(p => p.id === currentPlanId) || plans[0];
 
   // Calculate days remaining
-  let daysLeft = 18;
+  let daysLeft = 0;
   if (schoolData?.expiryDate) {
     const diff = new Date(schoolData.expiryDate).getTime() - Date.now();
     daysLeft = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
@@ -352,14 +316,14 @@ const SchoolSubscriptionPortal = () => {
           <div className="flex flex-col sm:flex-row gap-3 shrink-0">
             <button
               onClick={() => handleOpenPayment(currentPlanObj, 'recharge')}
-              className="px-6 py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+              className="px-6 py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
             >
               <Zap size={18} /> Pay Rent Online Now
             </button>
             {currentPlanId !== 'enterprise' && (
               <button
                 onClick={() => handleOpenPayment(plans[currentPlanId === 'basic' ? 1 : 2], 'upgrade')}
-                className="px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+                className="px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-sm uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
               >
                 <Sparkles size={18} /> Upgrade Plan
               </button>
@@ -407,27 +371,9 @@ const SchoolSubscriptionPortal = () => {
       {/* ============================================================== */}
       {activePortalTab === 'plans' && (
         <div className="space-y-6">
-          {/* BILLING CYCLE SELECTOR */}
-          <div className="flex items-center justify-center gap-4 py-2">
-            <span className={`text-sm font-bold cursor-pointer ${billingCycle === 'monthly' ? 'text-white' : 'text-dark-muted'}`} onClick={() => setBillingCycle('monthly')}>
-              Monthly Billing
-            </span>
-            <button
-              onClick={() => setBillingCycle(b => b === 'monthly' ? 'yearly' : 'monthly')}
-              className="w-14 h-7 rounded-full bg-dark-border relative transition-all focus:outline-none"
-              style={{ background: billingCycle === 'yearly' ? 'rgb(147 51 234)' : '' }}
-            >
-              <span
-                className="absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-all"
-                style={{ left: billingCycle === 'yearly' ? '30px' : '4px' }}
-              />
-            </button>
-            <span className={`text-sm font-bold cursor-pointer flex items-center gap-1.5 ${billingCycle === 'yearly' ? 'text-white' : 'text-dark-muted'}`} onClick={() => setBillingCycle('yearly')}>
-              Yearly Billing <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 font-black text-xs">Save ~17% (2 Months Free)</span>
-            </span>
-          </div>
+          {/* BILLING CYCLE SELECTOR REMOVED */}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {plans.map((plan) => {
               const isCurrent = plan.id === currentPlanId;
               const price = billingCycle === 'monthly' ? plan.priceMonthly : plan.priceYearly;
@@ -446,12 +392,10 @@ const SchoolSubscriptionPortal = () => {
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
-                        plan.id === 'enterprise' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
                         plan.id === 'premium' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30' :
-                        plan.id === 'standard' ? 'bg-teal-500/20 text-teal-400 border-teal-500/30' :
-                        'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                        'bg-teal-500/20 text-teal-400 border-teal-500/30'
                       }`}>
-                        {plan.id === 'enterprise' ? 'VIP Enterprise' : plan.id === 'premium' ? 'Most Popular Pro' : plan.id === 'standard' ? 'Standard Plus+' : 'Starter Basic'}
+                        {plan.id === 'premium' ? 'Most Popular Pro' : 'Standard Plus+'}
                       </span>
                       {isCurrent && (
                         <span className="px-2.5 py-1 rounded-full bg-green-500 text-white font-black text-[10px] uppercase tracking-wider flex items-center gap-1">
@@ -507,14 +451,14 @@ const SchoolSubscriptionPortal = () => {
                     {isCurrent ? (
                       <button
                         onClick={() => handleOpenPayment(plan, 'recharge')}
-                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+                        className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
                       >
                         <RefreshCw size={16} /> Pay Rent & Renew Plan Online
                       </button>
                     ) : (
                       <button
                         onClick={() => handleOpenPayment(plan, 'upgrade')}
-                        className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                        className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.99] ${
                           plan.recommended
                             ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white shadow-purple-600/30'
                             : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
@@ -561,7 +505,7 @@ const SchoolSubscriptionPortal = () => {
                 onClick={handlePayAddons}
                 className={`w-full py-3.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all ${
                   selectedAddons.length > 0
-                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white cursor-pointer active:scale-95 shadow-purple-600/30'
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white cursor-pointer active:scale-[0.99] shadow-purple-600/30'
                     : 'bg-white/5 text-dark-muted cursor-not-allowed border border-white/5'
                 }`}
               >
@@ -917,7 +861,7 @@ const SchoolSubscriptionPortal = () => {
 
                   <button
                     type="submit"
-                    className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 mt-2 transition-all active:scale-95"
+                    className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 mt-2 transition-all active:scale-[0.99]"
                   >
                     <Check size={18} /> Authorize Online Card Payment (Instant Unlock)
                   </button>
@@ -1125,7 +1069,7 @@ const SchoolSubscriptionPortal = () => {
                   <button
                     type="submit"
                     disabled={submittingPay}
-                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-95 shadow-purple-600/30"
+                    className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.99] shadow-purple-600/30"
                   >
                     {submittingPay ? <RefreshCw className="animate-spin" size={18} /> : <ShoppingCart size={18} />}
                     Pay Online & Instant Unlock ({selectedAddons.length} Modules)

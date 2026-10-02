@@ -744,7 +744,7 @@ const ReportCardTemplates = () => {
                     <div className="grid grid-cols-2 gap-12 text-center">
                       <div className="flex flex-col items-center justify-end">
                         {principalSignatureUrl ? (
-                          <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 mix-blend-multiply opacity-90" />
+                          <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain -mb-1 opacity-90" />
                         ) : (
                           <div className="h-7" />
                         )}
@@ -944,7 +944,7 @@ const ReportCardTemplates = () => {
                     <div className="grid grid-cols-2 gap-12 text-center">
                       <div className="flex flex-col items-center justify-end">
                         {principalSignatureUrl ? (
-                          <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 mix-blend-multiply opacity-90" />
+                          <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain -mb-1 opacity-90" />
                         ) : (
                           <div className="h-7" />
                         )}
@@ -1132,7 +1132,7 @@ const ReportCardTemplates = () => {
                     </div>
                     <div className="flex flex-col items-center justify-end">
                       {principalSignatureUrl ? (
-                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 mix-blend-multiply opacity-90" />
+                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain -mb-1 opacity-90" />
                       ) : (
                         <div className="h-7" />
                       )}
@@ -1238,7 +1238,7 @@ const ReportCardTemplates = () => {
                     </div>
                     <div className="text-right flex flex-col items-end justify-end">
                       {principalSignatureUrl ? (
-                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain mix-blend-multiply opacity-90" />
+                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain opacity-90" />
                       ) : (
                         <div className="h-8" />
                       )}
@@ -1345,7 +1345,7 @@ const ReportCardTemplates = () => {
                     </div>
                     <div className="flex flex-col items-center justify-end">
                       {principalSignatureUrl ? (
-                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain -mb-1 mix-blend-multiply opacity-90" />
+                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain -mb-1 opacity-90" />
                       ) : (
                         <div className="h-7" />
                       )}
@@ -1449,7 +1449,7 @@ const ReportCardTemplates = () => {
                     </div>
                     <div className="flex flex-col items-center justify-end">
                       {principalSignatureUrl ? (
-                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-8 object-contain mb-2 mix-blend-multiply opacity-90" />
+                        <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain mb-2 opacity-90" />
                       ) : (
                         <div className="w-12 h-12 rounded-full border border-amber-600 border-dashed flex items-center justify-center text-[8px] text-amber-600 rotate-12 select-none mb-2 font-sans font-black">SEAL</div>
                       )}

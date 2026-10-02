@@ -147,9 +147,9 @@ const PublicVoucher = () => {
           <div className="flex-1 ml-4">
              <h1 className="text-[16px] font-bold text-black leading-tight mb-1">{
                 (() => {
-                  let name = schoolData?.name || schoolData?.schoolName || 'Smart Angels Grammar School';
+                  let name = schoolData?.name || schoolData?.schoolName || 'Your School Name';
                   if (name.toUpperCase() === 'TALEEMI DUNYA SCHOOL' || name === 'Lodhi School System') {
-                    name = 'Smart Angels Grammar School';
+                    name = 'Your School Name';
                   }
                   return name;
                 })()

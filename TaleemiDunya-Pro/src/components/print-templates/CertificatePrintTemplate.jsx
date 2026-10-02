@@ -84,7 +84,7 @@ const CertificatePrintTemplate = ({ student, schoolData }) => {
         
         <div className="text-center flex flex-col items-center justify-end">
           {principalSignatureUrl ? (
-            <img src={principalSignatureUrl} alt="Principal Signature" className="h-12 object-contain -mb-2 mix-blend-multiply opacity-90" />
+            <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply object-contain -mb-2 opacity-90" />
           ) : (
             <div className="h-10" />
           )}

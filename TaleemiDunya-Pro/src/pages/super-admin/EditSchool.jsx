@@ -26,7 +26,7 @@ const EditSchool = () => {
     address: '',
     plan: 'Premium',
     status: 'active',
-    expiry: '',
+    expiryDate: '',
     revenue: 0,
     website: ''
   });
@@ -43,7 +43,7 @@ const EditSchool = () => {
             address: data.address || '',
             plan: data.plan || 'Premium',
             status: data.status || 'active',
-            expiry: data.expiry || '',
+            expiryDate: data.expiryDate || data.expiry || '',
             revenue: data.revenue || 0,
             website: data.website || ''
           });
@@ -210,9 +210,9 @@ const EditSchool = () => {
               <div className="space-y-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Subscription Expiry</label>
                 <input 
-                  name="expiry"
+                  name="expiryDate"
                   type="date"
-                  value={formData.expiry}
+                  value={formData.expiryDate}
                   onChange={handleChange}
                   className="w-full premium-input" 
                 />

@@ -118,7 +118,7 @@ export default function QrScannerApp() {
       await html5QrCodeRef.current.start(
         { facingMode: cameraMode },
         {
-          fps: 10,
+          fps: 30,
           qrbox: { width: 250, height: 250 }
         },
         (decodedText) => {
@@ -197,12 +197,7 @@ export default function QrScannerApp() {
   const handleScanSuccess = (decodedText) => {
     if (isScanning || scanResult) return;
     setIsScanning(true);
-    // stopScanner(); // Don't stop camera hardware
-    
-    setTimeout(() => {
-      setIsScanning(false);
-      processStudentScan(decodedText);
-    }, 500);
+    processStudentScan(decodedText);
   };
 
   const handlePhysicalInputSubmit = (e) => {
@@ -214,11 +209,7 @@ export default function QrScannerApp() {
     
     const scannedVal = physicalInput;
     setPhysicalInput('');
-    
-    setTimeout(() => {
-      setIsScanning(false);
-      processStudentScan(scannedVal);
-    }, 500);
+    processStudentScan(scannedVal);
   };
 
   const markAttendance = async (member) => {
@@ -229,13 +220,39 @@ export default function QrScannerApp() {
 
     // Save to Database
     try {
+      const todayStr = new Date().toISOString().split('T')[0];
+
       if (member.memberType === 'student') {
+        const q = query(
+          collection(db, 'attendance'),
+          where('studentId', '==', member.id),
+          where('date', '==', todayStr),
+          where('schoolId', '==', activeSchoolId)
+        );
+        const existingSnap = await getDocs(q);
+        if (!existingSnap.empty) {
+          setScanResult({
+            name: member.name || 'Student',
+            class: member.class || member.className || 'N/A',
+            rollNo: member.rollNumber || member.rollNo || 'N/A',
+            fatherName: member.fatherName || '-',
+            time: existingSnap.docs[0].data().time,
+            status: 'Already Marked',
+            message: 'Aapki attendance aaj pehle hi lag chuki hai.',
+            photo: member.photoUrl || member.profilePhoto || null,
+            isWarning: true
+          });
+          setIsScanning(false);
+          setTimeout(() => setScanResult(null), 2500);
+          return;
+        }
+
         await addDoc(collection(db, 'attendance'), {
           studentId: member.id,
           studentName: member.name || 'Student',
           rollNumber: member.rollNumber || member.rollNo || 'N/A',
           class: member.class || member.className || 'N/A',
-          date: new Date().toISOString().split('T')[0],
+          date: todayStr,
           time: new Date().toLocaleTimeString(),
           status: 'present',
           schoolId: activeSchoolId
@@ -250,9 +267,10 @@ export default function QrScannerApp() {
           status: 'Present',
           photo: member.photoUrl || member.profilePhoto || null
         });
+        setIsScanning(false);
+        setTimeout(() => setScanResult(null), 2500);
       } else {
-        const today = new Date().toISOString().split('T')[0];
-        const docId = `${member.id}_${today}`;
+        const docId = `${member.id}_${todayStr}`;
         const docRef = doc(db, 'attendance', docId);
         
         const existingDoc = await getDoc(docRef);
@@ -264,17 +282,15 @@ export default function QrScannerApp() {
           staffName: member.name || 'Staff',
           department: member.department || 'General',
           designation: member.designation || member.role || '',
-          date: today,
+          date: todayStr,
           type: 'staff',
           schoolId: activeSchoolId,
           updatedAt: serverTimestamp()
         };
 
         if (existingDoc.exists() && existingDoc.data().timeIn) {
-          // It's a checkout scan
           payload.timeOut = nowTime;
         } else {
-          // It's a checkin scan
           payload.timeIn = nowTime;
           payload.time = nowTime;
           payload.status = 'present';
@@ -291,8 +307,13 @@ export default function QrScannerApp() {
           status: payload.timeOut ? 'Time Out Logged' : 'Present (Time In)',
           photo: member.photoUrl || member.profilePhoto || null
         });
+        setIsScanning(false);
+        setTimeout(() => setScanResult(null), 2500);
       }
-    } catch (err) { console.error('Failed to save attendance', err); }
+    } catch (err) { 
+      console.error('Failed to save attendance', err); 
+      setIsScanning(false);
+    }
   };
 
   const showErrorResult = (scannedVal) => {
@@ -310,6 +331,8 @@ export default function QrScannerApp() {
       status: 'Error',
       photo: null
     });
+    setIsScanning(false);
+    setTimeout(() => setScanResult(null), 2500);
   };
 
   const handleManualSearch = (val) => {
@@ -387,7 +410,7 @@ export default function QrScannerApp() {
                 </div>
               </div>
 
-              <button type="submit" disabled={loginLoading} className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+              <button type="submit" disabled={loginLoading} className="w-full py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-lg flex items-center justify-center gap-2 transition-all active:scale-[0.99] shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 {loginLoading ? 'Authenticating...' : 'Access QR Terminal'}
               </button>
             </form>
@@ -433,11 +456,11 @@ export default function QrScannerApp() {
         </div>
         
         <div className="flex items-center gap-4">
-          <button onClick={toggleCamera} className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-95 transition-all hover:bg-white/20">
+          <button onClick={toggleCamera} className="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white active:scale-[0.99] transition-all hover:bg-white/20">
             <RefreshCcw size={20} />
           </button>
           
-          <button onClick={handleLogout} className="w-12 h-12 rounded-full bg-red-500/20 backdrop-blur-md border border-red-500/30 flex items-center justify-center text-red-400 active:scale-95 transition-all hover:bg-red-500/30">
+          <button onClick={handleLogout} className="w-12 h-12 rounded-full bg-red-500/20 backdrop-blur-md border border-red-500/30 flex items-center justify-center text-red-400 active:scale-[0.99] transition-all hover:bg-red-500/30">
             <X size={24} />
           </button>
         </div>
@@ -512,6 +535,8 @@ export default function QrScannerApp() {
                   <h3 className="text-2xl font-black text-white">{scanResult.name}</h3>
                   {scanResult.status === 'Error' ? (
                     <AlertCircle className="text-red-300 drop-shadow-md" size={28} />
+                  ) : scanResult.isWarning ? (
+                    <AlertCircle className="text-yellow-300 drop-shadow-md" size={28} />
                   ) : (
                     <CheckCircle className="text-white drop-shadow-md" size={28} />
                   )}
@@ -522,12 +547,17 @@ export default function QrScannerApp() {
                 {scanResult.fatherName && scanResult.fatherName !== '-' && (
                   <p className="text-emerald-200/80 text-xs mt-1">Father: {scanResult.fatherName}</p>
                 )}
-                <div className="mt-3 flex items-center gap-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase shadow-sm ${scanResult.status === 'Error' ? 'bg-red-100 text-red-600' : 'bg-white text-emerald-600'}`}>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <span className={`px-3 py-1 rounded-full text-xs font-black uppercase shadow-sm ${scanResult.status === 'Error' ? 'bg-red-100 text-red-600' : scanResult.isWarning ? 'bg-yellow-100 text-yellow-700' : 'bg-white text-emerald-600'}`}>
                     {scanResult.status}
                   </span>
                   <span className="text-emerald-50 text-xs font-bold bg-black/20 px-3 py-1 rounded-full">{scanResult.time}</span>
                 </div>
+                {scanResult.message && (
+                  <p className="mt-3 text-yellow-300 text-sm font-bold bg-black/30 px-3 py-2 rounded-xl leading-tight">
+                    {scanResult.message}
+                  </p>
+                )}
               </div>
             </div>
             <button 
@@ -535,7 +565,7 @@ export default function QrScannerApp() {
                 setScanResult(null);
                 setIsScanning(false);
               }}
-              className="w-full mt-5 py-3.5 rounded-2xl bg-white text-emerald-600 font-black text-base active:scale-95 transition-transform shadow-lg"
+              className="w-full mt-5 py-3.5 rounded-2xl bg-white text-emerald-600 font-black text-base active:scale-[0.99] transition-transform shadow-lg"
             >
               Scan Next Member
             </button>
@@ -555,7 +585,7 @@ export default function QrScannerApp() {
                 if(!showManualSearch) stopScanner();
                 else startScanner();
               }}
-              className="px-6 py-3 rounded-full bg-white/10 border border-white/20 text-white text-sm font-bold flex items-center gap-2 backdrop-blur-sm active:scale-95 transition-all"
+              className="px-6 py-3 rounded-full bg-white/10 border border-white/20 text-white text-sm font-bold flex items-center gap-2 backdrop-blur-sm active:scale-[0.99] transition-all"
             >
               <Search size={16} /> {showManualSearch ? 'Cancel Manual Search' : 'Manual Search'}
             </button>

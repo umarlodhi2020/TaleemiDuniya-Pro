@@ -1,0 +1,32 @@
+const { chromium } = require('playwright');
+const path = require('path');
+
+(async () => {
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.setViewportSize({ width: 256, height: 256 });
+  const fileUri = 'file:///' + path.resolve('public/favicon.svg').replace(/\\/g, '/');
+  
+  await page.setContent(`
+    <style>body{margin:0;background:transparent; display:flex; justify-content:center; align-items:center; height:100vh;}</style>
+    <img src="${fileUri}" width="256" height="256"/>
+  `);
+  
+  // Wait a second to ensure SVG is loaded
+  await page.waitForTimeout(500);
+
+  await page.screenshot({ 
+    path: 'build/icon.png', 
+    omitBackground: true, 
+    clip: { x: 0, y: 0, width: 256, height: 256 } 
+  });
+  
+  await page.screenshot({ 
+    path: 'dist/icon.png', 
+    omitBackground: true, 
+    clip: { x: 0, y: 0, width: 256, height: 256 } 
+  });
+
+  await browser.close();
+  console.log("Icon generated!");
+})();

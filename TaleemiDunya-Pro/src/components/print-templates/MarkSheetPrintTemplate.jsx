@@ -11,16 +11,18 @@ const MarkSheetPrintTemplate = ({ student, schoolData, studentMarks = [] }) => {
 
   return (
     <div 
-      className={`w-full bg-white text-black p-8 font-sans ${!bgTemplate ? 'border-2' : ''}`} 
+      className={`w-full bg-white text-black p-8 font-sans print:p-0 print:min-h-0 min-h-[297mm] ${!bgTemplate ? 'border-2' : ''}`} 
       style={{ 
         borderColor: themeColor,
         backgroundImage: bgTemplate ? `url(${bgTemplate})` : 'none',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        minHeight: '297mm' // A4 approx height
       }}
     >
+      <style>
+        {`@media print { @page { size: portrait; } }`}
+      </style>
       
       {/* Header */}
       {!bgTemplate ? (

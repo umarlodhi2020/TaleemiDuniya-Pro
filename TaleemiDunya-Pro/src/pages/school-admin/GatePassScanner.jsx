@@ -210,7 +210,7 @@ const GatePassScanner = () => {
             />
             <button
               type="submit"
-              className={`px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center gap-2 shadow-xl transition-all active:scale-95 text-white ${
+              className={`px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center gap-2 shadow-xl transition-all active:scale-[0.99] text-white ${
                 scanMode === 'ENTRY' ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500' : 'bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500'
               }`}
             >

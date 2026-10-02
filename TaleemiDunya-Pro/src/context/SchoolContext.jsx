@@ -205,12 +205,22 @@ export const SchoolProvider = ({ children }) => {
     classFees,
     classesLoading,
     isSubscriptionActive: schoolData?.status === 'active' && (getExpiryDate() ? getExpiryDate() > new Date() : true),
+    isOverdue: getExpiryDate() ? (getExpiryDate().getTime() - Date.now() <= 0) : false,
     allowedFeaturesMap,
     isFeatureAllowed,
     getFeatureInfo,
     updateSchoolAllowedFeatures,
     currentSaaSPlan: (schoolData?.plan || schoolData?.subscriptionPlan || 'premium').toLowerCase()
   };
+
+  // Sync overdue state to local storage for static files like db.js to read
+  useEffect(() => {
+    if (value.isOverdue) {
+      localStorage.setItem('saas_is_overdue', 'true');
+    } else {
+      localStorage.removeItem('saas_is_overdue');
+    }
+  }, [value.isOverdue]);
 
   return (
     <SchoolContext.Provider value={value}>

@@ -221,7 +221,7 @@ const SuperAdminSettings = () => {
                   </div>
                   <button 
                     onClick={() => handleToggleGlobalFeature(feat.key)}
-                    className="focus:outline-none transition-transform active:scale-95 shrink-0 ml-3"
+                    className="focus:outline-none transition-transform active:scale-[0.99] shrink-0 ml-3"
                     title={isGloballyDisabled ? 'Enable globally' : 'Disable globally'}
                   >
                     {!isGloballyDisabled ? <ToggleRight size={36} className="text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.4)]" /> : <ToggleLeft size={36} className="text-red-500" />}
@@ -254,7 +254,7 @@ const SuperAdminSettings = () => {
             </div>
             <button
               onClick={() => navigate('/super-admin/subscriptions')}
-              className="px-6 py-4 rounded-2xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-2xl shadow-primary-600/30 flex items-center gap-2 shrink-0 transform transition active:scale-95"
+              className="px-6 py-4 rounded-2xl bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-2xl shadow-primary-600/30 flex items-center gap-2 shrink-0 transform transition active:scale-[0.99]"
             >
               Configure API Gateways <ExternalLink size={16} />
             </button>

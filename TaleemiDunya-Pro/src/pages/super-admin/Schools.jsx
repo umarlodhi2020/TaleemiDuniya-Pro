@@ -38,7 +38,25 @@ const SchoolsManager = () => {
     try {
       const q = query(collection(db, 'schools'));
       const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const data = await Promise.all(
+        snapshot.docs.map(async (d) => {
+          const school = { id: d.id, ...d.data() };
+          // Fetch real counts from subcollections
+          try {
+            const [studentsSnap, staffSnap] = await Promise.all([
+              getDocs(collection(db, 'schools', d.id, 'students')),
+              getDocs(collection(db, 'schools', d.id, 'staff')),
+            ]);
+            school.students = studentsSnap.size;
+            school.staff = staffSnap.size;
+          } catch (e) {
+            // fallback to stored values
+            school.students = school.students || 0;
+            school.staff = school.staff || 0;
+          }
+          return school;
+        })
+      );
       setSchools(data);
     } catch (error) {
       console.error('Error fetching schools:', error);
@@ -106,7 +124,14 @@ const SchoolsManager = () => {
 
   const activeCount = schools.filter(s => s.status === 'active').length;
   const inactiveCount = schools.filter(s => s.status !== 'active').length;
-  const totalRevenue = schools.filter(s => s.status === 'active').reduce((sum, s) => sum + (s.revenue || 0), 0);
+  const planPrices = { premium: 5000, standard: 3500, enterprise: 8000, basic: 2500 };
+  const totalRevenue = schools
+    .filter(s => s.status === 'active')
+    .reduce((sum, s) => {
+      const planKey = (s.plan || '').toLowerCase();
+      const planRevenue = planPrices[planKey] || s.revenue || 0;
+      return sum + planRevenue;
+    }, 0);
 
   return (
     <div className="space-y-6 animate-fade-in pb-10">
@@ -306,7 +331,11 @@ const SchoolsManager = () => {
                       <td className="py-4 px-3">
                         <div className="flex items-center gap-1.5 text-xs text-dark-muted">
                           <Calendar size={12} />
-                          {school.expiry || '—'}
+                          {(() => {
+                            const raw = school.expiryDate || school.expiry || '';
+                            if (!raw) return '—';
+                            return raw.toString().slice(0, 10);
+                          })()}
                         </div>
                       </td>
                       <td className="py-4 px-3 text-center">

@@ -25,10 +25,6 @@ import { db as firestore } from '../../services/firebase';
 
 const SUBJECTS = ['Mathematics', 'English', 'Urdu', 'General Science', 'Islamiat', 'Social Studies', 'Computer Science'];
 
-const defaultDiaries = [
-  { id: 'd1', class: '10', date: new Date().toISOString().split('T')[0], math: 'Complete Ex 4.2 Q1 to Q6 in neat notebooks', english: 'Write an essay on "My Ambition in Life" (250 words)', science: 'Learn Newton Laws of Motion for tomorrow class quiz', urdu: 'Khulasa yaad karein Sabaq Hijrat-e-Nabwi (SAW)', islamiat: 'Surah Al-Anfal Ruku 3 translation revision' },
-  { id: 'd2', class: '9', date: new Date().toISOString().split('T')[0], math: 'Solve Quadratic equations worksheet #2', english: 'Read Chapter 3 and underline tough vocabulary', science: 'Draw neat labeled diagram of Human Digestive System', urdu: 'Ghazal Meer Taqi Meer ki tashreeh likhein', islamiat: 'Hadith #5 yaad karein with tarjuma' }
-];
 
 const DailyDiary = () => {
   const { userData } = useAuth();
@@ -77,44 +73,27 @@ const DailyDiary = () => {
       });
 
       if (!found) {
-        // Check our default mock
-        const mock = defaultDiaries.find(d => d.class === selectedClass);
-        if (mock) {
-          setHomeworkForm({
-            Mathematics: mock.math || '',
-            English: mock.english || '',
-            Urdu: mock.urdu || '',
-            'General Science': mock.science || '',
-            Islamiat: mock.islamiat || '',
-            'Social Studies': '',
-            'Computer Science': ''
-          });
-        } else {
-          setHomeworkForm({
-            Mathematics: '',
-            English: '',
-            Urdu: '',
-            'General Science': '',
-            Islamiat: '',
-            'Social Studies': '',
-            'Computer Science': ''
-          });
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      const mock = defaultDiaries.find(d => d.class === selectedClass);
-      if (mock) {
         setHomeworkForm({
-          Mathematics: mock.math || '',
-          English: mock.english || '',
-          Urdu: mock.urdu || '',
-          'General Science': mock.science || '',
-          Islamiat: mock.islamiat || '',
+          Mathematics: '',
+          English: '',
+          Urdu: '',
+          'General Science': '',
+          Islamiat: '',
           'Social Studies': '',
           'Computer Science': ''
         });
       }
+    } catch (e) {
+      console.error(e);
+      setHomeworkForm({
+        Mathematics: '',
+        English: '',
+        Urdu: '',
+        'General Science': '',
+        Islamiat: '',
+        'Social Studies': '',
+        'Computer Science': ''
+      });
     } finally {
       setLoading(false);
     }

@@ -118,7 +118,7 @@ const MobilePhotoCapture = () => {
             </div>
             <button
               onClick={() => { setSynced(false); setPreview(null); }}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-white font-black text-sm transition-all flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 active:scale-95"
+              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 text-white font-black text-sm transition-all flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 active:scale-[0.99]"
             >
               <RefreshCw size={18} className="animate-spin-slow" /> 🟢 Ready for Next Student (Take New Snap)
             </button>
@@ -138,7 +138,7 @@ const MobilePhotoCapture = () => {
               </div>
             ) : (
               <div className="space-y-3 pt-2">
-                <label className="w-full py-4 px-6 bg-gradient-to-r from-primary-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white rounded-2xl shadow-xl shadow-indigo-500/20 font-black text-sm flex items-center justify-center gap-3 cursor-pointer transition-all active:scale-95 border border-white/20">
+                <label className="w-full py-4 px-6 bg-gradient-to-r from-primary-500 via-indigo-600 to-purple-600 hover:opacity-95 text-white rounded-2xl shadow-xl shadow-indigo-500/20 font-black text-sm flex items-center justify-center gap-3 cursor-pointer transition-all active:scale-[0.99] border border-white/20">
                   <Camera size={22} />
                   <span>📸 TAP TO OPEN PHONE CAMERA</span>
                   <input

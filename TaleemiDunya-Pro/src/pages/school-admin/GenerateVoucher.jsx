@@ -1136,7 +1136,7 @@ const GenerateVoucher = () => {
                      <span>•</span>
                      <span className="text-primary-400">{batch.totalVouchers || (batch.voucherIds?.length)} Vouchers</span>
                      <span>•</span>
-                     <span>{new Date(batch.createdAt).toLocaleDateString()}</span>
+                     <span>{batch.createdAt?.toDate ? batch.createdAt.toDate().toLocaleDateString() : (batch.createdAt ? new Date(batch.createdAt).toLocaleDateString() : 'N/A')}</span>
                    </div>
                  </div>
                  <button 
@@ -1144,7 +1144,7 @@ const GenerateVoucher = () => {
                      setShowBulkHistory(false);
                      navigate('/school-admin/fees/print/voucher/bulk', { state: { voucherIds: batch.voucherIds } });
                    }}
-                   className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white font-bold rounded-lg text-sm shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2"
+                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow-lg shadow-primary-500/20 transition-all flex items-center gap-2"
                  >
                    <Printer size={16} />
                    Print Again

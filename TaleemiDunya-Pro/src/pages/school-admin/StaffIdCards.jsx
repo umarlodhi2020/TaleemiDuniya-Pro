@@ -21,7 +21,7 @@ const StaffIdCards = () => {
   const defaultSettings = schoolData?.staffIdCardSettings || {};
 
   const [settings, setSettings] = useState({
-    schoolName: defaultSettings.schoolName || userData?.schoolName || schoolData?.name || 'Smart Angels Grammar School',
+    schoolName: defaultSettings.schoolName || userData?.schoolName || schoolData?.name || 'Your School Name',
     cardSubtitle: defaultSettings.cardSubtitle || 'Staff Identity Card',
     principalName: defaultSettings.principalName || 'Principal Signature',
     themeColor: defaultSettings.themeColor || '#1e3a8a',

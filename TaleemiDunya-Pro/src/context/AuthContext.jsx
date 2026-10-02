@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
       if (user) {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
-          let profile = { uid: user.uid, role: 'school-admin', email: user.email, schoolId: 'default-school' };
+          let profile = { uid: user.uid, role: 'guest', email: user.email, schoolId: null };
           if (userDoc.exists()) {
             profile = { uid: user.uid, ...userDoc.data() };
           } else {
@@ -248,7 +248,7 @@ export const AuthProvider = ({ children }) => {
     
     // Fetch user profile from Firestore
     const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
-    let profile = { uid: credential.user.uid, role: 'school-admin', email: cleanEmail };
+    let profile = { uid: credential.user.uid, role: 'guest', email: cleanEmail };
     
     if (userDoc.exists()) {
       profile = { uid: credential.user.uid, ...userDoc.data() };
@@ -261,7 +261,7 @@ export const AuthProvider = ({ children }) => {
       const isOwner = allowedSuperAdmins.includes(cleanEmail) || cleanEmail.includes('umar') || cleanEmail.includes('lodhi');
       profile = { 
         uid: credential.user.uid, 
-        role: isOwner ? 'super-admin' : 'school-admin', 
+        role: isOwner ? 'super-admin' : 'guest', 
         email: cleanEmail,
         name: credential.user.displayName || 'Google User',
         createdAt: serverTimestamp()

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../../context/ThemeContext';
 
 const modules = [
   // Student Management
@@ -79,21 +80,37 @@ const modules = [
 ];
 
 const ModuleGrid = () => {
+  const { theme } = useTheme();
+
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
       {modules.map((module, index) => (
         <Link key={index} to={module.path} className="group">
-          <GlassCard className="flex flex-col items-center justify-center p-6 text-center hover:scale-[1.02] active:scale-95 transition-all cursor-pointer h-full border-white/5 hover:border-primary-500/30 hover:bg-white/10">
-            <div className={`p-4 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-all mb-4 ${module.color} group-hover:scale-110`}>
-              <module.icon size={28} />
+          {theme === 'dark' ? (
+            <GlassCard className="flex flex-col items-center justify-center p-6 text-center hover:scale-[1.02] active:scale-[0.99] transition-all cursor-pointer h-full border-white/5 hover:border-primary-500/30 hover:bg-white/10">
+              <div className={`p-4 rounded-2xl bg-white/5 group-hover:bg-white/10 transition-all mb-4 ${module.color} group-hover:scale-110`}>
+                <module.icon size={28} />
+              </div>
+              <span className="text-xs font-black text-dark-muted group-hover:text-dark-text transition-colors uppercase tracking-wider">
+                {module.name}
+              </span>
+              <span className="text-[10px] text-dark-muted/50 mt-1 uppercase tracking-tighter">
+                {module.category}
+              </span>
+            </GlassCard>
+          ) : (
+            <div className="bg-dark-card rounded-[20px] flex flex-col items-center justify-center p-5 text-center hover:shadow-lg transition-all cursor-pointer h-full border border-slate-100">
+              <div className={`w-[52px] h-[52px] flex items-center justify-center rounded-full mb-3 bg-blue-50 ${module.color} group-hover:scale-110 transition-transform duration-300`}>
+                <module.icon size={22} strokeWidth={2.5} />
+              </div>
+              <span className="text-[11px] font-extrabold text-dark-text group-hover:text-blue-600 transition-colors uppercase tracking-wide mt-1 leading-tight">
+                {module.name}
+              </span>
+              <span className="text-[10px] text-dark-muted mt-1.5 font-semibold capitalize">
+                {module.category}
+              </span>
             </div>
-            <span className="text-xs font-black text-dark-muted group-hover:text-dark-text transition-colors uppercase tracking-wider">
-              {module.name}
-            </span>
-            <span className="text-[10px] text-dark-muted/50 mt-1 uppercase tracking-tighter">
-              {module.category}
-            </span>
-          </GlassCard>
+          )}
         </Link>
       ))}
     </div>

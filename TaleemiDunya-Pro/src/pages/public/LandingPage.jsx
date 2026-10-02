@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { 
   CheckCircle, Play, Monitor, Users, BookOpen, 
   Shield, Zap, ArrowRight, BarChart3, Clock,
-  Smartphone, Database, MessageSquare
+  Smartphone, Database, MessageSquare, XCircle
 } from 'lucide-react';
 
 const featureCategories = [
@@ -63,35 +63,47 @@ const featureCategories = [
 
 const defaultPlans = [
   {
-    id: "basic",
-    name: "Basic",
+    id: "standard",
+    name: "Standard Plan",
     priceMonthly: 3500,
     priceYearly: 35000,
-    description: "Perfect for small schools getting started.",
+    description: "Perfect for growing schools.",
     features: [
-      "Up to 500 Students",
-      "Basic Attendance",
-      "Fee Management",
-      "Standard Support"
+      "Up to 500 Students & 30 Staff",
+      "Student & Staff Management",
+      "Fee & Challan Management",
+      "Attendance Tracking",
+      "Basic Reports & Analytics"
+    ],
+    notIncluded: [
+      "Exams & Grading System",
+      "Timetable & SMS Alerts",
+      "AI Copilot & Features",
+      "Digital Library Hub",
+      "Custom School Website Domain",
+      "24/7 Dedicated Support"
     ],
     recommended: false,
     cta: "Start Free Trial"
   },
   {
-    id: "pro",
-    name: "Pro",
-    priceMonthly: 7500,
-    priceYearly: 75000,
-    description: "Ideal for growing schools with advanced needs.",
+    id: "premium",
+    name: "Premium Pro",
+    priceMonthly: 5000,
+    priceYearly: 50000,
+    description: "All-in-one advanced solution.",
     features: [
-      "Up to 2000 Students",
-      "Advanced Academics & Exams",
-      "WhatsApp Automation",
-      "Parent & Student Portals",
-      "Priority Support"
+      "Unlimited Students & Staff",
+      "Everything in Standard",
+      "Exams & Grading System",
+      "Timetable & SMS Alerts",
+      "AI Copilot & Digital Library",
+      "Custom School Website Domain",
+      "24/7 Dedicated Support"
     ],
+    notIncluded: [],
     recommended: true,
-    cta: "Get Pro Plan"
+    cta: "Get Premium"
   }
 ];
 
@@ -172,44 +184,9 @@ const LandingPage = () => {
         const snap = await getDoc(doc(db, 'system', 'gateways'));
         if (snap.exists()) setGateways(snap.data());
 
-        const plansSnap = await getDocs(collection(db, 'plans'));
-        if (!plansSnap.empty) {
-          const plansList = plansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-          plansList.sort((a, b) => (a.priceMonthly || 0) - (b.priceMonthly || 0));
-          
-          if(plansList.length > 1 && plansList.length <= 3) {
-             plansList[1].recommended = true;
-          } else if (plansList.length > 3) {
-             plansList[Math.floor(plansList.length/2)].recommended = true;
-          }
-
-          const formattedPlans = plansList.map(p => {
-            const mappedFeatures = (p.allowedFeatures || [])
-              .map(fId => {
-                const catalogItem = SAAS_FEATURE_CATALOG.find(c => c.key === fId);
-                return catalogItem ? catalogItem.title : null;
-              })
-              .filter(Boolean)
-              .slice(0, 6);
-
-            return {
-              id: p.id,
-              name: p.name || p.id,
-              price: `Rs. ${p.priceMonthly?.toLocaleString() || 'Custom'}`,
-              period: "/month",
-              description: `Perfect for ${p.maxStudents || 'unlimited'} students.`,
-              features: mappedFeatures.length > 0 ? mappedFeatures : ["Core Features", "Updates", "Support"],
-              recommended: p.recommended || false,
-              cta: p.recommended ? "Get Pro Plan" : "Start Now"
-            };
-          });
-
-          setPlans(formattedPlans);
-        } else {
-          setPlans(defaultPlans.map(p => ({
-            ...p, price: `Rs. ${p.priceMonthly.toLocaleString()}`
-          })));
-        }
+        setPlans(defaultPlans.map(p => ({
+          ...p, price: `Rs. ${p.priceMonthly.toLocaleString()}`
+        })));
       } catch (err) {
         console.error("Error fetching data:", err);
         setPlans(defaultPlans.map(p => ({
@@ -443,7 +420,17 @@ const LandingPage = () => {
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">Choose the perfect plan for your institution. No hidden fees.</p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {/* Billing Toggle Header */}
+          <div className="flex flex-col items-center justify-center mb-16 gap-4">
+             <div className="flex items-center gap-3 bg-white p-2 rounded-full border border-gray-200 shadow-md">
+               <button className="px-6 py-2 rounded-full font-bold text-sm bg-indigo-600 text-white shadow">Monthly</button>
+               <button className="px-6 py-2 rounded-full font-bold text-sm text-gray-600 hover:text-indigo-600 flex items-center gap-2">
+                 Yearly <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-[10px] font-black uppercase shadow-sm animate-pulse">Save 16%</span>
+               </button>
+             </div>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {plans.map((plan, index) => (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
@@ -451,37 +438,61 @@ const LandingPage = () => {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
                 key={index} 
-                className={`rounded-3xl p-8 relative flex flex-col h-full ${plan.recommended ? 'bg-indigo-950 text-white shadow-2xl shadow-indigo-900/20 scale-105 z-10 border border-indigo-800' : 'bg-white border border-gray-200 shadow-xl'}`}
+                className={`rounded-3xl p-8 relative flex flex-col h-full transform transition-all hover:-translate-y-2 ${plan.recommended ? 'bg-gradient-to-br from-indigo-950 via-indigo-900 to-indigo-950 text-white shadow-2xl shadow-indigo-900/40 scale-105 z-10 border border-indigo-700/50' : 'bg-white border border-gray-200 shadow-xl'}`}
               >
                 {plan.recommended && (
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white px-4 py-1 rounded-full text-sm font-bold shadow-lg">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-orange-400 to-rose-500 text-white px-5 py-1.5 rounded-full text-xs font-black tracking-wider uppercase shadow-lg shadow-orange-500/30 flex items-center gap-1.5 border border-white/20">
+                    <Zap size={14} className="animate-pulse" />
                     Most Popular
                   </div>
                 )}
-                <div className="mb-8">
-                  <h4 className={`text-xl font-bold mb-2 ${plan.recommended ? 'text-white' : 'text-gray-900'}`}>{plan.name}</h4>
-                  <p className={plan.recommended ? 'text-indigo-200' : 'text-gray-500'}>{plan.description}</p>
+                <div className="mb-8 mt-2">
+                  <h4 className={`text-2xl font-black mb-2 ${plan.recommended ? 'text-white' : 'text-gray-900'}`}>{plan.name}</h4>
+                  <p className={`text-sm ${plan.recommended ? 'text-indigo-200' : 'text-gray-500'}`}>{plan.description}</p>
+                  <div className="my-6 flex flex-col">
+                    <div className="flex items-end gap-2">
+                      <span className={`text-5xl font-black tracking-tighter ${plan.recommended ? 'text-white' : 'text-gray-900'}`}>{plan.price}</span>
+                      <span className={`text-lg font-bold mb-1 ${plan.recommended ? 'text-indigo-300' : 'text-gray-500'}`}>/month</span>
+                    </div>
+                    <div className="mt-2 text-xs font-semibold bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-lg self-start border border-emerald-500/20">
+                      {plan.priceYearly ? `Or Rs. ${plan.priceYearly.toLocaleString()}/year` : ''}
+                    </div>
+                  </div>
                 </div>
-                <div className="mb-8">
-                  <span className="text-4xl font-extrabold">{plan.price}</span>
-                  {plan.period && <span className={plan.recommended ? 'text-indigo-300' : 'text-gray-500'}>{plan.period}</span>}
+                <div className="flex-1">
+                  <p className={`text-xs font-bold uppercase tracking-widest mb-4 ${plan.recommended ? 'text-indigo-300' : 'text-indigo-600'}`}>What's included</p>
+                  <ul className="space-y-4 mb-6">
+                    {plan.features.map((f, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <CheckCircle className={`w-5 h-5 shrink-0 ${plan.recommended ? 'text-orange-400' : 'text-indigo-500'}`} />
+                        <span className={`font-semibold ${plan.recommended ? 'text-indigo-50' : 'text-gray-700'}`}>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {plan.notIncluded && plan.notIncluded.length > 0 && (
+                    <>
+                      <p className={`text-xs font-bold uppercase tracking-widest mt-6 mb-4 ${plan.recommended ? 'text-indigo-300' : 'text-gray-400'}`}>Not included</p>
+                      <ul className="space-y-4 mb-8">
+                        {plan.notIncluded.map((f, i) => (
+                          <li key={i} className="flex items-start gap-3 opacity-60">
+                            <XCircle className={`w-5 h-5 shrink-0 ${plan.recommended ? 'text-rose-400' : 'text-rose-500'}`} />
+                            <span className={`font-semibold ${plan.recommended ? 'text-indigo-200' : 'text-gray-500 line-through'}`}>{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                 </div>
-                <ul className="space-y-4 mb-10 flex-grow">
-                  {plan.features.map((feat, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <CheckCircle className={`w-5 h-5 shrink-0 ${plan.recommended ? 'text-indigo-400' : 'text-indigo-600'}`} />
-                      <span className={plan.recommended ? 'text-indigo-50' : 'text-gray-600'}>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={() => handleBuyPlan(plan.id || plan.name)} className={`w-full py-4 rounded-xl font-bold transition-all ${plan.recommended ? 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-lg' : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700'}`}>
-                  {plan.cta || 'Get Started'}
+                <button onClick={() => handleBuyPlan(plan.id || plan.name)} className={`w-full py-4 rounded-xl font-black text-lg transition-all shadow-lg flex items-center justify-center gap-2 group ${
+                  plan.recommended 
+                    ? 'bg-gradient-to-r from-orange-400 to-rose-500 hover:from-orange-500 hover:to-rose-600 text-white shadow-orange-500/25 border border-orange-400/50' 
+                    : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 shadow-indigo-100/50'
+                }`}>
+                  {plan.cta || 'Get Started'} <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               </motion.div>
             ))}
-            {isLoadingPlans && (
-              <div className="col-span-3 text-center py-12 text-indigo-500 font-bold">Loading live pricing...</div>
-            )}
           </div>
         </div>
       </div>

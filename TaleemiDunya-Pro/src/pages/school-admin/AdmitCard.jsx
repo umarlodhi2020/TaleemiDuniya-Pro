@@ -96,7 +96,7 @@ const AdmitCard = () => {
       const cardWidth = 190;
       const marginX = 10;
       
-      let currentY = 10;
+      let currentY = 5; // Start higher to leave more room at the bottom
       let cardsOnPage = 0;
       
       for (let i = 0; i < students.length; i++) {
@@ -104,8 +104,14 @@ const AdmitCard = () => {
         
         if (cardsOnPage === 2) {
           doc.addPage();
-          currentY = 10;
+          currentY = 5;
           cardsOnPage = 0;
+        }
+
+        if (cardsOnPage === 1) {
+          doc.setFontSize(8);
+          doc.setTextColor(150, 150, 150);
+          doc.text("✂ - - - - - - - - - - - - - - - - - - - - - - - - - - - CUT HERE - - - - - - - - - - - - - - - - - - - - - - - - - - - ✂", pageWidth / 2, currentY - 5, { align: 'center' });
         }
         
         // Card Border and Background

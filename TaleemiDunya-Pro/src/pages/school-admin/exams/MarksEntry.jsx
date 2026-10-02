@@ -913,7 +913,7 @@ const MarksEntry = () => {
             <button
               onClick={handleSaveAllMarks}
               disabled={saving || loading}
-              className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-[0.99] text-white font-black text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all flex items-center gap-2 disabled:opacity-50"
             >
               {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
               <span>Save All Marks</span>

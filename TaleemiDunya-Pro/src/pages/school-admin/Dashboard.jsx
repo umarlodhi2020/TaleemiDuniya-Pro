@@ -15,7 +15,9 @@ import {
   Cake,
   Activity,
   BarChart2,
-  ShieldCheck
+  ShieldCheck,
+  PlusCircle,
+  Clock
 } from 'lucide-react';
 import StatCard from '../../components/common/StatCard';
 import GlassCard from '../../components/common/GlassCard';
@@ -56,10 +58,108 @@ const SchoolAdminDashboard = () => {
   useEffect(() => {
     const fetchRealData = async () => {
       if (!userData) return;
-      const schoolId = userData.schoolId || 'default-school';
-      
+      const schoolId = userData.schoolId || 'default_school';
+      // Fetch actual data instead of trying to hack the expiry date client-side
       const students = await getRecords('students', schoolId);
       const staff = await getRecords('staff', schoolId);
+      
+      // ONE-TIME SCRIPT TO FIX CAPITALIZATION, CNIC, and PHONE
+      if (!localStorage.getItem('fixed_names_caps_cnic_phone_5')) {
+        const toTitleCase = (str) => {
+          if (!str) return '';
+          return str.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        };
+        const formatCNIC = (val) => {
+          if (!val) return '';
+          let digits = val.replace(/\D/g, '');
+          if (!digits) return '';
+          if (digits.length > 13) digits = digits.substring(0, 13);
+          let formatted = digits;
+          if (digits.length > 5 && digits.length <= 12) {
+              formatted = digits.replace(/(\d{5})(\d+)/, '$1-$2');
+          } else if (digits.length > 12) {
+              formatted = digits.replace(/(\d{5})(\d{7})(\d+)/, '$1-$2-$3');
+          }
+          return formatted;
+        };
+        const formatPhone = (val) => {
+          if (!val) return '';
+          let digits = val.replace(/\D/g, '');
+          if (!digits) return '';
+          if (digits.length > 11) digits = digits.substring(0, 11);
+          return digits;
+        };
+
+        try {
+          for (const s of students) {
+            const newName = toTitleCase(s.name);
+            const newFName = toTitleCase(s.fatherName);
+            const updates = {};
+            
+            if (s.name !== newName) updates.name = newName;
+            if (s.fatherName !== newFName) updates.fatherName = newFName;
+            
+            const oldFatherCnic = s.fatherCnic;
+            if (oldFatherCnic !== undefined) {
+                const newFatherCnic = formatCNIC(oldFatherCnic);
+                if (oldFatherCnic !== newFatherCnic && (oldFatherCnic || newFatherCnic)) updates.fatherCnic = newFatherCnic;
+            }
+
+            const oldCnic = s.cnic;
+            if (oldCnic !== undefined) {
+                const newCnic = formatCNIC(oldCnic);
+                if (oldCnic !== newCnic && (oldCnic || newCnic)) updates.cnic = newCnic;
+            }
+
+            const oldPhone = s.phone;
+            if (oldPhone !== undefined) {
+                const newPhone = formatPhone(oldPhone);
+                if (oldPhone !== newPhone && (oldPhone || newPhone)) updates.phone = newPhone;
+            }
+            
+            const oldContact = s.contact;
+            if (oldContact !== undefined) {
+                const newContact = formatPhone(oldContact);
+                if (oldContact !== newContact && (oldContact || newContact)) updates.contact = newContact;
+            }
+            
+            if (Object.keys(updates).length > 0) {
+              await updateRecord('students', s.id, { ...updates, schoolId });
+            }
+          }
+          for (const st of staff) {
+            const newName = toTitleCase(st.name);
+            const updates = {};
+            if (st.name !== newName) updates.name = newName;
+
+            const oldCnic = st.cnic;
+            if (oldCnic !== undefined) {
+                const newCnic = formatCNIC(oldCnic);
+                if (oldCnic !== newCnic && (oldCnic || newCnic)) updates.cnic = newCnic;
+            }
+
+            const oldPhone = st.phone;
+            if (oldPhone !== undefined) {
+               const newPhone = formatPhone(oldPhone);
+               if (oldPhone !== newPhone && (oldPhone || newPhone)) updates.phone = newPhone;
+            }
+
+            const oldContact = st.contact;
+            if (oldContact !== undefined) {
+               const newContact = formatPhone(oldContact);
+               if (oldContact !== newContact && (oldContact || newContact)) updates.contact = newContact;
+            }
+            
+            if (Object.keys(updates).length > 0) {
+              await updateRecord('staff', st.id, { ...updates, schoolId });
+            }
+          }
+          localStorage.setItem('fixed_names_caps_cnic_phone_5', 'true');
+        } catch (e) {
+          console.error('Error fixing caps:', e);
+        }
+      }
+
       const classes = await getRecords('classes', schoolId);
       const challans = await getRecords('vouchers', schoolId);
       const expenses = await getRecords('expenses', schoolId);
@@ -106,9 +206,8 @@ const SchoolAdminDashboard = () => {
       setBirthdaysList(bdays);
       setLoading(false);
     };
-
     fetchRealData();
-  }, [userData]);
+  }, [userData, schoolData]);
 
   const handleBulkGenerateChallans = async () => {
     if (!window.confirm("🚀 Generate automated monthly fee challans for ALL students right now?")) return;
@@ -212,60 +311,80 @@ const SchoolAdminDashboard = () => {
   return (
     <div className="space-y-6 animate-fade-in pb-16 text-dark-text">
       {/* Top Header Bar EXACT match to STASU Layout */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-dark-border pb-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-dark-text tracking-tight">{schoolName}</h1>
-          <div className="flex items-center gap-3 mt-1.5">
-            <p className="text-xs text-primary-400 font-mono font-bold uppercase tracking-wider">
-              Home / Dashboard
-            </p>
-            {schoolData?.idNumber && (
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-[10px] font-black tracking-widest">
-                <ShieldCheck size={11} />
-                SCHOOL ID: {schoolData.idNumber}
-              </span>
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4">
+        <div className="flex items-center gap-4 bg-dark-card px-5 py-3 rounded-2xl shadow-sm ">
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-slate-100 bg-dark-card">
+            {(schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo) ? (
+              <img src={schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo} alt="School Logo" className="w-full h-full object-contain p-1" />
+            ) : (
+              <div className="w-full h-full bg-blue-50 flex items-center justify-center">
+                <span className="text-3xl">🏫</span>
+              </div>
             )}
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-black text-dark-text tracking-tight leading-tight">{schoolName}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-100">
+                <ShieldCheck size={14} />
+                Session: {schoolData?.session || schoolData?.academicYear || '2025 - 2026'}
+              </span>
+              
+              <span className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 shadow-sm uppercase ${
+                  (schoolData?.expiryDate && new Date(schoolData.expiryDate).getTime() - Date.now() <= 0) 
+                  ? 'bg-red-600 text-white border border-red-700' 
+                  : 'bg-slate-900 dark:bg-slate-800 text-white border border-slate-700 dark:border-slate-600'
+              }`}>
+                <Clock size={13} className="text-slate-300" />
+                <span>
+                  {(() => {
+                    if (!schoolData?.expiryDate) return 'NO EXPIRY SET';
+                    const diff = new Date(schoolData.expiryDate).getTime() - Date.now();
+                    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                    return days <= 0 ? 'SUBSCRIPTION OVERDUE' : `${days} DAYS REMAINING`;
+                  })()}
+                </span>
+              </span>
+            </div>
           </div>
         </div>
         
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Privacy Toggle Button (Show Data / Hide Data) */}
           <button
-            onClick={() => setShowData(!showData)}
-            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
-            title={showData ? "Click to hide financial numbers" : "Click to show real financial numbers"}
+            onClick={() => navigate('/school-admin/classes')}
+            className="px-4 py-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
-            {showData ? <EyeOff size={15} /> : <Eye size={15} />}
-            <span>{showData ? 'Hide Data' : 'Show Data'}</span>
+            <PlusCircle size={15} />
+            Add Section
           </button>
 
           <button 
-            onClick={handleFixOldVouchers}
-            className="px-3.5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+            onClick={() => navigate('/school-admin/classes')}
+            className="px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
-            Fix Old Vouchers
+            <PlusCircle size={15} />
+            Add Class
           </button>
 
           <button 
-            onClick={handleBulkGenerateChallans}
-            disabled={generatingChallans}
-            className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+            onClick={() => navigate('/school-admin/students')}
+            className="px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+          >
+            <Users size={15} />
+            Bulk Promotion
+          </button>
+
+          <button 
+            onClick={() => navigate('/school-admin/fees')}
+            className="px-4 py-2 rounded-full bg-purple-500 hover:bg-purple-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
             <CreditCard size={15} />
-            {generatingChallans ? 'Generating Invoices...' : '⚡ Auto Monthly Challans'}
-          </button>
-
-          <button 
-            onClick={() => navigate('/school-admin/inquiry-student')}
-            className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
-          >
-            <UserPlus size={15} />
-            Inquiry Student
+            Monthly Challan
           </button>
 
           <button 
             onClick={() => navigate('/school-admin/students/add')}
-            className="premium-button-primary text-xs flex items-center gap-1.5 py-2 px-3.5"
+            className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
             <UserPlus size={15} />
             Add Student
@@ -292,7 +411,7 @@ const SchoolAdminDashboard = () => {
             {recentStudents.length === 0 ? (
               <div className="text-center py-8 text-dark-muted italic text-xs">No students registered yet. Click 'Add Student' above!</div>
             ) : recentStudents.map((student) => (
-              <div key={student.id} className="flex items-center justify-between p-3 rounded-xl bg-dark-hover/60 hover:bg-dark-hover border border-dark-border transition-colors">
+              <div key={student.id} className="flex items-center justify-between p-3 rounded-xl bg-dark-hover/60 hover:bg-dark-hover  transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-600/20 flex items-center justify-center text-blue-400 font-bold uppercase text-sm">
                     {student.name?.charAt(0) || 'S'}
@@ -327,7 +446,7 @@ const SchoolAdminDashboard = () => {
 
             <button
               onClick={() => navigate('/school-admin/attendance')}
-              className="p-4 rounded-xl bg-dark-hover border border-dark-border hover:border-blue-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover  hover:border-blue-500/50 text-left transition-all group"
             >
               <CalendarCheck className="text-blue-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
               <h4 className="text-sm font-bold text-white">Mark Attendance</h4>
@@ -336,7 +455,7 @@ const SchoolAdminDashboard = () => {
             
             <button
               onClick={() => navigate('/school-admin/collection')}
-              className="p-4 rounded-xl bg-dark-hover border border-dark-border hover:border-green-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover  hover:border-green-500/50 text-left transition-all group"
             >
               <DollarSign className="text-green-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
               <h4 className="text-sm font-bold text-white">Collect Fee</h4>
@@ -345,7 +464,7 @@ const SchoolAdminDashboard = () => {
 
             <button
               onClick={() => navigate('/school-admin/accounts/expenses')}
-              className="p-4 rounded-xl bg-dark-hover border border-dark-border hover:border-rose-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover  hover:border-rose-500/50 text-left transition-all group"
             >
               <Activity className="text-rose-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
               <h4 className="text-sm font-bold text-white">Add Expense</h4>
@@ -354,7 +473,7 @@ const SchoolAdminDashboard = () => {
 
             <button
               onClick={() => navigate('/school-admin/single-student')}
-              className="p-4 rounded-xl bg-dark-hover border border-dark-border hover:border-purple-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover  hover:border-purple-500/50 text-left transition-all group"
             >
               <Users className="text-purple-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
               <h4 className="text-sm font-bold text-white">Student 360° Profile</h4>
@@ -363,7 +482,7 @@ const SchoolAdminDashboard = () => {
 
             <button
               onClick={() => navigate('/school-admin/students/add')}
-              className="p-4 rounded-xl bg-dark-hover border border-dark-border hover:border-emerald-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover  hover:border-emerald-500/50 text-left transition-all group"
             >
               <UserPlus className="text-emerald-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
               <h4 className="text-sm font-bold text-white">Add Student</h4>

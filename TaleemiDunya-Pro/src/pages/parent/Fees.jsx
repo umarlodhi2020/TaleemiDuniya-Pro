@@ -228,7 +228,7 @@ Payment verification token: TD-PAY-${Math.floor(100000 + Math.random() * 900000)
             </div>
             <button 
               onClick={() => openPaymentModal(pendingChallans[0])}
-              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-wider text-xs shadow-lg shadow-amber-500/20 transition-all active:scale-95 cursor-pointer flex items-center gap-2"
+              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-wider text-xs shadow-lg shadow-amber-500/20 transition-all active:scale-[0.99] cursor-pointer flex items-center gap-2"
             >
               <DollarSign size={16} /> Pay Online Now
             </button>

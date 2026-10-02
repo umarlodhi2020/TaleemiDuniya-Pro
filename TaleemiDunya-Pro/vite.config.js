@@ -8,11 +8,11 @@ export default defineConfig({
   plugins: [
     react(),
     dahuaStreamGatewayPlugin(),
-    electron({
+    ...(process.env.ELECTRON === 'true' ? [electron({
       entry: 'electron/main.js',
-    })
+    })] : [])
   ],
-  base: './', // Use relative paths for Electron
+  base: './',
   server: {
     watch: {
       ignored: ['**/TaleemiDunya-Android-App/**', '**/whatsapp-ai-server/**', '**/dist/**', '**/node_modules/**'],

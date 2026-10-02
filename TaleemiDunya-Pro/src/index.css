@@ -15,29 +15,29 @@
 }
 
 @theme {
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
-  --color-primary-950: #1e1b4b;
+  --color-primary-50: 238 242 255;
+  --color-primary-100: 224 231 255;
+  --color-primary-200: 199 210 254;
+  --color-primary-300: 165 180 252;
+  --color-primary-400: 129 140 248;
+  --color-primary-500: 99 102 241;
+  --color-primary-600: 79 70 229;
+  --color-primary-700: 67 56 202;
+  --color-primary-800: 55 48 163;
+  --color-primary-900: 49 46 129;
+  --color-primary-950: 30 27 75;
 
-  --color-secondary-50: #fdf2f8;
-  --color-secondary-100: #fce7f3;
-  --color-secondary-200: #fbcfe8;
-  --color-secondary-300: #f9a8d4;
-  --color-secondary-400: #f472b6;
-  --color-secondary-500: #ec4899;
-  --color-secondary-600: #db2777;
-  --color-secondary-700: #be185d;
-  --color-secondary-800: #9d174d;
-  --color-secondary-900: #831843;
-  --color-secondary-950: #500724;
+  --color-secondary-50: 253 242 248;
+  --color-secondary-100: 252 231 243;
+  --color-secondary-200: 251 207 232;
+  --color-secondary-300: 249 168 212;
+  --color-secondary-400: 244 114 182;
+  --color-secondary-500: 236 72 153;
+  --color-secondary-600: 219 39 119;
+  --color-secondary-700: 190 24 93;
+  --color-secondary-800: 157 23 77;
+  --color-secondary-900: 131 24 67;
+  --color-secondary-950: 80 7 36;
 
   --color-dark-bg: #f8fafc;
   --color-dark-card: #ffffff;
@@ -95,6 +95,16 @@ html.light-mode {
   --color-dark-muted: #64748b !important;
 }
 
+html:not(.dark-mode) [class*="bg-dark-hover"],
+html.light-mode [class*="bg-dark-hover"] {
+  background-color: #f1f5f9 !important;
+}
+
+html:not(.dark-mode) [class*="border-dark-border"],
+html.light-mode [class*="border-dark-border"] {
+  border-color: #e2e8f0 !important;
+}
+
 html:not(.dark-mode) body,
 html.light-mode body {
   background-color: #f8fafc !important;
@@ -130,11 +140,72 @@ html[data-theme="dark"] body {
 
 /* === GLOBAL TEXT ADJUSTMENTS FOR LIGHT MODE === */
 html.light-mode .text-dark-muted {
-  color: #475569 !important; /* Slate 600 for better readability on white */
+  color: #000000 !important; font-weight: 700 !important; /* Slate 800 for strong contrast */
 }
 html.light-mode .text-primary-300,
 html.light-mode .text-primary-400 {
   color: var(--color-primary-600) !important; /* Pastel colors look invisible on white, force them darker */
+}
+html.light-mode .text-cyan-300,
+html.light-mode .text-cyan-400 {
+  color: #0891b2 !important;
+}
+html.light-mode .text-green-300,
+html.light-mode .text-green-400 {
+  color: #16a34a !important;
+}
+html.light-mode .text-red-300,
+html.light-mode .text-red-400 {
+  color: #dc2626 !important;
+}
+html.light-mode .text-amber-300,
+html.light-mode .text-amber-400,
+html.light-mode .text-yellow-300,
+html.light-mode .text-yellow-400 {
+  color: #d97706 !important;
+}
+html.light-mode .text-blue-300,
+html.light-mode .text-blue-400 {
+  color: #2563eb !important;
+}
+html.light-mode .text-emerald-300,
+html.light-mode .text-emerald-400 {
+  color: #059669 !important;
+}
+html.light-mode .text-indigo-300,
+html.light-mode .text-indigo-400 {
+  color: #4f46e5 !important;
+}
+html.light-mode .text-purple-300,
+html.light-mode .text-purple-400 {
+  color: #9333ea !important;
+}
+html.light-mode .text-rose-300,
+html.light-mode .text-rose-400,
+html.light-mode .text-pink-300,
+html.light-mode .text-pink-400 {
+  color: #e11d48 !important;
+}
+html.light-mode .from-primary-400 {
+  --tw-gradient-from: var(--color-primary-600) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+html.light-mode .to-indigo-400 {
+  --tw-gradient-to: #4338ca !important;
+}
+html.light-mode .from-cyan-400 {
+  --tw-gradient-from: #0891b2 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+html.light-mode .from-blue-50 {
+  --tw-gradient-from: #e2e8f0 !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #f1f5f9 !important;
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+html.light-mode input[type="time"] {
+  color: #0f172a !important;
+  font-weight: 700 !important;
 }
 html.light-mode .bg-primary-500\/10 {
   background-color: rgba(99, 102, 241, 0.15) !important;
@@ -152,16 +223,15 @@ html.light-mode header .text-primary-500 { color: var(--color-primary-500) !impo
 html.light-mode header .text-amber-400 { color: #d97706 !important; }
 html.light-mode header .text-cyan-400 { color: #0891b2 !important; }
 html.light-mode header .text-green-400 { color: #16a34a !important; }
-html.light-mode header button:not(.bg-primary-500) { color: #64748b !important; }
-html.light-mode header button:hover { color: #0f172a !important; }
+
 html.light-mode header .bg-dark-card { background-color: #f1f5f9 !important; border-color: #e2e8f0 !important; }
 
 /* === SIDEBAR (Clean White per Photo 2) === */
 html.light-mode aside,
 html.light-mode div.fixed.z-40.w-56 {
   background-color: #ffffff !important;
-  border-right: 1px solid #e2e8f0 !important;
-  box-shadow: 1px 0 6px rgba(0, 0, 0, 0.03) !important;
+  border-right: 1px solid #f1f5f9 !important;
+  box-shadow: 1px 0 10px rgba(0, 0, 0, 0.02) !important;
 }
 html.light-mode aside .bg-dark-card,
 html.light-mode aside [class*="bg-dark-card"],
@@ -171,7 +241,7 @@ html.light-mode div.fixed.z-40.w-56 [class*="bg-dark-card"] {
 }
 html.light-mode aside .text-dark-muted,
 html.light-mode div.fixed.z-40.w-56 .text-dark-muted { 
-  color: #64748b !important; 
+  color: #000000 !important; font-weight: 700 !important; 
 }
 html.light-mode aside .text-white,
 html.light-mode div.fixed.z-40.w-56 .text-white,
@@ -183,57 +253,193 @@ html.light-mode aside .bg-emerald-500 {
   color: #ffffff !important;
 }
 html.light-mode aside .text-cyan-400 {
-  color: #0284c7 !important;
+  color: #0ea5e9 !important;
 }
 html.light-mode aside .text-gray-300 {
   color: #475569 !important;
 }
-html.light-mode aside .sidebar-item {
-  color: #475569 !important;
+html.light-mode aside .sidebar-item, html.light-mode div.fixed.z-40.w-56 .sidebar-item {
+  color: #000000 !important; font-weight: 700 !important;
 }
 html.light-mode aside .sidebar-item-active,
 html.light-mode aside .sidebar-item-active *,
 html.light-mode div.fixed.z-40.w-56 .sidebar-item-active,
 html.light-mode div.fixed.z-40.w-56 .sidebar-item-active * { 
-  background-color: var(--color-primary-500) !important; 
-  color: #ffffff !important; 
+  background-color: #e0f2fe !important; 
+  color: #0284c7 !important; 
   border-left: none !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35) !important;
+  border-radius: 0.5rem !important;
+  box-shadow: none !important;
 }
 html.light-mode aside .sidebar-item:hover:not(.sidebar-item-active),
 html.light-mode div.fixed.z-40.w-56 .sidebar-item:hover:not(.sidebar-item-active) { 
-  background-color: #f1f5f9 !important; 
+  background-color: #f8fafc !important; 
   color: #0f172a !important; 
 }
 
 /* === MAIN BACKGROUND & CONTAINERS === */
 html.light-mode main,
-html.light-mode .min-h-screen { background-color: #f8fafc !important; }
+html.light-mode .min-h-screen { background-color: #f4f7fe !important; }
 
 html.light-mode .bg-dark-card { 
   background-color: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02) !important;
-  border-radius: 0.75rem !important;
+  border: 1px solid rgba(0, 0, 0, 0.02) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
+  border-radius: 1rem !important;
 }
 
-/* === TEXT & CARDS === */
-html.light-mode .from-white.bg-clip-text {
-  --tw-gradient-from: #0f172a !important;
-  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+/* === TEXT, CARDS & GLOBAL SAFETY NET === */
+html.light-mode .from-white.bg-clip-text,
+html.light-mode .bg-clip-text,
+html.light-mode [class*="bg-clip-text"] {
+  background: none !important;
+  color: var(--color-primary-700) !important;
+  -webkit-text-fill-color: var(--color-primary-700) !important;
 }
 
-html.light-mode .glass-card .text-white,
-html.light-mode .bg-dark-card .text-white,
-html.light-mode main .text-white { color: #0f172a !important; }
+/* Make all outlined pastel buttons/badges solid in Light Mode */
+html.light-mode [class*="bg-primary-500/10"], html.light-mode [class*="bg-primary-500/20"], html.light-mode [class*="from-primary-500/10"],
+html.light-mode [class*="bg-primary-600/10"], html.light-mode [class*="bg-primary-600/20"], html.light-mode [class*="from-primary-600/10"],
+html.light-mode [class*="bg-blue-500/10"], html.light-mode [class*="bg-blue-500/20"], html.light-mode [class*="from-blue-500/10"] {
+  background: #3b82f6 !important; color: #ffffff !important; border-color: #2563eb !important;
+}
+html.light-mode [class*="bg-cyan-500/10"], html.light-mode [class*="bg-cyan-500/20"], html.light-mode [class*="from-cyan-500/10"] {
+  background: #06b6d4 !important; color: #ffffff !important; border-color: #0891b2 !important;
+}
+html.light-mode [class*="bg-emerald-500/10"], html.light-mode [class*="bg-emerald-500/20"], html.light-mode [class*="from-emerald-500/10"],
+html.light-mode [class*="bg-green-500/10"], html.light-mode [class*="bg-green-500/20"], html.light-mode [class*="from-green-500/10"] {
+  background: #10b981 !important; color: #ffffff !important; border-color: #059669 !important;
+}
+html.light-mode [class*="bg-red-500/10"], html.light-mode [class*="bg-red-500/20"], html.light-mode [class*="from-red-500/10"],
+html.light-mode [class*="bg-rose-500/10"], html.light-mode [class*="bg-rose-500/20"], html.light-mode [class*="from-rose-500/10"] {
+  background: #ef4444 !important; color: #ffffff !important; border-color: #dc2626 !important;
+}
+html.light-mode [class*="bg-amber-500/10"], html.light-mode [class*="bg-amber-500/20"], html.light-mode [class*="from-amber-500/10"],
+html.light-mode [class*="bg-yellow-500/10"], html.light-mode [class*="bg-yellow-500/20"], html.light-mode [class*="from-yellow-500/10"] {
+  background: #f59e0b !important; color: #ffffff !important; border-color: #d97706 !important;
+}
+html.light-mode [class*="bg-purple-500/10"], html.light-mode [class*="bg-purple-500/20"], html.light-mode [class*="from-purple-500/10"] {
+  background: #8b5cf6 !important; color: #ffffff !important; border-color: #7c3aed !important;
+}
+html.light-mode [class*="bg-gray-500/10"], html.light-mode [class*="bg-slate-500/10"] {
+  background: #64748b !important; color: #ffffff !important; border-color: #475569 !important;
+}
+html.light-mode [class*="bg-primary-500/10"] *, html.light-mode [class*="bg-blue-500/10"] *, html.light-mode [class*="bg-cyan-500/10"] *,
+html.light-mode [class*="bg-emerald-500/10"] *, html.light-mode [class*="bg-green-500/10"] *, html.light-mode [class*="bg-red-500/10"] *,
+html.light-mode [class*="bg-rose-500/10"] *, html.light-mode [class*="bg-amber-500/10"] *, html.light-mode [class*="bg-yellow-500/10"] *,
+html.light-mode [class*="bg-purple-500/10"] *, html.light-mode [class*="bg-gray-500/10"] *, html.light-mode [class*="bg-slate-500/10"] * {
+  color: #ffffff !important;
+}
+
+/* Fix specific dark mode cards (like Payroll Net Payable) to be solid colored in light mode */
+html.light-mode [class*="from-emerald-950"] {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border-color: #059669 !important;
+}
+html.light-mode [class*="from-emerald-950"] * {
+  color: #ffffff !important;
+}
+
+/* Fix hardcoded dark hex backgrounds in light mode */
+html.light-mode [class*="bg-[#151926]"],
+html.light-mode [class*="bg-[#111522]"],
+html.light-mode [class*="bg-[#1a1f33]"],
+html.light-mode [class*="bg-[#1a1f37]"],
+html.light-mode [class*="bg-[#1e2336]"],
+html.light-mode [class*="bg-[#1d1e30]"],
+html.light-mode [class*="bg-[#0f172a]"],
+html.light-mode [class*="bg-[#0F172A]"],
+html.light-mode [class*="bg-[#0b0f19]"],
+html.light-mode [class*="bg-[#090b10]"],
+html.light-mode [class*="bg-[#0f121b]"],
+html.light-mode [class*="bg-[#1a1f2b]"],
+html.light-mode [class*="from-[#161426]"],
+html.light-mode [class*="to-[#0f111a]"],
+html.light-mode .bg-dark-bg\/50,
+html.light-mode [class*="bg-dark-bg/"] {
+  background: #f8fafc !important;
+  background-color: #f8fafc !important;
+  background-image: none !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Fix Profile Banners in Light Mode */
+html.light-mode [class*="from-blue-900/50"],
+html.light-mode [class*="from-purple-900/40"] {
+  background: linear-gradient(to right, #eff6ff, #e0e7ff) !important;
+}
+html.light-mode [class*="bg-primary-500/5"] {
+  background-color: #f8fafc !important;
+}
+
+html.light-mode [class*="shadow-[-8px_0_15px_-5px_rgba(0,0,0,0.5)]"] {
+  box-shadow: -4px 0 10px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light-mode .to-black, html.light-mode [class*="to-black"] {
+  --tw-gradient-to: #f1f5f9 !important;
+}
+
+/* 1. Force white text to be dark unless it's in a colored background or button */
+html.light-mode .glass-card .text-white:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .glass-card .text-white\/90:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .glass-card .text-white\/80:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .glass-card .text-white\/70:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .glass-card .text-white\/50:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .bg-dark-card .text-white:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .bg-dark-card .text-white\/90:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .bg-dark-card .text-white\/80:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .bg-dark-card .text-white\/70:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .bg-dark-card .text-white\/50:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode main .text-white:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode main .text-white\/90:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode main .text-white\/80:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode main .text-white\/70:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode main .text-white\/50:not(button):not(button *):not([class*="bg-"]):not([class*="from-"]) { 
+  color: #0f172a !important; 
+}
+
+/* 2. Force gray/slate text to be darker and readable */
+html.light-mode .glass-card [class*="text-gray-"]:not(button):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .bg-dark-card [class*="text-gray-"]:not(button):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode main [class*="text-gray-"]:not(button):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .glass-card [class*="text-slate-"]:not(button):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode .bg-dark-card [class*="text-slate-"]:not(button):not([class*="bg-"]):not([class*="from-"]),
+html.light-mode main [class*="text-slate-"]:not(button):not([class*="bg-"]):not([class*="from-"]) { 
+  color: #334155 !important; 
+}
+
+/* 3. Handle elements with backgrounds that flip to light gray in light mode */
+html.light-mode [class*="bg-dark-hover"],
+html.light-mode [class*="bg-white/5"],
+html.light-mode [class*="bg-white/10"] {
+  color: #0f172a !important;
+}
+
+html.light-mode [class*="bg-dark-hover"] *:not([class*="bg-"]):not([class*="text-primary-"]):not([class*="text-secondary-"]):not([class*="text-red-"]):not([class*="text-green-"]):not([class*="text-blue-"]):not([class*="text-amber-"]):not([class*="text-cyan-"]):not(button):not(svg):not(svg *),
+html.light-mode [class*="bg-white/5"] *:not([class*="bg-"]):not([class*="text-primary-"]):not([class*="text-secondary-"]):not([class*="text-red-"]):not([class*="text-green-"]):not([class*="text-blue-"]):not([class*="text-amber-"]):not([class*="text-cyan-"]):not(button):not(svg):not(svg *),
+html.light-mode [class*="bg-white/10"] *:not([class*="bg-"]):not([class*="text-primary-"]):not([class*="text-secondary-"]):not([class*="text-red-"]):not([class*="text-green-"]):not([class*="text-blue-"]):not([class*="text-amber-"]):not([class*="text-cyan-"]):not(button):not(svg):not(svg *) {
+  color: #0f172a !important;
+}
+
+/* 4. Fix select / option dropdowns globally */
+html.light-mode select,
+html.light-mode option {
+  color: #0f172a !important;
+}
+
+/* 5. Inputs and Textareas globally */
+html.light-mode input:not([type="checkbox"]):not([type="radio"]),
+html.light-mode textarea {
+  color: #0f172a !important;
+}
 
 html.light-mode .glass-card {
   background-color: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.02) !important;
+  border: 1px solid rgba(0, 0, 0, 0.02) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03) !important;
   backdrop-filter: none !important;
-  border-radius: 0.75rem !important;
+  border-radius: 1rem !important;
 }
 html.light-mode .glass-card-hover:hover {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.03) !important;
@@ -257,7 +463,7 @@ html.light-mode .premium-button-secondary {
 html.light-mode .premium-button-primary {
   border-radius: 0.75rem !important;
   background-image: none !important;
-  background-color: var(--color-primary-500) !important;
+  background-color: #4f46e5 !important;
   color: #ffffff !important;
   box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.25) !important;
 }
@@ -272,6 +478,8 @@ html.light-mode [class*="bg-white/10"] {
 /* Dark overlays used for modals / dropdowns */
 html.light-mode [class*="bg-dark-bg/"] { background-color: rgba(248, 250, 252, 0.95) !important; }
 html.light-mode [class*="bg-dark-card/"] { background-color: rgba(255, 255, 255, 0.98) !important; }
+html.light-mode .bg-dark-bg { background-color: #f8fafc !important; }
+html.light-mode .bg-dark-card { background-color: #ffffff !important; }
 
 /* Popover & Header Dropdown menus in Light Mode */
 html.light-mode header .absolute {
@@ -425,11 +633,17 @@ html.light-mode header .absolute .border-dark-border {
    UNIVERSAL WHITE-PAPER PRINT ENGINE (@media print)
    Ensure clean, high-contrast black & white printing across all printable modules
    ========================================================================== */
+@page {
+  size: A4 landscape;
+  margin: 0 !important;
+}
+
 @media print {
-  @page {
-    size: A4 portrait;
-    margin: 8mm;
+  .certificate-page {
+    margin: 0 auto !important;
+    padding: 15px 30px !important;
   }
+  
 
   html, body, .min-h-screen, [class*="bg-dark-bg"] {
     background-color: #ffffff !important;
@@ -458,7 +672,7 @@ html.light-mode header .absolute .border-dark-border {
 
   main {
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 15px 30px !important;
     width: 100% !important;
     max-width: 100% !important;
   }
@@ -475,12 +689,12 @@ html.light-mode header .absolute .border-dark-border {
 
   /* Target the official paper-style report document card */
   .printable-report-area {
-    position: absolute !important;
+    position: static !important;
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 15px 30px !important;
     background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
@@ -536,4 +750,8 @@ html.light-mode header .absolute .border-dark-border {
     page-break-inside: avoid !important;
   }
 }
+
+
+/* Keep White Helper */
+html.light-mode .keep-white, html.light-mode .keep-white *, html.light-mode .keep-white .text-white { color: #ffffff !important; }
 

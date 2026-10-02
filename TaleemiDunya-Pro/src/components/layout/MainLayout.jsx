@@ -12,7 +12,7 @@ import { addRecord } from '../../services/db';
 
 const MainLayout = () => {
   const { userData } = useAuth();
-  const { isFeatureAllowed, getFeatureInfo, currentSaaSPlan } = useSchool();
+  const { isFeatureAllowed, getFeatureInfo, currentSaaSPlan, schoolData } = useSchool();
   const location = useLocation();
   const navigate = useNavigate();
   const schoolId = userData?.schoolId || 'default-school';
@@ -39,12 +39,37 @@ const MainLayout = () => {
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [lockedFeatureName, setLockedFeatureName] = useState('AI WhatsApp Assistant & IoT Security');
+  const [unclosableSeconds, setUnclosableSeconds] = useState(0);
 
   useEffect(() => {
     // Check if School Admin rent is expiring or simulation requested
     if (userData?.role === 'school-admin') {
+      let daysLeft = 0; // Default: 0 (no expiry set = expired/unknown)
+      if (schoolData?.expiryDate) {
+        const diff = new Date(schoolData.expiryDate).getTime() - Date.now();
+        daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      }
+      const isOverdue = daysLeft <= 0;
+      const isExpiring = daysLeft > 0 && daysLeft <= 5;
+
+      // Set dynamic overdue flag in localStorage for expiry popup
+      if (isOverdue && schoolData?.expiryDate) {
+        localStorage.setItem('saas_is_overdue', 'true');
+      } else {
+        localStorage.removeItem('saas_is_overdue');
+      }
+      
       const isDismissed = sessionStorage.getItem('saas_expiry_popup_shown');
-      if (!isDismissed && (userData?.subscriptionStatus === 'expiring_soon' || userData?.subscriptionStatus === 'expired')) {
+      
+      if (isOverdue && schoolData?.expiryDate) {
+        // ALWAYS show on overdue, even if dismissed
+        setTimeout(() => {
+          setShowExpiryWarning(true);
+          setUnclosableSeconds(10);
+        }, 300);
+      } else if (isExpiring && !isDismissed) {
+        setTimeout(() => setShowExpiryWarning(true), 2000);
+      } else if (!isDismissed && (userData?.subscriptionStatus === 'expiring_soon' || userData?.subscriptionStatus === 'expired')) {
         setTimeout(() => setShowExpiryWarning(true), 2000);
       }
     }
@@ -57,7 +82,17 @@ const MainLayout = () => {
       setLockedFeatureName(featName);
       setShowUpgradeModal(true);
     };
-  }, [userData]);
+  }, [userData, schoolData, location.pathname]);
+
+  useEffect(() => {
+    let timer;
+    if (showExpiryWarning && unclosableSeconds > 0) {
+      timer = setInterval(() => {
+        setUnclosableSeconds(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showExpiryWarning, unclosableSeconds]);
 
   const [messages, setMessages] = useState([
     {
@@ -226,7 +261,7 @@ const MainLayout = () => {
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
                         <button
                           onClick={() => navigate('/school-admin/billing')}
-                          className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95"
+                          className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
                         >
                           <Zap size={16} /> Upgrade Plan / Online Pay Now
                         </button>
@@ -250,7 +285,7 @@ const MainLayout = () => {
       {/* Floating WhatsApp-Style AI Button */}
       <button
         onClick={() => setIsAiOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-110 active:scale-95 cursor-pointer bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 border border-white/20 shadow-cyan-500/20"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-transform duration-300 hover:scale-110 active:scale-[0.99] cursor-pointer bg-gradient-to-tr from-cyan-400 via-blue-500 to-indigo-600 border border-white/20 shadow-cyan-500/20"
         title="Talk to TaleemiDunya AI"
       >
         <span className="absolute inset-0 rounded-full bg-cyan-400/20 animate-ping" />
@@ -376,63 +411,52 @@ const MainLayout = () => {
       {/* ============================================================== */}
       {/* 🚨 POPUP 1: SAAS RENT / SUBSCRIPTION EXPIRY WARNING MODAL */}
       {/* ============================================================== */}
-      {showExpiryWarning && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fade-in">
-          <div className="bg-gradient-to-b from-[#1c142c] to-[#110e1a] border-2 border-red-500/70 rounded-3xl p-7 max-w-md w-full shadow-2xl text-center space-y-5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none">
-              <AlertTriangle size={140} className="text-red-500" />
-            </div>
+      {showExpiryWarning && (() => {
+        const isOverdue = localStorage.getItem('saas_is_overdue') === 'true';
+        const bgColor = isOverdue ? 'bg-red-950 border-red-500' : 'bg-orange-950 border-orange-500';
+        const blurColor = isOverdue ? 'bg-red-600/20' : 'bg-orange-600/20';
+        const iconColor = isOverdue ? 'text-red-500' : 'text-orange-500';
+        const title = isOverdue ? 'Subscription Overdue!' : 'Subscription Expiring Soon!';
+        const message = isOverdue 
+          ? 'Aap ke plan ki date expire ho chuki hai. Bara-e-meharbani apni subscription renew karein taa ke aap services use karna jari rakh sakein.'
+          : 'Aap ke plan ki date jald expire hone wali hai. Bara-e-meharbani apni subscription renew karein.';
+        const btnGradient = isOverdue ? 'from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500' : 'from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400';
+        const waitBg = isOverdue ? 'bg-red-900/40 text-red-400/60 border-red-900/50' : 'bg-orange-900/40 text-orange-400/60 border-orange-900/50';
 
-            <div className="w-16 h-16 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto text-red-400 animate-bounce shadow-lg shadow-red-500/20">
-              <Clock size={36} />
-            </div>
-
-            <div>
-              <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest border border-red-500/30">
-                SaaS Subscription Alert
-              </span>
-              <h3 className="text-2xl font-black text-white mt-2">Portal Rent Expiring Soon!</h3>
-              <p className="text-xs text-gray-300 mt-2 font-medium leading-relaxed">
-                Dear Principal (<strong className="text-white">{userData?.schoolName || 'Your School'}</strong>), your TaleemiDunya monthly portal subscription / rent period is nearing completion.
-              </p>
-            </div>
-
-            <div className="p-3.5 rounded-2xl bg-red-950/40 border border-red-500/30 text-left text-xs space-y-1.5 text-red-200">
-              <div className="flex items-center gap-2 font-bold text-white">
-                <Zap size={14} className="text-yellow-400" /> Why Recharge On Time?
-              </div>
-              <p className="text-[11px] text-gray-300">
-                • Continuous 24/7 AI WhatsApp automated notices to parents<br/>
-                • Uninterrupted biometric IoT attendance & salary payroll engine<br/>
-                • Instant cloud data backup & multi-branch synchronization
-              </p>
-            </div>
-
-            <div className="space-y-2 pt-2">
-              <button
-                onClick={() => {
-                  setShowExpiryWarning(false);
-                  sessionStorage.setItem('saas_expiry_popup_shown', 'true');
-                  window.location.hash = '#/school-admin/subscription';
-                }}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
-              >
-                <CreditCard size={17} /> Pay Online / Recharge Now
-              </button>
-
-              <button
-                onClick={() => {
-                  setShowExpiryWarning(false);
-                  sessionStorage.setItem('saas_expiry_popup_shown', 'true');
-                }}
-                className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 text-xs font-bold transition-all"
-              >
-                Remind Me Later Today
-              </button>
+        return (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className={`${bgColor} border rounded-3xl p-8 max-w-md w-full shadow-2xl text-center relative overflow-hidden animate-fade-in`}>
+            <div className={`absolute -top-10 -left-10 w-40 h-40 ${blurColor} rounded-full blur-3xl`}></div>
+            <div className={`absolute -bottom-10 -right-10 w-40 h-40 ${blurColor} rounded-full blur-3xl`}></div>
+            
+            <AlertTriangle size={56} className={`${iconColor} mx-auto mb-6 animate-bounce relative z-10`} />
+            <h2 className="text-2xl font-black text-white mb-3 uppercase tracking-wider relative z-10">{title}</h2>
+            <p className="text-gray-300 text-sm mb-8 font-medium leading-relaxed relative z-10">
+              {message}
+            </p>
+            
+            <div className="relative z-10">
+              {unclosableSeconds > 0 ? (
+                <button disabled className={`w-full py-4 rounded-xl font-black text-sm uppercase cursor-not-allowed border ${waitBg}`}>
+                  Please Wait {unclosableSeconds}s...
+                </button>
+              ) : (
+                <button 
+                  onClick={() => {
+                    setShowExpiryWarning(false);
+                    sessionStorage.setItem('saas_expiry_popup_shown', 'true');
+                    window.location.hash = '#/school-admin/subscription';
+                  }}
+                  className={`w-full py-4 rounded-xl bg-gradient-to-r ${btnGradient} text-white font-black text-sm uppercase shadow-lg transition-all active:scale-[0.98]`}
+                >
+                  I Understand, Let me Pay
+                </button>
+              )}
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ============================================================== */}
       {/* 💎 POPUP 2: LOCKED FEATURE SAAS PLAN UPGRADE MODAL */}
@@ -471,7 +495,7 @@ const MainLayout = () => {
                   setShowUpgradeModal(false);
                   window.location.hash = '#/school-admin/subscription';
                 }}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 active:scale-95 transition-all"
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center justify-center gap-2 active:scale-[0.99] transition-all"
               >
                 <Sparkles size={17} /> Upgrade Plan Online (Rs. 8,000/mo)
               </button>

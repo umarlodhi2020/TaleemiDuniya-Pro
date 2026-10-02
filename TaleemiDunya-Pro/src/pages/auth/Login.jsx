@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, LogIn, ShieldAlert, KeyRound, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, LogIn, ShieldAlert, KeyRound, CheckCircle2, Eye, Users, UserPlus, BookOpen, CreditCard, CalendarCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/common/GlassCard';
 
@@ -9,78 +9,35 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showReset, setShowReset] = useState(false);
-  const [showLinkAccount, setShowLinkAccount] = useState(false);
-  const [linkCnic, setLinkCnic] = useState('');
-  const [linkMobile, setLinkMobile] = useState('');
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetSent, setResetSent] = useState(false);
-  const { login, loginWithGoogle, findAndLinkAccountWithGoogle, resetPassword } = useAuth();
+  const [rememberMe, setRememberMe] = useState(false);
+  const { currentUser, userData, login, loginWithGoogle, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   React.useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('demo') === 'true') {
-      setEmail('demo_admin@taleemidunya.com');
-      setPassword('passworddemo2121');
+    if (currentUser && userData?.role) {
+      if (userData.role === 'guest') {
+        setError('Access Denied: Your email is not registered.');
+        logout();
+      } else {
+        navigate(userData.role === 'super-admin' ? '/super-admin/dashboard' : '/school-admin/dashboard');
+      }
     }
-  }, [location]);
+  }, [currentUser, userData, navigate, logout]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const authenticatedUser = await login(email, password);
-      const role = authenticatedUser.role;
-      if (role === 'super-admin') {
-        navigate('/super-admin/dashboard');
-      } else if (role === 'school-admin') {
-        navigate('/school-admin/dashboard');
-      } else if (role === 'teacher') {
-        navigate('/teacher/dashboard');
-      } else if (role === 'student') {
-        navigate('/student/dashboard');
-      } else if (role === 'parent') {
-        navigate('/parent/dashboard');
+      const result = await login(email, password);
+      if (result.role === 'guest') {
+        setError('Access Denied: Your email is not registered.');
+        await logout();
       } else {
-        navigate('/school-admin/dashboard');
+        navigate(result.role === 'super-admin' ? '/super-admin/dashboard' : '/school-admin/dashboard');
       }
     } catch (err) {
-      console.error(err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setError('Invalid email or password. Please check your credentials.');
-      } else if (err.code === 'auth/too-many-requests') {
-        setError('Too many failed attempts. Please try again later or reset your password.');
-      } else if (err.code === 'auth/network-request-failed') {
-        setError('Network error. Please check your internet connection.');
-      } else {
-        setError('Login failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLinkAccount = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      const authenticatedUser = await findAndLinkAccountWithGoogle(linkCnic, linkMobile);
-      const role = authenticatedUser.role;
-      if (role === 'super-admin') navigate('/super-admin/dashboard');
-      else if (role === 'school-admin') navigate('/school-admin/dashboard');
-      else if (role === 'teacher') navigate('/teacher/dashboard');
-      else if (role === 'student') navigate('/student/dashboard');
-      else if (role === 'parent') navigate('/parent/dashboard');
-      else navigate('/school-admin/dashboard');
-    } catch (err) {
-      console.error(err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message || 'Linking failed. Please check CNIC and Mobile Number.');
-      }
+      setError('Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -90,315 +47,227 @@ const Login = () => {
     setLoading(true);
     setError('');
     try {
-      const authenticatedUser = await loginWithGoogle();
-      const role = authenticatedUser.role;
-      if (role === 'super-admin') {
-        navigate('/super-admin/dashboard');
-      } else if (role === 'school-admin') {
-        navigate('/school-admin/dashboard');
-      } else if (role === 'teacher') {
-        navigate('/teacher/dashboard');
-      } else if (role === 'student') {
-        navigate('/student/dashboard');
-      } else if (role === 'parent') {
-        navigate('/parent/dashboard');
+      const result = await loginWithGoogle();
+      if (result.role === 'guest') {
+        setError('Access Denied: Your email is not registered with any school.');
+        await logout();
       } else {
-        navigate('/super-admin/dashboard');
+        navigate(result.role === 'super-admin' ? '/super-admin/dashboard' : '/school-admin/dashboard');
       }
     } catch (err) {
-      console.error(err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError('Google Sign In failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await resetPassword(resetEmail);
-      setResetSent(true);
-    } catch (err) {
-      setError('Could not send reset email. Please check the email address.');
+      setError('Google Sign In failed.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Blobs */}
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-primary-500/20 rounded-full blur-[128px] animate-pulse"></div>
-      <div className="absolute bottom-0 -right-4 w-96 h-96 bg-secondary-500/20 rounded-full blur-[128px] animate-pulse delay-700"></div>
-
-      <GlassCard className="max-w-md w-full p-10 relative z-10">
-        {/* Logo / Brand */}
-        <div className="text-center mb-8 flex flex-col items-center">
-          <div className="w-16 h-16 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-500/10">
-            <KeyRound className="text-primary-500" size={28} />
+    <div className="min-h-screen bg-dark-bg flex">
+      {/* Left Column - Branding & Features */}
+      <div className="hidden lg:flex w-5/12 flex-col bg-primary-500/10 relative overflow-hidden">
+        {/* Top Content */}
+        <div className="p-8 xl:p-12 pb-6 z-10">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="w-10 h-10 bg-primary-500 rounded-xl flex items-center justify-center text-white">
+               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-dark-text flex items-center gap-2">
+                TaleemiDunya <span className="px-1.5 py-0.5 bg-primary-500 text-white text-[9px] rounded-full uppercase tracking-wide">Pro</span>
+              </h2>
+              <p className="text-[11px] text-dark-muted font-medium">School Management System</p>
+            </div>
           </div>
-          <h1 className="text-4xl font-bold bg-premium-gradient bg-clip-text text-transparent">
-            TaleemiDunya
+
+          <h1 className="text-3xl xl:text-4xl font-extrabold text-dark-text leading-tight mb-2">
+            Better Learning<br/>
+            <span className="text-primary-500">Brighter Future</span>
           </h1>
-          <p className="text-dark-muted mt-1.5 font-medium text-sm">SaaS-based School Management Pro</p>
-          <div className="mt-2.5 flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/30 text-green-400 font-mono text-[10px] font-black tracking-wider flex items-center gap-1 shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              v2.5.0 PRO BUILD
-            </span>
+          <p className="text-dark-muted text-xs xl:text-sm mb-8 max-w-sm">
+            Manage your school, students, teachers and all academic activities in one place.
+          </p>
+
+          <div className="grid grid-cols-2 gap-y-4 gap-x-4 max-w-md">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-green-500/15 text-green-500 flex items-center justify-center"><Users size={18}/></div>
+              <span className="text-[11px] font-semibold text-dark-text leading-tight">Student<br/>Management</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center"><UserPlus size={18}/></div>
+              <span className="text-[11px] font-semibold text-dark-text leading-tight">Teacher<br/>Management</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-purple-500/15 text-purple-500 flex items-center justify-center"><BookOpen size={18}/></div>
+              <span className="text-[11px] font-semibold text-dark-text leading-tight">Academic<br/>Records</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-red-500/15 text-red-500 flex items-center justify-center"><CreditCard size={18}/></div>
+              <span className="text-[11px] font-semibold text-dark-text leading-tight">Fee & Finance</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-orange-500/15 text-orange-500 flex items-center justify-center"><CalendarCheck size={18}/></div>
+              <span className="text-[11px] font-semibold text-dark-text leading-tight">Attendance<br/>& Reports</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-teal-500/15 text-teal-500 flex items-center justify-center"><ShieldAlert size={18}/></div>
+              <span className="text-[11px] font-semibold text-dark-text leading-tight">Secure & Reliable</span>
+            </div>
           </div>
         </div>
 
-        {!showReset && !showLinkAccount ? (
-          <>
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-dark-text">Sign In</h2>
-              <p className="text-dark-muted text-sm mt-1">Enter your credentials to access your dashboard</p>
+        {/* Bottom Photo and Blue Wave */}
+        <div className="relative flex-1 w-full overflow-hidden rounded-tr-[100px] pointer-events-none mt-4 opacity-90">
+          <img 
+            src="https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=1000" 
+            alt="Classroom" 
+            className="absolute inset-0 w-full h-full object-cover mix-blend-overlay opacity-60"
+          />
+          <div className="absolute inset-0 bg-dark-bg/40 mix-blend-multiply"></div>
+          
+          {/* SVG Wave at bottom */}
+          <div className="absolute bottom-0 left-0 w-full">
+            <svg viewBox="0 0 1440 320" className="w-full h-auto drop-shadow-lg translate-y-1">
+              <path fill="var(--color-primary-600)" fillOpacity="0.9" d="M0,160L80,181.3C160,203,320,245,480,245.3C640,245,800,203,960,170.7C1120,139,1280,117,1360,106.7L1440,96L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"></path>
+            </svg>
+            <div className="absolute bottom-8 left-10 text-white z-10 transform -rotate-[10deg] origin-bottom-left drop-shadow-md">
+              <h3 className="text-3xl lg:text-4xl font-serif italic mb-1 font-bold">Education</h3>
+              <h3 className="text-3xl lg:text-4xl font-serif italic mb-2 font-bold">Builds Nations</h3>
+              <BookOpen className="w-10 h-10 ml-6 opacity-90 mt-2 transform rotate-[10deg]" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Column - Login Form */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="bg-dark-card border border-dark-border rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.1)] w-full max-w-[400px] p-6 md:p-8">
+          
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-12 h-12 bg-primary-500 rounded-xl flex items-center justify-center text-white mb-3 shadow-lg shadow-primary-500/20">
+               <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </div>
+            <h2 className="text-xl font-black text-dark-text flex items-center gap-1.5 mb-4">
+              TaleemiDunya <span className="px-1.5 py-0.5 bg-primary-500 text-white text-[10px] rounded-full uppercase tracking-wide">Pro</span>
+            </h2>
+            <h3 className="text-lg font-bold text-dark-text">Welcome Back!</h3>
+            <p className="text-[13px] text-dark-muted mt-0.5">Sign in to continue to your dashboard</p>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 text-red-500 text-xs font-semibold rounded-xl border border-red-500/20 text-center">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[12px] font-bold text-dark-muted">Email or Username</label>
+              <div className="relative group">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted group-focus-within:text-primary-500 transition-colors" size={16} />
+                <input 
+                  type="text" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-dark-border bg-dark-bg text-dark-text focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-all text-[13px]" 
+                  placeholder="Enter your email or username"
+                  required
+                />
+              </div>
             </div>
 
-            {error && (
-              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400 text-sm">
-                <ShieldAlert size={20} className="shrink-0 mt-0.5" />
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-dark-muted ml-1">Email Address / Username</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted" size={20} />
-                  <input 
-                    type="text" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="username"
-                    className="w-full premium-input pl-12" 
-                    placeholder="admin@school.com or admin123"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-dark-muted ml-1">Password</label>
-                <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted group-focus-within:text-primary-500 transition-colors" size={18} />
-                  <input 
-                    type="password" 
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••" 
-                    className="w-full premium-input pl-12"
-                    autoComplete="current-password"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                {new URLSearchParams(location.search).get('demo') === 'true' && (
-                  <span className="text-green-400 font-bold px-2 py-1 bg-green-500/10 rounded-lg">Demo credentials pre-filled</span>
-                )}
-                <button 
-                  type="button"
-                  onClick={() => { setShowReset(true); setError(''); }}
-                  className="text-primary-500 hover:text-primary-400 font-semibold transition-colors ml-auto"
-                >
-                  Forgot password?
+            <div className="space-y-1">
+              <label className="text-[12px] font-bold text-dark-muted">Password</label>
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted group-focus-within:text-primary-500 transition-colors" size={16} />
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-dark-border bg-dark-bg text-dark-text focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-all text-[13px]"
+                  placeholder="Enter your password"
+                  required
+                />
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-muted hover:text-primary-500 transition-colors">
+                  <Eye size={16} />
                 </button>
               </div>
-
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="w-full premium-button-primary mt-2"
-              >
-                {loading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Signing in...
-                  </span>
-                ) : (
-                  <>
-                    <LogIn size={20} />
-                    Sign In
-                  </>
-                )}
-              </button>
-
-              <div className="relative my-6 flex items-center justify-center">
-                <div className="border-t border-dark-border w-full"></div>
-                <span className="bg-dark-bg px-3 text-xs font-semibold text-dark-muted absolute uppercase tracking-wider">or</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg hover:border-primary-500/40"
-              >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.3 8.9 5 12 5z"/>
-                  <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
-                  <path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.5.4-2.3L1.6 7.4C.6 9.4 0 11.6 0 14s.6 4.6 1.6 6.6l3.7-2.8z"/>
-                  <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/>
-                </svg>
-                Sign in with Google
-              </button>
-
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={() => { setShowLinkAccount(true); setError(''); }}
-                  className="text-sm font-semibold text-primary-400 hover:text-primary-300 transition-colors"
-                >
-                  First time? Link your account
-                </button>
-              </div>
-            </form>
-          </>
-        ) : showLinkAccount ? (
-          <>
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-dark-text">Link Account</h2>
-              <p className="text-dark-muted text-sm mt-1">Verify your identity to link your Google account</p>
             </div>
 
-            {error && (
-              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-start gap-3 text-red-400 text-sm">
-                <ShieldAlert size={20} className="shrink-0 mt-0.5" />
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleLinkAccount} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-dark-muted ml-1">CNIC Number</label>
-                <div className="relative group">
-                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted group-focus-within:text-primary-500 transition-colors" size={18} />
-                  <input 
-                    type="text" 
-                    required
-                    value={linkCnic}
-                    onChange={(e) => setLinkCnic(e.target.value)}
-                    placeholder="XXXXX-XXXXXXX-X" 
-                    className="w-full premium-input pl-12"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-dark-muted ml-1">Registered Mobile Number</label>
-                <div className="relative group">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted group-focus-within:text-primary-500 transition-colors" size={18} />
-                  <input 
-                    type="text" 
-                    required
-                    value={linkMobile}
-                    onChange={(e) => setLinkMobile(e.target.value)}
-                    placeholder="03XXXXXXXXX" 
-                    className="w-full premium-input pl-12"
-                  />
-                </div>
-              </div>
-
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white font-semibold text-sm transition-all shadow-md hover:shadow-lg hover:border-primary-500/40"
-              >
-                {loading ? 'Verifying...' : (
-                  <>
-                    <svg className="w-5 h-5" viewBox="0 0 24 24">
-                      <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.3 8.9 5 12 5z"/>
-                      <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
-                      <path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.5.4-2.3L1.6 7.4C.6 9.4 0 11.6 0 14s.6 4.6 1.6 6.6l3.7-2.8z"/>
-                      <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/>
-                    </svg>
-                    Continue with Google
-                  </>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setShowLinkAccount(false); setError(''); }}
-                className="w-full premium-button-secondary"
-              >
-                Back to Sign In
-              </button>
-            </form>
-          </>
-        ) : (
-          <>
-            {/* Password Reset View */}
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-dark-text">Reset Password</h2>
-              <p className="text-dark-muted text-sm mt-1">We'll send a reset link to your email address</p>
+            <div className="flex items-center justify-between mt-2">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded border-dark-border bg-dark-bg text-primary-500 focus:ring-primary-500"
+                />
+                <span className="text-[12px] text-dark-muted group-hover:text-dark-text transition-colors">Remember me</span>
+              </label>
+              <a href="#" className="text-[12px] font-bold text-primary-500 hover:text-primary-400">Forgot password?</a>
             </div>
 
-            {resetSent ? (
-              <div className="text-center py-6">
-                <div className="w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="text-green-400" size={32} />
-                </div>
-                <h3 className="text-lg font-bold text-green-400 mb-2">Email Sent!</h3>
-                <p className="text-dark-muted text-sm mb-6">Check your inbox for the password reset link.</p>
-                <button
-                  onClick={() => { setShowReset(false); setResetSent(false); setResetEmail(''); }}
-                  className="premium-button-secondary w-full"
-                >
-                  Back to Sign In
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleResetPassword} className="space-y-6">
-                {error && (
-                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-400 text-sm">
-                    <ShieldAlert size={20} />
-                    {error}
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-dark-muted ml-1">Your Email Address</label>
-                  <div className="relative group">
-                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted group-focus-within:text-primary-500 transition-colors" size={18} />
-                    <input 
-                      type="email" 
-                      required
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      placeholder="name@school.edu" 
-                      className="w-full premium-input pl-12"
-                    />
-                  </div>
-                </div>
-                <button type="submit" disabled={loading} className="w-full premium-button-primary">
-                  {loading ? 'Sending...' : 'Send Reset Link'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowReset(false); setError(''); }}
-                  className="w-full premium-button-secondary"
-                >
-                  Back to Sign In
-                </button>
-              </form>
-            )}
-          </>
-        )}
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full premium-button-primary py-3 transition-colors flex items-center justify-center gap-2 mt-6 text-[13px] shadow-lg shadow-primary-500/20"
+            >
+              {loading ? 'Signing in...' : (
+                <>
+                  <LogIn size={16} /> Login
+                </>
+              )}
+            </button>
+          </form>
 
-        <p className="text-dark-muted text-[10px] mt-8 text-center">
-          © {new Date().getFullYear()} TaleemiDunya Pro. All rights reserved.
-        </p>
-      </GlassCard>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-dark-border"></div>
+            </div>
+            <div className="relative flex justify-center text-[11px]">
+              <span className="bg-dark-card px-3 text-dark-muted uppercase font-bold tracking-wider">or</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 py-2.5 rounded-xl border border-dark-border hover:bg-dark-bg transition-colors text-[13px] font-semibold text-dark-text"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24">
+                <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.3 8.9 5 12 5z"/>
+                <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.6h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
+                <path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.5.4-2.3L1.6 7.4C.6 9.4 0 11.6 0 14s.6 4.6 1.6 6.6l3.7-2.8z"/>
+                <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.2L1.6 16c1.9 3.8 5.8 6.4 10.4 6.4z"/>
+              </svg>
+              Continue with Google
+            </button>
+            <button
+              type="button"
+              className="w-full flex items-center justify-center gap-3 py-2.5 rounded-xl border border-dark-border hover:bg-dark-bg transition-colors text-[13px] font-semibold text-dark-text"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11.4 11.4H0V0H11.4V11.4Z" fill="#F25022"/>
+                <path d="M24 11.4H12.6V0H24V11.4Z" fill="#7FBA00"/>
+                <path d="M11.4 24H0V12.6H11.4V24Z" fill="#00A4EF"/>
+                <path d="M24 24H12.6V12.6H24V24Z" fill="#FFB900"/>
+              </svg>
+              Continue with Microsoft
+            </button>
+          </div>
+
+          <p className="text-center text-[11px] text-dark-muted mt-6">
+            Don't have an account? <a href="#" className="font-bold text-primary-500 hover:underline">Contact Administrator</a>
+          </p>
+
+          <div className="mt-5 pt-4 border-t border-dark-border flex flex-col items-center gap-1.5 text-[9px] text-dark-muted font-mono uppercase">
+            <span className="flex items-center gap-1">
+              <Lock size={9} /> TaleemiDunya Pro v2.5.0
+            </span>
+            <span>© 2026 TaleemiDunya. All rights reserved.</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

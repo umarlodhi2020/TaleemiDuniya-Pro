@@ -10,7 +10,8 @@ import {
   CheckCircle,
   Palette,
   FileImage,
-  RefreshCw
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import { getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
@@ -108,14 +109,18 @@ const SmitCombinedCard = React.memo(({
     </div>
   );
 
-  const FieldRow = ({ label, value }) => (
-    <div className="flex items-end mb-[10px] w-full">
-      <span className="text-[13px] font-bold text-black min-w-[90px]">{label}</span>
-      <div className="flex-1 border-b pb-0.5 relative" style={{ borderColor: colors.primary }}>
-        <span className="text-[13px] font-black absolute bottom-0.5 left-2 truncate w-[90%]" style={{ color: colors.primary }}>{value || 'N/A'}</span>
+  const FieldRow = ({ label, value }) => {
+    const valStr = String(value || 'N/A');
+    const isLong = valStr.length > 12;
+    return (
+      <div className="flex items-end mb-[10px] w-full">
+        <span className="text-[13px] font-bold text-black min-w-[90px]">{label}</span>
+        <div className="flex-1 border-b pb-0.5 relative" style={{ borderColor: colors.primary }}>
+          <span className={`font-black absolute bottom-0.5 left-2 truncate w-[98%] capitalize ${isLong ? 'text-[10px]' : 'text-[13px]'}`} style={{ color: colors.primary }}>{valStr}</span>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div 
@@ -139,18 +144,18 @@ const SmitCombinedCard = React.memo(({
               <img src={schoolLogo} alt="Logo" className="w-[40px] h-[40px] object-contain shrink-0" />
             )}
             <h1 className="text-[14px] font-black m-0 tracking-tight leading-tight whitespace-nowrap" style={{ color: colors.primary }}>
-              {schoolName?.toUpperCase() || 'SMART ANGELS GRAMMAR SCHOOL'}
+              {schoolName?.toUpperCase() || 'Your School Name'}
             </h1>
           </div>
           {cardSubtitle && (
-            <div className="text-[10px] font-bold mt-0.5 tracking-widest uppercase" style={{ color: colors.secondary }}>
+            <div className="text-[11px] font-extrabold -mt-0.5 tracking-wider uppercase" style={{ color: colors.secondary }}>
               {cardSubtitle}
             </div>
           )}
         </div>
 
-        <div className="flex px-4 pt-3 pb-2 relative z-10 flex-1">
-          <div className="w-[80px] h-[100px] shrink-0 border-[3px] rounded-md overflow-hidden bg-blue-100 flex items-center justify-center mr-4" style={{ borderColor: colors.secondary }}>
+        <div className="flex px-4 pt-1 pb-4 relative z-10 flex-1 items-center">
+          <div className="w-[75px] h-[95px] shrink-0 border-[3px] rounded-md overflow-hidden bg-blue-100 flex items-center justify-center mr-4 mt-[-40px]" style={{ borderColor: colors.secondary }}>
             {(st.photoUrl || st.profilePhoto) ? (
               <img src={st.photoUrl || st.profilePhoto} alt="Student" className="w-full h-full object-cover" />
             ) : (
@@ -158,7 +163,7 @@ const SmitCombinedCard = React.memo(({
             )}
           </div>
           
-          <div className="flex-1 flex flex-col justify-center mt-[-10px]">
+          <div className="flex-1 flex flex-col justify-center mt-[-35px]">
             {showFields.name && <FieldRow label="Name:" value={st.name} />}
             {showFields.class && <FieldRow label="Class:" value={st.class} />}
             {showFields.rollNo && <FieldRow label="Roll Number:" value={st.rollNo || st.rollNumber} />}
@@ -166,7 +171,7 @@ const SmitCombinedCard = React.memo(({
         </div>
 
         {/* Validity on front bottom left */}
-        <div className="absolute bottom-2 left-4 z-10 text-[9px] font-bold text-white bg-black/30 px-2 py-0.5 rounded-full">
+        <div className="absolute bottom-7 left-[53.5px] -translate-x-1/2 z-10 text-[8px] font-bold text-white bg-black/40 px-2 py-0.5 rounded-full shadow-sm whitespace-nowrap text-center">
           Valid: {validity}
         </div>
 
@@ -193,6 +198,9 @@ const SmitCombinedCard = React.memo(({
               {customFields.map((field, idx) => field.label && (
                 <FieldRow key={idx} label={`${field.label}:`} value={st[field.value] || 'N/A'} />
               ))}
+              <div className="w-full text-[7.5px] leading-tight text-gray-800 font-bold italic mt-2">
+                {disclaimer}
+              </div>
             </div>
             <div className="w-[85px] h-[85px] p-1 border-2 rounded flex items-center justify-center shrink-0" style={{ borderColor: colors.primary }}>
               {(st.id || st.registrationNo || st.rollNo || st.rollNumber) ? <QRCode value={String(st.id || st.registrationNo || st.rollNo || st.rollNumber)} style={{ width: '100%', height: '100%' }} /> : <div className="flex items-center justify-center text-center text-red-500 font-bold p-1 text-[10px] border border-dashed border-red-500 w-full h-full">NO ID</div>}
@@ -200,13 +208,10 @@ const SmitCombinedCard = React.memo(({
           </div>
         </div>
 
-        <div className="w-full flex justify-between items-end px-6 relative z-10 mb-3">
-          <div className="w-[60%] text-[8px] leading-tight text-gray-600 font-medium italic pr-2">
-            {disclaimer}
-          </div>
+        <div className="w-full flex justify-end items-end px-6 relative z-10 mb-10">
           <div className="flex flex-col items-center relative min-w-[90px]">
             {getSignatureForStudent(st.class, 'Principal') ? (
-              <img src={getSignatureForStudent(st.class, 'Principal')} alt="Principal" className="absolute bottom-3 h-[55px] max-w-[120px] object-contain pointer-events-none drop-shadow-sm" />
+              <img src={getSignatureForStudent(st.class, 'Principal')} alt="Principal" className="h-24 max-w-[200px] scale-125 origin-bottom origin-bottom mix-blend-multiply absolute bottom-3 h-[55px]  object-contain pointer-events-none drop-shadow-sm" />
             ) : (
               <span className="font-['Dancing_Script',cursive] text-lg text-black mb-[-4px] absolute bottom-3">Signature</span>
             )}
@@ -231,8 +236,11 @@ const StudentIdCards = () => {
   const [students, setStudents] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [selectedClass, setSelectedClass] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
 
   // ID Card customizations - pre-fill from school profile
   const [schoolName, setSchoolName] = useState(
@@ -368,20 +376,34 @@ const StudentIdCards = () => {
     );
   };
 
-  // Get distinct classes
-  const classesList = ['ALL', ...new Set(students.map(s => String(s.class || '').trim().toUpperCase()))].filter(Boolean);
+  // Get distinct classes and sort them naturally
+  const rawClasses = [...new Set(students.map(s => String(s.class || '').trim().toUpperCase()))].filter(Boolean);
+  const sortedClasses = rawClasses.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  const classesList = ['ALL', ...sortedClasses];
 
-  // Filtered list
-  const filteredStudents = selectedClass === 'ALL' 
-    ? students 
-    : students.filter(s => String(s.class || '').trim().toUpperCase() === selectedClass);
+  // Filtered list by class and search query
+  const filteredStudents = students.filter(s => {
+    const classMatch = selectedClass === 'ALL' || String(s.class || '').trim().toUpperCase() === selectedClass;
+    const searchStr = (searchQuery || '').trim().toLowerCase();
+    const searchMatch = !searchStr || (s.name || '').toLowerCase().includes(searchStr);
+    return classMatch && searchMatch;
+  });
+
+  useEffect(() => {
+    const afterPrint = () => {
+      setIsPrinting(false);
+    };
+    window.addEventListener('afterprint', afterPrint);
+    return () => window.removeEventListener('afterprint', afterPrint);
+  }, []);
 
   const handlePrint = () => {
+    if (isPrinting) return; // Prevent double-clicks causing the print window to open twice
     setIsPrinting(true);
+    // Use a small timeout to let React render all cards, the browser's engine will take it from there.
     setTimeout(() => {
       window.print();
-      setIsPrinting(false);
-    }, 500);
+    }, 800);
   };
 
 
@@ -427,13 +449,57 @@ const StudentIdCards = () => {
             Generate and bulk-print professional student identification badges
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <div className="relative z-50">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search size={14} className="text-dark-muted" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search by student name..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setShowSearchSuggestions(true);
+              }}
+              onFocus={() => setShowSearchSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSearchSuggestions(false), 200)}
+              className="premium-input bg-dark-card text-xs pl-9 py-2.5 w-48 md:w-64 border-dark-border/40 focus:border-primary-500"
+            />
+            {showSearchSuggestions && filteredStudents.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-[#1e2330] border border-dark-border/40 rounded-lg shadow-2xl overflow-hidden max-h-60 overflow-y-auto border-t-0 rounded-t-none">
+                {filteredStudents.map(st => (
+                  <div 
+                    key={st.id}
+                    onClick={() => {
+                      setSelectedStudentIds(prev => 
+                        prev.includes(st.id) ? prev.filter(id => id !== st.id) : [...prev, st.id]
+                      );
+                    }}
+                    className="px-3 py-2 text-xs border-b border-dark-border/30 last:border-0 hover:bg-white/10 cursor-pointer flex justify-between items-center transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedStudentIds.includes(st.id)} 
+                        readOnly 
+                        className="rounded border-dark-border/40 text-primary-500 bg-dark-card w-3.5 h-3.5 cursor-pointer"
+                      />
+                      <span className="font-bold text-dark-text truncate pr-2">{st.name}</span>
+                    </div>
+                    <span className="text-[9px] text-dark-muted bg-white/5 px-1.5 py-0.5 rounded shrink-0">{st.class}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <button 
             onClick={handlePrint}
-            className="premium-button-primary py-2.5 px-5 flex items-center justify-center gap-2 font-bold text-xs uppercase"
+            disabled={isPrinting || (selectedStudentIds.length === 0 && filteredStudents.length === 0)}
+            className={`${isPrinting ? 'bg-primary-500/50 cursor-not-allowed' : 'premium-button-primary'} text-white rounded-lg py-2.5 px-5 flex items-center justify-center gap-2 font-bold text-xs uppercase transition-all`}
           >
-            <Printer size={15} />
-            <span>Print ID Cards</span>
+            {isPrinting ? <RefreshCw size={15} className="animate-spin" /> : <Printer size={15} />}
+            <span>{isPrinting ? 'Preparing...' : `Print ${selectedStudentIds.length > 0 ? selectedStudentIds.length + ' Selected' : 'All'}`}</span>
           </button>
         </div>
       </div>
@@ -657,11 +723,21 @@ const StudentIdCards = () => {
             <div className="flex items-center justify-between border-b border-dark-border/40 pb-3 mb-6 no-print">
               <h2 className="text-sm font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-primary-400 uppercase tracking-widest flex items-center gap-2">
                 <CreditCard size={16} />
-                <span>Live Bulk ID Cards View ({filteredStudents.length} Students)</span>
+                <span>Live Bulk ID Cards View ({selectedStudentIds.length > 0 ? `${selectedStudentIds.length} Selected` : `${filteredStudents.length} Students`})</span>
               </h2>
-              <span className="text-[10px] font-black uppercase text-dark-muted bg-white/5 border border-dark-border/40 py-1 px-2.5 rounded-full">
-                Class: {selectedClass}
-              </span>
+              <div className="flex items-center gap-2">
+                {selectedStudentIds.length > 0 && (
+                  <button 
+                    onClick={() => setSelectedStudentIds([])}
+                    className="text-[10px] font-black uppercase text-red-400 bg-red-400/10 hover:bg-red-400/20 py-1 px-2.5 rounded-full transition-colors"
+                  >
+                    Clear Selection
+                  </button>
+                )}
+                <span className="text-[10px] font-black uppercase text-dark-muted bg-white/5 border border-dark-border/40 py-1 px-2.5 rounded-full">
+                  Class: {selectedClass}
+                </span>
+              </div>
             </div>
 
             {loading ? (
@@ -683,13 +759,30 @@ const StudentIdCards = () => {
                   </div>
                 )}
                 
-                <div className="flex flex-col gap-6 items-center w-full">
-                  {(isPrinting ? filteredStudents : filteredStudents.slice(0, 10)).map((st) => {
+                <div className="flex flex-col gap-6 items-center w-full print:block print:space-y-6">
+                  {(isPrinting ? (selectedStudentIds.length > 0 ? students.filter(s => selectedStudentIds.includes(s.id)) : filteredStudents) : filteredStudents.slice(0, 10)).map((st) => {
                   return (
-                    <div key={st.id} className="flex flex-col items-center mb-6 border-b border-dark-border/30 pb-6 print:pb-2 print:border-0 last:border-0 last:pb-0 w-full overflow-hidden print:mb-0">
+                    <div key={st.id} className="flex flex-col items-center mb-6 border-b border-dark-border/30 pb-6 print:pb-2 print:border-0 last:border-0 last:pb-0 w-full overflow-hidden print:mb-8 print:block print:break-inside-avoid">
+                      {!isPrinting && (
+                        <div className="w-full flex justify-end mb-2 no-print" style={{ maxWidth: deferredCardWidth }}>
+                          <label className="flex items-center gap-2 cursor-pointer bg-white/5 px-3 py-1.5 rounded-lg border border-dark-border/40 hover:bg-white/10 transition-colors">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedStudentIds.includes(st.id)}
+                              onChange={(e) => {
+                                setSelectedStudentIds(prev => 
+                                  e.target.checked ? [...prev, st.id] : prev.filter(id => id !== st.id)
+                                );
+                              }}
+                              className="w-4 h-4 cursor-pointer rounded border-dark-border/40 text-primary-500 focus:ring-primary-500/30 bg-dark-card"
+                            />
+                            <span className="text-xs font-bold text-dark-text">Select for Print</span>
+                          </label>
+                        </div>
+                      )}
                       <SmitCombinedCard 
                         st={st} 
-                        isPrint={false} 
+                        isPrint={isPrinting} 
                         schoolName={deferredSchoolName}
                         cardSubtitle={deferredCardSubtitle}
                         cardTheme={deferredCardTheme}

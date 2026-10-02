@@ -27,7 +27,7 @@ import { useSchool } from '../../context/SchoolContext';
 
 const AttendanceRegister = () => {
   const { userData } = useAuth();
-  const { schoolClasses } = useSchool();
+  const { schoolClasses, schoolData } = useSchool();
   const navigate = useNavigate();
   const [selectedClass, setSelectedClass] = useState('10');
   const [availableClasses, setAvailableClasses] = useState([]);
@@ -466,9 +466,9 @@ const AttendanceRegister = () => {
       )}
 
       {/* PRINT ONLY STYLES AND CONTAINER */}
-      <div className="hidden print:block bg-white text-black w-full min-h-screen">
+      <div className="hidden print:block printable-report-area bg-white text-black w-full min-h-screen">
         <div className="text-center pb-4 border-b-2 border-black mb-6">
-          <h1 className="text-2xl font-bold uppercase tracking-wider">TaleemiDunya Pro School System</h1>
+          <h1 className="text-2xl font-bold uppercase tracking-wider">{schoolData?.name || schoolData?.schoolName || userData?.schoolName || 'Your School Name'}</h1>
           <h2 className="text-lg font-semibold mt-1">Official Monthly Attendance Register</h2>
           <p className="text-sm mt-1">Class: <span className="font-bold">{selectedClass}</span> | Month: <span className="font-bold">{monthsList.find(m => m.val === selectedMonth)?.label || selectedMonth}</span></p>
         </div>
@@ -507,10 +507,40 @@ const AttendanceRegister = () => {
           </tbody>
         </table>
 
-        <div className="flex justify-between items-center mt-12 pt-8 border-t border-black text-xs font-bold">
-          <div>Class Teacher Signature: _______________________</div>
-          <div>Principal Signature & Stamp: _______________________</div>
-          <div>Generated Date: {new Date().toLocaleDateString()}</div>
+        <div className="flex justify-between items-end mt-12 pt-8 border-t border-black pb-4">
+          <div className="flex flex-col items-center">
+            {(() => {
+              const teacherRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass));
+              const teacherSignatureUrl = teacherRule?.signatureUrl || null;
+              return teacherSignatureUrl ? (
+                <img src={teacherSignatureUrl} alt="Teacher" className="h-24 max-w-[200px] object-contain mix-blend-multiply scale-125 origin-bottom -mb-2" />
+              ) : (
+                <div className="h-16"></div>
+              );
+            })()}
+            <div className="w-48 border-t-2 border-black pt-1 text-center">
+              <span className="text-xs font-bold uppercase">Class Teacher Signature</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center text-xs font-bold pt-16">
+            Generated Date: {new Date().toLocaleDateString()}
+          </div>
+
+          <div className="flex flex-col items-center">
+            {(() => {
+              const principalRule = schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal');
+              const principalSignatureUrl = schoolData?.signatureSettings?.principalSignatureUrl || principalRule?.signatureUrl || null;
+              return principalSignatureUrl ? (
+                <img src={principalSignatureUrl} alt="Principal Signature" className="h-24 max-w-[200px] object-contain mix-blend-multiply scale-125 origin-bottom -mb-2" />
+              ) : (
+                <div className="h-16"></div>
+              );
+            })()}
+            <div className="w-48 border-t-2 border-black pt-1 text-center">
+              <span className="text-xs font-bold uppercase">Principal Signature & Stamp</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

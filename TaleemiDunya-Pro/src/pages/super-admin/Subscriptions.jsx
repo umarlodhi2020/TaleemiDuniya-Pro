@@ -12,83 +12,36 @@ import { SAAS_FEATURE_CATALOG, getAllowedFeaturesForPlan } from '../../config/sa
 
 const defaultPlans = [
   {
-    id: 'basic', name: 'Basic (Starter)', priceMonthly: 3500, priceYearly: 35000,
-    maxStudents: 200, maxStaff: 20, maxClasses: 10, enabled: true, recommended: false,
+    id: 'standard', name: 'Standard Plan', priceMonthly: 3500, priceYearly: 35000,
+    maxStudents: '500', maxStaff: '30', maxClasses: '15', enabled: true, recommended: false,
     features: [
-      'Student & Staff Directory',
-      'Daily Attendance Register',
-      'Fee Collection & Challans',
-      'Academic Gradebook & Exams',
-      'Digital Diary & Homework',
-      'Expense & Cashbook Tracker',
-      'Teacher Portal Access'
+      'Student & Staff Management',
+      'Fee & Challan Management',
+      'Attendance Tracking',
+      'Basic Reports & Analytics'
     ],
     locked: [
-      'SMS & WhatsApp Alerts',
-      'Parent & Student Portals',
-      'Online MCQ Quizzes',
-      'Biometric Gate Scanner',
-      'AI Copilot Assistant',
-      'Multi-Branch Campus Network'
+      'Exams & Grading System',
+      'Timetable & SMS Alerts',
+      'AI Copilot & Features',
+      'Digital Library Hub',
+      'Custom School Website Domain',
+      '24/7 Dedicated Support'
     ],
   },
   {
-    id: 'standard', name: 'Standard (Plus)', priceMonthly: 6500, priceYearly: 65000,
-    maxStudents: 600, maxStaff: 50, maxClasses: 25, enabled: true, recommended: false,
+    id: 'premium', name: 'Premium Pro Plan', priceMonthly: 5000, priceYearly: 50000,
+    maxStudents: 'Unlimited', maxStaff: 'Unlimited', maxClasses: 'Unlimited', enabled: true, recommended: true,
     features: [
-      'All Basic (Starter) Features',
-      'Instant SMS Alerts & Broadcasts',
-      'Parent & Student Mobile Portals',
-      'Exam Date Sheet & Report Cards',
-      'AI Timetable & Clash Resolver',
-      'Digital Library & E-Books Hub',
-      'School Inventory & Asset Ledger',
-      'School E-Services Website'
-    ],
-    locked: [
-      'WhatsApp Bot Automation',
-      'Online MCQ Quiz Engine',
-      'Biometric & RFID Gate IoT',
-      'AI School Copilot Assistant',
-      'Multi-Branch Hub & Franchises'
-    ],
-  },
-  {
-    id: 'premium', name: 'Premium (Pro)', priceMonthly: 10000, priceYearly: 100000,
-    maxStudents: 1500, maxStaff: 150, maxClasses: 60, enabled: true, recommended: true,
-    features: [
-      'All Standard (Plus) Features',
-      'Automated WhatsApp Alerts & Bots',
-      'Online MCQ Quiz & Auto-Marking',
-      'Live ID Card & Biometric Scanner',
-      'Double-Entry Accounting & Ledger',
-      'Hostel & Bus Fleet Tracking',
-      'Staff Payroll & Salary Slips',
-      'Automated BI Reports Hub',
-      'AI School Copilot Assistant'
-    ],
-    locked: [
-      'Multi-Branch Campus Network',
-      'Custom Branding & White-Label',
-      'Developer API & Webhooks',
-      'Dedicated 24/7 Account Manager'
-    ],
-  },
-  {
-    id: 'enterprise', name: 'Enterprise (VIP Suite)', priceMonthly: 18000, priceYearly: 180000,
-    maxStudents: 'Unlimited', maxStaff: 'Unlimited', maxClasses: 'Unlimited', enabled: true, recommended: false,
-    features: [
-      'All Premium (Pro) Features',
-      'Multi-Branch Central Hub',
-      'Franchise Network Management',
-      'Custom Branding & White-Labeling',
-      'Developer REST API & Webhooks',
-      'Mobile App PWA Offline Sync',
-      'Commercial Security & Audit Hub',
-      'Dedicated 24/7 VIP Manager'
+      'Everything in Standard Plus:',
+      'Exams & Grading System',
+      'Timetable & SMS Alerts',
+      'AI Copilot & Digital Library',
+      'Custom School Website Domain',
+      '24/7 Dedicated Support'
     ],
     locked: [],
-  },
+  }
 ];
 
 const Subscriptions = () => {
@@ -184,10 +137,10 @@ const Subscriptions = () => {
         setSelectedSchoolIdForMatrix(list[0].id);
       }
 
-      const plansSnap = await getDocs(collection(db, 'plans'));
-      if (plansSnap.docs.length > 0) {
-        setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      }
+      // const plansSnap = await getDocs(collection(db, 'plans'));
+      // if (plansSnap.docs.length > 0) {
+      //   setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // }
 
       const reqSnap = await getDocs(collection(db, 'saas_recharge_requests'));
       setRechargeRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || '')));
@@ -229,7 +182,7 @@ const Subscriptions = () => {
   const approveRecharge = async (req) => {
     try {
       await updateDoc(doc(db, 'saas_recharge_requests', req.id), { status: 'approved', verifiedAt: serverTimestamp() });
-      const daysToAdd = req.billingCycle === 'yearly' ? 365 : 30;
+      const daysToAdd = 30; // 1-year plans removed; subscriptions are strictly 30 days
       const newExpiry = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
       await updateDoc(doc(db, 'schools', req.schoolId), {
         plan: req.requestedPlan,
@@ -853,7 +806,7 @@ const Subscriptions = () => {
                         <td className="py-4 px-4 text-right whitespace-nowrap">
                           <button
                             onClick={() => handleToggleSchoolFeatureOverride(selectedMatrixSchool, feat.key, isAllowedNow)}
-                            className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ml-auto active:scale-95 shadow-lg ${
+                            className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ml-auto active:scale-[0.99] shadow-lg ${
                               isAllowedNow
                                 ? 'bg-red-500/15 hover:bg-red-500/30 text-red-400 border border-red-500/40'
                                 : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white shadow-green-600/30'
@@ -1009,7 +962,7 @@ const Subscriptions = () => {
             <button
               onClick={handleSaveGateways}
               disabled={savingGateways}
-              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center gap-2 transform transition active:scale-95"
+              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-xl flex items-center gap-2 transform transition active:scale-[0.99]"
             >
               {savingGateways ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
               {savingGateways ? 'Syncing to Firestore...' : 'Save & Deploy Gateway APIs'}

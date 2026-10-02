@@ -213,7 +213,7 @@ service cloud.firestore {
     // 5. SUPER ADMIN & SAAS SYSTEM DATA
     // ─────────────────────────────────────────────
     match /system/{doc} {
-      allow read: if isSignedIn();
+      allow read: if doc == 'gateways' || isSignedIn();
       allow write: if isSuperAdmin();
     }
     match /demoRequests/{docId} {

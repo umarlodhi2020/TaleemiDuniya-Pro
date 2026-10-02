@@ -186,26 +186,27 @@ const AddStudent = () => {
     return new File([u8arr], filename, { type: mime });
   };
 
-  const generateRollNumberGlobal = async () => {
+  const generateRollNumberGlobal = async (targetClass = null, targetSection = null) => {
     try {
-      if (!formData.class) {
-        alert("Please select a class first to generate roll number.");
+      const cls = targetClass || formData.class;
+      const sec = targetSection || formData.section;
+      if (!cls) {
         return;
       }
       const allStudents = await getRecords('students', schoolId);
       const classStudents = allStudents.filter(s => 
-        s.class === formData.class && 
-        (formData.section ? s.section === formData.section : true)
+        String(s.class).trim() === String(cls).trim() && 
+        (sec ? String(s.section).trim() === String(sec).trim() : true)
       );
       
-      let maxRoll = 0;
-      classStudents.forEach(s => {
-        const rNum = parseInt(s.rollNumber, 10);
-        if (!isNaN(rNum) && rNum > maxRoll) {
-          maxRoll = rNum;
-        }
-      });
-      setFormData(prev => ({ ...prev, rollNumber: (maxRoll + 1).toString() }));
+      let nextRoll = classStudents.length + 1;
+      const existingRolls = new Set(classStudents.map(s => String(s.rollNumber).trim()));
+      
+      while (existingRolls.has(nextRoll.toString())) {
+        nextRoll++;
+      }
+      
+      setFormData(prev => ({ ...prev, rollNumber: nextRoll.toString() }));
     } catch (err) {
       console.error('Error generating roll number:', err);
     }
@@ -214,21 +215,26 @@ const AddStudent = () => {
   const generateGrNumberGlobal = async () => {
     try {
       const allStudents = await getRecords('students', schoolId);
-      let maxGr = 0;
-      allStudents.forEach(s => {
-        const grStr = s.grNumber || s.grNo || '';
-        // extract only numbers to find max
-        const num = parseInt(grStr.replace(/[^0-9]/g, ''), 10);
-        if (!isNaN(num) && num > maxGr) {
-          maxGr = num;
-        }
-      });
-      setFormData(prev => ({ ...prev, grNumber: (maxGr + 1).toString() }));
+      
+      let nextGr = allStudents.length + 1;
+      const existingGrs = new Set(allStudents.map(s => String(s.grNumber || s.grNo).trim()));
+      
+      while (existingGrs.has(nextGr.toString())) {
+        nextGr++;
+      }
+      
+      setFormData(prev => ({ ...prev, grNumber: nextGr.toString() }));
     } catch (err) {
       console.error('Error generating GR number:', err);
       setFormData(prev => ({ ...prev, grNumber: `GR-${Math.floor(1000 + Math.random() * 9000)}` }));
     }
   };
+
+  useEffect(() => {
+    if (!isEditMode && schoolId !== 'default-school' && !fetching && !formData.grNumber) {
+      generateGrNumberGlobal();
+    }
+  }, [isEditMode, schoolId, fetching]);
 
   const handleAutoGenerateRollNumber = () => {
     generateRollNumberGlobal();
@@ -341,14 +347,22 @@ const AddStudent = () => {
       }
 
       let result;
+      const toTitleCase = (str) => {
+        if (!str) return '';
+        return str.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      };
+      const finalData = {
+        ...formData,
+        ...photoData,
+        schoolId,
+        name: toTitleCase(formData.name),
+        fatherName: toTitleCase(formData.fatherName)
+      };
+
       if (isEditMode) {
-        result = await updateRecord('students', studentId, {
-          ...formData,
-          ...photoData,
-          schoolId,
-        });
+        result = await updateRecord('students', studentId, finalData);
       } else {
-        result = await addRecord('students', { ...formData, ...photoData }, schoolId);
+        result = await addRecord('students', finalData, schoolId);
       }
 
       if (result.success) {
@@ -367,7 +381,26 @@ const AddStudent = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    let { name, value } = e.target;
+
+    if (name === 'fatherCnic') {
+      let digits = value.replace(/\D/g, '');
+      if (digits.length > 13) digits = digits.substring(0, 13);
+      let formatted = digits;
+      if (digits.length > 5 && digits.length <= 12) {
+          formatted = digits.replace(/(\d{5})(\d+)/, '$1-$2');
+      } else if (digits.length > 12) {
+          formatted = digits.replace(/(\d{5})(\d{7})(\d+)/, '$1-$2-$3');
+      }
+      value = formatted;
+    }
+
+    if (name === 'phone') {
+      let digits = value.replace(/\D/g, '');
+      if (digits.length > 11) digits = digits.substring(0, 11);
+      value = digits;
+    }
+
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
       
@@ -397,9 +430,12 @@ const AddStudent = () => {
       return updated;
     });
 
-    // Auto-generate roll number globally if it's not set when class is selected
-    if (name === 'class' && value && !formData.rollNumber) {
-      generateRollNumberGlobal();
+    // Auto-generate roll number globally if class or section is changed
+    if (name === 'class' && value) {
+      generateRollNumberGlobal(value, formData.section);
+    }
+    if (name === 'section' && value && formData.class) {
+      generateRollNumberGlobal(formData.class, value);
     }
     // Auto-generate Family ID when CNIC is entered
     if (name === 'fatherCnic' && value && !formData.familyId) {
@@ -603,13 +639,7 @@ const AddStudent = () => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-xs font-black text-dark-muted uppercase tracking-widest">GR Number</label>
-                  <button
-                    type="button"
-                    onClick={generateGrNumberGlobal}
-                    className="text-[10px] font-bold text-primary-400 hover:text-primary-300 cursor-pointer"
-                  >
-                    Auto Generate
-                  </button>
+
                 </div>
                 <div className="relative">
                   <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted" size={18} />
@@ -627,13 +657,7 @@ const AddStudent = () => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-xs font-black text-dark-muted uppercase tracking-widest">Roll Number</label>
-                  <button
-                    type="button"
-                    onClick={handleAutoGenerateRollNumber}
-                    className="text-[10px] font-bold text-primary-400 hover:text-primary-300 cursor-pointer"
-                  >
-                    Auto Generate
-                  </button>
+
                 </div>
                 <div className="relative">
                   <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted" size={18} />
@@ -678,14 +702,16 @@ const AddStudent = () => {
                           <li
                             key={c.id}
                             onMouseDown={() => {
+                              const newSection = (c.sections && c.sections[0]) || 'A';
                               setFormData(f => ({
                                 ...f,
                                 class: c.name,
-                                section: (c.sections && c.sections[0]) || 'A',
+                                section: newSection,
                                 monthlyFee: classFees[c.name] !== undefined ? classFees[c.name] : f.monthlyFee
                               }));
                               setClassInput(c.name);
                               setClassSuggestOpen(false);
+                              generateRollNumberGlobal(c.name, newSection);
                             }}
                             className="px-4 py-2.5 text-sm font-semibold text-dark-text hover:bg-primary-500/10 hover:text-primary-400 cursor-pointer transition-colors flex items-center justify-between"
                           >
@@ -862,7 +888,18 @@ const AddStudent = () => {
               />
             </label>
 
-            <div className="flex gap-2 mt-4 w-full justify-center">
+            <div className="flex gap-2 mt-4 w-full justify-center flex-wrap">
+              <label className="px-4 py-2 rounded-xl bg-dark-hover border border-dark-border flex items-center justify-center gap-2 cursor-pointer hover:border-primary-500 transition-all text-dark-muted hover:text-primary-400 w-full max-w-[150px]">
+                <Upload size={16} />
+                <span className="text-[10px] uppercase font-black tracking-widest">Upload</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+              </label>
+
               <button
                 type="button"
                 onClick={startMobileQRConnect}

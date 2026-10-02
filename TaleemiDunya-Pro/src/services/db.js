@@ -67,6 +67,22 @@ const saveLocalMockCollection = (collectionName, records) => {
 };
 
 // ═══════════════════════════════════════════════════════
+//  SAAS SUBSCRIPTION BLOCKER
+// ═══════════════════════════════════════════════════════
+
+const checkSaaSBlock = (collectionName) => {
+  // Allow system and billing collections to operate
+  if (collectionName === 'users' || collectionName === 'schools' || collectionName === 'saas_recharge_requests') return;
+  
+  if (localStorage.getItem('saas_is_overdue') === 'true') {
+    if (window.triggerSaaSExpiryPopup) {
+      window.triggerSaaSExpiryPopup();
+    }
+    throw new Error('SaaS Subscription Expired! Action blocked to prevent data loss. Please renew.');
+  }
+};
+
+// ═══════════════════════════════════════════════════════
 //  GENERIC CRUD OPERATIONS
 // ═══════════════════════════════════════════════════════
 
@@ -78,6 +94,7 @@ const saveLocalMockCollection = (collectionName, records) => {
  * @returns {Promise<{success: boolean, id?: string, error?: Error}>}
  */
 export const addRecord = async (collectionName, data, schoolId) => {
+  checkSaaSBlock(collectionName);
   const effectiveSchoolId = schoolId || data?.schoolId || 'default-school';
   if (IS_LOCAL_MOCK) {
     const records = getLocalMockCollection(collectionName);
@@ -118,6 +135,7 @@ export const addRecord = async (collectionName, data, schoolId) => {
  * @param {string} schoolId
  */
 export const addRecordWithId = async (collectionName, docId, data, schoolId) => {
+  checkSaaSBlock(collectionName);
   const effectiveSchoolId = schoolId || data?.schoolId || 'default-school';
   if (IS_LOCAL_MOCK) {
     const records = getLocalMockCollection(collectionName);
@@ -162,6 +180,7 @@ export const addRecordWithId = async (collectionName, docId, data, schoolId) => 
  * @param {Object} data - Fields to update (merge)
  */
 export const updateRecord = async (collectionName, id, data) => {
+  checkSaaSBlock(collectionName);
   if (IS_LOCAL_MOCK) {
     const records = getLocalMockCollection(collectionName);
     const idx = records.findIndex(r => r.id === id);
@@ -194,6 +213,7 @@ export const updateRecord = async (collectionName, id, data) => {
  * @param {Object} data - Fields to update (merge)
  */
 export const upsertRecord = async (collectionName, id, data) => {
+  checkSaaSBlock(collectionName);
   if (IS_LOCAL_MOCK) {
     return addRecordWithId(collectionName, id, data, data.schoolId || 'default-school');
   }
@@ -219,6 +239,7 @@ export const upsertRecord = async (collectionName, id, data) => {
  * @param {string} id - Document ID
  */
 export const deleteRecord = async (collectionName, id) => {
+  checkSaaSBlock(collectionName);
   if (IS_LOCAL_MOCK) {
     const records = getLocalMockCollection(collectionName);
     const filtered = records.filter(r => r.id !== id);

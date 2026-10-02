@@ -166,13 +166,13 @@ const MultiBranchHub = () => {
           <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={() => setShowTransferModal(true)}
-              className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center gap-2 transition-all active:scale-95 shadow-md"
+              className="py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 flex items-center gap-2 transition-all active:scale-[0.99] shadow-md"
             >
               <ArrowRightLeft size={15} className="text-cyan-400" /> Inter-Branch Transfer
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-95"
+              className="py-2.5 px-5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all active:scale-[0.99]"
             >
               <Plus size={16} /> Add New Campus Branch
             </button>

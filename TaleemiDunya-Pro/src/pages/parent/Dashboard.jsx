@@ -262,7 +262,7 @@ const ParentDashboard = () => {
                       {child.feeStatus !== 'Paid' ? (
                         <button 
                           onClick={() => handleSelectChildAndNavigate(child, '/parent/fees')}
-                          className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all active:scale-95 shadow-md cursor-pointer flex items-center gap-1"
+                          className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all active:scale-[0.99] shadow-md cursor-pointer flex items-center gap-1"
                         >
                           <CreditCard size={12} /> Pay Now
                         </button>

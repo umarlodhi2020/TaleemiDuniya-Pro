@@ -375,7 +375,7 @@ const InquiryManager = () => {
             <button
               type="submit"
               disabled={saving}
-              className="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-50"
+              className="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
             >
               <Save size={18} />
               {saving ? 'Saving Inquiry...' : 'Save'}
@@ -498,7 +498,7 @@ const InquiryManager = () => {
                         ) : (
                           <button
                             onClick={() => handleAdmissionConvert(inq)}
-                            className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-md shadow-green-500/20 transition-all hover:scale-105 active:scale-95"
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 shadow-md shadow-green-500/20 transition-all hover:scale-105 active:scale-[0.99]"
                             title="Directly admit & enroll this student into Class"
                           >
                             <UserCheck size={14} />

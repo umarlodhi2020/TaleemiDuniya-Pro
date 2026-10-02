@@ -32,7 +32,7 @@ const AddSchool = () => {
     address: '',
     plan: 'Premium',
     status: 'active',
-    expiry: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+    expiryDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0],
     revenue: '',
     website: '',
     students: 0,
@@ -62,7 +62,7 @@ const AddSchool = () => {
         address: formData.address.trim(),
         plan: formData.plan,
         status: formData.status,
-        expiry: formData.expiry,
+        expiryDate: formData.expiryDate,
         revenue: parseFloat(formData.revenue) || 0,
         website: formData.website.trim(),
         students: parseInt(formData.students) || 0,
@@ -225,7 +225,7 @@ const AddSchool = () => {
 
               <div className="space-y-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Expiry Date</label>
-                <input name="expiry" type="date" value={formData.expiry} onChange={handleChange}
+                <input name="expiryDate" type="date" value={formData.expiryDate} onChange={handleChange}
                   className="w-full premium-input" />
               </div>
 
