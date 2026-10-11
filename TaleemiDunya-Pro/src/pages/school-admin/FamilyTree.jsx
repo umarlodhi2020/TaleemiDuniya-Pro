@@ -877,23 +877,23 @@ const FamilyTree = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="opacity-80 font-normal">Father CNIC:</span>
-                    <span className="font-mono bg-black/20 px-2 py-0.5 rounded-md text-amber-300 font-bold tracking-wider">
+                    <span className="opacity-90 font-normal text-white">Father CNIC:</span>
+                    <span className="font-mono bg-black/25 px-2.5 py-0.5 rounded-md text-white font-bold tracking-wider">
                       {fam.fatherCnic}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="opacity-80 font-normal">Family ID:</span>
-                    <span className="font-mono bg-black/20 px-2 py-0.5 rounded-md text-purple-300 font-bold tracking-wider">
+                    <span className="opacity-90 font-normal text-white">Family ID:</span>
+                    <span className="font-mono bg-black/25 px-2.5 py-0.5 rounded-md text-white font-bold tracking-wider">
                       {fam.familyId}
                     </span>
                   </div>
 
                   {fam.phone !== '-' && (
-                    <div className="flex items-center gap-1.5 text-cyan-200">
+                    <div className="flex items-center gap-1.5 text-white/90">
                       <Phone size={13} />
-                      <span className="font-mono">{fam.phone}</span>
+                      <span className="font-mono text-white">{fam.phone}</span>
                     </div>
                   )}
                 </div>
