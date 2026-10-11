@@ -457,18 +457,18 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
         {/* Instant Search Box right inside sidebar */}
         <div className="px-2.5 pt-2.5 pb-1">
           <div className="relative flex items-center">
-            <Search size={13} className="absolute left-2.5 text-dark-muted pointer-events-none" />
+            <Search size={13} className="absolute left-2.5 text-slate-400 dark:text-dark-muted pointer-events-none" />
             <input
               type="text"
               placeholder="Filter allowed features..."
               value={menuSearch}
               onChange={(e) => setMenuSearch(e.target.value)}
-              className="w-full bg-dark-hover/90 border border-dark-border rounded-lg py-1.5 pl-8 pr-6 text-xs text-white placeholder-dark-muted focus:outline-none focus:border-cyan-500 transition-all shadow-inner"
+              className="w-full bg-slate-100 dark:bg-dark-hover/90 border border-slate-200 dark:border-dark-border rounded-lg py-1.5 pl-8 pr-6 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-dark-muted focus:outline-none focus:border-cyan-500 transition-all shadow-inner"
             />
             {menuSearch && (
               <button
                 onClick={() => setMenuSearch('')}
-                className="absolute right-2 text-[10px] text-dark-muted hover:text-white bg-dark-card/10 rounded px-1"
+                className="absolute right-2 text-[10px] text-slate-400 dark:text-dark-muted hover:text-slate-900 dark:hover:text-white bg-slate-200/50 dark:bg-dark-card/10 rounded px-1"
               >
                 ✕
               </button>
@@ -486,7 +486,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap transition-all ${
                   activeCategory === cat
                     ? 'bg-primary-500 text-white shadow-sm'
-                    : 'text-dark-muted hover:text-white hover:bg-dark-card/5'
+                    : 'text-slate-700 dark:text-dark-muted hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-card/5'
                 }`}
               >
                 {cat}
@@ -504,10 +504,10 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                 {section.title && (
                   <div
                     onClick={() => toggleSection(section.title)}
-                    className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-dark-muted uppercase tracking-wider cursor-pointer hover:text-primary-600 dark:hover:text-white transition-colors group select-none"
+                    className="sidebar-section-header flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-black dark:text-dark-muted uppercase tracking-wider cursor-pointer hover:text-primary-600 dark:hover:text-white transition-colors group select-none"
                   >
                     <div className="flex items-center gap-2">
-                      <span>{section.title}</span>
+                      <span className="text-black dark:text-dark-muted font-black tracking-wider">{section.title}</span>
                       {section.id && (
                         <div onClick={(e) => e.stopPropagation()}>
                           <FeatureVideoBtn featureId={section.id} variant="icon" />
@@ -530,13 +530,13 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                         <div key={link.name} className="space-y-0.5">
                           <div
                             onClick={() => setExpanded(prev => ({ ...prev, [link.name]: !prev[link.name] }))}
-                            className="sidebar-item flex items-center justify-between cursor-pointer px-2.5 py-1.5 gap-2 transition-all hover:bg-dark-card/5 rounded-xl"
+                            className="sidebar-item flex items-center justify-between cursor-pointer px-2.5 py-1.5 gap-2 transition-all hover:bg-slate-100 dark:hover:bg-dark-card/5 rounded-xl text-slate-800 dark:text-dark-muted"
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
-                              <link.icon size={15} className="flex-shrink-0 text-primary-400" />
-                              <span className="text-xs font-semibold whitespace-nowrap overflow-hidden max-w-[125px] ml-1.5 text-dark-text">{link.name}</span>
+                              <link.icon size={15} className="flex-shrink-0 text-primary-500 dark:text-primary-400" />
+                              <span className="text-xs font-semibold whitespace-nowrap overflow-hidden max-w-[125px] ml-1.5 text-slate-800 dark:text-dark-text">{link.name}</span>
                             </div>
-                            <ChevronDown size={13} className={`flex-shrink-0 transition-transform duration-300 ${expanded[link.name] ? 'rotate-180 text-primary-400' : 'text-dark-muted'}`} />
+                            <ChevronDown size={13} className={`flex-shrink-0 transition-transform duration-300 ${expanded[link.name] ? 'rotate-180 text-primary-500 dark:text-primary-400' : 'text-slate-600 dark:text-dark-muted'}`} />
                           </div>
                           {expanded[link.name] && (
                             <div className="ml-5 pl-2.5 border-l border-primary-500/30 space-y-0.5 mt-0.5">
@@ -546,7 +546,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                                   to={subLink.path}
                                   onClick={handleItemClick}
                                   className={({ isActive }) =>
-                                    `${isActive ? 'text-primary-500 dark:text-primary-400 font-bold bg-primary-500/10 border border-primary-500/20 shadow-sm' : 'text-dark-muted hover:text-primary-600 dark:hover:text-white hover:bg-dark-card/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg`
+                                    `${isActive ? 'text-primary-600 dark:text-primary-400 font-bold bg-primary-500/10 border border-primary-500/20 shadow-sm' : 'text-slate-700 dark:text-dark-muted hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-card/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg font-medium`
                                   }
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
@@ -562,11 +562,11 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                           to={link.path}
                           onClick={handleItemClick}
                           className={({ isActive }) =>
-                            `${isActive ? 'sidebar-item-active font-bold shadow-sm' : 'sidebar-item text-dark-muted hover:text-primary-600 dark:hover:text-white'} flex items-center transition-all duration-200 px-2.5 py-1.5 gap-2 justify-start rounded-xl`
+                            `${isActive ? 'sidebar-item-active font-bold shadow-sm' : 'sidebar-item text-slate-700 dark:text-dark-muted hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-dark-card/5'} flex items-center transition-all duration-200 px-2.5 py-1.5 gap-2 justify-start rounded-xl font-medium`
                           }
                         >
-                          <link.icon size={15} className="flex-shrink-0" />
-                          <span className="text-xs font-semibold transition-all duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[125px] ml-1.5">{link.name}</span>
+                          <link.icon size={15} className="flex-shrink-0 text-slate-600 dark:text-dark-muted" />
+                          <span className="text-xs font-semibold transition-all duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[125px] ml-1.5 text-slate-800 dark:text-dark-text">{link.name}</span>
                         </NavLink>
                       )
                     )}

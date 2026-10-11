@@ -345,20 +345,37 @@ html.light-mode aside h2 {
   color: #0f172a !important;
 }
 
+/* Sidebar Light Mode Headings (Head Text - Dark Black) */
+html.light-mode aside .sidebar-section-header,
+html.light-mode div.fixed.z-40.w-56 .sidebar-section-header,
+html.light-mode div.fixed.z-40.w-56 .sidebar-section-header span,
+html.light-mode div.fixed.z-40.w-56 nav > div > div:first-child,
+html.light-mode div.fixed.z-40.w-56 nav > div > div:first-child span {
+  color: #000000 !important;
+  font-weight: 900 !important;
+}
+
+/* Sidebar Light Mode Items & Sub-items (Sub Text - Slightly less dark black #334155) */
 html.light-mode aside .sidebar-item,
-html.light-mode div.fixed.z-40.w-56 .sidebar-item {
+html.light-mode div.fixed.z-40.w-56 .sidebar-item,
+html.light-mode div.fixed.z-40.w-56 nav a:not(.sidebar-item-active),
+html.light-mode div.fixed.z-40.w-56 nav a:not(.sidebar-item-active) span {
   color: #334155 !important;
   font-weight: 600 !important;
 }
 
 html.light-mode aside .sidebar-item:hover:not(.sidebar-item-active),
-html.light-mode div.fixed.z-40.w-56 .sidebar-item:hover:not(.sidebar-item-active) {
+html.light-mode div.fixed.z-40.w-56 .sidebar-item:hover:not(.sidebar-item-active),
+html.light-mode div.fixed.z-40.w-56 nav a:not(.sidebar-item-active):hover,
+html.light-mode div.fixed.z-40.w-56 nav a:not(.sidebar-item-active):hover span {
   background-color: #f1f5f9 !important;
-  color: #2563eb !important;
+  color: #1d4ed8 !important;
 }
 
 html.light-mode aside .sidebar-item-active,
-html.light-mode div.fixed.z-40.w-56 .sidebar-item-active {
+html.light-mode div.fixed.z-40.w-56 .sidebar-item-active,
+html.light-mode div.fixed.z-40.w-56 nav a.sidebar-item-active,
+html.light-mode div.fixed.z-40.w-56 nav a.sidebar-item-active span {
   background-color: rgba(37, 99, 235, 0.1) !important;
   color: #2563eb !important;
   font-weight: 700 !important;
