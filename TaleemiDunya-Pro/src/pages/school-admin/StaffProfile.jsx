@@ -1273,17 +1273,17 @@ const StaffProfile = () => {
     mono = false
   }) => (
     <div className="flex items-start gap-3">
-      <div className="p-2 rounded-lg bg-primary-500/10 text-primary-400 shrink-0">
+      <div className="p-2 rounded-lg bg-blue-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 shrink-0">
         <Icon size={16} />
       </div>
 
       <div className="min-w-0">
-        <p className="text-[10px] uppercase font-bold text-dark-muted tracking-wider">
+        <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-dark-muted tracking-wider">
           {label}
         </p>
 
         <p
-          className={`font-bold text-sm text-white mt-0.5 break-words ${mono ? 'font-mono' : ''
+          className={`font-bold text-sm text-slate-900 dark:text-white mt-0.5 break-words ${mono ? 'font-mono' : ''
             }`}
         >
           {value || 'N/A'}
@@ -1298,14 +1298,14 @@ const StaffProfile = () => {
       {/* =====================================================
           PROFILE HEADER
       ====================================================== */}
-      <div className="relative rounded-3xl overflow-hidden bg-dark-card border border-dark-border shadow-xl">
+      <div className="relative rounded-3xl overflow-hidden bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border shadow-xl">
 
-        <div className="h-32 bg-gradient-to-r from-purple-900/40 via-primary-900/40 to-blue-900/40 w-full absolute top-0 left-0" />
+        <div className="h-32 bg-gradient-to-r from-purple-900/30 via-primary-900/30 to-blue-900/30 w-full absolute top-0 left-0" />
 
         <div className="relative pt-12 px-6 pb-6 sm:px-10 flex flex-col sm:flex-row items-center sm:items-end gap-6 text-center sm:text-left">
 
           {/* Avatar */}
-          <div className="w-32 h-32 rounded-full border-4 border-dark-card bg-dark-hover flex items-center justify-center overflow-hidden shrink-0 shadow-lg relative z-10">
+          <div className="w-32 h-32 rounded-full border-4 border-white dark:border-dark-card bg-slate-100 dark:bg-dark-hover flex items-center justify-center overflow-hidden shrink-0 shadow-lg relative z-10">
             {staff.photoUrl ? (
               <img
                 src={staff.photoUrl}
@@ -1315,7 +1315,7 @@ const StaffProfile = () => {
             ) : (
               <User
                 size={48}
-                className="text-dark-muted"
+                className="text-slate-400 dark:text-dark-muted"
               />
             )}
           </div>
@@ -1324,7 +1324,7 @@ const StaffProfile = () => {
           <div className="flex-1 pb-2">
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
-              <h1 className="text-3xl font-black text-white">
+              <h1 className="text-3xl font-black text-slate-900 dark:text-white">
                 {staff.name}
               </h1>
 
@@ -1335,25 +1335,24 @@ const StaffProfile = () => {
               </span>
             </div>
 
-            <p className="text-primary-400 font-bold text-lg mb-1">
-              {staff.role || 'Staff'}
-              <span className="text-dark-muted font-normal text-sm">
-                {' '}
+            <p className="text-primary-600 dark:text-primary-400 font-bold text-lg mb-1 flex items-center gap-1.5 justify-center sm:justify-start">
+              <span>{staff.role || 'Staff'}</span>
+              <span className="text-slate-600 dark:text-dark-muted font-medium text-sm">
                 ({staff.department || 'N/A'})
               </span>
             </p>
 
-            <p className="text-dark-muted text-sm font-mono flex items-center justify-center sm:justify-start gap-2">
-              <Hash size={14} />
+            <p className="text-slate-600 dark:text-dark-muted text-sm font-mono flex items-center justify-center sm:justify-start gap-2">
+              <Hash size={14} className="text-slate-400 dark:text-dark-muted" />
               ID: {staff.staffId || 'N/A'}
             </p>
 
             <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
-              <span className="px-3 py-1 rounded-lg bg-primary-500/10 border border-primary-500/20 text-primary-400 text-xs font-bold">
+              <span className="px-3 py-1 rounded-lg bg-blue-50 dark:bg-primary-500/10 border border-blue-200 dark:border-primary-500/20 text-blue-700 dark:text-primary-400 text-xs font-bold">
                 {staffType}
               </span>
 
-              <span className="px-3 py-1 rounded-lg bg-white/5 border border-dark-border text-dark-muted text-xs font-bold">
+              <span className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-dark-border text-slate-700 dark:text-dark-muted text-xs font-bold">
                 Joined {formatDate(staff.joinDate)}
               </span>
             </div>
@@ -1364,7 +1363,7 @@ const StaffProfile = () => {
 
             <button
               onClick={() => navigate(-1)}
-              className="px-6 py-2.5 rounded-xl bg-dark-hover hover:bg-dark-border text-white text-sm font-bold flex items-center justify-center gap-2 transition-all border border-dark-border"
+              className="px-6 py-2.5 rounded-xl bg-white/90 hover:bg-white text-slate-800 dark:bg-dark-hover dark:hover:bg-dark-border dark:text-white text-sm font-bold flex items-center justify-center gap-2 transition-all border border-slate-200/80 dark:border-dark-border shadow-sm cursor-pointer"
             >
               <ArrowLeft size={16} />
               Back to Directory
@@ -1374,7 +1373,7 @@ const StaffProfile = () => {
               onClick={() =>
                 navigate(`/school-admin/staff/edit/${staff.id}`)
               }
-              className="px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary-500/20 transition-all"
+              className="px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary-500/20 transition-all cursor-pointer"
             >
               <User size={16} />
               Edit Profile
@@ -1386,7 +1385,7 @@ const StaffProfile = () => {
       {/* =====================================================
           TABS
       ====================================================== */}
-      <div className="flex overflow-x-auto gap-2 p-1.5 bg-dark-card border border-dark-border rounded-xl scrollbar-thin">
+      <div className="flex overflow-x-auto gap-2 p-1.5 bg-slate-100 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl scrollbar-thin">
 
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -1395,9 +1394,9 @@ const StaffProfile = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`shrink-0 min-w-[120px] py-2.5 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === tab.id
-                ? 'bg-primary-500 text-white shadow-md'
-                : 'text-dark-muted hover:bg-dark-hover hover:text-white'
+              className={`shrink-0 min-w-[120px] py-2.5 px-4 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === tab.id
+                ? 'bg-primary-600 text-white shadow-md'
+                : 'text-slate-700 dark:text-dark-muted hover:bg-white dark:hover:bg-dark-hover hover:text-slate-950 dark:hover:text-white'
                 }`}
             >
               <Icon size={16} />
@@ -1417,7 +1416,7 @@ const StaffProfile = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
             <GlassCard className="p-5">
-              <p className="text-[10px] uppercase font-black text-dark-muted tracking-widest">
+              <p className="text-[10px] uppercase font-black text-slate-500 dark:text-dark-muted tracking-widest">
                 Employment Status
               </p>
 
@@ -1429,31 +1428,31 @@ const StaffProfile = () => {
             </GlassCard>
 
             <GlassCard className="p-5">
-              <p className="text-[10px] uppercase font-black text-dark-muted tracking-widest">
+              <p className="text-[10px] uppercase font-black text-slate-500 dark:text-dark-muted tracking-widest">
                 Staff Type
               </p>
 
-              <p className="text-xl font-black text-white mt-2">
+              <p className="text-xl font-black text-slate-900 dark:text-white mt-2">
                 {staffType}
               </p>
             </GlassCard>
 
             <GlassCard className="p-5">
-              <p className="text-[10px] uppercase font-black text-dark-muted tracking-widest">
+              <p className="text-[10px] uppercase font-black text-slate-500 dark:text-dark-muted tracking-widest">
                 Department
               </p>
 
-              <p className="text-xl font-black text-white mt-2">
+              <p className="text-xl font-black text-slate-900 dark:text-white mt-2">
                 {staff.department || 'N/A'}
               </p>
             </GlassCard>
 
             <GlassCard className="p-5">
-              <p className="text-[10px] uppercase font-black text-dark-muted tracking-widest">
+              <p className="text-[10px] uppercase font-black text-slate-500 dark:text-dark-muted tracking-widest">
                 Service Duration
               </p>
 
-              <p className="text-xl font-black text-white mt-2">
+              <p className="text-xl font-black text-slate-900 dark:text-white mt-2">
                 {getServiceDuration(staff.joinDate)}
               </p>
             </GlassCard>
@@ -1464,11 +1463,11 @@ const StaffProfile = () => {
           <GlassCard className="p-6 border-t-4 border-amber-500">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
               <div>
-                <h3 className="text-lg font-bold flex items-center gap-2 text-white">
-                  <ShieldCheck size={18} className="text-amber-400" />
+                <h3 className="text-lg font-bold flex items-center gap-2 text-slate-900 dark:text-white">
+                  <ShieldCheck size={18} className="text-amber-500 dark:text-amber-400" />
                   Staff Lifecycle & Status
                 </h3>
-                <p className="text-xs text-dark-muted mt-1">
+                <p className="text-xs text-slate-600 dark:text-dark-muted mt-1">
                   Manage staff administrative status (Active, Inactive, On Leave, Suspended, Former Staff)
                 </p>
               </div>
@@ -1477,7 +1476,7 @@ const StaffProfile = () => {
                 <button
                   type="button"
                   onClick={startStatusEdit}
-                  className="premium-button-primary text-sm"
+                  className="premium-button-primary text-sm cursor-pointer"
                 >
                   Edit Status
                 </button>
@@ -1486,7 +1485,7 @@ const StaffProfile = () => {
                   <button
                     type="button"
                     onClick={cancelStatusEdit}
-                    className="premium-button-secondary text-sm"
+                    className="premium-button-secondary text-sm cursor-pointer"
                     disabled={savingStatus}
                   >
                     Cancel
@@ -1494,7 +1493,7 @@ const StaffProfile = () => {
                   <button
                     type="button"
                     onClick={handleStatusSave}
-                    className="premium-button-primary text-sm flex items-center gap-2"
+                    className="premium-button-primary text-sm flex items-center gap-2 cursor-pointer"
                     disabled={savingStatus}
                   >
                     {savingStatus ? 'Saving...' : 'Save Changes'}
@@ -1508,7 +1507,7 @@ const StaffProfile = () => {
                 <span className={`px-4 py-1.5 rounded-full text-sm font-bold w-fit ${getStatusBadgeClass(staff.status)}`}>
                   {staff.status || 'Active'}
                 </span>
-                <p className="text-xs text-dark-muted">
+                <p className="text-xs text-slate-600 dark:text-dark-muted">
                   {staff.status === 'Former Staff'
                     ? 'Staff member is no longer active. Historical records, assignments, and qualifications are preserved.'
                     : staff.status === 'On Leave'
@@ -1523,7 +1522,7 @@ const StaffProfile = () => {
             ) : (
               <div className="space-y-4 pt-2">
                 <div>
-                  <label className="block text-sm font-semibold text-white mb-2">
+                  <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-2">
                     Current Lifecycle Status
                   </label>
                   <select

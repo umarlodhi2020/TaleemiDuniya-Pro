@@ -12,10 +12,11 @@ import {
   UploadCloud
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
-import { getRecords } from '../../services/db';
+import { getRecords, deleteRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Eye } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const StaffManager = () => {
   const navigate = useNavigate();
@@ -39,6 +40,46 @@ const StaffManager = () => {
       console.error("Error fetching staff:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteStaff = async (staffMember) => {
+    const docId = staffMember.raw?.id || staffMember.id;
+    const name = staffMember.name || 'this staff member';
+
+    const result = await Swal.fire({
+      title: 'Delete Staff Member?',
+      text: `Are you sure you want to delete "${name}"? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await deleteRecord('staff', docId);
+        if (res && res.success === false) {
+          throw new Error(res.error || 'Failed to delete');
+        }
+        setStaff(prev => prev.filter(s => s.id !== docId && s.staffId !== docId));
+        Swal.fire({
+          title: 'Deleted!',
+          text: `"${name}" has been removed successfully.`,
+          icon: 'success',
+          timer: 1800,
+          showConfirmButton: false
+        });
+      } catch (error) {
+        console.error("Error deleting staff:", error);
+        Swal.fire({
+          title: 'Error!',
+          text: 'Failed to delete staff member.',
+          icon: 'error'
+        });
+      }
     }
   };
 
@@ -309,30 +350,30 @@ const StaffManager = () => {
             </thead>
             <tbody className="divide-y divide-dark-border">
               {rows.map((r) => (
-                <tr key={r.id} className="group hover:bg-white/5 transition-all">
+                <tr key={r.id} className="group hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
                   <td className="py-5 px-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-500 font-bold border border-primary-500/20">
                         {String(r.name || '').charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-sm">{r.name}</p>
-                        <p className="text-[10px] text-dark-muted font-mono uppercase">ID: {r.staffId}</p>
+                        <p className="font-bold text-sm text-slate-900 dark:text-white">{r.name}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-dark-muted font-mono uppercase">ID: {r.staffId}</p>
                       </div>
                     </div>
                   </td>
                   <td className="py-5 px-4">
-                    <p className="text-sm font-semibold">{r.role}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{r.role}</p>
                   </td>
-                  <td className="py-5 px-4 text-sm text-dark-muted">{r.department}</td>
-                  <td className="py-5 px-4 text-sm text-dark-muted">{r.staffType}</td>
-                  <td className="py-5 px-4 text-sm text-dark-muted">{r.joinDate}</td>
+                  <td className="py-5 px-4 text-sm text-slate-600 dark:text-dark-muted">{r.department}</td>
+                  <td className="py-5 px-4 text-sm text-slate-600 dark:text-dark-muted">{r.staffType}</td>
+                  <td className="py-5 px-4 text-sm text-slate-600 dark:text-dark-muted">{r.joinDate}</td>
                   <td className="py-5 px-4">
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1 text-xs text-dark-muted">
+                      <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-dark-muted">
                         <Mail size={12} /> {r.email}
                       </div>
-                      <div className="flex items-center gap-1 text-xs text-dark-muted">
+                      <div className="flex items-center gap-1 text-xs text-slate-600 dark:text-dark-muted">
                         <Phone size={12} /> {r.phone}
                       </div>
                     </div>
@@ -346,19 +387,23 @@ const StaffManager = () => {
                     <div className="flex items-center justify-end gap-2">
                       <button 
                         onClick={() => navigate(`/school-admin/staff/${r.raw.id || r.raw.staffId || r.id}`)}
-                        className="p-2 hover:bg-emerald-500/10 text-dark-muted hover:text-emerald-500 rounded-lg transition-colors"
+                        className="p-2 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-500 rounded-lg transition-colors cursor-pointer"
                         title="View Profile"
                       >
                         <Eye size={16} />
                       </button>
                       <button 
                         onClick={() => navigate(`/school-admin/staff/edit/${r.raw.id || r.raw.staffId || r.id}`)}
-                        className="p-2 hover:bg-primary-500/10 text-dark-muted hover:text-primary-500 rounded-lg transition-colors"
+                        className="p-2 hover:bg-primary-500/10 text-slate-400 hover:text-primary-500 rounded-lg transition-colors cursor-pointer"
                         title="Edit Profile"
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button className="p-2 hover:bg-red-500/10 text-dark-muted hover:text-red-500 rounded-lg">
+                      <button 
+                        onClick={() => handleDeleteStaff(r)}
+                        className="p-2 hover:bg-red-500/10 text-slate-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                        title="Delete Staff"
+                      >
                         <Trash2 size={16} />
                       </button>
                     </div>
