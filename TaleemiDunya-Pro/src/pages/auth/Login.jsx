@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, LogIn, ShieldAlert, KeyRound, CheckCircle2, Eye, Users, UserPlus, BookOpen, CreditCard, CalendarCheck } from 'lucide-react';
+import { Mail, Lock, LogIn, ShieldAlert, KeyRound, CheckCircle2, Eye, Users, UserPlus, BookOpen, CreditCard, CalendarCheck, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import GlassCard from '../../components/common/GlassCard';
 
 const Login = () => {
+  const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -62,7 +64,19 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-dark-bg flex">
+    <div className="min-h-screen bg-dark-bg flex relative">
+      {/* Theme Toggle Button */}
+      <div className="absolute top-4 right-4 z-50">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="p-2.5 rounded-xl border border-dark-border bg-dark-card hover:bg-dark-hover text-dark-text transition-all flex items-center justify-center shadow-md cursor-pointer"
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {theme === 'dark' ? <Sun size={18} className="text-amber-400" /> : <Moon size={18} className="text-indigo-600" />}
+        </button>
+      </div>
+
       {/* Left Column - Branding & Features */}
       <div className="hidden lg:flex w-5/12 flex-col bg-primary-500/10 relative overflow-hidden">
         {/* Top Content */}

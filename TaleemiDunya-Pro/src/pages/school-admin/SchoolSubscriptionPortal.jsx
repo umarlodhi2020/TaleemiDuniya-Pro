@@ -258,7 +258,7 @@ const SchoolSubscriptionPortal = () => {
       {/* HEADER BANNER */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-white flex items-center gap-3">
+          <h1 className="text-3xl font-black text-dark-text flex items-center gap-3">
             <CreditCard className="text-primary-500" size={32} />
             SaaS Plan, Billing & Online Payment Portal
           </h1>
@@ -404,9 +404,9 @@ const SchoolSubscriptionPortal = () => {
                       )}
                     </div>
 
-                    <h3 className="text-2xl font-black text-white">{plan.name}</h3>
+                    <h3 className="text-2xl font-black text-dark-text">{plan.name}</h3>
                     <div className="my-4">
-                      <span className="text-4xl font-black text-white">Rs. {price.toLocaleString()}</span>
+                      <span className="text-4xl font-black text-dark-text">Rs. {price.toLocaleString()}</span>
                       <span className="text-xs text-dark-muted font-bold block mt-1">
                         per school / {billingCycle === 'monthly' ? 'month' : 'year'}
                       </span>
@@ -415,11 +415,11 @@ const SchoolSubscriptionPortal = () => {
                     <div className="grid grid-cols-2 gap-2 my-4 pt-4 border-t border-dark-border">
                       <div className="p-2.5 rounded-xl bg-white/5 text-center">
                         <span className="text-[10px] font-bold text-dark-muted uppercase block">Students</span>
-                        <span className="text-sm font-black text-white">{plan.maxStudents}</span>
+                        <span className="text-sm font-black text-dark-text">{plan.maxStudents}</span>
                       </div>
                       <div className="p-2.5 rounded-xl bg-white/5 text-center">
                         <span className="text-[10px] font-bold text-dark-muted uppercase block">Staff</span>
-                        <span className="text-sm font-black text-white">{plan.maxStaff}</span>
+                        <span className="text-sm font-black text-dark-text">{plan.maxStaff}</span>
                       </div>
                     </div>
 
@@ -427,7 +427,7 @@ const SchoolSubscriptionPortal = () => {
                     <div className="space-y-3 my-6">
                       <span className="text-[11px] font-black uppercase tracking-wider text-primary-400 block">Included Features:</span>
                       {plan.features.map((feat, i) => (
-                        <div key={i} className="flex items-start gap-2.5 text-xs text-gray-200 font-semibold">
+                        <div key={i} className="flex items-start gap-2.5 text-xs text-dark-text font-semibold">
                           <CheckCircle2 className="text-green-400 shrink-0 mt-0.5" size={15} />
                           <span>{feat}</span>
                         </div>
@@ -485,8 +485,8 @@ const SchoolSubscriptionPortal = () => {
               <span className="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-[10px] font-black uppercase tracking-widest border border-purple-500/30">
                 Modular SaaS Customization
               </span>
-              <h2 className="text-2xl font-black text-white mt-2">Pick Individual Add-on Features</h2>
-              <p className="text-xs text-gray-300 leading-relaxed">
+              <h2 className="text-2xl font-black text-dark-text mt-2">Pick Individual Add-on Features</h2>
+              <p className="text-xs text-dark-muted leading-relaxed">
                 Don't want to upgrade to a full plan? You can purchase specific locked modules individually (`A la Carte`) using instant online card payment. Once paid, the feature will appear in your sidebar menu automatically (`sirf vo hi show ho baki nhi`).
               </p>
             </div>
@@ -546,8 +546,8 @@ const SchoolSubscriptionPortal = () => {
                         </span>
                       </div>
 
-                      <h4 className="text-lg font-black text-white">{feat.title}</h4>
-                      <p className="text-xs text-gray-300 leading-relaxed font-medium">{feat.description}</p>
+                      <h4 className="text-lg font-black text-dark-text">{feat.title}</h4>
+                      <p className="text-xs text-dark-muted leading-relaxed font-medium">{feat.description}</p>
                     </div>
 
                     <div className="pt-4 border-t border-dark-border mt-4 flex items-center justify-between">
@@ -576,8 +576,8 @@ const SchoolSubscriptionPortal = () => {
                       </div>
                     </div>
 
-                    <h4 className="text-lg font-black text-white">{feat.title}</h4>
-                    <p className="text-xs text-gray-300 leading-relaxed font-medium">{feat.description}</p>
+                    <h4 className="text-lg font-black text-dark-text">{feat.title}</h4>
+                    <p className="text-xs text-dark-muted leading-relaxed font-medium">{feat.description}</p>
                   </div>
 
                   <div className="pt-4 border-t border-dark-border mt-4 flex items-center justify-between">
@@ -598,7 +598,7 @@ const SchoolSubscriptionPortal = () => {
         <GlassCard className="p-8 space-y-6 animate-fade-in">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h2 className="text-xl font-black text-white flex items-center gap-2">
+              <h2 className="text-xl font-black text-dark-text flex items-center gap-2">
                 <FileText className="text-primary-500" size={22} /> Official Paid Invoices & Receipts
               </h2>
               <p className="text-xs text-dark-muted mt-1">Download and print verified accounting statements for your school treasury.</p>
@@ -623,11 +623,11 @@ const SchoolSubscriptionPortal = () => {
               </thead>
               <tbody className="divide-y divide-dark-border">
                 {invoicesList.map(inv => (
-                  <tr key={inv.id} className="hover:bg-white/5 transition-all text-xs font-semibold">
+                  <tr key={inv.id} className="hover:bg-dark-hover transition-all text-xs font-semibold">
                     <td className="py-4 px-4 font-mono font-bold text-purple-400">{inv.id}</td>
-                    <td className="py-4 px-4 text-gray-300">{inv.date}</td>
-                    <td className="py-4 px-4 font-bold text-white">{inv.item}</td>
-                    <td className="py-4 px-4 text-gray-300">{inv.gateway}</td>
+                    <td className="py-4 px-4 text-dark-muted">{inv.date}</td>
+                    <td className="py-4 px-4 font-bold text-dark-text">{inv.item}</td>
+                    <td className="py-4 px-4 text-dark-muted">{inv.gateway}</td>
                     <td className="py-4 px-4 font-black text-green-400">Rs. {inv.amount.toLocaleString()}</td>
                     <td className="py-4 px-4">
                       <span className="px-2.5 py-1 rounded-lg bg-green-500/20 text-green-400 font-black uppercase text-[10px] border border-green-500/30">
@@ -751,7 +751,7 @@ const SchoolSubscriptionPortal = () => {
                 <span className="text-xs font-black text-primary-400 uppercase tracking-wider block">
                   {selectedPlan.actionType === 'recharge' ? 'Renew School Subscription' : 'Upgrade School Plan'}
                 </span>
-                <h3 className="text-xl font-black text-white mt-0.5 flex items-center gap-2">
+                <h3 className="text-xl font-black text-dark-text mt-0.5 flex items-center gap-2">
                   <CreditCard className="text-green-400" size={22} />
                   {selectedPlan.name} ({billingCycle.toUpperCase()})
                 </h3>
