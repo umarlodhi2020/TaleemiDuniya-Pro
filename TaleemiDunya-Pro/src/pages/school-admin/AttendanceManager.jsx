@@ -171,26 +171,34 @@ const AttendanceManager = () => {
         <GlassCard className="lg:col-span-3">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <button className="p-2 hover:bg-white/5 rounded-lg text-dark-muted">
+              <button className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-dark-muted">
                 <ChevronLeft size={20} />
               </button>
               <h2 className="text-xl font-bold">{new Date(selectedDate).toDateString()}</h2>
-              <button className="p-2 hover:bg-white/5 rounded-lg text-dark-muted">
+              <button className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-dark-muted">
                 <ChevronRight size={20} />
               </button>
             </div>
             
             <div className="flex gap-2">
-              <div className="bg-black/30 border border-dark-border rounded-xl p-1 flex">
+              <div className="bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-dark-border rounded-xl p-1 flex gap-1 shadow-inner">
                 <button 
                   onClick={() => setSyncMode('manual')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${syncMode === 'manual' ? 'bg-dark-hover text-white' : 'text-dark-muted hover:text-white'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    syncMode === 'manual' 
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
+                      : 'text-slate-600 dark:text-dark-muted hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5'
+                  }`}
                 >
                   Manual Entry
                 </button>
                 <button 
                   onClick={() => setSyncMode('live')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${syncMode === 'live' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-dark-muted hover:text-white'}`}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                    syncMode === 'live' 
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20' 
+                      : 'text-slate-600 dark:text-dark-muted hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-white/5'
+                  }`}
                 >
                   <Fingerprint size={14} /> Live Biometric Sync
                 </button>
@@ -205,29 +213,29 @@ const AttendanceManager = () => {
               <div className="relative z-10 flex flex-col items-center">
                 <div className="w-24 h-24 bg-blue-500/20 rounded-full flex items-center justify-center mb-6 relative border border-blue-500/30">
                   <div className="absolute inset-0 rounded-full border-2 border-blue-400 border-t-transparent animate-spin"></div>
-                  <Fingerprint size={48} className="text-blue-400 animate-pulse" />
+                  <Fingerprint size={48} className="text-blue-500 dark:text-blue-400 animate-pulse" />
                 </div>
                 
-                <h3 className="text-2xl font-black text-white mb-2 flex items-center gap-2">
-                  <Activity className="text-blue-400 animate-pulse" size={24} /> Listening to ADMS Server...
+                <h3 className="text-2xl font-black text-dark-text mb-2 flex items-center gap-2">
+                  <Activity className="text-blue-500 dark:text-blue-400 animate-pulse" size={24} /> Listening to ADMS Server...
                 </h3>
-                <p className="text-sm text-blue-200 max-w-md text-center">
+                <p className="text-sm text-slate-600 dark:text-blue-200 max-w-md text-center">
                   Waiting for biometric scans from ZKTeco/Hardware devices. Attendance will be marked automatically as soon as a student scans.
                 </p>
 
-                <div className="mt-8 p-4 bg-black/40 rounded-xl border border-white/10 w-full max-w-md">
+                <div className="mt-8 p-4 bg-slate-100 dark:bg-black/40 rounded-xl border border-slate-200 dark:border-white/10 w-full max-w-md">
                   <div className="flex items-center justify-between text-xs font-bold text-dark-muted mb-3 uppercase tracking-wider">
                     <span>Recent Scans</span>
                     <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></div> Live</span>
                   </div>
                   {lastScanned ? (
                     <div className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg animate-fade-in">
-                      <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-400">
+                      <div className="w-10 h-10 bg-emerald-500/20 rounded-full flex items-center justify-center text-emerald-500 dark:text-emerald-400">
                         <CheckCircle2 size={20} />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-white">{lastScanned.name}</p>
-                        <p className="text-xs text-emerald-400">Marked Present at {lastScanned.time}</p>
+                        <p className="text-sm font-bold text-dark-text">{lastScanned.name}</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Marked Present at {lastScanned.time}</p>
                       </div>
                     </div>
                   ) : (
@@ -243,7 +251,7 @@ const AttendanceManager = () => {
               <div className="flex justify-end mb-4">
                 <button 
                   onClick={() => setStudents(students.map(s => ({ ...s, status: 'present' })))}
-                  className="px-4 py-2 bg-green-500/10 text-green-500 text-xs font-black uppercase rounded-lg border border-green-500/20 hover:bg-green-500 hover:text-white transition-colors"
+                  className="px-4 py-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black uppercase rounded-xl border border-emerald-500/30 hover:bg-emerald-600 hover:text-white transition-all shadow-sm cursor-pointer"
                 >
                   Mark All Present
                 </button>
@@ -264,7 +272,7 @@ const AttendanceManager = () => {
                   </thead>
                   <tbody className="divide-y divide-dark-border">
                     {students.map((student) => (
-                      <tr key={student.id} className="hover:bg-white/5 transition-colors group">
+                      <tr key={student.id} className="hover:bg-slate-100/60 dark:hover:bg-white/5 transition-colors group">
                         <td className="py-4 px-4 font-mono text-sm">{student.rollNumber}</td>
                         <td className="py-4 px-4">
                           <p className="font-bold text-sm">{student.name}</p>
@@ -273,19 +281,19 @@ const AttendanceManager = () => {
                           <div className="flex items-center justify-center gap-3">
                             <button 
                               onClick={() => updateStatus(student.id, 'present')}
-                              className={`p-2 rounded-xl transition-all ${student.status === 'present' ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-white/5 text-dark-muted hover:bg-green-500/10'}`}
+                              className={`p-2 rounded-xl transition-all ${student.status === 'present' ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-transparent text-dark-muted hover:bg-green-500/10 hover:text-green-600 dark:hover:text-green-400'}`}
                             >
                               <UserCheck size={20} />
                             </button>
                             <button 
                               onClick={() => updateStatus(student.id, 'absent')}
-                              className={`p-2 rounded-xl transition-all ${student.status === 'absent' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-white/5 text-dark-muted hover:bg-red-500/10'}`}
+                              className={`p-2 rounded-xl transition-all ${student.status === 'absent' ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-transparent text-dark-muted hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-400'}`}
                             >
                               <XCircle size={20} />
                             </button>
                             <button 
                               onClick={() => updateStatus(student.id, 'late')}
-                              className={`p-2 rounded-xl transition-all ${student.status === 'late' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-white/5 text-dark-muted hover:bg-orange-500/10'}`}
+                              className={`p-2 rounded-xl transition-all ${student.status === 'late' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'bg-slate-100 dark:bg-white/5 border border-slate-200/50 dark:border-transparent text-dark-muted hover:bg-orange-500/10 hover:text-orange-600 dark:hover:text-orange-400'}`}
                             >
                               <Clock size={20} />
                             </button>

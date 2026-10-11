@@ -39,7 +39,7 @@ const StaffAttendanceHub = () => {
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === t.id ? 'bg-primary-500 text-white shadow-lg' : 'bg-dark-card text-dark-muted hover:text-white border border-dark-border'
+              activeTab === t.id ? 'bg-primary-500 text-white shadow-lg' : 'bg-dark-card text-dark-muted hover:text-dark-text border border-dark-border'
             }`}
           >
             {t.name}
@@ -50,7 +50,7 @@ const StaffAttendanceHub = () => {
       <GlassCard className="p-6">
         {activeTab === 'take' && (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-white border-b border-dark-border pb-2">1. Take Daily Staff Attendance</h2>
+            <h2 className="text-lg font-bold text-dark-text border-b border-dark-border pb-2">1. Take Daily Staff Attendance</h2>
             <p className="text-xs text-dark-muted">Mark manual attendance or sync directly from ZKTeco biometric machine.</p>
             <div className="flex gap-3">
               <button onClick={() => alert('Synced 18 biometric staff punches successfully!')} className="premium-button-primary"><RefreshCw size={16} /> Sync Live Biometric Machine</button>
@@ -61,14 +61,14 @@ const StaffAttendanceHub = () => {
 
         {activeTab === 'raw' && (
           <div className="space-y-4 max-w-lg">
-            <h2 className="text-lg font-bold text-white border-b border-dark-border pb-2">2. Add Raw Machine Punches</h2>
+            <h2 className="text-lg font-bold text-dark-text border-b border-dark-border pb-2">2. Add Raw Machine Punches</h2>
             <div>
               <label className="block text-xs font-bold uppercase mb-1">Staff ID / ZKTeco Card ID</label>
               <input type="text" placeholder="e.g. EMP-104 or Card #88219" className="w-full premium-input text-sm" />
             </div>
             <div>
               <label className="block text-xs font-bold uppercase mb-1">Punch Time</label>
-              <input type="datetime-local" className="w-full premium-input text-sm text-white" />
+              <input type="datetime-local" className="w-full premium-input text-sm text-dark-text" />
             </div>
             <button onClick={() => alert('Raw punch injected into verification queue!')} className="premium-button-primary">Add Raw Punch</button>
           </div>
@@ -76,7 +76,7 @@ const StaffAttendanceHub = () => {
 
         {(activeTab === 'view' || activeTab === 'machine' || activeTab === 'summary') && (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-white border-b border-dark-border pb-2">
+            <h2 className="text-lg font-bold text-dark-text border-b border-dark-border pb-2">
               {activeTab === 'view' ? '3. View Daily Staff Attendance' : activeTab === 'machine' ? '5. Biometric Machine Raw Logs' : '6. Monthly Summary Attendance'}
             </h2>
             <table className="w-full text-left text-xs border border-dark-border rounded-xl overflow-hidden">
@@ -90,11 +90,11 @@ const StaffAttendanceHub = () => {
               </thead>
               <tbody className="divide-y divide-dark-border">
                 {logs.map(l => (
-                  <tr key={l.id} className="hover:bg-white/5">
-                    <td className="p-3 font-bold text-white">{l.staff}</td>
+                  <tr key={l.id} className="hover:bg-slate-100/60 dark:hover:bg-white/5 transition-colors">
+                    <td className="p-3 font-bold text-dark-text">{l.staff}</td>
                     <td className="p-3 font-mono">{l.time}</td>
                     <td className="p-3 text-dark-muted">{l.type}</td>
-                    <td className="p-3 font-bold text-green-400">{l.status}</td>
+                    <td className="p-3 font-bold text-green-500 dark:text-green-400">{l.status}</td>
                   </tr>
                 ))}
               </tbody>
@@ -104,8 +104,8 @@ const StaffAttendanceHub = () => {
 
         {activeTab === 'process' && (
           <div className="space-y-4 text-center py-10">
-            <Database size={48} className="mx-auto text-blue-400 mb-2" />
-            <h3 className="text-xl font-bold text-white">4. Process Raw Machine Data</h3>
+            <Database size={48} className="mx-auto text-blue-500 dark:text-blue-400 mb-2" />
+            <h3 className="text-xl font-bold text-dark-text">4. Process Raw Machine Data</h3>
             <p className="text-xs text-dark-muted max-w-md mx-auto">
               Run verification engine to match raw ZKTeco / face scanner punches against staff shift rules and calculate overtime or deductions.
             </p>
@@ -115,7 +115,7 @@ const StaffAttendanceHub = () => {
 
         {activeTab === 'rule' && (
           <div className="space-y-4 max-w-lg">
-            <h2 className="text-lg font-bold text-white border-b border-dark-border pb-2">7. Attendance Rules & Late Deductions</h2>
+            <h2 className="text-lg font-bold text-dark-text border-b border-dark-border pb-2">7. Attendance Rules & Late Deductions</h2>
             <div className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold mb-1">Shift Start Time</label>
@@ -139,16 +139,16 @@ const StaffAttendanceHub = () => {
 
         {activeTab === 'salary' && (
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-white border-b border-dark-border pb-2">8. Attendance-Linked Salary Calculation</h2>
+            <h2 className="text-lg font-bold text-dark-text border-b border-dark-border pb-2">8. Attendance-Linked Salary Calculation</h2>
             <p className="text-xs text-dark-muted">Calculated monthly payroll based on biometric present days and late deductions.</p>
             <div className="p-4 bg-dark-hover/30 rounded-xl flex justify-between items-center border border-dark-border">
               <div>
-                <p className="font-bold text-white text-sm">Sir Ahmad Raza (Physics)</p>
+                <p className="font-bold text-dark-text text-sm">Sir Ahmad Raza (Physics)</p>
                 <p className="text-xs text-dark-muted font-mono">Present: 26 Days • Late: 0 • Base: Rs. 65,000</p>
               </div>
               <div className="text-right">
-                <p className="text-green-400 font-mono font-bold text-base">Rs. 65,000</p>
-                <button onClick={() => alert('Salary slip generated')} className="text-[10px] text-primary-400 font-bold hover:underline">Approve & Pay</button>
+                <p className="text-green-500 dark:text-green-400 font-mono font-bold text-base">Rs. 65,000</p>
+                <button onClick={() => alert('Salary slip generated')} className="text-[10px] text-primary-500 font-bold hover:underline">Approve & Pay</button>
               </div>
             </div>
           </div>
