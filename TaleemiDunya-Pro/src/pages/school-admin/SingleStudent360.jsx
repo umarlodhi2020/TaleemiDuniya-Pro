@@ -163,7 +163,7 @@ const SingleStudent360 = () => {
               <div className="flex flex-col gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                 <button
                   onClick={() => navigate(`/school-admin/students/edit/${selectedStudent.id}`)}
-                  className="px-6 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary-500/20 transition-all"
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all"
                 >
                   <Edit2 size={16} /> Edit Profile
                 </button>

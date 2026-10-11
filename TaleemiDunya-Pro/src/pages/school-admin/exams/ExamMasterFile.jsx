@@ -21,6 +21,7 @@ import {
   getGradingRules
 } from '../../../services/examService';
 import Swal from 'sweetalert2';
+import { sortClasses } from '../../../utils/classSort';
 
 const DEFAULT_TERMS = [
   '1st Assessment 2025-26',
@@ -112,7 +113,7 @@ const ExamMasterFile = () => {
   const [selectedStudentForMarksheet, setSelectedStudentForMarksheet] = useState('ALL');
 
   const availableClasses = schoolClasses?.length > 0
-    ? schoolClasses.map(c => c.name)
+    ? sortClasses(schoolClasses.map(c => c.name))
     : [];
 
   const availableSections = ['All', 'A', 'B', 'C', 'D', 'Boys', 'Girls'];

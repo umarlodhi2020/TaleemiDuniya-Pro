@@ -17,15 +17,22 @@ import {
   BarChart2,
   ShieldCheck,
   PlusCircle,
-  Clock
+  Clock,
+  Settings,
+  Database,
+  CheckCircle2,
+  X
 } from 'lucide-react';
 import StatCard from '../../components/common/StatCard';
 import GlassCard from '../../components/common/GlassCard';
 import ModuleGrid from '../../components/school-admin/ModuleGrid';
 import { getRecords, addRecord, updateRecord } from '../../services/db';
+import { uploadToCloudinary } from '../../services/cloudinary';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { useNavigate } from 'react-router-dom';
+import { db } from '../../services/firebase';
+import { writeBatch, doc, collection } from 'firebase/firestore';
 
 const SchoolAdminDashboard = () => {
   const { userData } = useAuth();
@@ -35,6 +42,120 @@ const SchoolAdminDashboard = () => {
   const [showData, setShowData] = useState(true);
   const [showChartData, setShowChartData] = useState(true);
   const [chartRange, setChartRange] = useState('Last 7 Days');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const [setupForm, setSetupForm] = useState({
+    name: schoolData?.name || '',
+    phone: schoolData?.phone || '',
+    address: schoolData?.address || ''
+  });
+  const [logoFile, setLogoFile] = useState(null);
+  const [csvFile, setCsvFile] = useState(null);
+  const [isSavingSetup, setIsSavingSetup] = useState(false);
+
+  useEffect(() => {
+    if (schoolData) {
+      setSetupForm({
+        name: schoolData.name || '',
+        phone: schoolData.phone || '',
+        address: schoolData.address || ''
+      });
+      const isDismissed = localStorage.getItem(`onboarding_dismissed_${schoolData.id}`);
+      if (schoolData.id && schoolData.onboardingCompleted !== true && !isDismissed) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [schoolData]);
+
+  const parseAndUploadCSV = async (file, schoolId) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const text = e.target.result;
+          const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+          if (lines.length < 2) return resolve(0);
+          
+          const headers = lines[0].split(',').map(h => h.trim());
+          const rows = [];
+          for (let i = 1; i < lines.length; i++) {
+            const vals = lines[i].split(',').map(v => v.trim());
+            const rowObj = {};
+            headers.forEach((h, idx) => { rowObj[h] = vals[idx] || ''; });
+            if (rowObj[headers[0]]) rows.push(rowObj);
+          }
+
+          const batch = writeBatch(db);
+          rows.forEach((row) => {
+            const docId = doc(collection(db, 'students')).id;
+            const docRef = doc(db, 'students', docId);
+            batch.set(docRef, {
+              ...row,
+              schoolId,
+              createdAt: new Date(),
+              importedVia: 'SetupWizard'
+            });
+          });
+          await batch.commit();
+          resolve(rows.length);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.readAsText(file);
+    });
+  };
+
+  const handleFinishOnboarding = async () => {
+    if (!setupForm.name.trim()) {
+      alert("School Name is required!");
+      return;
+    }
+    
+    setIsSavingSetup(true);
+    try {
+      const schoolId = userData?.schoolId || schoolData?.id;
+      if (!schoolId) throw new Error("School ID not found");
+
+      let logoUrl = schoolData?.logo || '';
+      if (logoFile) {
+        const uploadRes = await uploadToCloudinary(logoFile, {
+          folder: `taleemidunya/${schoolId}/logos`,
+          publicId: `logo_${schoolId}_${Date.now()}`
+        });
+        if (uploadRes && uploadRes.success) {
+          logoUrl = uploadRes.url;
+        }
+      }
+
+      let studentsImported = 0;
+      if (csvFile) {
+        studentsImported = await parseAndUploadCSV(csvFile, schoolId);
+      }
+
+      await updateRecord('schools', schoolId, { 
+        name: setupForm.name,
+        phone: setupForm.phone,
+        address: setupForm.address,
+        logo: logoUrl,
+        onboardingCompleted: true 
+      });
+
+      if (studentsImported > 0) {
+        alert(`Setup completed successfully! ${studentsImported} students imported.`);
+      } else {
+        alert("Setup completed successfully!");
+      }
+
+      setShowOnboarding(false);
+      window.location.reload(); // Refresh to apply new data
+    } catch (error) {
+      console.error("Error updating onboarding status:", error);
+      alert("An error occurred during setup: " + error.message);
+    } finally {
+      setIsSavingSetup(false);
+    }
+  };
 
   // Real data state with realistic fallbacks
   const [realStats, setRealStats] = useState({
@@ -309,7 +430,115 @@ const SchoolAdminDashboard = () => {
   const schoolName = userData?.schoolName || schoolData?.name || userData?.name || userData?.displayName || 'TaleemiDunya Pro School System';
 
   return (
-    <div className="space-y-6 animate-fade-in pb-16 text-dark-text">
+    <div className="space-y-6 animate-fade-in pb-16 text-dark-text relative">
+      
+      {showOnboarding && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-dark-card border border-dark-border rounded-2xl p-6 md:p-8 max-w-2xl w-full shadow-2xl animate-fade-in relative my-8">
+            <button onClick={() => {
+              setShowOnboarding(false);
+              if (schoolData?.id) {
+                localStorage.setItem(`onboarding_dismissed_${schoolData.id}`, 'true');
+              }
+            }} className="absolute top-4 right-4 text-dark-muted hover:text-white transition-colors">
+              <X size={24} />
+            </button>
+            
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3 border border-blue-500/30">
+                <ShieldCheck size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-white tracking-tight">Welcome to TaleemiDunya!</h2>
+              <p className="text-dark-muted text-sm mt-1">Let's set up your school profile and data directly here.</p>
+            </div>
+
+            <div className="space-y-5">
+              {/* School Profile Section */}
+              <div className="bg-dark-hover border border-dark-border rounded-xl p-5">
+                <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+                  <Settings size={18} className="text-purple-400"/> 1. School Profile
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">School Name *</label>
+                    <input 
+                      type="text" 
+                      className="w-full premium-input bg-dark-bg" 
+                      value={setupForm.name} 
+                      onChange={e => setSetupForm({...setupForm, name: e.target.value})}
+                      placeholder="e.g. Smart Angels School" 
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">Phone Number</label>
+                    <input 
+                      type="text" 
+                      className="w-full premium-input bg-dark-bg" 
+                      value={setupForm.phone} 
+                      onChange={e => setSetupForm({...setupForm, phone: e.target.value})}
+                      placeholder="0300-1234567" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">Address</label>
+                    <input 
+                      type="text" 
+                      className="w-full premium-input bg-dark-bg" 
+                      value={setupForm.address} 
+                      onChange={e => setSetupForm({...setupForm, address: e.target.value})}
+                      placeholder="Main Street, City" 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Logo Section */}
+              <div className="bg-dark-hover border border-dark-border rounded-xl p-5">
+                <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+                  <Eye size={18} className="text-pink-400"/> 2. School Logo (Optional)
+                </h3>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => setLogoFile(e.target.files[0])}
+                  className="w-full text-sm text-slate-600 dark:text-dark-muted file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-all cursor-pointer border border-slate-200 dark:border-dark-border rounded-xl"
+                />
+                {logoFile && <p className="text-xs text-green-400 mt-2">Logo selected: {logoFile.name}</p>}
+              </div>
+
+              {/* CSV Import Section */}
+              <div className="bg-dark-hover border border-dark-border rounded-xl p-5">
+                <h3 className="text-white font-bold text-base mb-2 flex items-center gap-2">
+                  <Database size={18} className="text-emerald-400"/> 3. Import Students CSV (Optional)
+                </h3>
+                <p className="text-xs text-dark-muted mb-4">Upload a CSV file with columns: <span className="font-mono text-white">rollNumber, name, class, section, phone</span></p>
+                <input 
+                  type="file" 
+                  accept=".csv"
+                  onChange={e => setCsvFile(e.target.files[0])}
+                  className="w-full text-sm text-slate-600 dark:text-dark-muted file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 transition-all cursor-pointer border border-slate-200 dark:border-dark-border rounded-xl"
+                />
+                {csvFile && <p className="text-xs text-green-400 mt-2">CSV selected: {csvFile.name}</p>}
+              </div>
+            </div>
+
+            <div className="mt-8 text-center pt-4 border-t border-dark-border">
+              <button 
+                onClick={handleFinishOnboarding}
+                disabled={isSavingSetup}
+                className="px-8 py-3 w-full sm:w-auto rounded-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-lg shadow-lg flex items-center justify-center gap-2 mx-auto transition-colors"
+              >
+                {isSavingSetup ? (
+                  <>Saving & Importing...</>
+                ) : (
+                  <><CheckCircle2 size={20} /> Save & Finish Setup</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Bar EXACT match to STASU Layout */}
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4">
         <div className="flex items-center gap-4 bg-dark-card px-5 py-3 rounded-2xl shadow-sm ">

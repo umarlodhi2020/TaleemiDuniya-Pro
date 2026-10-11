@@ -117,9 +117,9 @@ const SchoolBackups = () => {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
-            <School className="text-primary-500" size={28} /> School Management
+            <School className="text-primary-500" size={28} /> School Backups / Trash
           </h1>
-          <p className="text-dark-muted mt-1">Manage, activate, and monitor all school tenants.</p>
+          <p className="text-dark-muted mt-1">Manage, restore, or permanently delete inactive school tenants.</p>
         </div>
         <div className="flex gap-3">
           <button
@@ -130,10 +130,10 @@ const SchoolBackups = () => {
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
           <button
-            onClick={() => navigate('/super-admin/schools/add')}
-            className="premium-button-primary"
+            onClick={() => navigate('/super-admin/schools')}
+            className="premium-button-secondary"
           >
-            <Plus size={18} /> Onboard New School
+            Go to Active Schools
           </button>
         </div>
       </div>
@@ -143,7 +143,7 @@ const SchoolBackups = () => {
         <GlassCard className="p-5 border-b-2 border-primary-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] text-dark-muted uppercase font-black tracking-widest">Total Schools</p>
+              <p className="text-[10px] text-dark-muted uppercase font-black tracking-widest">Deleted Schools</p>
               <h3 className="text-3xl font-black mt-1">{schools.length}</h3>
             </div>
             <div className="p-2 rounded-xl bg-primary-500/10 text-primary-500"><School size={20} /></div>
@@ -256,8 +256,8 @@ const SchoolBackups = () => {
                   <tr>
                     <td colSpan={6} className="py-16 text-center text-dark-muted">
                       <School size={36} className="mx-auto mb-3 opacity-30" />
-                      <p className="font-semibold">No schools found.</p>
-                      <p className="text-xs mt-1">Click "Onboard New School" to add one.</p>
+                      <p className="font-semibold">No deleted schools found in backups.</p>
+                      <p className="text-xs mt-1">Schools that are deleted will appear here for restoration.</p>
                     </td>
                   </tr>
                 ) : (

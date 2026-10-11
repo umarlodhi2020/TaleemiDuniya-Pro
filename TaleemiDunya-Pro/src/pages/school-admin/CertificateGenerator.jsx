@@ -277,14 +277,14 @@ const CertificateGenerator = () => {
                     
                     <div className="inline-block relative mb-12 w-[80%] max-w-[850px] mx-auto">
                       <h3 className="text-[46px] font-serif font-bold text-black pb-4">
-                        {targetPerson.name} {targetPerson.fatherName || targetPerson.parentName ? <span className="font-normal text-[32px] ml-4">S/O {targetPerson.fatherName || targetPerson.parentName}</span> : ''}
+                        {targetPerson.name} {targetPerson.fatherName || targetPerson.parentName ? <span className="font-normal text-[32px] ml-4">{(targetPerson.gender?.toLowerCase() === 'female' || targetPerson.gender?.toLowerCase() === 'f') ? 'D/O' : 'S/O'} {targetPerson.fatherName || targetPerson.parentName}</span> : ''}
                       </h3>
                       {/* Multi-color underline */}
                       <div className="h-[3px] w-full bg-gradient-to-r from-red-500 via-yellow-400 via-green-500 to-blue-500"></div>
                     </div>
                     
                     <div className="text-[28px] font-serif text-black leading-[2] max-w-[850px] mx-auto px-8 relative z-10">
-                      of Class <span className="underline decoration-1 underline-offset-8 px-4">{targetPerson.class || targetPerson.className || '____'}</span> for obtaining cent percent
+                      of Class <span className="underline decoration-1 underline-offset-8 px-4">{targetPerson.class || targetPerson.className || '____'}</span> for obtaining 100%
                       <br />
                       attendance during the month of <span className="underline decoration-2 font-bold px-4 whitespace-nowrap">
                         {(() => {
@@ -370,7 +370,7 @@ const CertificateGenerator = () => {
                       </p>
                     ) : (
                       <p>
-                        This is to certify with high regard that <strong className="underline font-black text-amber-950 px-1">{targetPerson.name}</strong>, Son/Daughter of <strong className="underline font-black text-amber-950 px-1">{targetPerson.parentName || targetPerson.fatherName || 'Respected Parent'}</strong>, bearing Roll Number <strong className="underline font-black text-amber-950 px-1">{targetPerson.rollNumber || 'N/A'}</strong>, was a bonafide student of Class <strong className="underline font-black text-amber-950 px-1">{targetPerson.class || targetPerson.className || '10th'}</strong> in our institution.
+                        This is to certify with high regard that <strong className="underline font-black text-amber-950 px-1">{targetPerson.name}</strong>, {(targetPerson.gender?.toLowerCase() === 'female' || targetPerson.gender?.toLowerCase() === 'f') ? 'Daughter of' : 'Son of'} <strong className="underline font-black text-amber-950 px-1">{targetPerson.parentName || targetPerson.fatherName || 'Respected Parent'}</strong>, bearing Roll Number <strong className="underline font-black text-amber-950 px-1">{targetPerson.rollNumber || 'N/A'}</strong>, was a bonafide student of Class <strong className="underline font-black text-amber-950 px-1">{targetPerson.class || targetPerson.className || '10th'}</strong> in our institution.
                         <br/><br/>
                         According to official school registers, their date of birth is recorded as <strong className="font-black text-amber-950">{targetPerson.dob || '01-Jan-2010'}</strong>. During their academic period with us, their character and general conduct have been <strong className="font-black text-amber-950">Satisfactory & Excellent</strong>.
                         <br/><br/>

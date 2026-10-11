@@ -21,7 +21,9 @@ const CertificatePrintTemplate = ({ student, schoolData }) => {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      
+      <style>
+        {`@media print { @page { size: landscape; } }`}
+      </style>
       {/* Decorative corners - Hide if custom template */}
       {!bgTemplate && (
         <>

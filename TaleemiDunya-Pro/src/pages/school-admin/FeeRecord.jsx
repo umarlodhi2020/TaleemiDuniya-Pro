@@ -835,7 +835,7 @@ const FeeRecord = () => {
             
             alert(`Audit complete! Check browser console (F12) for details.\n\nTotal Vouchers: ${filteredVouchers.length}\nUnpaid Vouchers: ${unpaid.length}\nDuplicates: ${duplicates.length}`);
           }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-dark-card border border-rose-500/50 rounded-xl text-xs font-black text-rose-400 hover:bg-rose-500/10 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-dark-card border border-rose-200 dark:border-rose-500/50 rounded-xl text-xs font-black text-rose-700 dark:text-rose-400 hover:bg-rose-100 transition-all uppercase tracking-widest">
             <Search size={14} /> Audit Unpaid Vouchers
           </button>
         </div>
@@ -890,43 +890,43 @@ const FeeRecord = () => {
                 placeholder="Search student, father, class..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="bg-dark-bg pl-9 pr-4 py-2 rounded-xl border border-dark-border text-sm text-white outline-none focus:border-blue-500 transition-all w-56"
+                className="bg-transparent pl-9 pr-4 py-2 rounded-xl border border-gray-300 dark:border-dark-border text-sm text-gray-900 dark:text-white outline-none focus:border-blue-500 transition-all w-56"
               />
             </div>
-            <div className="flex items-center gap-2 bg-dark-bg px-3 py-2 rounded-xl border border-dark-border">
+            <div className="flex items-center gap-2 bg-transparent px-3 py-2 rounded-xl border border-gray-300 dark:border-dark-border">
               <Calendar size={15} className="text-dark-muted" />
               <input
                 type="month"
                 value={selectedMonth}
                 onChange={e => setSelectedMonth(e.target.value)}
-                className="bg-transparent text-sm font-bold text-white outline-none cursor-pointer [color-scheme:dark]"
+                className="bg-transparent text-sm font-bold text-gray-900 dark:text-white outline-none cursor-pointer dark:[color-scheme:dark]"
               />
               {/* Show voucher count for selected month */}
               {(() => {
                 const monthLabel = formatMonthLabel(selectedMonth);
                 const count = vouchers.filter(v => v.month === monthLabel || v.month === selectedMonth).length;
                 return count > 0 ? (
-                  <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-full text-[10px] font-black">
+                  <span className="px-2 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-full text-[10px] font-black">
                     {count} vouchers
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 bg-red-500/15 text-red-400 rounded-full text-[10px] font-black" title="Is month mein koi voucher nahi. Sahi month select karein.">
+                  <span className="px-2 py-0.5 bg-red-500/15 text-red-600 dark:text-red-400 rounded-full text-[10px] font-black" title="Is month mein koi voucher nahi. Sahi month select karein.">
                     ⚠️ No data
                   </span>
                 );
               })()}
             </div>
 
-            <div className="flex items-center gap-2 bg-dark-bg px-3 py-2 rounded-xl border border-dark-border">
+            <div className="flex items-center gap-2 bg-transparent px-3 py-2 rounded-xl border border-gray-300 dark:border-dark-border">
               <Filter size={15} className="text-dark-muted" />
               <select
                 value={selectedClass}
                 onChange={e => setSelectedClass(e.target.value)}
-                className="bg-transparent text-sm font-bold text-white outline-none cursor-pointer"
+                className="bg-transparent text-sm font-bold text-gray-900 dark:text-white outline-none cursor-pointer"
               >
-                <option value="All" className="bg-dark-card">All Classes</option>
+                <option value="All" className="bg-white dark:bg-dark-card text-gray-900 dark:text-white">All Classes</option>
                 {uniqueClasses.map(c => (
-                  <option key={c} value={c} className="bg-dark-card">Class {c}</option>
+                  <option key={c} value={c} className="bg-white dark:bg-dark-card text-gray-900 dark:text-white">Class {c}</option>
                 ))}
               </select>
             </div>

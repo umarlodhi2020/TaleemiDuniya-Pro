@@ -144,6 +144,47 @@ const StudentManager = () => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const handleSwapRollAndGr = async () => {
+    if (!window.confirm("Are you sure you want to swap Roll No and GR No for ALL selected students? This cannot be undone automatically.")) return;
+    
+    setIsBulkUpdating(true);
+    try {
+      const updatedList = [...students];
+      let swappedCount = 0;
+
+      for (const id of selectedIds) {
+        const student = students.find(s => s.id === id);
+        if (!student) continue;
+
+        const currentRoll = student.rollNumber || '';
+        const currentGr = student.admissionNumber || student.grNo || '';
+
+        if (currentRoll || currentGr) {
+          const stuUpdates = {
+            rollNumber: currentGr,
+            admissionNumber: currentRoll,
+            grNo: currentRoll
+          };
+
+          await updateRecord('students', id, stuUpdates);
+          
+          const idx = updatedList.findIndex(s => s.id === id);
+          if (idx !== -1) updatedList[idx] = { ...updatedList[idx], ...stuUpdates };
+          swappedCount++;
+        }
+      }
+      setStudents(updatedList);
+      setSelectedIds([]);
+      setIsBulkEditOpen(false);
+      alert(`Successfully swapped Roll No and GR No for ${swappedCount} students!`);
+    } catch (err) {
+      console.error(err);
+      alert('Error swapping values.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   const handleBulkEditSubmit = async (e) => {
     e.preventDefault();
     const updates = {};
@@ -449,9 +490,11 @@ const StudentManager = () => {
                 )}
                 <th className="pb-4 px-4">Student Name</th>
                 <th className="pb-4 px-4">Roll No</th>
+                {isSpreadsheetMode && <th className="pb-3 px-3">GR No</th>}
                 <th className="pb-3 px-3">Class</th>
                 <th className="pb-3 px-3">Section</th>
                 <th className="pb-3 px-3">Father Name</th>
+                {isSpreadsheetMode && <th className="pb-3 px-3">Gender</th>}
                 <th className="pb-3 px-3">Mobile No</th>
                 <th className="pb-3 px-3">CNIC</th>
                 <th className="pb-3 px-3">Monthly Fee</th>
@@ -483,9 +526,17 @@ const StudentManager = () => {
                       <>
                         <td className="py-2 px-2"><input type="text" value={s.name || ''} onChange={(e) => handleInlineChange(student.id, 'name', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm focus:border-primary-500 outline-none" /></td>
                         <td className="py-2 px-2"><input type="text" value={s.rollNumber || ''} onChange={(e) => handleInlineChange(student.id, 'rollNumber', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm font-mono text-primary-400 focus:border-primary-500 outline-none" /></td>
+                        <td className="py-2 px-2"><input type="text" value={s.admissionNumber || s.grNo || ''} onChange={(e) => handleInlineChange(student.id, 'admissionNumber', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm font-mono text-primary-400 focus:border-primary-500 outline-none" /></td>
                         <td className="py-2 px-2"><input type="text" value={s.class || ''} onChange={(e) => handleInlineChange(student.id, 'class', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm focus:border-primary-500 outline-none" /></td>
                         <td className="py-2 px-2"><input type="text" value={s.section || ''} onChange={(e) => handleInlineChange(student.id, 'section', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm focus:border-primary-500 outline-none" /></td>
                         <td className="py-2 px-2"><input type="text" value={s.fatherName || ''} onChange={(e) => handleInlineChange(student.id, 'fatherName', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm focus:border-primary-500 outline-none" /></td>
+                        <td className="py-2 px-2">
+                          <select value={s.gender || ''} onChange={(e) => handleInlineChange(student.id, 'gender', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm focus:border-primary-500 outline-none">
+                            <option value="">-</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                          </select>
+                        </td>
                         <td className="py-2 px-2"><input type="text" value={s.phone || s.parentPhone || ''} onChange={(e) => handleInlineChange(student.id, 'phone', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm font-mono focus:border-primary-500 outline-none" placeholder="03XX-XXXXXXX" /></td>
                         <td className="py-2 px-2"><input type="text" value={s.cnic || s.fatherCnic || ''} onChange={(e) => handleInlineChange(student.id, 'cnic', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm font-mono focus:border-primary-500 outline-none" placeholder="XXXXX-XXXXXXX-X" /></td>
                         <td className="py-2 px-2"><input type="number" value={s.monthlyFee || ''} onChange={(e) => handleInlineChange(student.id, 'monthlyFee', e.target.value)} className="w-full bg-dark-hover border border-dark-border rounded px-2 py-1 text-sm focus:border-primary-500 outline-none" placeholder="0" /></td>
@@ -693,6 +744,14 @@ const StudentManager = () => {
               </div>
 
               <div className="flex justify-end gap-3 mt-8">
+                <button 
+                  type="button" 
+                  onClick={handleSwapRollAndGr}
+                  disabled={isBulkUpdating}
+                  className="premium-button-secondary !bg-orange-500/10 !text-orange-500 !border-orange-500/20 hover:!bg-orange-500/20 mr-auto"
+                >
+                  Swap Roll No & GR No
+                </button>
                 <button 
                   type="button" 
                   onClick={() => setIsBulkEditOpen(false)}

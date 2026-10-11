@@ -14,6 +14,15 @@ class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
     console.error("TaleemiDunya ErrorBoundary Caught an Error:", error, errorInfo);
+
+    // Automatically recover when a new deployment renders an old cached chunk obsolete
+    if (error?.message?.includes('dynamically imported module') || error?.message?.includes('Failed to fetch')) {
+      const reloadKey = 'chunk_reload_' + window.location.hash;
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, 'true');
+        window.location.reload();
+      }
+    }
   }
 
   handleReload = () => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ClipboardList, FileText, ArrowLeft, RefreshCw, Printer, Download, Eye, Layers, Calendar, Filter, Sparkles
+  ClipboardList, FileText, ArrowLeft, RefreshCw, Printer, Download, Eye, Layers, Calendar, Filter, Sparkles, FileSpreadsheet, Type, Minus, Plus
 } from 'lucide-react';
 import GlassCard from '../../../components/common/GlassCard';
 import { useAuth } from '../../../context/AuthContext';
@@ -10,7 +10,9 @@ import { getRecords } from '../../../services/db';
 import { getExams, getGradingRules, calculateGrade } from '../../../services/examService';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import Swal from 'sweetalert2';
+import { sortClasses } from '../../../utils/classSort';
 
 const ExamReportSummary = () => {
   const navigate = useNavigate();
@@ -24,6 +26,16 @@ const ExamReportSummary = () => {
   const [selectedTerm, setSelectedTerm] = useState('');
   const [reportType, setReportType] = useState('WITH_MARKS'); // 'WITH_MARKS' | 'WITHOUT_MARKS'
   
+  // Custom font size for print & table preview with localStorage memory (default 12px)
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem('taleemi_report_font_size');
+    return saved ? parseInt(saved, 10) : 12;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('taleemi_report_font_size', String(fontSize));
+  }, [fontSize]);
+
   const [dbClasses, setDbClasses] = useState([]);
   const [termsList, setTermsList] = useState([]);
   const [masterFiles, setMasterFiles] = useState([]);
@@ -64,29 +76,23 @@ const ExamReportSummary = () => {
       const masterClasses = (masterFilesData || []).map(m => m.className || m.class).filter(Boolean);
       const examClasses = (examsData || []).flatMap(e => e.classes || [e.class || e.className]).filter(Boolean);
 
-      const existingClassesList = Array.from(new Set([
+      const existingClassesList = sortClasses(Array.from(new Set([
         ...contextClasses,
         ...createdClasses,
         ...studentClasses,
         ...masterClasses,
         ...examClasses
-      ])).filter(Boolean).sort();
+      ])).filter(Boolean));
 
       setDbClasses(existingClassesList);
       if (existingClassesList.length > 0) {
         setSelectedClass(existingClassesList[0]);
       }
 
-      // 2. Extract ONLY actual existing terms/exams created in school
+      // Extract unique terms/exam names strictly from the Exams collection
       const dbExamNames = (examsData || []).map(e => e.examName || e.title || e.name).filter(Boolean);
-      const masterTermNames = (masterFilesData || []).map(m => m.termName || m.term || m.examName).filter(Boolean);
-      const resultTermNames = (resultsData || []).map(r => r.examName || r.term).filter(Boolean);
 
-      const createdTerms = Array.from(new Set([
-        ...dbExamNames,
-        ...masterTermNames,
-        ...resultTermNames
-      ])).filter(Boolean);
+      const createdTerms = Array.from(new Set([...dbExamNames]));
 
       setTermsList(createdTerms);
       if (createdTerms.length > 0) {
@@ -124,18 +130,8 @@ const ExamReportSummary = () => {
       return termMatches && classMatches;
     });
 
-    // 2. Extract from actual entered results FIRST. This is the most accurate source of truth for which subjects were actually evaluated.
-    const resSubjNames = Array.from(new Set(resForClass.map(r => r.subject || r.subjectName).filter(Boolean)));
-    if (resSubjNames.length > 0) {
-      return resSubjNames.map(name => {
-        const sampleRes = resForClass.find(r => (r.subject || r.subjectName) === name);
-        const max = Number(sampleRes?.totalMarks || 25);
-        const pass = Number(sampleRes?.passingMarks || sampleRes?.passMarks || Math.round(max * 0.33));
-        return { name, totalMarks: max, passMarks: pass };
-      });
-    }
-
-    // 3. Fallback to master file ONLY if no results exist
+    // 2. FIRST check if a Master File exists for this exact class and term.
+    // The Master File is the definitive source of truth for the syllabus and which subjects to include.
     const mDoc = masterFiles.find(m => {
       const mClass = String(m.className || m.class || '').trim().toLowerCase();
       const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
@@ -144,11 +140,26 @@ const ExamReportSummary = () => {
     });
 
     if (mDoc?.subjects?.length > 0) {
-      return mDoc.subjects.map(s => ({
-        name: s.subjectName || s.name,
-        totalMarks: Number(s.totalMarks || s.maxMarks || 100),
-        passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || 100) * 0.33))
-      }));
+      // Filter out explicitly excluded subjects
+      const includedSubjects = mDoc.subjects.filter(s => s.included !== false);
+      if (includedSubjects.length > 0) {
+        return includedSubjects.map(s => ({
+          name: s.subjectName || s.name,
+          totalMarks: Number(s.totalMarks || s.maxMarks || 25),
+          passMarks: Number(s.totalMarks || s.maxMarks || 25) * 0.4
+        }));
+      }
+    }
+
+    // 3. Fallback to actual entered results ONLY if no Master File exists.
+    const resSubjNames = Array.from(new Set(resForClass.map(r => r.subject || r.subjectName).filter(Boolean)));
+    if (resSubjNames.length > 0) {
+      return resSubjNames.map(name => {
+        const sampleRes = resForClass.find(r => (r.subject || r.subjectName) === name);
+        const max = Number(sampleRes?.totalMarks || 25);
+        const pass = max * 0.4;
+        return { name, totalMarks: max, passMarks: pass };
+      });
     }
 
     // 4. Fallback to Exam definition ONLY if no results and no master file exist
@@ -272,7 +283,7 @@ const ExamReportSummary = () => {
       const percentage = totalMaxMarks > 0 ? Math.round(((totalObtainedMarks / totalMaxMarks) * 100) * 10) / 10 : 0;
       const gradeObj = calculateGrade(percentage, 100, gradingRules);
       const gradeStr = typeof gradeObj === 'object' ? (gradeObj?.grade || 'F') : (gradeObj || 'F');
-      const statusStr = hasFailed || percentage < 33 ? 'FAIL' : 'PASS';
+      const statusStr = hasFailed || percentage < 40 ? 'FAIL' : 'PASS';
 
       return {
         sNo: (idx + 1).toString(),
@@ -281,7 +292,7 @@ const ExamReportSummary = () => {
         fatherName: stud.fatherName || '—',
         subjMap,
         totalMax: totalMaxMarks,
-        totalObt: totalObtainedMarks,
+        totalObt: totalObtainedMarks % 1 === 0 ? totalObtainedMarks : Number(totalObtainedMarks).toFixed(1),
         percentage: `${percentage}%`,
         grade: gradeStr,
         status: statusStr
@@ -405,7 +416,11 @@ const ExamReportSummary = () => {
         head,
         body,
         theme: 'grid',
-        styles: { fontSize: 7.5, cellPadding: 1.8, halign: 'center' },
+        styles: { 
+          fontSize: Math.max(6.5, Math.min(10, fontSize * 0.68)), 
+          cellPadding: Math.max(1.5, Math.min(3, fontSize * 0.16)), 
+          halign: 'center' 
+        },
         columnStyles: {
           2: { halign: 'left', fontStyle: 'bold' },
           3: { halign: 'left' }
@@ -414,7 +429,7 @@ const ExamReportSummary = () => {
           fillColor: [30, 58, 138],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 7.5
+          fontSize: Math.max(6.5, Math.min(10, fontSize * 0.68))
         },
         didParseCell: (data) => {
           if (reportType === 'WITH_MARKS' && data.section === 'body' && data.column.index === head[0].length - 1) {
@@ -465,6 +480,62 @@ const ExamReportSummary = () => {
     window.print();
   };
 
+  const handleExportExcel = () => {
+    try {
+      if (!reportRows || reportRows.length === 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'No Data',
+          text: 'There is no report data to export for this class and term.',
+          confirmButtonColor: '#3b82f6'
+        });
+        return;
+      }
+
+      const excelData = reportRows.map((row) => {
+        const item = {
+          'Sr No': row.sNo,
+          'Roll No': row.rollNo,
+          'Student Name': row.name,
+          'Father Name': row.fatherName,
+        };
+
+        if (row.section) {
+          item['Section'] = row.section;
+        }
+
+        activeSubjects.forEach((sub) => {
+          item[sub.name] = row.subjMap[sub.name] !== undefined ? row.subjMap[sub.name] : '';
+        });
+
+        item['Total Marks'] = row.totalMax;
+        item['Obtained Marks'] = row.totalObt;
+        item['Percentage'] = row.percentage;
+        item['Grade'] = row.grade;
+        if (reportType === 'WITH_MARKS') {
+          item['Result Status'] = row.status;
+        }
+
+        return item;
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Term Report');
+      const safeClass = (selectedClass || 'Class').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeTerm = (selectedTerm || 'Term').replace(/[^a-zA-Z0-9_-]/g, '_');
+      XLSX.writeFile(workbook, `Class_Term_Report_${safeClass}_${safeTerm}.xlsx`);
+    } catch (err) {
+      console.error('Error exporting excel:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Export Failed',
+        text: 'Failed to export report to Excel.',
+        confirmButtonColor: '#3b82f6'
+      });
+    }
+  };
+
   const schoolName = schoolData?.schoolName || schoolData?.name || userData?.schoolName || 'Your School Name';
   const logoUrl = schoolData?.branding?.logo || schoolData?.logo || schoolData?.logoUrl || schoolData?.schoolLogo || userData?.schoolLogo || userData?.logo;
   const schoolAddress = schoolData?.address || userData?.schoolAddress || 'Plot #505 Area 36/C Korangi #5, Karachi | Tel: +92 313 2202569';
@@ -487,30 +558,161 @@ const ExamReportSummary = () => {
           border-radius: 10px;
         }
 
+        @page {
+          size: landscape;
+          margin: 0;
+        }
+
         @media print {
-          /* Allows user to print in either Portrait or Landscape. The browser handles scaling better if we use table-layout: fixed and small font sizes */
           @page {
-            margin: 5mm;
+            size: landscape;
+            margin: 0;
           }
-          
-          .printable-report-area {
-            width: 100% !important;
-            max-width: 100% !important;
+
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          /* Hide all UI elements outside the printable report area */
+          header, nav, aside, button, .no-print, [class*="no-print"], .print\\:hidden {
+            display: none !important;
+          }
+
+          main {
             padding: 0 !important;
             margin: 0 !important;
           }
-          
+
+          .printable-report-area {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 4mm 6mm !important;
+            box-sizing: border-box !important;
+            margin: 0 !important;
+            border: 1.5px solid #1e3a8a !important;
+            border-radius: 4px !important;
+            box-shadow: none !important;
+            background: #ffffff !important;
+          }
+
+          .printable-report-area .report-header-banner {
+            padding-bottom: 3px !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+          }
+
+          .printable-report-area .school-logo-img {
+            max-height: 42px !important;
+            max-width: 42px !important;
+          }
+
+          .printable-report-area .school-title-text {
+            font-size: 15px !important;
+            line-height: 1.2 !important;
+            margin: 0 !important;
+          }
+
+          .printable-report-area .school-address-text {
+            font-size: 8.5px !important;
+            margin-top: 1px !important;
+          }
+
+          .printable-report-area .report-sub-bar {
+            padding: 2.5px 6px !important;
+            margin-top: 3px !important;
+            margin-bottom: 3px !important;
+            border-radius: 4px !important;
+          }
+
+          .printable-report-area .report-sub-title {
+            font-size: 10.5px !important;
+            font-weight: 800 !important;
+          }
+
+          .printable-report-area .report-meta-text {
+            font-size: 8.5px !important;
+            font-weight: 700 !important;
+            padding-top: 1px !important;
+          }
+
           .printable-report-area table {
             width: 100% !important;
-            table-layout: fixed !important; 
+            max-width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: auto !important;
+            margin-top: 2px !important;
+            margin-bottom: 2px !important;
+            box-sizing: border-box !important;
           }
-          
-          .printable-report-area th, 
-          .printable-report-area td {
-            word-wrap: break-word !important;
+
+          .printable-report-area thead {
+            display: table-header-group !important;
+            background-color: #1e3a8a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .printable-report-area tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+
+          .printable-report-area th {
+            background-color: #1e3a8a !important;
+            color: #ffffff !important;
+            font-size: ${fontSize}px !important;
+            padding: ${fontSize >= 14 ? '2.5px 1.5px' : fontSize >= 12 ? '2px 1.5px' : '1.5px 1px'} !important;
+            border: 1px solid #1e3a8a !important;
+            white-space: normal !important;
+            word-break: break-word !important;
             overflow-wrap: break-word !important;
-            font-size: ${activeSubjects.length > 8 ? '8px' : '10px'} !important;
-            padding: 2px 1px !important;
+            line-height: 1.1 !important;
+            text-align: center !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+
+          .printable-report-area td {
+            font-size: ${fontSize}px !important;
+            padding: ${fontSize >= 14 ? '2.5px 1.5px' : fontSize >= 12 ? '2px 1.5px' : '1.5px 1px'} !important;
+            line-height: 1.15 !important;
+            border: 1px solid #94a3b8 !important;
+            word-break: break-word !important;
+            text-align: center !important;
+          }
+
+          .printable-report-area .signatures-container {
+            padding-top: 12px !important;
+            padding-bottom: 2px !important;
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+            margin-top: 4px !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+          }
+
+          .printable-report-area .signature-img {
+            height: 40px !important;
+            max-height: 40px !important;
+            width: auto !important;
+            object-fit: contain !important;
+            margin-bottom: -2px !important;
+            transform: scale(1) !important;
+          }
+
+          .printable-report-area .signature-placeholder {
+            height: 22px !important;
+          }
+
+          .printable-report-area .signature-line {
+            width: 140px !important;
+            font-size: 9.5px !important;
+            padding-top: 2px !important;
+            margin-top: 2px !important;
           }
 
           /* Hide scrollbar completely during print */
@@ -520,7 +722,7 @@ const ExamReportSummary = () => {
         }
       `}</style>
       {/* Top Header Banner matching system design */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-dark-card/60 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-xl">
+      <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-4 bg-dark-card/60 backdrop-blur-xl p-6 rounded-3xl border border-white/10 shadow-xl">
         <div className="flex items-center gap-4">
           <div className="p-3.5 bg-primary-500/10 rounded-2xl text-primary-400 border border-primary-500/20">
             <ClipboardList size={28} />
@@ -535,11 +737,12 @@ const ExamReportSummary = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={handlePrint}
-            className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/15 text-slate-800 dark:text-white border border-slate-300 dark:border-white/10 rounded-2xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-sm active:scale-95"
+            title="Print Report"
           >
             <Printer size={15} />
             <span>Print Report</span>
@@ -547,9 +750,20 @@ const ExamReportSummary = () => {
 
           <button
             type="button"
+            onClick={handleExportExcel}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer active:scale-95"
+            title="Export to Excel Spreadsheet"
+          >
+            <FileSpreadsheet size={15} />
+            <span>Export Excel</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleGeneratePDF}
             disabled={generating}
-            className="px-5 py-2.5 bg-primary-600 hover:bg-primary-500 text-white rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-primary-600/30 transition-all cursor-pointer disabled:opacity-70"
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all cursor-pointer disabled:opacity-70 active:scale-95"
+            title="Download PDF Document"
           >
             {generating ? <RefreshCw size={15} className="animate-spin" /> : <Download size={15} />}
             <span>Download PDF</span>
@@ -558,69 +772,69 @@ const ExamReportSummary = () => {
       </div>
 
       {/* Report Configuration Card */}
-      <GlassCard className="p-6 border-white/10 shadow-xl space-y-4">
+      <GlassCard className="print:hidden p-6 border-white/10 shadow-xl space-y-4">
         
-        <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-          <div className="p-2 bg-primary-500/10 rounded-xl text-primary-400 border border-primary-500/20">
+        <div className="flex items-center gap-3 pb-3 border-b border-slate-200 dark:border-white/10">
+          <div className="p-2 bg-blue-500/10 rounded-xl text-blue-600 dark:text-primary-400 border border-blue-500/20">
             <Sparkles size={18} />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Report Configuration</h2>
-            <p className="text-xs text-dark-muted font-medium">Select class, term, and report style for instant live preview</p>
+            <h2 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider">Report Configuration</h2>
+            <p className="text-xs text-slate-500 dark:text-dark-muted font-medium">Select class, term, and report style for instant live preview</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
           
           {/* Select Class */}
           <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Layers size={13} className="text-primary-400" />
+            <label className="block text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Layers size={13} className="text-blue-600 dark:text-primary-400" />
               <span>1. Select Class</span>
             </label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full px-4 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
+              className="w-full h-[38px] px-3 bg-slate-100 dark:bg-dark-bg/80 border border-slate-300 dark:border-white/10 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
             >
               {dbClasses.length > 0 ? (
                 dbClasses.map((cls, idx) => (
-                  <option key={idx} value={cls}>Class {cls}</option>
+                  <option key={idx} value={cls} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">Class {cls}</option>
                 ))
               ) : (
-                <option value="">No existing classes found</option>
+                <option value="" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">No existing classes found</option>
               )}
             </select>
           </div>
 
           {/* Select Term */}
           <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Calendar size={13} className="text-primary-400" />
+            <label className="block text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Calendar size={13} className="text-blue-600 dark:text-primary-400" />
               <span>2. Select Term</span>
             </label>
             <select
               value={selectedTerm}
               onChange={(e) => setSelectedTerm(e.target.value)}
-              className="w-full px-4 py-2.5 bg-dark-bg/80 border border-white/10 rounded-xl text-xs font-bold text-white focus:outline-none focus:border-primary-500 transition-colors"
+              className="w-full h-[38px] px-3 bg-slate-100 dark:bg-dark-bg/80 border border-slate-300 dark:border-white/10 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
             >
               {termsList.length > 0 ? (
                 termsList.map((term, idx) => (
-                  <option key={idx} value={term}>{term}</option>
+                  <option key={idx} value={term} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">{term}</option>
                 ))
               ) : (
-                <option value="">No existing terms found</option>
+                <option value="" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">No existing terms found</option>
               )}
             </select>
           </div>
 
           {/* Report Type Radios */}
           <div>
-            <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Filter size={13} className="text-primary-400" />
+            <label className="block text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Filter size={13} className="text-blue-600 dark:text-primary-400" />
               <span>3. Report Type</span>
             </label>
-            <div className="flex items-center gap-5 pt-2 text-xs font-bold text-white">
+            <div className="flex items-center gap-4 pt-2 text-xs font-bold text-slate-800 dark:text-white">
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="radio"
@@ -628,7 +842,7 @@ const ExamReportSummary = () => {
                   value="WITH_MARKS"
                   checked={reportType === 'WITH_MARKS'}
                   onChange={() => setReportType('WITH_MARKS')}
-                  className="w-4 h-4 text-primary-500 focus:ring-primary-500 border-white/20 bg-dark-bg cursor-pointer"
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-white/20 bg-slate-100 dark:bg-dark-bg cursor-pointer"
                 />
                 <span>With Marks</span>
               </label>
@@ -640,10 +854,57 @@ const ExamReportSummary = () => {
                   value="WITHOUT_MARKS"
                   checked={reportType === 'WITHOUT_MARKS'}
                   onChange={() => setReportType('WITHOUT_MARKS')}
-                  className="w-4 h-4 text-primary-500 focus:ring-primary-500 border-white/20 bg-dark-bg cursor-pointer"
+                  className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-white/20 bg-slate-100 dark:bg-dark-bg cursor-pointer"
                 />
                 <span>Without Marks</span>
               </label>
+            </div>
+          </div>
+
+          {/* 4. Text Size / Print Scale */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider mb-2 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Type size={13} className="text-blue-600 dark:text-primary-400" />
+                <span>4. Print Text Size</span>
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-blue-100 dark:bg-primary-500/20 text-blue-700 dark:text-primary-300 text-[10px] font-black border border-blue-200 dark:border-primary-500/30">
+                {fontSize}px
+              </span>
+            </label>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setFontSize(prev => Math.max(9, prev - 1))}
+                className="w-10 h-[38px] rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-dark-bg/80 dark:hover:bg-white/10 text-slate-800 dark:text-white border border-slate-300 dark:border-white/10 flex items-center justify-center font-black transition-all active:scale-95 shadow-sm"
+                title="Decrease Text Size"
+              >
+                <Minus size={15} />
+              </button>
+
+              <select
+                value={fontSize}
+                onChange={(e) => setFontSize(Number(e.target.value))}
+                className="flex-1 h-[38px] px-2.5 bg-slate-100 dark:bg-dark-bg/80 border border-slate-300 dark:border-white/10 rounded-xl text-xs font-bold text-slate-800 dark:text-white focus:outline-none focus:border-blue-500 transition-colors shadow-sm"
+              >
+                <option value={9} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">9px (Extra Compact)</option>
+                <option value={10} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">10px (Compact)</option>
+                <option value={11} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">11px (Medium)</option>
+                <option value={12} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">12px (Standard)</option>
+                <option value={13} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">13px (Large)</option>
+                <option value={14} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">14px (Extra Large)</option>
+                <option value={15} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">15px (Jumbo)</option>
+                <option value={16} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">16px (Maximum)</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => setFontSize(prev => Math.min(18, prev + 1))}
+                className="w-10 h-[38px] rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-dark-bg/80 dark:hover:bg-white/10 text-slate-800 dark:text-white border border-slate-300 dark:border-white/10 flex items-center justify-center font-black transition-all active:scale-95 shadow-sm"
+                title="Increase Text Size"
+              >
+                <Plus size={15} />
+              </button>
             </div>
           </div>
 
@@ -654,7 +915,7 @@ const ExamReportSummary = () => {
       {/* LIVE INTERACTIVE REPORT PREVIEW SHEET CONTAINER */}
       <div className="space-y-3 print:space-y-0 print:m-0 print:p-0 print:static">
         
-        <div className="flex items-center justify-between text-xs font-bold text-dark-muted px-2">
+        <div className="print:hidden flex items-center justify-between text-xs font-bold text-dark-muted px-2">
           <div className="flex items-center gap-1.5 text-white">
             <Eye size={15} className="text-primary-400" />
             <span>Interactive Report Preview ({reportType === 'WITH_MARKS' ? 'With Marks' : 'Without Marks - Blank Sheet'})</span>
@@ -669,28 +930,28 @@ const ExamReportSummary = () => {
           <div 
             id="printable-report-card" 
             ref={previewRef}
-            className="printable-report-area bg-white rounded-2xl border-2 border-blue-600 shadow-2xl p-6 md:p-8 text-slate-800 space-y-5 overflow-x-auto mx-auto max-w-5xl print:max-w-none print:w-full print:mx-0 print:border-none print:shadow-none"
+            className="printable-report-area bg-white rounded-2xl border-2 border-blue-600 shadow-2xl p-6 md:p-8 text-slate-800 space-y-5 print:space-y-2 overflow-x-auto mx-auto max-w-5xl print:max-w-none print:w-full print:mx-0 print:border-none print:shadow-none"
           >
             {/* Blue Top Stripe */}
-            <div className="h-1.5 bg-blue-600 -mx-6 -mt-6 md:-mx-8 md:-mt-8 rounded-t-xl mb-4" />
+            <div className="print:hidden h-1.5 bg-blue-600 -mx-6 -mt-6 md:-mx-8 md:-mt-8 rounded-t-xl mb-4" />
 
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+            <div className="report-header-banner flex items-center justify-between border-b border-slate-200 pb-4">
               <div className="w-20 h-20 flex items-center justify-center">
                 {logoUrl ? (
-                  <img src={logoUrl} alt="School Logo" className="max-h-20 max-w-20 object-contain" />
+                  <img src={logoUrl} alt="School Logo" className="school-logo-img max-h-20 max-w-20 object-contain" />
                 ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-blue-900 text-white font-black flex items-center justify-center text-xl shadow-md">
+                  <div className="school-logo-img w-16 h-16 rounded-2xl bg-blue-900 text-white font-black flex items-center justify-center text-xl shadow-md">
                     {schoolName.charAt(0)}
                   </div>
                 )}
               </div>
 
               <div className="text-center flex-1 px-4">
-                <h2 className="text-xl md:text-2xl font-black text-blue-900 uppercase tracking-tight">
+                <h2 className="school-title-text text-xl md:text-2xl font-black text-blue-900 uppercase tracking-tight">
                   {schoolName}
                 </h2>
-                <p className="text-xs font-medium text-slate-500 mt-0.5">
+                <p className="school-address-text text-xs font-medium text-slate-500 mt-0.5">
                   {schoolAddress}
                 </p>
               </div>
@@ -701,13 +962,13 @@ const ExamReportSummary = () => {
             </div>
 
             {/* Report Title Bar */}
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center space-y-1">
-              <h3 className="text-sm font-black text-blue-900 uppercase tracking-wide">
+            <div className="report-sub-bar bg-blue-50 border border-blue-100 rounded-xl p-3 text-center space-y-1">
+              <h3 className="report-sub-title text-sm font-black text-blue-900 uppercase tracking-wide">
                 {reportType === 'WITH_MARKS' 
                   ? 'CLASS TERM REPORT (DETAILED MARKS SUMMARY)'
                   : 'CLASS TERM DIRECTORY (BLANK EVALUATION SHEET)'}
               </h3>
-              <div className="flex flex-wrap items-center justify-between text-[11px] font-bold text-slate-700 px-2 pt-1">
+              <div className="report-meta-text flex flex-wrap items-center justify-between text-[11px] font-bold text-slate-700 px-2 pt-1">
                 <span>CLASS: {selectedClass ? selectedClass.toUpperCase() : '—'}</span>
                 <span>TERM / EXAM: {selectedTerm ? selectedTerm.toUpperCase() : '—'}</span>
                 <span>DATE GENERATED: {new Date().toLocaleDateString('en-GB')}</span>
@@ -716,28 +977,37 @@ const ExamReportSummary = () => {
 
             {/* Report Table (Without Sec Column) */}
             <div className="overflow-x-auto print:overflow-visible preview-scroll-container pb-2">
-              <table className="w-full text-left text-xs border-collapse border border-blue-900">
-                <thead className="bg-blue-900 text-white text-[11px]">
+              <table 
+                className="w-full text-left border-collapse border border-blue-900 transition-all"
+                style={{ fontSize: `${fontSize}px` }}
+              >
+                <thead 
+                  className="bg-blue-900 text-white"
+                  style={{ fontSize: `${fontSize}px` }}
+                >
                   <tr>
-                    <th className="p-2 border border-blue-800 text-center w-8">Sr</th>
-                    <th className="p-2 border border-blue-800 text-center w-14">Roll</th>
-                    <th className="p-2 border border-blue-800">Student Name</th>
-                    <th className="p-2 border border-blue-800">Father Name</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-center">Sr</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-center">Roll</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-left">Student Name</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-left">Father Name</th>
 
                     {/* Subject Columns */}
                     {activeSubjects.map((sub, i) => (
-                      <th key={i} className="p-2 border border-blue-800 text-center">{sub.name}</th>
+                      <th key={i} className="p-1 sm:p-2 border border-blue-800 text-center">{sub.name}</th>
                     ))}
 
-                    <th className="p-2 border border-blue-800 text-center w-14">Total</th>
-                    <th className="p-2 border border-blue-800 text-center w-14">Obtained</th>
-                    <th className="p-2 border border-blue-800 text-center w-12">%age</th>
-                    <th className="p-2 border border-blue-800 text-center w-12">Grade</th>
-                    <th className="p-2 border border-blue-800 text-center w-14">Result</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-center">Total</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-center">Obt</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-center">%</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-center">Grade</th>
+                    <th className="p-1 sm:p-2 border border-blue-800 text-center">Result</th>
                   </tr>
                 </thead>
 
-                <tbody className="divide-y divide-slate-300 text-slate-800 text-[11px]">
+                <tbody 
+                  className="divide-y divide-slate-300 text-slate-800"
+                  style={{ fontSize: `${fontSize}px` }}
+                >
                   {reportRows.length > 0 ? (
                     reportRows.map((row, idx) => (
                       <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -780,25 +1050,25 @@ const ExamReportSummary = () => {
             </div>
 
             {/* Signatures Footer */}
-            <div className="pt-20 print:pt-10 print:break-inside-avoid flex items-end justify-between text-xs font-bold text-slate-600 px-10 pb-8">
+            <div className="signatures-container pt-12 print:pt-3 print:break-inside-avoid flex items-end justify-between text-xs font-bold text-slate-600 px-10 pb-4">
               <div className="flex flex-col items-center">
                 {schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass))?.signatureUrl ? (
-                  <img src={schoolData.signatureSettings.rules.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass)).signatureUrl} alt="Class Teacher" className="h-24 max-w-[180px] scale-125 origin-bottom mix-blend-multiply object-contain -mb-2" />
+                  <img src={schoolData.signatureSettings.rules.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass)).signatureUrl} alt="Class Teacher" className="signature-img h-20 max-w-[160px] origin-bottom mix-blend-multiply object-contain -mb-2" />
                 ) : (
-                  <div className="h-16"></div>
+                  <div className="signature-placeholder h-12"></div>
                 )}
-                <div className="w-44 border-t border-slate-400 pt-1 mt-1 text-center">
+                <div className="signature-line w-44 border-t border-slate-400 pt-1 mt-1 text-center">
                   <span>Class Teacher</span>
                 </div>
               </div>
 
               <div className="flex flex-col items-center">
                 {schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl ? (
-                  <img src={schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl} alt="Principal" className="h-24 max-w-[180px] scale-125 origin-bottom mix-blend-multiply object-contain -mb-2" />
+                  <img src={schoolData?.signatureSettings?.principalSignatureUrl || schoolData?.signatureSettings?.rules?.find(r => r.type === 'Principal')?.signatureUrl} alt="Principal" className="signature-img h-20 max-w-[160px] origin-bottom mix-blend-multiply object-contain -mb-2" />
                 ) : (
-                  <div className="h-16"></div>
+                  <div className="signature-placeholder h-12"></div>
                 )}
-                <div className="w-44 border-t border-slate-400 pt-1 mt-1 text-center">
+                <div className="signature-line w-44 border-t border-slate-400 pt-1 mt-1 text-center">
                   <span>Principal Signature</span>
                 </div>
               </div>

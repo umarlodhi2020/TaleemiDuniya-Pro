@@ -14,6 +14,7 @@ import {
 } from '../../../services/examService';
 import { getRecords, upsertRecord } from '../../../services/db';
 import Swal from 'sweetalert2';
+import { sortClasses } from '../../../utils/classSort';
 
 const DEFAULT_TERMS = [
   '1st Assessment 2025-26',
@@ -82,9 +83,9 @@ const MarksEntry = () => {
         getGradingRules(schoolId)
       ]);
 
-      const classList = schoolClasses?.length > 0 
+      const classList = sortClasses(schoolClasses?.length > 0 
         ? schoolClasses.map(c => c.name) 
-        : ['Nursery', 'KG', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th'];
+        : ['Nursery', 'KG', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th']);
       
       setAvailableClasses(classList);
       if (classList.length > 0 && !selectedClass) {

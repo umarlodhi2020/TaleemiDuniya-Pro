@@ -4,6 +4,12 @@ import './index.css'
 import App from './App.jsx'
 import { initOfflineSync } from './services/offline'
 
+// Auto-reload when a new version deployment causes dynamic import chunk hash mismatch
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  window.location.reload();
+});
+
 // Initialize offline sync service
 initOfflineSync()
 

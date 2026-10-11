@@ -14,6 +14,7 @@ import { getRecords } from '../../../services/db';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Swal from 'sweetalert2';
+import { sortClasses } from '../../../utils/classSort';
 
 const DEFAULT_CLASSES = [
   'Nursery', 'PG', 'KG', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th'
@@ -65,6 +66,8 @@ const MarksheetGenerator = () => {
   const [selectionMode, setSelectionMode] = useState('individual'); // 'individual', 'class', 'section', 'selected'
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [checkedStudentIds, setCheckedStudentIds] = useState(new Set());
+  const [marksheetVersion, setMarksheetVersion] = useState('v1'); // 'v1', 'v2'
+  const [printFontSize, setPrintFontSize] = useState(18);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL', 'PASSED', 'FAILED'
@@ -103,13 +106,13 @@ const MarksheetGenerator = () => {
       const masterClasses = (masterFilesData || []).map(m => m.className || m.class).filter(Boolean);
       const examClasses = (examsData || []).flatMap(e => e.classes || [e.class || e.className]).filter(Boolean);
 
-      const existingClassesList = Array.from(new Set([
+      const existingClassesList = sortClasses(Array.from(new Set([
         ...contextClasses,
         ...createdClasses,
         ...studentClasses,
         ...masterClasses,
         ...examClasses
-      ])).filter(Boolean);
+      ])).filter(Boolean));
 
       setDbClasses(existingClassesList);
 
@@ -145,7 +148,7 @@ const MarksheetGenerator = () => {
 
   // Filter students based on Class, Section, and Search Query
   const classStudents = students.filter(s => {
-    const matchesClass = !selectedClass || s.class === selectedClass || s.className === selectedClass;
+    const matchesClass = !selectedClass || selectedClass === 'All' || s.class === selectedClass || s.className === selectedClass;
     const matchesSection = selectedSection === 'All' || s.section === selectedSection;
     const q = searchQuery.toLowerCase().trim();
     const matchesQuery = !q || (
@@ -215,8 +218,8 @@ const MarksheetGenerator = () => {
   });
 
   // Helper: Extract active subjects for a given class and specific term name
-  const getActiveSubjectsForTerm = (targetTermName) => {
-    const targetCls = String(selectedClass || '').trim().toLowerCase();
+  const getActiveSubjectsForTerm = (targetTermName, targetClassOverride = null) => {
+    const targetCls = String(targetClassOverride || selectedClass || '').trim().toLowerCase();
     const targetT = String(targetTermName || '').trim().toLowerCase();
     
     // Find all student IDs that belong to the selected class
@@ -239,18 +242,8 @@ const MarksheetGenerator = () => {
       return termMatches && classMatches;
     });
 
-    // 2. Extract from actual entered results FIRST. This is the most accurate source of truth for which subjects were actually evaluated.
-    const resSubjNames = Array.from(new Set(resForClass.map(r => r.subject || r.subjectName).filter(Boolean)));
-    if (resSubjNames.length > 0) {
-      return resSubjNames.map(name => {
-        const sampleRes = resForClass.find(r => (r.subject || r.subjectName) === name);
-        const max = Number(sampleRes?.totalMarks || 25);
-        const pass = Number(sampleRes?.passingMarks || sampleRes?.passMarks || Math.round(max * 0.33));
-        return { name, totalMarks: max, passMarks: pass };
-      });
-    }
-
-    // 3. Fallback to master file ONLY if no results exist
+    // 2. FIRST check if a Master File exists for this exact class and term.
+    // The Master File is the definitive source of truth for the syllabus and which subjects to include.
     const mDoc = masterFiles.find(m => {
       const mClass = String(m.className || m.class || '').trim().toLowerCase();
       const mTerm = String(m.termName || m.term || m.examName || '').trim().toLowerCase();
@@ -259,11 +252,26 @@ const MarksheetGenerator = () => {
     });
 
     if (mDoc?.subjects?.length > 0) {
-      return mDoc.subjects.map(s => ({
-        name: s.subjectName || s.name,
-        totalMarks: Number(s.totalMarks || s.maxMarks || 25),
-        passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || 25) * 0.33))
-      }));
+      // Filter out explicitly excluded subjects
+      const includedSubjects = mDoc.subjects.filter(s => s.included !== false);
+      if (includedSubjects.length > 0) {
+        return includedSubjects.map(s => ({
+          name: s.subjectName || s.name,
+          totalMarks: Number(s.totalMarks || s.maxMarks || 25),
+          passMarks: Number(s.totalMarks || s.maxMarks || 25) * 0.4
+        }));
+      }
+    }
+
+    // 3. Fallback to actual entered results ONLY if no Master File exists.
+    const resSubjNames = Array.from(new Set(resForClass.map(r => r.subject || r.subjectName).filter(Boolean)));
+    if (resSubjNames.length > 0) {
+      return resSubjNames.map(name => {
+        const sampleRes = resForClass.find(r => (r.subject || r.subjectName) === name);
+        const max = Number(sampleRes?.totalMarks || 25);
+        const pass = max * 0.4;
+        return { name, totalMarks: max, passMarks: pass };
+      });
     }
 
     // 4. Fallback to Exam definition ONLY if no results and no master file exist
@@ -282,7 +290,7 @@ const MarksheetGenerator = () => {
         return classSubjs.map(s => ({
           name: s.subjectName || s.name,
           totalMarks: Number(s.totalMarks || s.maxMarks || 100),
-          passMarks: Number(s.passMarks || s.passingMarks || Math.round((s.totalMarks || 100) * 0.33))
+          passMarks: Number(s.totalMarks || s.maxMarks || 100) * 0.4
         }));
       }
     }
@@ -314,10 +322,13 @@ const MarksheetGenerator = () => {
         let hasFailedSubject = false;
         let hasAnyMarkEntered = false;
 
-        singleActiveSubjects.forEach(subj => {
+        const studentClass = String(student.class || student.className || selectedClass || '').trim();
+        const activeStudentSubjects = getActiveSubjectsForTerm(selectedTerm, studentClass);
+
+        activeStudentSubjects.forEach(subj => {
           const subName = subj.name;
           const max = Number(subj.totalMarks || 100);
-          const pass = Number(subj.passMarks || Math.round(max * 0.33));
+          const pass = max * 0.4;
           totalMaxMarks += max;
 
           let rawVal = null;
@@ -384,7 +395,7 @@ const MarksheetGenerator = () => {
           ? (overallGradeObj?.grade || 'F') 
           : (hasAnyMarkEntered ? overallGradeObj : '—');
 
-        const overallStatus = (hasAnyMarkEntered && !hasFailedSubject && percentage >= 33) ? 'PASS' : (hasAnyMarkEntered ? 'FAIL' : 'UNVERIFIED');
+        const overallStatus = (hasAnyMarkEntered && !hasFailedSubject && percentage >= 40) ? 'PASS' : (hasAnyMarkEntered ? 'FAIL' : 'UNVERIFIED');
 
         // Attendance
         const studAtt = attendanceRecords.filter(a => a.studentId === student.id);
@@ -407,9 +418,9 @@ const MarksheetGenerator = () => {
           termName: selectedTerm,
           subjectRows,
           totalMaxMarks,
-          totalObtainedMarks: hasAnyMarkEntered ? (totalObtainedMarks % 1 === 0 ? String(totalObtainedMarks) : totalObtainedMarks.toFixed(2)) : '0',
+          totalObtainedMarks: hasAnyMarkEntered ? String(Number(totalObtainedMarks.toFixed(2))) : '0',
           rawPercentage: percentage,
-          percentage: hasAnyMarkEntered ? percentage.toFixed(2) : '0.00',
+          percentage: hasAnyMarkEntered ? String(Number(percentage.toFixed(2))) : '0',
           overallGrade: hasAnyMarkEntered ? overallGrade : '—',
           overallStatus,
           hasAnyMarkEntered,
@@ -439,18 +450,6 @@ const MarksheetGenerator = () => {
     // =========================================================================
     const activeTerms = selectedCombinedTerms.length >= 2 ? selectedCombinedTerms : termsList.slice(0, 2);
 
-    // Aggregate unique subjects across all selected terms
-    const allTermSubjectsMap = {};
-    activeTerms.forEach(tName => {
-      const tSubjs = getActiveSubjectsForTerm(tName);
-      tSubjs.forEach(s => {
-        if (!allTermSubjectsMap[s.name]) {
-          allTermSubjectsMap[s.name] = { name: s.name, totalMarks: s.totalMarks, passMarks: s.passMarks };
-        }
-      });
-    });
-    const combinedSubjectsList = Object.values(allTermSubjectsMap);
-
     const compiledCombined = targetStudentsList.map(student => {
       let combinedTotalMax = 0;
       let combinedTotalObtained = 0;
@@ -461,6 +460,19 @@ const MarksheetGenerator = () => {
       // Track totals per term for summary card
       const termTotalsMap = {};
       activeTerms.forEach(t => { termTotalsMap[t] = { obt: 0, max: 0, hasMark: false }; });
+
+      // Calculate subjects for this specific student's class
+      const studentClass = String(student.class || student.className || selectedClass || '').trim();
+      const allTermSubjectsMap = {};
+      activeTerms.forEach(tName => {
+        const tSubjs = getActiveSubjectsForTerm(tName, studentClass);
+        tSubjs.forEach(s => {
+          if (!allTermSubjectsMap[s.name]) {
+            allTermSubjectsMap[s.name] = { name: s.name, totalMarks: s.totalMarks, passMarks: s.passMarks };
+          }
+        });
+      });
+      const combinedSubjectsList = Object.values(allTermSubjectsMap);
 
       combinedSubjectsList.forEach(subj => {
         const subName = subj.name;
@@ -489,7 +501,8 @@ const MarksheetGenerator = () => {
             }
           }
 
-          const termSubjMeta = getActiveSubjectsForTerm(tName).find(s => s.name === subName) || subj;
+          const studentClass = String(student.class || student.className || selectedClass || '').trim();
+          const termSubjMeta = getActiveSubjectsForTerm(tName, studentClass).find(s => s.name === subName) || subj;
           const tMax = Number(termSubjMeta.totalMarks || 100);
 
           let tObtText = '—';
@@ -553,7 +566,7 @@ const MarksheetGenerator = () => {
         const subjPct = subjCombinedMax > 0 ? (subjCombinedObt / subjCombinedMax) * 100 : 0;
         const gObj = calculateGrade(subjPct, 100, gradingRules);
         const subjGrade = typeof gObj === 'object' ? (gObj?.grade || 'F') : (gObj || 'F');
-        const subjPassMarks = Math.round(subjCombinedMax * 0.33);
+        const subjPassMarks = subjCombinedMax * 0.4;
         const subjStatus = subjCombinedObt >= subjPassMarks ? 'PASS' : 'FAIL';
         if (subjStatus === 'FAIL') hasFailedSubject = true;
 
@@ -577,7 +590,7 @@ const MarksheetGenerator = () => {
         ? (overallGradeObj?.grade || 'F') 
         : (hasAnyMarkEntered ? overallGradeObj : '—');
 
-      const overallStatus = (hasAnyMarkEntered && !hasFailedSubject && finalPercentage >= 33) ? 'PASS' : (hasAnyMarkEntered ? 'FAIL' : 'UNVERIFIED');
+      const overallStatus = (hasAnyMarkEntered && !hasFailedSubject && finalPercentage >= 40) ? 'PASS' : (hasAnyMarkEntered ? 'FAIL' : 'UNVERIFIED');
 
       // Attendance
       const studAtt = attendanceRecords.filter(a => a.studentId === student.id);
@@ -601,10 +614,10 @@ const MarksheetGenerator = () => {
         activeTerms,
         subjectRows,
         termTotalsMap,
-        totalMaxMarks: combinedTotalMax % 1 === 0 ? String(combinedTotalMax) : combinedTotalMax.toFixed(1),
-        totalObtainedMarks: hasAnyMarkEntered ? (combinedTotalObtained % 1 === 0 ? String(combinedTotalObtained) : combinedTotalObtained.toFixed(2)) : '0',
+        totalMaxMarks: String(Number(combinedTotalMax.toFixed(1))),
+        totalObtainedMarks: hasAnyMarkEntered ? String(Number(combinedTotalObtained.toFixed(2))) : '0',
         rawPercentage: finalPercentage,
-        percentage: hasAnyMarkEntered ? finalPercentage.toFixed(2) : '0.00',
+        percentage: hasAnyMarkEntered ? String(Number(finalPercentage.toFixed(2))) : '0',
         overallGrade: hasAnyMarkEntered ? overallGrade : '—',
         overallStatus,
         hasAnyMarkEntered,
@@ -658,8 +671,16 @@ const MarksheetGenerator = () => {
     return target;
   };
 
-  const targetStudentsList = getTargetStudents();
-  const generatedMarksheets = computeStudentMarksheets(targetStudentsList);
+  const targetStudentsList = React.useMemo(() => getTargetStudents(), [
+    classStudents, selectionMode, selectedStudentId, selectedSection, checkedStudentIds, statusFilter,
+    reportMode, results, exams, selectedTerm, selectedClass, masterFiles,
+    selectedCombinedTerms, termsList, calcMethod, termWeights, gradingRules, attendanceRecords, selectedSession
+  ]);
+
+  const generatedMarksheets = React.useMemo(() => computeStudentMarksheets(targetStudentsList), [
+    targetStudentsList, reportMode, results, exams, selectedTerm, selectedClass, masterFiles,
+    selectedCombinedTerms, termsList, calcMethod, termWeights, gradingRules, attendanceRecords, selectedSession
+  ]);
 
   // 🎯 PRIMARY ACTION WORKFLOW: Generate & Preview
   const handleGenerateAndPreview = () => {
@@ -777,14 +798,20 @@ const MarksheetGenerator = () => {
       const instName = activeSchoolName;
       const instSub = schoolData?.tagline || 'A Unique Balance Between Deen-O-Duniya';
 
-      marksheetsArray.forEach((stMarksheet, index) => {
+      for (let index = 0; index < marksheetsArray.length; index++) {
+        const stMarksheet = marksheetsArray[index];
         if (index > 0) doc.addPage();
+
+        // Yield thread every 5 marksheets to prevent browser freezing
+        if (index > 0 && index % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
 
         // Outer Page Border
         doc.setLineWidth(0.5);
         doc.setDrawColor(0, 0, 0);
-        doc.rect(8, 8, 194, 281);
-        doc.rect(9, 9, 192, 279); // double line border effect
+        doc.rect(12.7, 12.7, 184.6, 271.6);
+        doc.rect(13.7, 13.7, 182.6, 269.6); // double line border effect
 
         // School Logo (Top Left)
         if (activeSchoolLogo) {
@@ -809,14 +836,14 @@ const MarksheetGenerator = () => {
         doc.text(instName.toUpperCase(), 105, 23, { align: 'center' });
 
         // Sub-header left & right
-        doc.setFontSize(9);
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(51, 65, 85);
         doc.text('Play Group To Matric', 20, 28);
         doc.text('Reg & Recog', 190, 28, { align: 'right' });
 
         // Marksheet Title (Underlined)
-        doc.setFontSize(12);
+        doc.setFontSize(14);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(15, 23, 42);
         const pdfDocTitle = reportMode === 'combined'
@@ -833,7 +860,7 @@ const MarksheetGenerator = () => {
         doc.setDrawColor(0, 0, 0);
         doc.line(14, 40, 196, 40);
 
-        doc.setFontSize(10);
+        doc.setFontSize(11);
         // Row 1
         doc.setFont('helvetica', 'bold');
         doc.text('Name OF Student', 16, 46);
@@ -920,13 +947,13 @@ const MarksheetGenerator = () => {
             fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            fontSize: 9.5,
+            fontSize: 11,
             halign: 'center',
             lineWidth: 0.3,
             lineColor: [0, 0, 0]
           },
           bodyStyles: {
-            fontSize: 9,
+            fontSize: 11,
             textColor: [0, 0, 0],
             halign: 'center',
             valign: 'middle',
@@ -949,7 +976,7 @@ const MarksheetGenerator = () => {
         const finalY = doc.lastAutoTable?.finalY || 180;
 
         // Result / Grade / Rank Box Below Table
-        doc.setFontSize(11);
+        doc.setFontSize(12);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
 
@@ -967,12 +994,14 @@ const MarksheetGenerator = () => {
         doc.text('Grade:', 150, finalY + 10);
         doc.text(stMarksheet.overallGrade, 168, finalY + 10);
 
-        doc.text('Rank:', 150, finalY + 18);
-        doc.text(stMarksheet.position, 168, finalY + 18);
+        if (!activeExam || activeExam?.visibilityControls?.showRankPosition !== false) {
+          doc.text('Rank:', 150, finalY + 18);
+          doc.text(stMarksheet.position, 168, finalY + 18);
+        }
 
         // Signatures Block at Bottom
-        const sigRow1Y = finalY + 55;
-        doc.setFontSize(9);
+        const sigRow1Y = 270;
+        doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
 
@@ -987,7 +1016,7 @@ const MarksheetGenerator = () => {
         }
         doc.line(130, sigRow1Y, 170, sigRow1Y);
         doc.text('PRINCIPAL', 142, sigRow1Y + 5);
-      });
+      }
 
       doc.save(filename);
       Swal.fire({
@@ -1128,8 +1157,8 @@ const MarksheetGenerator = () => {
             </div>
           </div>
           
-          {/* Grid Row 1: Session, Term Selection, Class, Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Grid Row 1: Session, Term Selection, Class, Section, Version */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             
             {/* Session */}
             <div>
@@ -1205,6 +1234,7 @@ const MarksheetGenerator = () => {
                 onChange={(e) => setSelectedClass(e.target.value)}
                 className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer"
               >
+                <option value="All">All Classes</option>
                 {availableClasses.map((cls, i) => (
                   <option key={i} value={cls}>{cls}</option>
                 ))}
@@ -1223,6 +1253,37 @@ const MarksheetGenerator = () => {
               >
                 {DEFAULT_SECTIONS.map((sec, i) => (
                   <option key={i} value={sec}>{sec === 'All' ? 'All Sections' : `Section ${sec}`}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Version */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                Marksheet Version
+              </label>
+              <select
+                value={marksheetVersion}
+                onChange={(e) => setMarksheetVersion(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer"
+              >
+                <option value="v1">Version 1 (Standard)</option>
+                <option value="v2">Version 2 (Large / No Space)</option>
+              </select>
+            </div>
+
+            {/* Print Font Size */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                Table Text Size
+              </label>
+              <select
+                value={printFontSize}
+                onChange={(e) => setPrintFontSize(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer"
+              >
+                {[12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24].map((size) => (
+                  <option key={size} value={size}>{size}px</option>
                 ))}
               </select>
             </div>
@@ -1493,7 +1554,26 @@ const MarksheetGenerator = () => {
           </GlassCard>
         ) : (
           /* 📄 LIVE MARKSHEET DOCUMENT PREVIEW MATCHING CUSTOM REFERENCE IMAGE */
-          <div className="space-y-6 max-w-4xl mx-auto">
+          <div className="space-y-6 max-w-4xl mx-auto print:max-w-none print:w-full print:m-0">
+              <style>
+              {`
+                @media print { 
+                  @page { margin: 0; size: A4 portrait; } 
+                  body { margin: 0; padding: 0; background: white; }
+                  .printable-report-area { padding: 0 !important; max-width: none !important; width: 100% !important; margin: 0 !important; }
+                  /* Force exact A4 dimensions for each marksheet */
+                  .a4-marksheet-wrapper {
+                    width: 210mm !important;
+                    height: 296mm !important;
+                    padding: 12.7mm !important; /* EXACTLY 0.5 inch margin on all sides */
+                    box-sizing: border-box !important;
+                    margin: 0 !important;
+                    page-break-after: always;
+                    break-after: page;
+                  }
+                }
+              `}
+            </style>
 
             {/* 🛠️ PREVIEW TOOLBAR */}
             <div className="p-4 bg-slate-900 text-white rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg print:hidden">
@@ -1579,27 +1659,30 @@ const MarksheetGenerator = () => {
 
             {/* 🏫 SMART ANGELS GRAMMAR SCHOOL OFFICIAL MARKSHEET DESIGN */}
             <div ref={printableAreaRef} className="printable-report-area">
-            {generatedMarksheets.map((currentPreviewMarksheet, mapIndex) => (
+            {generatedMarksheets.map((currentPreviewMarksheet, mapIndex) => {
+              const cellPad = marksheetVersion === 'v2' ? 'p-3 md:p-5' : 'p-2';
+              return (
               <div 
                 key={currentPreviewMarksheet.studentId}
-                className={`bg-white text-slate-900 border-4 border-slate-900 p-6 md:p-8 space-y-4 font-sans relative shadow-2xl rounded-none ${mapIndex === activePreviewIndex ? 'block' : 'hidden print:block'}`}
-                style={{ pageBreakAfter: 'always', breakAfter: 'page' }}
+                className={`bg-white text-slate-900 font-sans relative shadow-2xl rounded-none a4-marksheet-wrapper mx-auto ${mapIndex === activePreviewIndex ? 'block' : 'hidden print:block'}`}
               >
-                
-                {/* Background Watermark Logo */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 select-none z-0">
-                  {activeSchoolLogo ? (
-                    <img src={activeSchoolLogo} alt="Watermark Logo" className="w-80 h-80 object-contain" />
-                  ) : (
-                    <div className="w-80 h-80 rounded-full border-8 border-slate-900 flex items-center justify-center text-center p-6">
-                      <p className="text-4xl font-black text-slate-900 tracking-wider">
-                        {activeSchoolName.split(' ').map(n => n[0]).join('').slice(0, 4)}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                {/* INNER BORDER CONTAINER THAT STRETCHES TO FILL THE PADDING BOX */}
+                <div className="border-4 border-slate-900 p-6 flex flex-col h-full relative">
+                  
+                  {/* Background Watermark Logo */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 select-none z-0">
+                    {activeSchoolLogo ? (
+                      <img src={activeSchoolLogo} alt="Watermark Logo" className="w-80 h-80 object-contain" />
+                    ) : (
+                      <div className="w-80 h-80 rounded-full border-8 border-slate-900 flex items-center justify-center text-center p-6">
+                        <p className="text-4xl font-black text-slate-900 tracking-wider">
+                          {activeSchoolName.split(' ').map(n => n[0]).join('').slice(0, 4)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
-                <div className="relative z-10 space-y-4">
+                  <div className="relative z-10 space-y-4 flex flex-col flex-1 h-full">
 
                   {/* 1. Header Section */}
                   <div className="space-y-1">
@@ -1621,13 +1704,13 @@ const MarksheetGenerator = () => {
                           {schoolData?.tagline || 'A Unique Balance Between Deen-O-Duniya'}
                         </p>
                         
-                        <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight uppercase">
+                        <h1 className={`text-2xl md:text-3xl font-black tracking-tight uppercase ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>
                           {activeSchoolName}
                         </h1>
 
-                        <div className="flex justify-between items-center text-xs font-bold text-slate-800 px-2 pt-1">
+                        <div className={`flex justify-between items-center text-xs font-bold px-2 pt-1 ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-800'}`}>
                           <span>Play Group To Matric</span>
-                          <span className="font-semibold text-slate-700">Reg & Recog</span>
+                          <span className={`font-semibold ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-700'}`}>Reg & Recog</span>
                         </div>
                       </div>
 
@@ -1647,55 +1730,62 @@ const MarksheetGenerator = () => {
                   </div>
 
                   {/* 2. Student Information Box */}
-                  <div className="border-t-2 border-b-2 border-slate-900 py-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs md:text-sm font-bold">
+                  <div className={`border-t-2 border-b-2 border-slate-900 ${marksheetVersion === 'v2' ? 'py-4 md:py-6 text-base md:text-lg print:text-[18px] text-black' : 'py-3 text-base md:text-lg print:text-[18px]'} grid grid-cols-2 gap-x-6 gap-y-2 font-bold`}>
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-800 font-semibold w-32">Name OF Student</span>
+                      <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32`}>Name OF Student</span>
                       <span>:</span>
-                      <span className="font-black underline uppercase text-slate-900">{currentPreviewMarksheet.studentName}</span>
+                      <span className={`font-black underline uppercase ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.studentName}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-800 font-semibold w-20">Class</span>
+                      <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-20`}>Class</span>
                       <span>:</span>
-                      <span className="font-black text-slate-900">{currentPreviewMarksheet.className}<sup>th</sup></span>
+                      <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.className}<sup>th</sup></span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-800 font-semibold w-32">Father Name</span>
+                      <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32`}>Father Name</span>
                       <span>:</span>
-                      <span className="font-black text-slate-900">{currentPreviewMarksheet.fatherName}</span>
+                      <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.fatherName}</span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-slate-800 font-semibold w-20">GR#</span>
+                      <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-20`}>GR#</span>
                       <span>:</span>
-                      <span className="font-black text-slate-900 font-mono">{currentPreviewMarksheet.rollNo || currentPreviewMarksheet.admissionNo}</span>
+                      <span className={`font-black font-mono ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.rollNo || currentPreviewMarksheet.admissionNo}</span>
                     </div>
                   </div>
 
                   {/* 3. Marksheet Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs md:text-sm border-2 border-slate-900 text-center border-collapse">
+                  <style>{`
+                    @media print {
+                      .dynamic-print-text th, .dynamic-print-text td {
+                        font-size: ${printFontSize}px !important;
+                      }
+                    }
+                  `}</style>
+                  <div className={`overflow-x-auto ${marksheetVersion === 'v2' ? 'flex-1 flex flex-col justify-center' : ''}`}>
+                    <table className={`dynamic-print-text w-full ${marksheetVersion === 'v2' ? 'text-base md:text-xl h-full' : 'text-sm md:text-base'} border-2 border-slate-900 text-center border-collapse`}>
                       <thead>
                         {reportMode === 'single' ? (
                           <tr className="border-b-2 border-slate-900 bg-slate-100 font-black text-slate-900">
-                            <th className="p-2 border-r-2 border-slate-900 text-left pl-3 w-1/3">Subjects</th>
-                            <th className="p-2 border-r-2 border-slate-900 w-24">M.Marks</th>
-                            <th className="p-2 border-r-2 border-slate-900 w-28">Pass Marks</th>
-                            <th className="p-2 border-r-2 border-slate-900 w-28">M.Obtained</th>
-                            <th className="p-2 border-slate-900 w-32">Remarks</th>
+                            <th className={`${cellPad} border-r-2 border-slate-900 text-left pl-3 w-1/3`}>Subjects</th>
+                            <th className={`${cellPad} border-r-2 border-slate-900 w-24`}>M.Marks</th>
+                            <th className={`${cellPad} border-r-2 border-slate-900 w-28`}>Pass Marks</th>
+                            <th className={`${cellPad} border-r-2 border-slate-900 w-28`}>M.Obtained</th>
+                            <th className={`${cellPad} border-slate-900 w-32`}>Remarks</th>
                           </tr>
                         ) : (
                           <tr className="border-b-2 border-slate-900 bg-slate-100 font-black text-slate-900">
-                            <th className="p-2 border-r-2 border-slate-900 text-left pl-3 w-1/3">Subjects</th>
-                            <th className="p-2 border-r-2 border-slate-900 w-20">M.Marks</th>
+                            <th className={`${cellPad} border-r-2 border-slate-900 text-left pl-3 w-1/3`}>Subjects</th>
+                            <th className={`${cellPad} border-r-2 border-slate-900 w-20`}>M.Marks</th>
                             {(currentPreviewMarksheet.activeTerms || selectedCombinedTerms).map((tName, i) => (
-                              <th key={i} className="p-2 border-r-2 border-slate-900 min-w-[70px]">
+                              <th key={i} className={`${cellPad} border-r-2 border-slate-900 min-w-[70px]`}>
                                 {tName}
                               </th>
                             ))}
-                            <th className="p-2 border-r-2 border-slate-900 w-28">M.Obtained</th>
-                            <th className="p-2 border-slate-900 w-28">Remarks</th>
+                            <th className={`${cellPad} border-r-2 border-slate-900 w-28`}>M.Obtained</th>
+                            <th className={`${cellPad} border-slate-900 w-28`}>Remarks</th>
                           </tr>
                         )}
                       </thead>
@@ -1703,27 +1793,29 @@ const MarksheetGenerator = () => {
                       <tbody className="divide-y border-b-2 border-slate-900">
                         {currentPreviewMarksheet.subjectRows.map((subj, idx) => (
                           <tr key={idx} className="font-bold border-b border-slate-900">
-                            <td className="p-2 text-left pl-3 border-r-2 border-slate-900 text-slate-900 font-black">
+                            <td className={`${cellPad} text-left pl-3 border-r-2 border-slate-900 text-slate-900 font-black`}>
                               {subj.subjectName}
                             </td>
 
                             {reportMode === 'single' ? (
                               <>
-                                <td className="p-2 border-r-2 border-slate-900 text-slate-900">{subj.maxMarks}</td>
-                                <td className="p-2 border-r-2 border-slate-900 text-slate-800">{subj.passMarks}</td>
-                                <td className="p-2 border-r-2 border-slate-900 text-slate-900 font-black">{subj.obtainedText}</td>
-                                <td className="p-2 border-slate-900 font-bold text-slate-800">{subj.grade || subj.status}</td>
+                                <td className={`${cellPad} border-r-2 border-slate-900 text-slate-900`}>{subj.maxMarks}</td>
+                                <td className={`${cellPad} border-r-2 border-slate-900 text-slate-800`}>
+                                  {subj.passMarks}
+                                </td>
+                                <td className={`${cellPad} border-r-2 border-slate-900 text-slate-900 font-black`}>{subj.obtainedText}</td>
+                                <td className={`${cellPad} border-slate-900 font-bold text-slate-800`}>{subj.grade || subj.status}</td>
                               </>
                             ) : (
                               <>
-                                <td className="p-2 border-r-2 border-slate-900 text-slate-900">{subj.combinedMax}</td>
+                                <td className={`${cellPad} border-r-2 border-slate-900 text-slate-900`}>{subj.combinedMax}</td>
                                 {(currentPreviewMarksheet.activeTerms || selectedCombinedTerms).map((tName, i) => (
-                                  <td key={i} className="p-2 border-r-2 border-slate-900 text-slate-800">
+                                  <td key={i} className={`${cellPad} border-r-2 border-slate-900 text-slate-800`}>
                                     {subj.termBreakdown?.[tName]?.obtText || '—'}
                                   </td>
                                 ))}
-                                <td className="p-2 border-r-2 border-slate-900 text-slate-900 font-black">{subj.combinedObtainedText}</td>
-                                <td className="p-2 border-slate-900 font-bold text-slate-800">{subj.grade || subj.status}</td>
+                                <td className={`${cellPad} border-r-2 border-slate-900 text-slate-900 font-black`}>{subj.combinedObtainedText}</td>
+                                <td className={`${cellPad} border-slate-900 font-bold text-slate-800`}>{subj.grade || subj.status}</td>
                               </>
                             )}
                           </tr>
@@ -1731,28 +1823,28 @@ const MarksheetGenerator = () => {
 
                         {/* TOTAL ROW MATCHING REFERENCE IMAGE */}
                         <tr className="font-black bg-slate-100 text-slate-900 border-t-2 border-slate-900">
-                          <td className="p-2 text-left pl-3 border-r-2 border-slate-900 uppercase">TOTAL</td>
-                          <td className="p-2 border-r-2 border-slate-900">{currentPreviewMarksheet.totalMaxMarks}</td>
+                          <td className={`${cellPad} text-left pl-3 border-r-2 border-slate-900 uppercase`}>TOTAL</td>
+                          <td className={`${cellPad} border-r-2 border-slate-900`}>{currentPreviewMarksheet.totalMaxMarks}</td>
                           {reportMode === 'single' ? (
-                            <td className="p-2 border-r-2 border-slate-900">
+                            <td className={`${cellPad} border-r-2 border-slate-900`}>
                               {currentPreviewMarksheet.subjectRows.reduce((acc, curr) => acc + Number(curr.passMarks || 0), 0)}
                             </td>
                           ) : (
                             (currentPreviewMarksheet.activeTerms || selectedCombinedTerms).map((tName, i) => (
-                              <td key={i} className="p-2 border-r-2 border-slate-900">
+                              <td key={i} className={`${cellPad} border-r-2 border-slate-900`}>
                                 {currentPreviewMarksheet.termTotalsMap?.[tName]?.obt || 0}
                               </td>
                             ))
                           )}
-                          <td className="p-2 border-r-2 border-slate-900 font-black text-slate-900">{currentPreviewMarksheet.totalObtainedMarks}</td>
-                          <td className="p-2 border-slate-900 font-black text-blue-900 text-base">{currentPreviewMarksheet.percentage}%</td>
+                          <td className={`${cellPad} border-r-2 border-slate-900 font-black text-slate-900`}>{currentPreviewMarksheet.totalObtainedMarks}</td>
+                          <td className={`${cellPad} border-slate-900 font-black text-blue-900 text-base`}>{currentPreviewMarksheet.percentage}%</td>
                         </tr>
                       </tbody>
                     </table>
                   </div>
 
                   {/* 4. Result / Grade / Rank Summary */}
-                  <div className="flex justify-between items-start text-sm md:text-base font-black text-slate-900 pt-2 px-2">
+                  <div className={`flex justify-between items-start ${marksheetVersion === 'v2' ? 'text-lg md:text-2xl py-4 text-black' : 'text-base md:text-lg print:text-[16px] pt-2 text-slate-900'} font-black px-2`}>
                     <div className="flex items-center gap-2">
                       <span>Result:</span>
                       <span className={currentPreviewMarksheet.overallStatus === 'PASS' ? 'text-emerald-700 font-black' : 'text-rose-700 font-black'}>
@@ -1762,18 +1854,20 @@ const MarksheetGenerator = () => {
 
                     <div className="space-y-1 text-right">
                       <div className="flex items-center justify-end gap-3">
-                        <span className="font-semibold text-slate-700">Grade:</span>
-                        <span className="font-black text-slate-900 underline text-lg">{currentPreviewMarksheet.overallGrade}</span>
+                        <span className={`font-semibold ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-700'}`}>Grade:</span>
+                        <span className={`font-black underline ${marksheetVersion === 'v2' ? 'text-xl md:text-3xl text-black' : 'text-lg text-slate-900'}`}>{currentPreviewMarksheet.overallGrade}</span>
                       </div>
-                      <div className="flex items-center justify-end gap-3">
-                        <span className="font-semibold text-slate-700">Rank:</span>
-                        <span className="font-black text-slate-900">{currentPreviewMarksheet.position}</span>
-                      </div>
+                      {(!activeExam || activeExam?.visibilityControls?.showRankPosition !== false) && (
+                        <div className="flex items-center justify-end gap-3">
+                          <span className={`font-semibold ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-700'}`}>Rank:</span>
+                          <span className={`font-black ${marksheetVersion === 'v2' ? 'text-lg md:text-2xl text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.position}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* 5. Signatures Footer */}
-                  <div className="pt-20 flex justify-between items-end px-16 text-xs md:text-sm font-bold text-slate-900 pb-8">
+                  <div className="mt-auto pt-10 flex justify-between items-end px-16 text-xs md:text-sm font-bold text-slate-900 pb-2">
                     <div className="flex flex-col items-center">
                       {schoolData?.signatureSettings?.rules?.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass))?.signatureUrl ? (
                         <img src={schoolData.signatureSettings.rules.find(r => r.type === 'Teacher' && String(r.class) === String(selectedClass)).signatureUrl} alt="Class Teacher" className="h-24 max-w-[180px] scale-125 origin-bottom mix-blend-multiply object-contain -mb-2" />
@@ -1795,10 +1889,13 @@ const MarksheetGenerator = () => {
                     </div>
                   </div>
 
+                  </div>
+
                 </div>
 
               </div>
-            ))}
+              );
+            })}
             </div>
 
           </div>

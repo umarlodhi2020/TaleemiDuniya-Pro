@@ -15,17 +15,17 @@
 }
 
 @theme {
-  --color-primary-50: 238 242 255;
-  --color-primary-100: 224 231 255;
-  --color-primary-200: 199 210 254;
-  --color-primary-300: 165 180 252;
-  --color-primary-400: 129 140 248;
-  --color-primary-500: 99 102 241;
-  --color-primary-600: 79 70 229;
-  --color-primary-700: 67 56 202;
-  --color-primary-800: 55 48 163;
-  --color-primary-900: 49 46 129;
-  --color-primary-950: 30 27 75;
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+  --color-primary-950: #1e1b4b;
 
   --color-secondary-50: 253 242 248;
   --color-secondary-100: 252 231 243;
@@ -93,6 +93,16 @@ html.light-mode {
   --color-dark-hover: #f1f5f9 !important;
   --color-dark-text: #0f172a !important;
   --color-dark-muted: #64748b !important;
+  --color-primary-50: #eef2ff !important;
+  --color-primary-100: #e0e7ff !important;
+  --color-primary-200: #c7d2fe !important;
+  --color-primary-300: #818cf8 !important;
+  --color-primary-400: #6366f1 !important;
+  --color-primary-500: #4f46e5 !important;
+  --color-primary-600: #4338ca !important;
+  --color-primary-700: #3730a3 !important;
+  --color-primary-800: #312e81 !important;
+  --color-primary-900: #1e1b4b !important;
 }
 
 html:not(.dark-mode) [class*="bg-dark-hover"],
@@ -634,7 +644,6 @@ html.light-mode header .absolute .border-dark-border {
    Ensure clean, high-contrast black & white printing across all printable modules
    ========================================================================== */
 @page {
-  size: A4 landscape;
   margin: 0 !important;
 }
 
