@@ -13,14 +13,21 @@
     <meta name="apple-mobile-web-app-title" content="TaleemiDunya Pro" />
     <title>TaleemiDunya Pro — School Management SaaS</title>
     <script>
-      // Dark mode is PERMANENT. Light mode is session-only (temporary).
       (function() {
-        // Always restore dark on load — light mode is never saved permanently
-        localStorage.setItem('taleemi_theme', 'dark');
-        // Remove any old forced-light flags
-        localStorage.removeItem('taleemi_theme_forced_light_v2');
-        document.documentElement.classList.add('dark-mode');
-        document.documentElement.classList.remove('light-mode');
+        try {
+          var saved = localStorage.getItem('taleemi_theme');
+          var theme = (saved === 'light' || saved === 'dark') ? saved : 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
+          if (theme === 'light') {
+            document.documentElement.classList.remove('dark', 'dark-mode');
+            document.documentElement.classList.add('light-mode');
+          } else {
+            document.documentElement.classList.remove('light-mode');
+            document.documentElement.classList.add('dark', 'dark-mode');
+          }
+        } catch (e) {
+          document.documentElement.classList.add('dark', 'dark-mode');
+        }
       })();
     </script>
   </head>

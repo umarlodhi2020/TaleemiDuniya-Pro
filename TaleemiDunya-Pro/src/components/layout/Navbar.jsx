@@ -76,7 +76,7 @@ const Navbar = ({ toggleSidebar }) => {
           {/* Mobile Menu Toggle */}
           <button 
             onClick={toggleSidebar}
-            className="md:hidden p-2 -ml-2 text-dark-muted hover:text-white shrink-0"
+            className="md:hidden p-2 -ml-2 text-dark-muted hover:text-primary-600 dark:hover:text-white shrink-0"
           >
             <Menu size={24} />
           </button>
@@ -130,10 +130,10 @@ const Navbar = ({ toggleSidebar }) => {
             </button>
 
             {isShortcutsOpen && (
-              <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#131120]/95 border border-primary-500/30 shadow-2xl backdrop-blur-xl p-3 z-50 animate-fade-in space-y-2">
-                <div className="flex items-center justify-between px-2 pb-2 border-b border-white/10 text-xs font-bold text-white">
-                  <span className="flex items-center gap-1.5"><Zap size={14} className="text-amber-400" /> Quick Operations</span>
-                  <span className="text-[10px] font-mono text-primary-400">Ctrl/Cmd + K</span>
+              <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-white dark:bg-[#131120]/95 border border-slate-200 dark:border-primary-500/30 shadow-2xl backdrop-blur-xl p-3 z-50 animate-fade-in space-y-2">
+                <div className="flex items-center justify-between px-2 pb-2 border-b border-slate-200 dark:border-white/10 text-xs font-bold text-dark-text">
+                  <span className="flex items-center gap-1.5"><Zap size={14} className="text-amber-500" /> Quick Operations</span>
+                  <span className="text-[10px] font-mono text-primary-500">Ctrl/Cmd + K</span>
                 </div>
                 <div className="grid grid-cols-1 gap-1 max-h-80 overflow-y-auto custom-scrollbar">
                   {shortcutsList.map((item, idx) => {
@@ -145,13 +145,13 @@ const Navbar = ({ toggleSidebar }) => {
                           setIsShortcutsOpen(false);
                           navigate(item.path);
                         }}
-                        className="w-full text-left p-2.5 rounded-xl bg-dark-card/5 hover:bg-dark-card/10 transition-all flex items-center gap-3 group"
+                        className="w-full text-left p-2.5 rounded-xl bg-slate-50 dark:bg-dark-card/5 hover:bg-slate-100 dark:hover:bg-dark-card/10 transition-all flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-dark-card/5 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-dark-card/5 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                           <IconComp size={16} className={item.color} />
                         </div>
                         <div className="truncate">
-                          <h5 className="text-xs font-bold text-white group-hover:text-primary-300 transition-colors">{item.title}</h5>
+                          <h5 className="text-xs font-bold text-dark-text group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors">{item.title}</h5>
                           <p className="text-[10px] text-dark-muted font-medium truncate">{item.subtitle}</p>
                         </div>
                       </button>
@@ -183,7 +183,7 @@ const Navbar = ({ toggleSidebar }) => {
             {theme === 'dark' ? <Moon size={12} className="text-indigo-600" /> : <Sun size={12} className="text-amber-500" />}
           </span>
         </button>
-        <button className="relative p-2 text-dark-muted hover:text-white transition-colors shrink-0">
+        <button className="relative p-2 text-dark-muted hover:text-primary-600 dark:hover:text-white transition-colors shrink-0">
           <Bell size={22} />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary-500 rounded-full border-2 border-dark-bg"></span>
         </button>

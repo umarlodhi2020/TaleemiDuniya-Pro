@@ -284,7 +284,7 @@ const StaffPayrollHistoryModal = ({ staffMember, payrollData = [], userData, onC
         <div className="p-4 bg-dark-bg border-t border-dark-border flex justify-end shrink-0">
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-dark-card border border-dark-border text-white hover:bg-white/5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+            className="px-5 py-2 bg-dark-card border border-dark-border text-dark-text hover:bg-dark-hover rounded-xl text-xs font-bold transition-all cursor-pointer"
           >
             Close History
           </button>

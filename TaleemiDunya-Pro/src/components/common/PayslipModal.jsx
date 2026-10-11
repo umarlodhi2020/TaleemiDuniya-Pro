@@ -101,8 +101,8 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
         
         {/* Modal Top Bar - Hidden when printing */}
         <div className="p-4 bg-dark-bg border-b border-dark-border flex justify-between items-center print:hidden">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <FileText className="text-emerald-400" size={20} />
+          <h3 className="font-bold text-dark-text flex items-center gap-2">
+            <FileText className="text-emerald-500" size={20} />
             Official Monthly Payslip
           </h3>
           <div className="flex items-center gap-2">
@@ -157,13 +157,13 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
             <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto">
               <AlertCircle size={32} />
             </div>
-            <h3 className="text-xl font-bold text-white">Payslip Unavailable</h3>
+            <h3 className="text-xl font-bold text-dark-text">Payslip Unavailable</h3>
             <p className="text-sm text-dark-muted max-w-md mx-auto">
-              Official payslips are only available after payroll is processed and finalized. Current status: <span className="font-bold text-amber-400 uppercase">{payslipData.status || 'Draft'}</span>.
+              Official payslips are only available after payroll is processed and finalized. Current status: <span className="font-bold text-amber-500 uppercase">{payslipData.status || 'Draft'}</span>.
             </p>
             <button 
               onClick={onClose}
-              className="px-6 py-2 bg-dark-bg border border-dark-border text-white hover:bg-white/5 rounded-xl text-sm font-bold transition-all"
+              className="px-6 py-2 bg-dark-card border border-dark-border text-dark-text hover:bg-dark-hover rounded-xl text-sm font-bold transition-all cursor-pointer"
             >
               Close
             </button>

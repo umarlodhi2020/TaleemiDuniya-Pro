@@ -430,10 +430,10 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                 </div>
               )}
             <div className="flex flex-col overflow-hidden">
-              <h2 className="text-xs font-black text-black tracking-wide leading-tight truncate">
+              <h2 className="text-xs font-black text-dark-text tracking-wide leading-tight truncate">
                 {schoolData?.name || userData?.schoolName || userData?.name || 'TaleemiDunya'}
               </h2>
-              <span className="text-[9px] font-bold text-cyan-700 tracking-wider font-mono">
+              <span className="text-[9px] font-bold text-cyan-600 dark:text-cyan-400 tracking-wider font-mono">
                 v2.5.0 PRO
               </span>
             </div>
@@ -504,7 +504,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                 {section.title && (
                   <div
                     onClick={() => toggleSection(section.title)}
-                    className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-dark-muted uppercase tracking-wider cursor-pointer hover:text-white transition-colors group select-none"
+                    className="flex items-center justify-between px-2.5 py-1 text-[10px] font-black text-dark-muted uppercase tracking-wider cursor-pointer hover:text-primary-600 dark:hover:text-white transition-colors group select-none"
                   >
                     <div className="flex items-center gap-2">
                       <span>{section.title}</span>
@@ -534,7 +534,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
                               <link.icon size={15} className="flex-shrink-0 text-primary-400" />
-                              <span className="text-xs font-semibold whitespace-nowrap overflow-hidden max-w-[125px] ml-1.5 text-white">{link.name}</span>
+                              <span className="text-xs font-semibold whitespace-nowrap overflow-hidden max-w-[125px] ml-1.5 text-dark-text">{link.name}</span>
                             </div>
                             <ChevronDown size={13} className={`flex-shrink-0 transition-transform duration-300 ${expanded[link.name] ? 'rotate-180 text-primary-400' : 'text-dark-muted'}`} />
                           </div>
@@ -546,7 +546,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                                   to={subLink.path}
                                   onClick={handleItemClick}
                                   className={({ isActive }) =>
-                                    `${isActive ? 'text-primary-400 font-bold bg-primary-500/10 border border-primary-500/20 shadow-sm' : 'text-dark-muted hover:text-white hover:bg-dark-card/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg`
+                                    `${isActive ? 'text-primary-500 dark:text-primary-400 font-bold bg-primary-500/10 border border-primary-500/20 shadow-sm' : 'text-dark-muted hover:text-primary-600 dark:hover:text-white hover:bg-dark-card/5'} flex items-center transition-all duration-200 px-2.5 py-1 text-xs gap-2 rounded-lg`
                                   }
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
@@ -562,7 +562,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                           to={link.path}
                           onClick={handleItemClick}
                           className={({ isActive }) =>
-                            `${isActive ? 'sidebar-item-active font-bold shadow-sm' : 'sidebar-item text-dark-muted hover:text-white'} flex items-center transition-all duration-200 px-2.5 py-1.5 gap-2 justify-start rounded-xl`
+                            `${isActive ? 'sidebar-item-active font-bold shadow-sm' : 'sidebar-item text-dark-muted hover:text-primary-600 dark:hover:text-white'} flex items-center transition-all duration-200 px-2.5 py-1.5 gap-2 justify-start rounded-xl`
                           }
                         >
                           <link.icon size={15} className="flex-shrink-0" />

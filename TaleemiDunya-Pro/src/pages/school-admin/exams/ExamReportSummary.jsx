@@ -728,7 +728,7 @@ const ExamReportSummary = () => {
             <ClipboardList size={28} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-black bg-gradient-to-r from-white via-dark-text to-primary-300 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-black text-dark-text">
               Class Term Report Generator
             </h1>
             <p className="text-xs md:text-sm text-dark-muted font-medium mt-0.5">

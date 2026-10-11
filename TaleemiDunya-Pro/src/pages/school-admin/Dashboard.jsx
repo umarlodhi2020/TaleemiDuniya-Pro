@@ -448,14 +448,14 @@ const SchoolAdminDashboard = () => {
               <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-3 border border-blue-500/30">
                 <ShieldCheck size={32} />
               </div>
-              <h2 className="text-2xl font-black text-white tracking-tight">Welcome to TaleemiDunya!</h2>
+              <h2 className="text-2xl font-black text-dark-text tracking-tight">Welcome to TaleemiDunya!</h2>
               <p className="text-dark-muted text-sm mt-1">Let's set up your school profile and data directly here.</p>
             </div>
 
             <div className="space-y-5">
               {/* School Profile Section */}
               <div className="bg-dark-hover border border-dark-border rounded-xl p-5">
-                <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+                <h3 className="text-dark-text font-bold text-base mb-4 flex items-center gap-2">
                   <Settings size={18} className="text-purple-400"/> 1. School Profile
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -463,7 +463,7 @@ const SchoolAdminDashboard = () => {
                     <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">School Name *</label>
                     <input 
                       type="text" 
-                      className="w-full premium-input bg-dark-bg" 
+                      className="w-full premium-input bg-dark-bg text-dark-text" 
                       value={setupForm.name} 
                       onChange={e => setSetupForm({...setupForm, name: e.target.value})}
                       placeholder="e.g. Smart Angels School" 
@@ -473,7 +473,7 @@ const SchoolAdminDashboard = () => {
                     <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">Phone Number</label>
                     <input 
                       type="text" 
-                      className="w-full premium-input bg-dark-bg" 
+                      className="w-full premium-input bg-dark-bg text-dark-text" 
                       value={setupForm.phone} 
                       onChange={e => setSetupForm({...setupForm, phone: e.target.value})}
                       placeholder="0300-1234567" 
@@ -483,7 +483,7 @@ const SchoolAdminDashboard = () => {
                     <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">Address</label>
                     <input 
                       type="text" 
-                      className="w-full premium-input bg-dark-bg" 
+                      className="w-full premium-input bg-dark-bg text-dark-text" 
                       value={setupForm.address} 
                       onChange={e => setSetupForm({...setupForm, address: e.target.value})}
                       placeholder="Main Street, City" 
@@ -494,7 +494,7 @@ const SchoolAdminDashboard = () => {
 
               {/* Logo Section */}
               <div className="bg-dark-hover border border-dark-border rounded-xl p-5">
-                <h3 className="text-white font-bold text-base mb-4 flex items-center gap-2">
+                <h3 className="text-dark-text font-bold text-base mb-4 flex items-center gap-2">
                   <Eye size={18} className="text-pink-400"/> 2. School Logo (Optional)
                 </h3>
                 <input 
@@ -508,10 +508,10 @@ const SchoolAdminDashboard = () => {
 
               {/* CSV Import Section */}
               <div className="bg-dark-hover border border-dark-border rounded-xl p-5">
-                <h3 className="text-white font-bold text-base mb-2 flex items-center gap-2">
+                <h3 className="text-dark-text font-bold text-base mb-2 flex items-center gap-2">
                   <Database size={18} className="text-emerald-400"/> 3. Import Students CSV (Optional)
                 </h3>
-                <p className="text-xs text-dark-muted mb-4">Upload a CSV file with columns: <span className="font-mono text-white">rollNumber, name, class, section, phone</span></p>
+                <p className="text-xs text-dark-muted mb-4">Upload a CSV file with columns: <span className="font-mono text-dark-text font-bold">rollNumber, name, class, section, phone</span></p>
                 <input 
                   type="file" 
                   accept=".csv"
@@ -646,12 +646,12 @@ const SchoolAdminDashboard = () => {
                     {student.name?.charAt(0) || 'S'}
                   </div>
                   <div>
-                    <p className="font-bold text-white text-sm">{student.name}</p>
+                    <p className="font-bold text-dark-text text-sm">{student.name}</p>
                     <p className="text-xs text-dark-muted">Grade {student.class || 'N/A'} • Sec {student.section || 'A'}</p>
                   </div>
                 </div>
                 <div className="text-right font-mono text-xs">
-                  <span className="px-2 py-0.5 rounded bg-green-500/10 text-green-400 font-bold">Active</span>
+                  <span className="px-2 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400 font-bold">Active</span>
                 </div>
               </div>
             ))}
@@ -660,7 +660,7 @@ const SchoolAdminDashboard = () => {
 
         <GlassCard className="p-6">
           <div className="flex items-center justify-between mb-6 border-b border-dark-border pb-3">
-            <h2 className="text-lg font-bold text-white">Quick Action Shortcuts</h2>
+            <h2 className="text-lg font-bold text-dark-text">Quick Action Shortcuts</h2>
             <span className="text-xs text-dark-muted font-mono">Operations</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -668,53 +668,53 @@ const SchoolAdminDashboard = () => {
               onClick={() => navigate('/school-admin/inquiry-student')}
               className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 hover:border-blue-500 text-left transition-all group"
             >
-              <UserPlus className="text-blue-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
-              <h4 className="text-sm font-bold text-white">Inquiry Student</h4>
-              <p className="text-[10px] text-blue-300/80 mt-0.5 font-bold">New lead & admission</p>
+              <UserPlus className="text-blue-500 dark:text-blue-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
+              <h4 className="text-sm font-bold text-dark-text">Inquiry Student</h4>
+              <p className="text-[10px] text-blue-600 dark:text-blue-300 mt-0.5 font-bold">New lead & admission</p>
             </button>
 
             <button
               onClick={() => navigate('/school-admin/attendance')}
-              className="p-4 rounded-xl bg-dark-hover  hover:border-blue-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover hover:border-blue-500/50 text-left transition-all group"
             >
-              <CalendarCheck className="text-blue-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
-              <h4 className="text-sm font-bold text-white">Mark Attendance</h4>
+              <CalendarCheck className="text-blue-500 dark:text-blue-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
+              <h4 className="text-sm font-bold text-dark-text">Mark Attendance</h4>
               <p className="text-[10px] text-dark-muted mt-0.5">Daily class registry</p>
             </button>
             
             <button
               onClick={() => navigate('/school-admin/collection')}
-              className="p-4 rounded-xl bg-dark-hover  hover:border-green-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover hover:border-green-500/50 text-left transition-all group"
             >
-              <DollarSign className="text-green-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
-              <h4 className="text-sm font-bold text-white">Collect Fee</h4>
+              <DollarSign className="text-green-500 dark:text-green-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
+              <h4 className="text-sm font-bold text-dark-text">Collect Fee</h4>
               <p className="text-[10px] text-dark-muted mt-0.5">Receive student payment</p>
             </button>
 
             <button
               onClick={() => navigate('/school-admin/accounts/expenses')}
-              className="p-4 rounded-xl bg-dark-hover  hover:border-rose-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover hover:border-rose-500/50 text-left transition-all group"
             >
-              <Activity className="text-rose-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
-              <h4 className="text-sm font-bold text-white">Add Expense</h4>
+              <Activity className="text-rose-500 dark:text-rose-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
+              <h4 className="text-sm font-bold text-dark-text">Add Expense</h4>
               <p className="text-[10px] text-dark-muted mt-0.5">Record school voucher</p>
             </button>
 
             <button
               onClick={() => navigate('/school-admin/single-student')}
-              className="p-4 rounded-xl bg-dark-hover  hover:border-purple-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover hover:border-purple-500/50 text-left transition-all group"
             >
-              <Users className="text-purple-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
-              <h4 className="text-sm font-bold text-white">Student 360° Profile</h4>
+              <Users className="text-purple-500 dark:text-purple-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
+              <h4 className="text-sm font-bold text-dark-text">Student 360° Profile</h4>
               <p className="text-[10px] text-dark-muted mt-0.5">Complete single view</p>
             </button>
 
             <button
               onClick={() => navigate('/school-admin/students/add')}
-              className="p-4 rounded-xl bg-dark-hover  hover:border-emerald-500/50 text-left transition-all group"
+              className="p-4 rounded-xl bg-dark-hover hover:border-emerald-500/50 text-left transition-all group"
             >
-              <UserPlus className="text-emerald-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
-              <h4 className="text-sm font-bold text-white">Add Student</h4>
+              <UserPlus className="text-emerald-500 dark:text-emerald-400 mb-2 group-hover:scale-110 transition-transform" size={20} />
+              <h4 className="text-sm font-bold text-dark-text">Add Student</h4>
               <p className="text-[10px] text-dark-muted mt-0.5">Direct enrollment</p>
             </button>
           </div>

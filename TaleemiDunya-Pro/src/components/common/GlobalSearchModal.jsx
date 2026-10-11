@@ -156,12 +156,12 @@ const GlobalSearchModal = ({ isOpen, onClose }) => {
             placeholder="Search students, staff, roll numbers or quick pages..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-transparent border-none outline-none text-white placeholder-dark-muted font-medium text-base"
+            className="w-full bg-transparent border-none outline-none text-dark-text placeholder-dark-muted font-medium text-base"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="p-1 rounded-lg hover:bg-white/10 text-dark-muted hover:text-white transition-colors"
+              className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 text-dark-muted hover:text-dark-text transition-colors"
             >
               <X size={18} />
             </button>
@@ -202,15 +202,15 @@ const GlobalSearchModal = ({ isOpen, onClose }) => {
                       className="flex items-center justify-between p-3 rounded-2xl bg-dark-hover/50 hover:bg-primary-500/15 border border-transparent hover:border-primary-500/30 cursor-pointer group transition-all"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-white/5 text-primary-400 group-hover:bg-primary-500 group-hover:text-white transition-all">
+                        <div className="p-2 rounded-xl bg-slate-100 dark:bg-white/5 text-primary-500 dark:text-primary-400 group-hover:bg-primary-500 group-hover:text-white transition-all">
                           <Icon size={16} />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-white group-hover:text-primary-300 transition-colors">{item.title}</p>
+                          <p className="text-xs font-bold text-dark-text group-hover:text-primary-600 dark:group-hover:text-primary-300 transition-colors">{item.title}</p>
                           <p className="text-[10px] text-dark-muted font-semibold">{item.category}</p>
                         </div>
                       </div>
-                      <ArrowRight size={14} className="text-dark-muted group-hover:text-primary-400 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                      <ArrowRight size={14} className="text-dark-muted group-hover:text-primary-500 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
                     </div>
                   );
                 })}
@@ -222,27 +222,27 @@ const GlobalSearchModal = ({ isOpen, onClose }) => {
           {filteredStudents.length > 0 && (
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-dark-muted px-2 mb-2 flex items-center gap-1.5">
-                <User size={12} className="text-blue-400" /> Students Found ({filteredStudents.length})
+                <User size={12} className="text-blue-500" /> Students Found ({filteredStudents.length})
               </p>
               <div className="space-y-2">
                 {filteredStudents.map((student) => (
                   <div
                     key={student.id}
                     onClick={() => handleSelect('/school-admin/students')}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-dark-hover/40 hover:bg-blue-500/15 border border-transparent hover:border-blue-500/30 cursor-pointer group transition-all"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-dark-hover/40 hover:bg-blue-50 dark:hover:bg-blue-500/15 border border-slate-100 dark:border-transparent hover:border-blue-300 dark:hover:border-blue-500/30 cursor-pointer group transition-all"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-black text-xs">
+                      <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 font-black text-xs">
                         {student.name?.charAt(0) || 'S'}
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-white group-hover:text-blue-300">{student.name}</p>
+                        <p className="text-xs font-bold text-dark-text group-hover:text-blue-600 dark:group-hover:text-blue-300">{student.name}</p>
                         <p className="text-[10px] text-dark-muted font-mono">
-                          Roll: <span className="text-blue-400 font-bold">{student.rollNumber || 'N/A'}</span> • Class: {student.class || 'N/A'}
+                          Roll: <span className="text-blue-600 dark:text-blue-400 font-bold">{student.rollNumber || 'N/A'}</span> • Class: {student.class || 'N/A'}
                         </p>
                       </div>
                     </div>
-                    <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                    <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                       View Student
                     </span>
                   </div>
@@ -255,25 +255,25 @@ const GlobalSearchModal = ({ isOpen, onClose }) => {
           {filteredStaff.length > 0 && (
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-dark-muted px-2 mb-2 flex items-center gap-1.5">
-                <Users size={12} className="text-purple-400" /> Staff & Teachers ({filteredStaff.length})
+                <Users size={12} className="text-purple-500" /> Staff & Teachers ({filteredStaff.length})
               </p>
               <div className="space-y-2">
                 {filteredStaff.map((st) => (
                   <div
                     key={st.id}
                     onClick={() => handleSelect('/school-admin/staff')}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-dark-hover/40 hover:bg-purple-500/15 border border-transparent hover:border-purple-500/30 cursor-pointer group transition-all"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-dark-hover/40 hover:bg-purple-50 dark:hover:bg-purple-500/15 border border-slate-100 dark:border-transparent hover:border-purple-300 dark:hover:border-purple-500/30 cursor-pointer group transition-all"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 font-black text-xs">
+                      <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500 font-black text-xs">
                         {st.name?.charAt(0) || 'T'}
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-white group-hover:text-purple-300">{st.name}</p>
+                        <p className="text-xs font-bold text-dark-text group-hover:text-purple-600 dark:group-hover:text-purple-300">{st.name}</p>
                         <p className="text-[10px] text-dark-muted font-semibold">{st.role || 'Teacher'} • {st.phone || ''}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                    <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-1 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
                       View Profile
                     </span>
                   </div>
@@ -286,25 +286,25 @@ const GlobalSearchModal = ({ isOpen, onClose }) => {
           {filteredSchools.length > 0 && (
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-dark-muted px-2 mb-2 flex items-center gap-1.5">
-                <School size={12} className="text-amber-400" /> Schools Registered ({filteredSchools.length})
+                <School size={12} className="text-amber-500" /> Schools Registered ({filteredSchools.length})
               </p>
               <div className="space-y-2">
                 {filteredSchools.map((sch) => (
                   <div
                     key={sch.id}
                     onClick={() => handleSelect('/super-admin/schools')}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-dark-hover/40 hover:bg-amber-500/15 border border-transparent hover:border-amber-500/30 cursor-pointer group transition-all"
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-dark-hover/40 hover:bg-amber-50 dark:hover:bg-amber-500/15 border border-slate-100 dark:border-transparent hover:border-amber-300 dark:hover:border-amber-500/30 cursor-pointer group transition-all"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-black text-xs">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 font-black text-xs">
                         {sch.name?.charAt(0) || 'S'}
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-white group-hover:text-amber-300">{sch.name}</p>
+                        <p className="text-xs font-bold text-dark-text group-hover:text-amber-600 dark:group-hover:text-amber-300">{sch.name}</p>
                         <p className="text-[10px] text-dark-muted font-mono">{sch.city || 'N/A'} • {sch.adminEmail || ''}</p>
                       </div>
                     </div>
-                    <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <span className="text-[10px] uppercase font-black tracking-wider px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                       View School
                     </span>
                   </div>
@@ -317,7 +317,7 @@ const GlobalSearchModal = ({ isOpen, onClose }) => {
           {q && filteredModules.length === 0 && filteredStudents.length === 0 && filteredStaff.length === 0 && filteredSchools.length === 0 && !loading && (
             <div className="text-center py-12 text-dark-muted">
               <Search size={36} className="mx-auto opacity-30 mb-3" />
-              <p className="font-bold text-sm text-white">No exact match found for "{searchQuery}"</p>
+              <p className="font-bold text-sm text-dark-text">No exact match found for "{searchQuery}"</p>
               <p className="text-xs mt-1">Try searching by student name, roll number, school name or module.</p>
             </div>
           )}
@@ -326,7 +326,7 @@ const GlobalSearchModal = ({ isOpen, onClose }) => {
         {/* Footer */}
         <div className="px-6 py-3 border-t border-dark-border bg-dark-bg/80 flex items-center justify-between text-[11px] text-dark-muted font-medium">
           <div className="flex items-center gap-2">
-            <span>Press <kbd className="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono font-bold text-[10px]">Ctrl + K</kbd> anywhere to open</span>
+            <span>Press <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-white/10 text-dark-text font-mono font-bold text-[10px]">Ctrl + K</kbd> anywhere to open</span>
           </div>
           <span>TaleemiDunya PRO Instant Search</span>
         </div>

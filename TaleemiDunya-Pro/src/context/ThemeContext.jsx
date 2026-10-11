@@ -16,22 +16,36 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setThemeState] = useState(() => {
-    // Always start with light mode when the page opens
-    localStorage.setItem('taleemi_theme', 'light');
-    return 'light';
+    try {
+      const saved = localStorage.getItem('taleemi_theme');
+      if (saved === 'light' || saved === 'dark') {
+        return saved;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 'dark';
   });
 
   const setTheme = (newTheme) => {
     if (THEME_OPTIONS.some(t => t.id === newTheme)) {
       setThemeState(newTheme);
-      localStorage.setItem('taleemi_theme', newTheme);
+      try {
+        localStorage.setItem('taleemi_theme', newTheme);
+      } catch (e) {
+        // ignore
+      }
     }
   };
 
   const toggleTheme = () => {
     setThemeState((prev) => {
       const next = prev === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('taleemi_theme', next);
+      try {
+        localStorage.setItem('taleemi_theme', next);
+      } catch (e) {
+        // ignore
+      }
       return next;
     });
   };
@@ -42,19 +56,25 @@ export const ThemeProvider = ({ children }) => {
 
     root.setAttribute('data-theme', theme);
     
-    // Reset theme classes
-    const allThemeClasses = ['light-mode', 'dark-mode', 'theme-light', 'theme-dark'];
+    // Reset all previous theme classes
+    const allThemeClasses = ['light-mode', 'dark-mode', 'theme-light', 'theme-dark', 'dark', 'light'];
     allThemeClasses.forEach(cls => {
       root.classList.remove(cls);
       body.classList.remove(cls);
     });
 
     if (theme === 'dark') {
-      root.classList.add('dark-mode', 'theme-dark');
-      body.classList.add('dark-mode', 'theme-dark');
+      root.classList.add('dark', 'dark-mode', 'theme-dark');
+      body.classList.add('dark', 'dark-mode', 'theme-dark');
     } else {
-      root.classList.add('light-mode', `theme-${theme}`);
-      body.classList.add('light-mode', `theme-${theme}`);
+      root.classList.add('light-mode', 'theme-light');
+      body.classList.add('light-mode', 'theme-light');
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent('taleemi-theme-change', { detail: { theme } }));
+    } catch (e) {
+      // ignore
     }
   }, [theme]);
 

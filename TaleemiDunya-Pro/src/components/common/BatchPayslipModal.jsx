@@ -101,8 +101,8 @@ const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: p
         
         {/* Modal Top Bar - Hidden when printing */}
         <div className="p-4 bg-dark-bg border-b border-dark-border flex justify-between items-center print:hidden">
-          <h3 className="font-bold text-white flex items-center gap-2">
-            <FileText className="text-blue-400" size={20} />
+          <h3 className="font-bold text-dark-text flex items-center gap-2">
+            <FileText className="text-blue-500" size={20} />
             Batch Print: {batchData.length} Slips for {formatPeriod(batchData[0].period || batchData[0].month)}
           </h3>
           <div className="flex items-center gap-2">

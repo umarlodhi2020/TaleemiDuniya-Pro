@@ -612,7 +612,7 @@ const CollectFee = () => {
                   <Search size={24} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-white">Collect Fee</h2>
+                  <h2 className="text-2xl font-black text-dark-text">Collect Fee</h2>
                   <p className="text-dark-muted text-sm font-bold">Search student by Roll No, Father Name, or Voucher No</p>
                 </div>
               </div>
@@ -620,7 +620,7 @@ const CollectFee = () => {
               <div ref={wrapperRef} className="relative max-w-2xl z-50">
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Search size={20} className="text-dark-muted group-focus-within:text-blue-400 transition-colors" />
+                    <Search size={20} className="text-dark-muted group-focus-within:text-blue-500 transition-colors" />
                   </div>
                   <input
                     type="text"
@@ -628,10 +628,10 @@ const CollectFee = () => {
                     onChange={(e) => { setSearchTerm(e.target.value); setShowSuggestions(true); }}
                     onFocus={() => setShowSuggestions(true)}
                     placeholder="Type Roll No, Father Name, Student Name or Voucher No..."
-                    className="w-full bg-dark-card border border-dark-border text-white rounded-2xl py-5 pl-12 pr-5 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-bold text-base placeholder:text-dark-muted/60"
+                    className="w-full bg-dark-card border border-dark-border text-dark-text rounded-2xl py-5 pl-12 pr-5 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-bold text-base placeholder:text-dark-muted/60"
                   />
                   {searchTerm && (
-                    <button onClick={() => setSearchTerm('')} className="absolute inset-y-0 right-0 pr-4 flex items-center text-dark-muted hover:text-white transition-colors">
+                    <button onClick={() => setSearchTerm('')} className="absolute inset-y-0 right-0 pr-4 flex items-center text-dark-muted hover:text-dark-text transition-colors">
                       <X size={18} />
                     </button>
                   )}
@@ -639,17 +639,17 @@ const CollectFee = () => {
 
                 {/* Suggestions Dropdown */}
                 {showSuggestions && searchSuggestions.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-2xl shadow-black/50 z-50">
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-dark-card border border-dark-border rounded-2xl overflow-hidden shadow-2xl z-50">
                     {searchSuggestions.map((fam, idx) => (
                       <button key={idx} onClick={() => handleSelectFamily(fam)}
-                        className="w-full p-4 flex items-center justify-between hover:bg-white/5 transition-colors border-b border-dark-border/50 last:border-none text-left group"
+                        className="w-full p-4 flex items-center justify-between hover:bg-dark-hover transition-colors border-b border-dark-border/50 last:border-none text-left group"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400 font-black text-base uppercase">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 font-black text-base uppercase">
                             {(fam.students[0]?.name || fam.fatherName || '?').charAt(0)}
                           </div>
                           <div>
-                            <p className="font-black text-white text-sm">
+                            <p className="font-black text-dark-text text-sm">
                               {fam.students.map(s => s.name).join(' & ')}
                             </p>
                             <p className="text-[11px] font-bold text-dark-muted">
