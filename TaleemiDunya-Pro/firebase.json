@@ -3,6 +3,7 @@
     "source": "functions"
   },
   "hosting": {
+    "site": "taleemidunya-pro-ed44e",
     "public": "dist",
     "ignore": [
       "firebase.json",

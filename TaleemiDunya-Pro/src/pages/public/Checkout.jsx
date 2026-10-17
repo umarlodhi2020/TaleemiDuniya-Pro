@@ -72,9 +72,10 @@ const Checkout = () => {
     setSubmitting(true);
     try {
       // 1. Upload screenshot first
-      const fileUrl = await uploadToCloudinary(screenshotFile);
+      const uploadRes = await uploadToCloudinary(screenshotFile);
+      const fileUrl = typeof uploadRes === 'string' ? uploadRes : (uploadRes?.url || uploadRes?.secure_url);
       if (!fileUrl) {
-        throw new Error("Failed to upload screenshot. Please try again.");
+        throw new Error(uploadRes?.error || "Failed to upload screenshot. Please try again.");
       }
       await addDoc(collection(db, 'saas_recharge_requests'), {
         schoolName: formData.schoolName,

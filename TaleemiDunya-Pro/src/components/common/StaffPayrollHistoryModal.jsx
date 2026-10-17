@@ -58,20 +58,20 @@ const StaffPayrollHistoryModal = ({ staffMember, payrollData = [], userData, onC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in overflow-y-auto print:hidden">
-      <div className="bg-dark-card border border-dark-border rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl my-8 flex flex-col max-h-[90vh]">
+      <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl w-full max-w-5xl overflow-hidden shadow-2xl my-8 flex flex-col max-h-[90vh]">
         
         {/* Modal Top Bar */}
-        <div className="p-5 bg-dark-bg border-b border-dark-border flex justify-between items-center shrink-0">
+        <div className="p-5 bg-slate-50 dark:bg-dark-bg border-b border-slate-200 dark:border-dark-border flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl">
+            <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl">
               <History size={24} />
             </div>
             <div>
-              <h3 className="font-bold text-white text-lg flex items-center gap-2">
+              <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2">
                 Employee Payroll History & Archive
               </h3>
-              <p className="text-xs text-dark-muted mt-0.5">
-                Staff: <span className="text-white font-bold">{staffMember.name}</span> ({staffMember.role || 'Staff'}) | ID: <span className="font-mono text-emerald-400 font-bold">{staffMember.staffId || `EMP-${staffMember.id?.slice(0, 4)}`}</span> | Dept: <span className="text-gray-300 font-mono">{staffMember.department || 'N/A'}</span>
+              <p className="text-xs text-slate-500 dark:text-dark-muted mt-0.5">
+                Staff: <span className="text-slate-900 dark:text-white font-bold">{staffMember.name}</span> ({staffMember.role || 'Staff'}) | ID: <span className="font-mono text-emerald-600 dark:text-emerald-400 font-bold">{staffMember.staffId || `EMP-${staffMember.id?.slice(0, 4)}`}</span> | Dept: <span className="text-slate-700 dark:text-gray-300 font-mono">{staffMember.department || 'N/A'}</span>
               </p>
             </div>
           </div>
@@ -80,14 +80,14 @@ const StaffPayrollHistoryModal = ({ staffMember, payrollData = [], userData, onC
             <button
               onClick={handleExportCSV}
               disabled={historyRecords.length === 0}
-              className="px-3.5 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3.5 py-1.5 bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Export Employee Payroll History to CSV"
             >
               <Download size={15} /> Export CSV
             </button>
             <button 
               onClick={onClose} 
-              className="p-2 bg-dark-card border border-dark-border text-dark-muted hover:text-red-400 rounded-xl transition-colors cursor-pointer"
+              className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-dark-card border border-slate-200 dark:border-dark-border text-slate-500 dark:text-dark-muted hover:text-red-500 dark:hover:text-red-400 rounded-xl transition-colors cursor-pointer"
               title="Close Modal"
             >
               <X size={20} />
@@ -102,37 +102,37 @@ const StaffPayrollHistoryModal = ({ staffMember, payrollData = [], userData, onC
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             
             {/* Months Processed */}
-            <div className="p-4 bg-dark-bg/60 border border-dark-border rounded-xl">
-              <div className="flex items-center justify-between text-xs font-bold text-dark-muted uppercase">
+            <div className="p-4 bg-slate-50 dark:bg-dark-bg/60 border border-slate-200 dark:border-dark-border rounded-xl">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-dark-muted uppercase">
                 <span>Processed Months</span>
-                <Calendar size={16} className="text-blue-400" />
+                <Calendar size={16} className="text-blue-500 dark:text-blue-400" />
               </div>
-              <p className="text-2xl font-black text-white font-mono mt-2">{lifetimeMetrics.totalMonths}</p>
-              <p className="text-[10px] text-dark-muted mt-0.5">Historical Cycles</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white font-mono mt-2">{lifetimeMetrics.totalMonths}</p>
+              <p className="text-[10px] text-slate-500 dark:text-dark-muted mt-0.5">Historical Cycles</p>
             </div>
 
             {/* Lifetime Gross Earnings */}
-            <div className="p-4 bg-dark-bg/60 border border-dark-border rounded-xl">
-              <div className="flex items-center justify-between text-xs font-bold text-dark-muted uppercase">
+            <div className="p-4 bg-slate-50 dark:bg-dark-bg/60 border border-slate-200 dark:border-dark-border rounded-xl">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-dark-muted uppercase">
                 <span>Lifetime Gross</span>
-                <TrendingUp size={16} className="text-purple-400" />
+                <TrendingUp size={16} className="text-purple-500 dark:text-purple-400" />
               </div>
-              <p className="text-lg font-black text-white font-mono mt-2">
+              <p className="text-lg font-black text-slate-900 dark:text-white font-mono mt-2">
                 Rs. {lifetimeMetrics.lifetimeGross.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
-              <p className="text-[10px] text-dark-muted mt-0.5">Basic + Allowances</p>
+              <p className="text-[10px] text-slate-500 dark:text-dark-muted mt-0.5">Basic + Allowances</p>
             </div>
 
             {/* Lifetime Deductions */}
-            <div className="p-4 bg-dark-bg/60 border border-dark-border rounded-xl">
-              <div className="flex items-center justify-between text-xs font-bold text-red-400 uppercase">
+            <div className="p-4 bg-slate-50 dark:bg-dark-bg/60 border border-slate-200 dark:border-dark-border rounded-xl">
+              <div className="flex items-center justify-between text-xs font-bold text-red-500 dark:text-red-400 uppercase">
                 <span>Total Deductions</span>
-                <TrendingDown size={16} className="text-red-400" />
+                <TrendingDown size={16} className="text-red-500 dark:text-red-400" />
               </div>
-              <p className="text-lg font-black text-red-400 font-mono mt-2">
+              <p className="text-lg font-black text-red-600 dark:text-red-400 font-mono mt-2">
                 - Rs. {lifetimeMetrics.lifetimeDeductions.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
-              <p className="text-[10px] text-red-400/80 mt-0.5">Att. + Fixed Deductions</p>
+              <p className="text-[10px] text-red-500/80 dark:text-red-400/80 mt-0.5">Att. + Fixed Deductions</p>
             </div>
 
             {/* Lifetime Net Paid */}
@@ -150,18 +150,18 @@ const StaffPayrollHistoryModal = ({ staffMember, payrollData = [], userData, onC
           </div>
 
           {/* Historical Payroll Records Table */}
-          <div className="bg-dark-card border border-dark-border rounded-xl overflow-hidden">
-            <div className="p-4 bg-dark-bg border-b border-dark-border flex justify-between items-center">
-              <h4 className="text-xs font-bold text-dark-muted uppercase tracking-wider flex items-center gap-2">
-                <FileText size={16} className="text-emerald-400" /> Past Payroll Snapshot Records ({historyRecords.length})
+          <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl overflow-hidden shadow-sm">
+            <div className="p-4 bg-slate-50 dark:bg-dark-bg border-b border-slate-200 dark:border-dark-border flex justify-between items-center">
+              <h4 className="text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider flex items-center gap-2">
+                <FileText size={16} className="text-emerald-600 dark:text-emerald-400" /> Past Payroll Snapshot Records ({historyRecords.length})
               </h4>
-              <span className="text-xs text-dark-muted font-mono">Sorted Newest First</span>
+              <span className="text-xs text-slate-500 dark:text-dark-muted font-mono">Sorted Newest First</span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="bg-dark-bg/80 border-b border-dark-border text-xs font-bold text-dark-muted uppercase">
+                  <tr className="bg-slate-100/80 dark:bg-dark-bg/80 border-b border-slate-200 dark:border-dark-border text-xs font-bold text-slate-600 dark:text-dark-muted uppercase">
                     <th className="p-3.5">Payroll Month</th>
                     <th className="p-3.5">Attendance</th>
                     <th className="p-3.5">Basic Salary</th>
@@ -175,7 +175,7 @@ const StaffPayrollHistoryModal = ({ staffMember, payrollData = [], userData, onC
                     <th className="p-3.5 text-right">Payslip</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-dark-border/50 font-mono text-xs">
+                <tbody className="divide-y divide-slate-100 dark:divide-dark-border/50 font-mono text-xs">
                   {historyRecords.map((rec) => {
                     const periodLabel = formatPeriod(rec.period || rec.month);
                     const basic = Number(rec.basicSalary || 0);
@@ -189,10 +189,10 @@ const StaffPayrollHistoryModal = ({ staffMember, payrollData = [], userData, onC
                       : '—';
 
                     return (
-                      <tr key={rec.id || rec.period} className="hover:bg-white/5 transition-colors">
+                      <tr key={rec.id || rec.period} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                         
                         {/* Period */}
-                        <td className="p-3.5 font-bold text-white">
+                        <td className="p-3.5 font-bold text-slate-900 dark:text-white">
                           {periodLabel}
                         </td>
 
@@ -204,38 +204,38 @@ const StaffPayrollHistoryModal = ({ staffMember, payrollData = [], userData, onC
                             <span className="text-amber-400">H:{rec.halfDays ?? 0}</span>
                             <span className="text-purple-400">L:{rec.leaveDays ?? 0}</span>
                           </div>
-                          <p className="text-[10px] text-dark-muted mt-0.5 font-mono">
+                          <p className="text-[10px] text-slate-500 dark:text-dark-muted mt-0.5 font-mono">
                             Work: {rec.totalWorkingDays ?? 26}d | Paid: {rec.paidEquivalentDays ?? (rec.presentDays || 0)}d
                           </p>
                         </td>
 
                         {/* Basic */}
-                        <td className="p-3.5 text-gray-300">
+                        <td className="p-3.5 text-slate-700 dark:text-gray-300 font-semibold">
                           Rs. {basic.toLocaleString()}
                         </td>
 
                         {/* Allowances */}
-                        <td className="p-3.5 text-emerald-400">
+                        <td className="p-3.5 text-emerald-600 dark:text-emerald-400 font-semibold">
                           + Rs. {allowances.toLocaleString()}
                         </td>
 
                         {/* Gross */}
-                        <td className="p-3.5 font-bold text-white">
+                        <td className="p-3.5 font-bold text-slate-900 dark:text-white">
                           Rs. {gross.toLocaleString()}
                         </td>
 
                         {/* Attendance Deduction */}
-                        <td className="p-3.5 text-rose-400">
+                        <td className="p-3.5 text-rose-600 dark:text-rose-400 font-semibold">
                           - Rs. {attDed.toLocaleString()}
                         </td>
 
                         {/* Total Deductions */}
-                        <td className="p-3.5 text-red-400 font-bold">
+                        <td className="p-3.5 text-red-600 dark:text-red-400 font-bold">
                           - Rs. {totDed.toLocaleString()}
                         </td>
 
                         {/* Net Salary */}
-                        <td className="p-3.5 font-black text-emerald-300 text-sm">
+                        <td className="p-3.5 font-black text-emerald-600 dark:text-emerald-300 text-sm">
                           Rs. {net.toLocaleString()}
                         </td>
 

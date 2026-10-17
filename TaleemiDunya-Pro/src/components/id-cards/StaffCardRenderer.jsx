@@ -58,14 +58,25 @@ export const renderStaffCard = (staff, isPrint, settings) => {
       </div>
 
       <div className="relative z-10 flex justify-center mt-2 mb-1">
-        <div className="w-[85px] h-[95px] rounded-lg border-2 border-white shadow-md bg-gray-100 overflow-hidden relative">
-          {staff.profilePhoto || staff.photoUrl ? (
-            <img src={staff.profilePhoto || staff.photoUrl} alt={staff.name} className="w-full h-full object-cover" />
-          ) : (
-            <svg className="w-full h-full text-gray-300 mt-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-            </svg>
-          )}
+        <div className="w-[85px] h-[95px] rounded-lg border-2 border-white shadow-md bg-gray-100 overflow-hidden relative flex items-center justify-center">
+          {(() => {
+            const photoSrc = staff.profilePhoto || staff.photoUrl || staff.photo || staff.avatar || staff.imageUrl || staff.picture || staff.image;
+            return photoSrc ? (
+              <img
+                src={photoSrc}
+                alt={staff.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const svgEl = e.currentTarget.parentElement?.querySelector('svg');
+                  if (svgEl) svgEl.style.display = 'block';
+                }}
+              />
+            ) : null;
+          })()}
+          <svg className={`w-full h-full text-gray-300 mt-4 ${(staff.profilePhoto || staff.photoUrl || staff.photo || staff.avatar || staff.imageUrl || staff.picture || staff.image) ? 'hidden' : 'block'}`} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+          </svg>
         </div>
       </div>
 
@@ -165,7 +176,7 @@ export const renderStaffCard = (staff, isPrint, settings) => {
 
           {showQRCode && (
             <div className="p-1.5 bg-white rounded-lg shadow-sm border border-gray-100 flex flex-col items-center">
-              <QRCode value={String(staff.employeeId || staff.staffId || staff.registrationNo || staff.id || '')} size={70} fgColor={themeColor} />
+              <QRCode value={String(staff.employeeId || staff.staffId || staff.registrationNo || staff.id || 'STAFF-001')} size={70} fgColor={themeColor} />
               <span className="text-[6px] font-black uppercase tracking-widest mt-1 text-gray-400">SCAN FOR ATTENDANCE</span>
             </div>
           )}
@@ -192,7 +203,7 @@ export const renderStaffCard = (staff, isPrint, settings) => {
   );
 
   return (
-    <div key={staff.id} className={`flex flex-col md:flex-row gap-4 items-center justify-center ${scale}`}>
+    <div key={staff.id} className={`flex flex-col sm:flex-row print:flex-row gap-4 items-center justify-center ${scale}`}>
       {(cardType === 'both' || cardType === 'front') && renderFront()}
       {(cardType === 'both' || cardType === 'back') && renderBack()}
     </div>

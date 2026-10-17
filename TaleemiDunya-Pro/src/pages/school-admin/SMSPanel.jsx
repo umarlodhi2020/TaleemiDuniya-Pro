@@ -116,9 +116,23 @@ const SMSPanel = () => {
     const checkLiveStatus = async () => {
       try {
         const schoolId = userData?.schoolId || 'default_school';
-        const res = await fetch(`${WA_SERVER}/api/session/status?schoolId=${schoolId}`);
-        if (res.ok) {
-          const data = await res.json();
+        let res = await fetch(`${WA_SERVER}/api/session/status?schoolId=${schoolId}`);
+        let data = res.ok ? await res.json() : null;
+
+        // If school hasn't paired an isolated number, check if master gateway is active
+        if ((!data || data.status === 'DISCONNECTED') && schoolId !== 'default_school') {
+          try {
+            const masterRes = await fetch(`${WA_SERVER}/api/session/status?schoolId=default_school`);
+            if (masterRes.ok) {
+              const masterData = await masterRes.json();
+              if (masterData.status === 'CONNECTED') {
+                data = { ...masterData, schoolId, isMasterGateway: true };
+              }
+            }
+          } catch(e) {}
+        }
+
+        if (data) {
           setIsLiveServerConnected(true);
           setLiveServerStatus(data.status);
           if (data.qrDataUrl) {

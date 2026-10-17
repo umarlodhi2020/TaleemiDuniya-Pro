@@ -732,12 +732,6 @@ async function handleAIBotReply(schoolId, senderPhone, queryText) {
     }
   }
 
-  // IF SENDER IS NOT IN DATABASE, IGNORE COMPLETELY (Normal WhatsApp mode)
-  if (!verifiedStudent) {
-    console.log(`[STRICT MODE] Ignored message from ${cleanSender} as it is not in the database.`);
-    return null;
-  }
-
   // Check if this is the first interaction from this sender in this session
   const isFirstMessage = !activeSenders.has(cleanSender);
   if (isFirstMessage) {
@@ -866,7 +860,7 @@ async function handleAIBotReply(schoolId, senderPhone, queryText) {
   }
 
   // Check if option 1, 2, or 3 requested BUT student is NOT verified yet
-  const isConfidentialRequest = ['1', 'one', 'challan', 'fee', 'balance', '2', 'two', 'hazri', 'attendance', 'present', '3', 'three', 'result', 'exam', 'datesheet'].some(k => lower === k || lower.includes(k));
+  const isConfidentialRequest = ['1', 'one', 'challan', 'fee', 'balance', '2', 'two', 'hazri', 'attendance', 'present', '3', 'three', 'result', 'exam'].some(k => lower === k || lower.includes(k));
   if (isConfidentialRequest && !verifiedStudent) {
     pendingVerifications.set(cleanSender, { time: Date.now(), requestedOption: lower }); // Mark this sender as pending roll verification
     return `🔒 *SECURITY VERIFICATION REQUIRED* 🛡️ï¸\n\n` +
@@ -1018,7 +1012,7 @@ async function handleAIBotReply(schoolId, senderPhone, queryText) {
            `🔙 *(Type *0* or *menu* to go back to main options)*`;
   }
 
-  if (verifiedStudent && (lower === '5' || lower === 'five' || lower.includes('datesheet') || lower.includes('holiday') || lower.includes('chutti'))) {
+  if (lower === '5' || lower === 'five' || lower.includes('datesheet') || lower.includes('holiday') || lower.includes('chutti')) {
     return prependMsg + `🗓️ï¸ *DATESHEET & HOLIDAYS CALENDAR* 🔒\n\n` +
            `ðŸ« *Upcoming Schedule:*\n` +
            `• Annual Final Exams 15th March se start ho rahe hain. Complete Datesheet portal par upload kar di gayi hai.\n` +
@@ -1203,12 +1197,29 @@ app.get('/api/session/pair', async (req, res) => {
 // GET /api/session/status
 app.get('/api/session/status', (req, res) => {
   const { schoolId = 'default_school' } = req.query;
-  const qr = qrCodes.get(schoolId);
-  const sessionDir = path.join(__dirname, 'auth_sessions', schoolId);
+  
+  // Resolve effective school session: check requested schoolId first, fallback to default_school
+  let targetId = schoolId;
+  const directDir = path.join(__dirname, 'auth_sessions', schoolId);
+  const directCredPath = path.join(directDir, 'creds.json');
+  if (!fs.existsSync(directCredPath) && !sessions.has(schoolId)) {
+    const defaultCred = path.join(__dirname, 'auth_sessions', 'default_school', 'creds.json');
+    if (fs.existsSync(defaultCred) || sessions.has('default_school')) {
+      targetId = 'default_school';
+    }
+  }
+
+  const qr = qrCodes.get(targetId);
+  const sessionDir = path.join(__dirname, 'auth_sessions', targetId);
   const credPath = path.join(sessionDir, 'creds.json');
   const credsExist = fs.existsSync(credPath);
-  const isConnected = credsExist && sessions.has(schoolId) && !qr;
+  const isConnected = credsExist && sessions.has(targetId) && !qr;
   
+  // Auto heal/start session if credentials exist but socket was dropped
+  if (credsExist && !sessions.has(targetId) && !qr) {
+    startWhatsAppSession(targetId).catch(() => {});
+  }
+
   let phone = null;
   if (credsExist) {
     try {
@@ -1221,6 +1232,7 @@ app.get('/api/session/status', (req, res) => {
 
   res.json({
     schoolId,
+    effectiveSchoolId: targetId,
     status: isConnected ? 'CONNECTED' : (qr ? 'QR_READY' : 'DISCONNECTED'),
     qrDataUrl: qr || null,
     phone,
@@ -1298,12 +1310,12 @@ app.post('/api/server/reboot', (req, res) => {
 // POST /api/message/send (Automatic Background WhatsApp Dispatch without opening browser tab!)
 app.post('/api/message/send', async (req, res) => {
   const { schoolId = 'default_school', phone, phones, message } = req.body;
-  const sock = sessions.get(schoolId);
+  const sock = sessions.get(schoolId) || sessions.get('default_school') || (sessions.size > 0 ? sessions.values().next().value : null);
   
-  if (!sock || qrCodes.has(schoolId)) {
+  if (!sock) {
     return res.status(400).json({ 
       success: false, 
-      error: `WhatsApp device is not paired for school: "${schoolId}". Please scan QR code in Tab 1 first.` 
+      error: `WhatsApp device is not paired. Please link your WhatsApp in the WhatsApp Bot Gateway first.` 
     });
   }
 
@@ -2028,12 +2040,30 @@ app.listen(PORT, () => {
   console.log(`ðŸŒ Local API Port: http://localhost:${PORT}`);
   console.log(`======================================================\n`);
   
-  // Auto start sessions on server boot - only ONE school to prevent conflict
-  // default_school removed: it causes "conflict: replaced" when NNRuCtHxQNjISc9EPgMs uses same phone
-  startWhatsAppSession('NNRuCtHxQNjISc9EPgMs');
+  // Auto start sessions on server boot: scan auth_sessions directory and auto-start all sessions with creds.json
+  const activeSessionSchools = new Set(['default_school']);
+  try {
+    const authDir = path.join(__dirname, 'auth_sessions');
+    if (fs.existsSync(authDir)) {
+      const items = fs.readdirSync(authDir);
+      for (const item of items) {
+        if (item.startsWith('.')) continue;
+        const itemPath = path.join(authDir, item);
+        try {
+          if (fs.statSync(itemPath).isDirectory() && fs.existsSync(path.join(itemPath, 'creds.json'))) {
+            activeSessionSchools.add(item);
+          }
+        } catch(e) {}
+      }
+    }
+  } catch(e) {}
+
+  for (const sId of activeSessionSchools) {
+    startWhatsAppSession(sId).catch(err => console.error(`Error starting ${sId}:`, err.message));
+  }
 
   // 🛡️ï¸ INTERNAL 24/7 AUTO-WATCHDOG (Checks connection every 5 minutes and auto-heals if dropped)
-  const watchdogSchools = ['NNRuCtHxQNjISc9EPgMs'];
+  const watchdogSchools = Array.from(activeSessionSchools);
   setInterval(() => {
     for (const wSchoolId of watchdogSchools) {
       const sock = sessions.get(wSchoolId);

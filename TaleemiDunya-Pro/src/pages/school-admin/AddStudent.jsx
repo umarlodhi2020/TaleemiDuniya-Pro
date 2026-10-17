@@ -23,7 +23,8 @@ import GlassCard from '../../components/common/GlassCard';
 import { addRecord, getSingleRecord, updateRecord, getStudentsByClass, getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
-import { uploadStudentPhoto, getThumbnailUrl, markForDeletion } from '../../services/cloudinary';
+import { uploadStudentPhoto, getThumbnailUrl, markForDeletion, compressImage } from '../../services/cloudinary';
+import Swal from 'sweetalert2';
 import QRCode from 'react-qr-code';
 import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -150,23 +151,44 @@ const AddStudent = () => {
     }
   }, [studentId, isEditMode, navigate, schoolId, authLoading, userData]);
 
-  const handlePhotoSelect = (e) => {
+  const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file (JPG, PNG)');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Image Required',
+        text: 'Please select a valid image file (JPG, PNG, WebP).',
+        confirmButtonColor: '#3b82f6'
+      });
       return;
     }
-    // Validate size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Image size must be under 2MB');
+    // Allow up to 25MB
+    if (file.size > 25 * 1024 * 1024) {
+      Swal.fire({
+        icon: 'error',
+        title: 'File Too Large',
+        text: 'Image file size must be under 25MB.',
+        confirmButtonColor: '#e11d48'
+      });
       return;
     }
 
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    try {
+      // Auto-compress large photos client-side
+      let finalFile = file;
+      if (file.size > 600 * 1024) {
+        finalFile = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 });
+      }
+      setPhotoFile(finalFile);
+      setPhotoPreview(URL.createObjectURL(finalFile));
+    } catch (err) {
+      console.warn('Auto-compression fallback to original file:', err);
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
   };
 
   const removePhoto = () => {

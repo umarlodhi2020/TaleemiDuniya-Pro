@@ -7,16 +7,21 @@ import {
   Phone, 
   Trash2, 
   Edit2, 
-  ShieldCheck,
-  UserSquare2,
-  UploadCloud
+  ShieldCheck, 
+  UserSquare2, 
+  UploadCloud,
+  Eye,
+  Clock,
+  DollarSign,
+  Calculator,
+  ClipboardCheck
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, deleteRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Eye } from 'lucide-react';
 import Swal from 'sweetalert2';
+import StaffTimeSlipModal from '../../components/common/StaffTimeSlipModal';
 
 const StaffManager = () => {
   const navigate = useNavigate();
@@ -27,6 +32,7 @@ const StaffManager = () => {
   const [staffTypeFilter, setStaffTypeFilter] = useState('All');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [timeSlipStaff, setTimeSlipStaff] = useState(null);
 
   useEffect(() => {
     fetchStaff();
@@ -203,6 +209,7 @@ const StaffManager = () => {
     id: normalizeToString(m.id || m.staffId || ''),
     staffId: normalizeToString(m.staffId || m.id || ''),
     name: normalizeToString(m.name || ''),
+    photo: m.photoUrl || m.profilePhoto || m.photo || m.avatar || m.imageUrl || m.picture || '',
     role: normalizeToString(m.role || m.designation || ''),
     department: normalizeToString(m.department || ''),
     staffType: isTeaching(m) ? 'Teaching' : 'Non-Teaching',
@@ -246,6 +253,30 @@ const StaffManager = () => {
             }} className="premium-button-secondary">
               <Users size={18} />
               Export Staff
+            </button>
+            <button 
+              onClick={() => navigate('/school-admin/staff-attendance')}
+              className="premium-button-secondary"
+              title="Staff Attendance Register"
+            >
+              <ClipboardCheck size={18} className="text-emerald-500" />
+              Attendance
+            </button>
+            <button 
+              onClick={() => navigate('/school-admin/staff/salary-setup')}
+              className="premium-button-secondary"
+              title="Staff Salary Setup"
+            >
+              <DollarSign size={18} className="text-indigo-500" />
+              Salary Setup
+            </button>
+            <button 
+              onClick={() => navigate('/school-admin/staff/payroll')}
+              className="premium-button-secondary"
+              title="Payroll & Payslips"
+            >
+              <Calculator size={18} className="text-amber-500" />
+              Payroll
             </button>
             <button 
               onClick={() => navigate('/school-admin/staff/add')}
@@ -353,8 +384,22 @@ const StaffManager = () => {
                 <tr key={r.id} className="group hover:bg-slate-50 dark:hover:bg-white/5 transition-all">
                   <td className="py-5 px-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-500 font-bold border border-primary-500/20">
-                        {String(r.name || '').charAt(0)}
+                      <div className="w-10 h-10 rounded-xl bg-primary-500/10 flex items-center justify-center text-primary-500 font-bold border border-primary-500/20 overflow-hidden shrink-0">
+                        {r.photo ? (
+                          <img
+                            src={r.photo}
+                            alt={r.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              if (e.currentTarget.parentElement) {
+                                e.currentTarget.parentElement.innerText = String(r.name || '').charAt(0);
+                              }
+                            }}
+                          />
+                        ) : (
+                          String(r.name || '').charAt(0)
+                        )}
                       </div>
                       <div>
                         <p className="font-bold text-sm text-slate-900 dark:text-white">{r.name}</p>
@@ -384,7 +429,21 @@ const StaffManager = () => {
                     </span>
                   </td>
                   <td className="py-5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button 
+                        onClick={() => setTimeSlipStaff(r.raw || r)}
+                        className="p-2 hover:bg-indigo-500/10 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors cursor-pointer"
+                        title="View Staff Time Slip (Kub Aaya / Kub Gya)"
+                      >
+                        <Clock size={16} />
+                      </button>
+                      <button 
+                        onClick={() => navigate(`/school-admin/staff/salary-setup`)}
+                        className="p-2 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-500 rounded-lg transition-colors cursor-pointer"
+                        title="Configure Salary"
+                      >
+                        <DollarSign size={16} />
+                      </button>
                       <button 
                         onClick={() => navigate(`/school-admin/staff/${r.raw.id || r.raw.staffId || r.id}`)}
                         className="p-2 hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-500 rounded-lg transition-colors cursor-pointer"
@@ -414,6 +473,14 @@ const StaffManager = () => {
           </table>
         </div>
       </GlassCard>
+
+      {/* Staff Time Slip Modal */}
+      {timeSlipStaff && (
+        <StaffTimeSlipModal 
+          staff={timeSlipStaff} 
+          onClose={() => setTimeSlipStaff(null)} 
+        />
+      )}
     </div>
   );
 };

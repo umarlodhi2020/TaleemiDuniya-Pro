@@ -15,7 +15,7 @@ import { useAuth } from '../../context/AuthContext';
 const SuperAdminWhatsAppBot = () => {
   const { userData } = useAuth();
   const WA_SERVER = import.meta.env.VITE_WHATSAPP_SERVER_URL || 'https://umarhayat.alwaysdata.net';
-  const schoolId = 'saas-admin-bot'; // Dedicated SaaS ID
+  const schoolId = 'default_school'; // Master SaaS Gateway (+92 317-2234518)
 
   // Live Server State
   const [liveQrDataUrl, setLiveQrDataUrl] = useState(null);

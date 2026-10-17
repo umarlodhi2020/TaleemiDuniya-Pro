@@ -13,12 +13,15 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import GlassCard from '../../components/common/GlassCard';
 import { getSingleRecord, updateRecord } from '../../services/db';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 
 const EditSchool = () => {
   const { schoolId } = useParams();
   const navigate = useNavigate();
   const [fetching, setFetching] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [availablePlans, setAvailablePlans] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     adminEmail: '',
@@ -34,14 +37,22 @@ const EditSchool = () => {
   useEffect(() => {
     const fetchSchoolData = async () => {
       try {
-        const data = await getSingleRecord('schools', schoolId);
+        const [data, plansSnap] = await Promise.all([
+          getSingleRecord('schools', schoolId),
+          getDocs(collection(db, 'plans'))
+        ]);
+
+        if (plansSnap && plansSnap.docs.length > 0) {
+          setAvailablePlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.enabled !== false));
+        }
+
         if (data) {
           setFormData({
             name: data.name || '',
             adminEmail: data.adminEmail || '',
             city: data.city || '',
             address: data.address || '',
-            plan: data.plan || 'Premium',
+            plan: data.plan || data.subscriptionPlan || 'Premium',
             status: data.status || 'active',
             expiryDate: data.expiryDate || data.expiry || '',
             revenue: data.revenue || 0,
@@ -64,7 +75,11 @@ const EditSchool = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const result = await updateRecord('schools', schoolId, formData);
+      const result = await updateRecord('schools', schoolId, {
+        ...formData,
+        subscriptionPlan: formData.plan,
+        expiry: formData.expiryDate
+      });
       if (result.success) {
         alert('School details updated successfully!');
         navigate('/super-admin/schools');
@@ -200,9 +215,20 @@ const EditSchool = () => {
                     onChange={handleChange}
                     className="w-full premium-input pl-12 appearance-none bg-dark-card"
                   >
-                    <option value="Basic">Basic Plan</option>
-                    <option value="Premium">Premium Plan</option>
-                    <option value="Enterprise">Enterprise Plan</option>
+                    {availablePlans.length > 0 ? (
+                      availablePlans.map(p => (
+                        <option key={p.id} value={p.name || p.id}>
+                          {p.name || p.id} (PKR {Number(p.priceMonthly || 0).toLocaleString()}/mo)
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Basic">Basic Plan</option>
+                        <option value="Standard">Standard Plan</option>
+                        <option value="Premium">Premium Plan</option>
+                        <option value="Enterprise">Enterprise Plan</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>

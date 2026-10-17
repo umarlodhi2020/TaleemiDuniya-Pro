@@ -4,13 +4,14 @@ import {
   CreditCard, CheckCircle2, XCircle, Zap, Star, Crown,
   Clock, AlertTriangle, ShieldCheck, QrCode, Upload, ArrowRight,
   Sparkles, RefreshCw, Check, Calendar, DollarSign, Building2,
-  Lock, ShoppingCart, FileText, Printer, Shield, ArrowUpRight, Plus, CheckSquare, Square
+  Lock, ShoppingCart, FileText, Printer, Shield, ArrowUpRight, Plus, CheckSquare, Square, MessageCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { collection, getDocs, doc, getDoc, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { SAAS_FEATURE_CATALOG } from '../../config/saasFeaturesConfig';
+import { uploadToCloudinary, compressImage } from '../../services/cloudinary';
 
 const SchoolSubscriptionPortal = () => {
   const { userData } = useAuth();
@@ -47,9 +48,11 @@ const SchoolSubscriptionPortal = () => {
   const [cardCvv, setCardCvv] = useState('');
   const [cardHolder, setCardHolder] = useState(userData?.name || 'School Administrator');
   
-  // Mobile / Bank inputs
+  // Mobile / Bank inputs & Proof Upload
   const [tidInput, setTidInput] = useState('');
-  const [proofAttached, setProofAttached] = useState(false);
+  const [proofFile, setProofFile] = useState(null);
+  const [proofPreview, setProofPreview] = useState(null);
+  const [systemGateways, setSystemGateways] = useState(null);
   const [submittingPay, setSubmittingPay] = useState(false);
   const [cardProcessingStep, setCardProcessingStep] = useState(null);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -58,12 +61,8 @@ const SchoolSubscriptionPortal = () => {
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [showAddonPayModal, setShowAddonPayModal] = useState(false);
 
-  // Invoices history state
-  const [invoicesList, setInvoicesList] = useState([
-    { id: 'INV-2026-001', date: '2026-07-01', item: 'Premium Pro Plan (Monthly Rent)', amount: 8000, gateway: 'Stripe Online Card', status: 'Paid', tid: 'ch_3N8X922eZvKYlo2C1gQ' },
-    { id: 'INV-2026-002', date: '2026-06-01', item: 'Premium Pro Plan (Monthly Rent)', amount: 8000, gateway: 'Stripe Online Card', status: 'Paid', tid: 'ch_3M7W811dYvJXkp1B0fP' },
-    { id: 'INV-2026-003', date: '2026-05-01', item: 'Basic Starter Plan (Monthly Rent)', amount: 3500, gateway: 'JazzCash Mobile Wallet', status: 'Paid', tid: 'JAZZ-8899201144' }
-  ]);
+  // Invoices history state (100% Real from payments collection)
+  const [invoicesList, setInvoicesList] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   useEffect(() => {
@@ -73,9 +72,62 @@ const SchoolSubscriptionPortal = () => {
   const fetchSubscriptionInfo = async () => {
     setLoading(true);
     try {
+      // 1. Fetch system gateways
+      try {
+        const gwSnap = await getDoc(doc(db, 'system', 'gateways'));
+        if (gwSnap.exists()) {
+          setSystemGateways(gwSnap.data());
+        }
+      } catch (err) {
+        console.error('Error fetching system gateways:', err);
+      }
+
+      // 2. Fetch real recharge requests for this school
       const reqSnap = await getDocs(collection(db, 'saas_recharge_requests'));
-      const list = reqSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(r => r.schoolId === schoolId);
+      const list = reqSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(r => r.schoolId === schoolId)
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
       setPendingRequests(list);
+
+      // 3. Fetch verified payment receipts for this school
+      try {
+        const paymentsSnap = await getDocs(collection(db, 'payments'));
+        const schoolPayments = paymentsSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(p => p.schoolId === schoolId && p.status === 'paid')
+          .sort((a, b) => (b.date || b.createdAt || '').localeCompare(a.date || a.createdAt || ''));
+
+        const realInvoices = schoolPayments.map(p => ({
+          id: p.tid || `INV-${p.id.slice(0, 6).toUpperCase()}`,
+          date: p.date || (p.createdAt?.toDate ? p.createdAt.toDate().toISOString().slice(0, 10) : 'N/A'),
+          item: p.planName || p.plan || 'Subscription Rent',
+          amount: Number(p.amount) || 0,
+          gateway: p.paymentMethod || 'Online Transfer',
+          status: 'Paid',
+          tid: p.tid || 'VERIFIED-BY-ADMIN',
+          notes: p.notes || ''
+        }));
+        setInvoicesList(realInvoices);
+      } catch (err) {
+        console.error('Error fetching school payment receipts:', err);
+        setInvoicesList([]);
+      }
+
+      // 4. Fetch live created plans from Firestore
+      try {
+        const plansSnap = await getDocs(collection(db, 'plans'));
+        if (plansSnap.docs.length > 0) {
+          const list = plansSnap.docs
+            .map(d => ({ id: d.id, ...d.data() }))
+            .filter(p => p.enabled !== false);
+          if (list.length > 0) {
+            setPlans(list);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching plans in SchoolSubscriptionPortal:', err);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -103,6 +155,13 @@ const SchoolSubscriptionPortal = () => {
     setCardExpiry(val);
   };
 
+  const handleProofFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProofFile(file);
+    setProofPreview(URL.createObjectURL(file));
+  };
+
   const handleSubmitRechargeRequest = async (e) => {
     e.preventDefault();
     
@@ -113,22 +172,31 @@ const SchoolSubscriptionPortal = () => {
         return;
       }
       setCardProcessingStep('Contacting Secure Gateway...');
-      await new Promise(r => setTimeout(r, 1200));
-      setCardProcessingStep('Verifying Payment Details...');
-      await new Promise(r => setTimeout(r, 1200));
+      await new Promise(r => setTimeout(r, 1000));
+      setCardProcessingStep('Verifying Card Authorization...');
+      await new Promise(r => setTimeout(r, 1000));
       setCardProcessingStep(null);
-      
-      // Proceed to submit pending request
     } else {
       // Manual payment method (JazzCash, Easypaisa, Bank QR)
-      if (!tidInput.trim() && !proofAttached) {
-        alert('⚠️ Please enter Transaction ID (TID) or attach payment screenshot.');
+      if (!tidInput.trim() && !proofFile) {
+        alert('⚠️ Please enter Transaction ID (TID) or attach payment screenshot receipt.');
         return;
       }
     }
 
     setSubmittingPay(true);
     try {
+      let uploadedScreenshotUrl = '';
+      if (proofFile) {
+        setCardProcessingStep('Compressing & Uploading Proof Receipt to Cloudinary...');
+        const compressed = await compressImage(proofFile, { maxWidth: 1200, quality: 0.8 });
+        const uploadRes = await uploadToCloudinary(compressed, { folder: 'subscriptions/proofs' });
+        if (uploadRes?.success && uploadRes?.url) {
+          uploadedScreenshotUrl = uploadRes.url;
+        }
+        setCardProcessingStep(null);
+      }
+
       const amount = billingCycle === 'monthly' ? selectedPlan.priceMonthly : selectedPlan.priceYearly;
       const reqPayload = {
         schoolId,
@@ -138,22 +206,25 @@ const SchoolSubscriptionPortal = () => {
         billingCycle,
         amount,
         payMethod,
-        tid: payMethod === 'STRIPE_CARD' ? `card_${cardNumber.slice(-4)}` : (tidInput || 'Screenshot Attached'),
+        tid: payMethod === 'STRIPE_CARD' ? `card_${cardNumber.replace(/\s+/g, '').slice(-4)}` : (tidInput || 'Slip Attached'),
+        screenshotUrl: uploadedScreenshotUrl || '',
         status: 'pending_verification',
         createdAt: new Date().toISOString()
       };
       
       await addDoc(collection(db, 'saas_recharge_requests'), reqPayload);
       
-      alert(`✅ RECHARGE REQUEST SUBMITTED!\n\nPlan: ${selectedPlan.name} (${billingCycle.toUpperCase()})\nAmount: Rs. ${amount.toLocaleString()}\nMethod: ${payMethod}\n\nYour request has been delivered to TaleemiDunya Super Admin Panel for verification. Your plan will be renewed once the admin confirms the payment.`);
+      alert(`✅ PAYMENT SUBMITTED FOR SUPER ADMIN AUDIT!\n\nPlan: ${selectedPlan.name} (${billingCycle.toUpperCase()})\nAmount: Rs. ${amount.toLocaleString()}\nMethod: ${payMethod}\n\n⚠️ IMPORTANT: Subscriptions NEVER renew automatically. TaleemiDunya SaaS Admin must audit your TID & payment proof. Once approved, your portal will be activated immediately!`);
       setShowPayModal(false);
       setTidInput('');
-      setProofAttached(false);
+      setProofFile(null);
+      setProofPreview(null);
       fetchSubscriptionInfo();
     } catch (err) {
-      alert(`❌ Error submitting recharge: ${err.message}`);
+      alert(`❌ Error submitting payment: ${err.message}`);
     } finally {
       setSubmittingPay(false);
+      setCardProcessingStep(null);
     }
   };
 
@@ -178,7 +249,7 @@ const SchoolSubscriptionPortal = () => {
       alert('⚠️ Please enter a valid 16-digit credit or debit card number.');
       return;
     }
-    if (payMethod !== 'STRIPE_CARD' && !tidInput.trim() && !proofAttached) {
+    if (payMethod !== 'STRIPE_CARD' && !tidInput.trim() && !proofFile) {
       alert('⚠️ Please enter Transaction ID (TID) or attach payment screenshot.');
       return;
     }
@@ -189,11 +260,18 @@ const SchoolSubscriptionPortal = () => {
     }, 0);
 
     setSubmittingPay(true);
-    setCardProcessingStep('Processing Add-on Order Request...');
-    await new Promise(r => setTimeout(r, 1200));
-    setCardProcessingStep(null);
-
     try {
+      let uploadedScreenshotUrl = '';
+      if (proofFile) {
+        setCardProcessingStep('Compressing & Uploading Proof Receipt to Cloudinary...');
+        const compressed = await compressImage(proofFile, { maxWidth: 1200, quality: 0.8 });
+        const uploadRes = await uploadToCloudinary(compressed, { folder: 'subscriptions/proofs' });
+        if (uploadRes?.success && uploadRes?.url) {
+          uploadedScreenshotUrl = uploadRes.url;
+        }
+        setCardProcessingStep(null);
+      }
+
       const reqPayload = {
         schoolId,
         schoolName: schoolData?.name || schoolName,
@@ -203,6 +281,7 @@ const SchoolSubscriptionPortal = () => {
         amount: totalAddonPrice,
         payMethod,
         tid: payMethod === 'STRIPE_CARD' ? `card_${cardNumber?.slice(-4) || 'xxxx'}` : (tidInput || 'Screenshot Attached'),
+        screenshotUrl: uploadedScreenshotUrl || '',
         status: 'pending_verification',
         addonsRequested: selectedAddons,
         createdAt: new Date().toISOString()
@@ -210,17 +289,19 @@ const SchoolSubscriptionPortal = () => {
       
       await addDoc(collection(db, 'saas_recharge_requests'), reqPayload);
 
-      alert(`✅ ADD-ON REQUEST SUBMITTED!\n\nTotal Amount: Rs. ${totalAddonPrice.toLocaleString()}/month\nMethod: ${payMethod}\n\n🎉 Your request for ${selectedAddons.length} advanced feature(s) has been submitted to the Super Admin. It will be activated in your panel once the payment is verified!`);
+      alert(`✅ ADD-ON REQUEST SUBMITTED!\n\nTotal Amount: Rs. ${totalAddonPrice.toLocaleString()}/month\nMethod: ${payMethod}\n\n🎉 Your request for ${selectedAddons.length} advanced module(s) has been queued for Super Admin review. It will unlock in your panel as soon as verified!`);
       
       setShowAddonPayModal(false);
       setSelectedAddons([]);
       setTidInput('');
-      setProofAttached(false);
+      setProofFile(null);
+      setProofPreview(null);
       fetchSubscriptionInfo();
     } catch (err) {
       alert(`❌ Error submitting add-on request: ${err.message}`);
     } finally {
       setSubmittingPay(false);
+      setCardProcessingStep(null);
     }
   };
 
@@ -328,17 +409,70 @@ const SchoolSubscriptionPortal = () => {
                 <Sparkles size={18} /> Upgrade Plan
               </button>
             )}
+            <a
+              href={`https://wa.me/923172234518?text=${encodeURIComponent(
+                `Assalam-o-Alaikum Super Admin! Main *${schoolData?.name || schoolName}* se hun. Mujhe apna subscription recharge/renew karwana hai. (Current Plan: ${currentPlanObj.name}, Days Left: ${daysLeft})`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-4 rounded-2xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 hover:text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md"
+            >
+              <MessageCircle size={18} className="text-emerald-400" /> WhatsApp Support
+            </a>
           </div>
         </div>
 
-        {pendingRequests.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between text-xs font-bold text-yellow-400 bg-yellow-500/10 p-3 rounded-2xl">
-            <span className="flex items-center gap-2">
-              <Clock size={16} className="animate-spin" /> You have {pendingRequests.length} recharge/upgrade verification request(s) pending with TaleemiDunya Super Admin.
-            </span>
-            <span className="text-[10px] uppercase font-black bg-yellow-500/20 px-2.5 py-1 rounded-lg">Under Review</span>
-          </div>
-        )}
+        {(() => {
+          const activePending = pendingRequests.find(r => r.status === 'pending_verification' || r.status === 'pending');
+          const latestRejected = pendingRequests.find(r => r.status === 'rejected');
+
+          if (activePending) {
+            return (
+              <div className="mt-6 pt-4 border-t border-white/10 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/40 text-xs text-amber-300 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="flex items-center gap-2 font-black text-white text-sm">
+                    <Clock size={18} className="text-amber-400 animate-spin" /> 
+                    Online Payment Submitted — Awaiting Super Admin Approval
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 font-black text-[10px] uppercase tracking-wider border border-amber-500/40">
+                    ⏳ Audit In Progress
+                  </span>
+                </div>
+                <p className="text-gray-300 leading-relaxed font-medium">
+                  We received your transaction for <strong className="text-white">{activePending.planName || 'Plan'}</strong> (Rs. {Number(activePending.amount || 0).toLocaleString()}) via <span className="uppercase text-amber-300 font-bold">{activePending.payMethod || 'Online Transfer'}</span> with Reference/TID: <code className="bg-black/40 px-2 py-0.5 rounded-lg text-yellow-300 font-mono font-bold">{activePending.tid}</code>.
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1 text-[11px] text-amber-400/90 font-bold border-t border-white/5">
+                  <span>🔒 Note: Subscriptions do NOT renew automatically. Access will be unlocked as soon as TaleemiDunya SaaS Admin audits your receipt.</span>
+                  <span className="text-dark-muted font-mono">{activePending.createdAt ? new Date(activePending.createdAt).toLocaleString() : ''}</span>
+                </div>
+              </div>
+            );
+          }
+
+          if (latestRejected) {
+            return (
+              <div className="mt-6 pt-4 border-t border-white/10 p-4 rounded-2xl bg-red-500/10 border border-red-500/40 text-xs text-red-300 space-y-2">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <span className="flex items-center gap-2 font-black text-white text-sm">
+                    <XCircle size={18} className="text-red-400" /> 
+                    Previous Payment Verification Declined by Super Admin
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-300 font-black text-[10px] uppercase tracking-wider border border-red-500/40">
+                    ✗ Declined
+                  </span>
+                </div>
+                <p className="text-gray-200">
+                  <strong className="text-red-400">Decline Reason:</strong> {latestRejected.rejectionReason || 'Transaction ID could not be confirmed in bank statements.'}
+                </p>
+                <p className="text-gray-400 text-[11px]">
+                  Please verify your transaction receipt, ensure the TID matches your bank/wallet transfer slip, and click "Pay Rent Online Now" to submit fresh proof.
+                </p>
+              </div>
+            );
+          }
+
+          return null;
+        })()}
       </div>
 
       {/* PORTAL TABS */}
@@ -608,45 +742,53 @@ const SchoolSubscriptionPortal = () => {
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-dark-border text-dark-muted text-[10px] uppercase tracking-widest font-black">
-                  <th className="pb-4 px-4">Invoice #</th>
-                  <th className="pb-4 px-4">Billing Date</th>
-                  <th className="pb-4 px-4">Subscription Plan / Item</th>
-                  <th className="pb-4 px-4">Payment Method</th>
-                  <th className="pb-4 px-4">Amount Paid</th>
-                  <th className="pb-4 px-4">Status</th>
-                  <th className="pb-4 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-dark-border">
-                {invoicesList.map(inv => (
-                  <tr key={inv.id} className="hover:bg-dark-hover transition-all text-xs font-semibold">
-                    <td className="py-4 px-4 font-mono font-bold text-purple-400">{inv.id}</td>
-                    <td className="py-4 px-4 text-dark-muted">{inv.date}</td>
-                    <td className="py-4 px-4 font-bold text-dark-text">{inv.item}</td>
-                    <td className="py-4 px-4 text-dark-muted">{inv.gateway}</td>
-                    <td className="py-4 px-4 font-black text-green-400">Rs. {inv.amount.toLocaleString()}</td>
-                    <td className="py-4 px-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-green-500/20 text-green-400 font-black uppercase text-[10px] border border-green-500/30">
-                        {inv.status}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-right">
-                      <button
-                        onClick={() => setSelectedInvoice(inv)}
-                        className="px-3 py-1.5 rounded-xl bg-primary-500/15 hover:bg-primary-500/30 text-primary-400 font-bold flex items-center gap-1.5 ml-auto transition-all"
-                      >
-                        <Printer size={13} /> Print Invoice
-                      </button>
-                    </td>
+          {invoicesList.length === 0 ? (
+            <div className="text-center py-16 text-dark-muted border border-dashed border-white/10 rounded-2xl">
+              <FileText size={44} className="mx-auto opacity-30 mb-3" />
+              <p className="font-bold text-base text-gray-300">No official payment receipts yet</p>
+              <p className="text-xs text-dark-muted mt-1">When your online recharge is audited and approved by the Super Admin, verified invoices with printable receipts will appear here.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-dark-border text-dark-muted text-[10px] uppercase tracking-widest font-black">
+                    <th className="pb-4 px-4">Invoice # / TID</th>
+                    <th className="pb-4 px-4">Billing Date</th>
+                    <th className="pb-4 px-4">Subscription Plan / Item</th>
+                    <th className="pb-4 px-4">Payment Method</th>
+                    <th className="pb-4 px-4">Amount Paid</th>
+                    <th className="pb-4 px-4">Status</th>
+                    <th className="pb-4 px-4 text-right">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-dark-border">
+                  {invoicesList.map(inv => (
+                    <tr key={inv.id} className="hover:bg-dark-hover transition-all text-xs font-semibold">
+                      <td className="py-4 px-4 font-mono font-bold text-purple-400">{inv.id}</td>
+                      <td className="py-4 px-4 text-dark-muted">{inv.date}</td>
+                      <td className="py-4 px-4 font-bold text-dark-text">{inv.item}</td>
+                      <td className="py-4 px-4 text-dark-muted">{inv.gateway}</td>
+                      <td className="py-4 px-4 font-black text-green-400">Rs. {inv.amount.toLocaleString()}</td>
+                      <td className="py-4 px-4">
+                        <span className="px-2.5 py-1 rounded-lg bg-green-500/20 text-green-400 font-black uppercase text-[10px] border border-green-500/30">
+                          {inv.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedInvoice(inv)}
+                          className="px-3 py-1.5 rounded-xl bg-primary-500/15 hover:bg-primary-500/30 text-primary-400 font-bold flex items-center gap-1.5 ml-auto transition-all"
+                        >
+                          <Printer size={13} /> Print Invoice
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </GlassCard>
       )}
 
@@ -863,7 +1005,7 @@ const SchoolSubscriptionPortal = () => {
                     type="submit"
                     className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 mt-2 transition-all active:scale-[0.99]"
                   >
-                    <Check size={18} /> Authorize Online Card Payment (Instant Unlock)
+                    <Check size={18} /> Authorize Online Card Payment (Submit for Review)
                   </button>
                 </div>
               ) : (
@@ -871,13 +1013,23 @@ const SchoolSubscriptionPortal = () => {
                   {/* Pay instructions & QR for JazzCash / Easypaisa / Bank */}
                   <div className="p-4 rounded-2xl bg-[#151926] border border-white/10 text-center space-y-2">
                     <span className="text-xs font-bold text-gray-400 uppercase block">Send Exact Amount to TaleemiDunya SaaS Account:</span>
-                    <span className="text-xl font-mono font-black text-white tracking-wider block">
-                      {payMethod === 'JAZZCASH' ? '0300-1234567 (TaleemiDunya SaaS)' : payMethod === 'EASYPAISA' ? '0345-7654321 (TaleemiDunya SaaS)' : 'PK36MEZN000012345678910 (Meezan Bank)'}
+                    <span className="text-base sm:text-lg font-mono font-black text-white tracking-wider block">
+                      {payMethod === 'JAZZCASH' 
+                        ? `${systemGateways?.jazzcash?.merchantId || '0300-1234567'} (JazzCash Wallet)`
+                        : payMethod === 'EASYPAISA' 
+                        ? `${systemGateways?.easypaisa?.storeId || '0345-7654321'} (EasyPaisa Wallet)` 
+                        : `${systemGateways?.bankQr?.iban || systemGateways?.banksList?.[0]?.iban || 'PK42MEZN0001002938475610'} (${systemGateways?.bankQr?.bankName || 'Meezan Bank Ltd'})`}
                     </span>
+                    {payMethod === 'BANK_QR' && (
+                      <div className="text-xs text-amber-300 font-bold space-y-0.5">
+                        <p>Account Title: {systemGateways?.bankQr?.accountTitle || 'TaleemiDunya SaaS Pvt Ltd'}</p>
+                        {systemGateways?.bankQr?.raastId && <p>Raast ID: {systemGateways.bankQr.raastId}</p>}
+                      </div>
+                    )}
                     <div className="w-32 h-32 mx-auto bg-white p-2.5 rounded-2xl flex items-center justify-center my-3 shadow-inner">
                       <QrCode size={110} className="text-black" />
                     </div>
-                    <span className="text-[10px] text-green-400 font-bold block">Scan QR Code from your mobile banking app</span>
+                    <span className="text-[10px] text-green-400 font-bold block">Scan QR Code or transfer via your banking app, then enter TID and upload slip below</span>
                   </div>
 
                   {/* TID / Screenshot input */}
@@ -892,26 +1044,57 @@ const SchoolSubscriptionPortal = () => {
                       className="w-full p-3.5 rounded-2xl bg-[#151926] border border-white/10 text-sm font-mono text-white focus:outline-none focus:border-primary-500"
                     />
 
-                    <div className="flex gap-3 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => { setProofAttached(true); alert('📷 Payment screenshot receipt attached successfully!'); }}
-                        className={`flex-1 py-3 rounded-2xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
-                          proofAttached ? 'bg-green-500/20 text-green-300 border-green-500' : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10'
-                        }`}
-                      >
-                        <Upload size={16} /> {proofAttached ? 'Screenshot Attached ✓' : 'Attach Screenshot'}
-                      </button>
-
-                      <button
-                        type="submit"
-                        disabled={submittingPay}
-                        className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2"
-                      >
-                        {submittingPay ? <RefreshCw className="animate-spin" size={16} /> : <Check size={18} />}
-                        Submit Payment Proof
-                      </button>
+                    <div>
+                      <label className="block text-[11px] font-black uppercase tracking-wider text-dark-muted mb-1.5">
+                        Attach Payment Receipt / Screenshot
+                      </label>
+                      <input
+                        type="file"
+                        id="proof-upload-input"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleProofFileSelect}
+                      />
+                      
+                      {proofPreview ? (
+                        <div className="p-3 rounded-2xl bg-black/40 border border-green-500/50 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <img src={proofPreview} alt="Receipt" className="w-12 h-12 object-cover rounded-xl border border-white/20" />
+                            <div>
+                              <p className="text-xs font-bold text-green-400 flex items-center gap-1">
+                                <Check size={14} /> Receipt Attached
+                              </p>
+                              <p className="text-[10px] text-dark-muted truncate max-w-[160px]">{proofFile?.name}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { setProofFile(null); setProofPreview(null); }}
+                            className="px-3 py-1 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 text-xs font-bold"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <label
+                          htmlFor="proof-upload-input"
+                          className="w-full py-4 rounded-2xl border-2 border-dashed border-white/20 hover:border-green-400/60 bg-white/5 hover:bg-white/10 transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-center"
+                        >
+                          <Upload size={20} className="text-green-400" />
+                          <span className="text-xs font-bold text-gray-300">Click to Select Payment Screenshot / Bank Slip</span>
+                          <span className="text-[10px] text-dark-muted">JPG, PNG, WebP (Cloudinary HD Compressed)</span>
+                        </label>
+                      )}
                     </div>
+
+                    <button
+                      type="submit"
+                      disabled={submittingPay}
+                      className="w-full py-4 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 mt-2"
+                    >
+                      {submittingPay ? <RefreshCw className="animate-spin" size={16} /> : <Check size={18} />}
+                      Submit Payment for Admin Review
+                    </button>
                   </div>
                 </>
               )}

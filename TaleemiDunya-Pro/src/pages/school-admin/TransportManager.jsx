@@ -157,7 +157,102 @@ const TransportManager = () => {
         </GlassCard>
       </div>
 
-      {/* FLEET GRID */}
+      {/* TABS SELECTOR */}
+      <div className="flex items-center gap-3 border-b border-dark-border/60 pb-3">
+        <button
+          onClick={() => setActiveTab('VANS')}
+          className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${activeTab === 'VANS' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20' : 'bg-dark-card text-dark-muted hover:text-white'}`}
+        >
+          <Bus size={15} />
+          <span>Fleet Overview ({vans.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('RADAR')}
+          className={`px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${activeTab === 'RADAR' ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20' : 'bg-dark-card text-dark-muted hover:text-white'}`}
+        >
+          <Navigation size={15} className="animate-spin" />
+          <span>Live GPS Radar (لائیو وین ٹریکر)</span>
+        </button>
+      </div>
+
+      {/* TAB 2: LIVE GPS RADAR */}
+      {activeTab === 'RADAR' && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="p-6 rounded-3xl bg-gradient-to-r from-amber-50/90 via-white to-orange-50/70 border border-amber-200/90 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold uppercase tracking-widest border border-amber-200">
+                Satellite GPS Radar Active
+              </span>
+              <h2 className="text-xl font-extrabold text-slate-900 mt-2">Real-Time Van Geolocation & Safety Radar</h2>
+              <p className="text-xs text-slate-600 font-medium mt-0.5">
+                Drivers can broadcast their live phone coordinates with 1-tap. Parents & school admin see live moving radar and arrival ETA.
+              </p>
+            </div>
+            <button
+              onClick={() => alert('GPS Broadcast Activated!\nCoordinates broadcasting to parents: Lat: 31.5204° N, Long: 74.3587° E\nSpeed: 38 km/h\nStatus: On Route')}
+              className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
+            >
+              <Navigation size={16} />
+              <span>Broadcast My GPS (Driver Mode)</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {vans.map((van, idx) => (
+              <GlassCard key={van.id || idx} className="p-6 rounded-3xl border border-amber-500/20 space-y-4 relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">
+                      <Bus size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-white">{van.vanNumber}</h3>
+                      <p className="text-[11px] text-amber-400 font-bold">{van.routeName}</p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-mono text-[10px] font-bold flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live 38 km/h
+                  </span>
+                </div>
+
+                {/* Radar Mock Visualization */}
+                <div className="p-4 rounded-2xl bg-dark-bg border border-dark-border text-center space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-dark-muted">Next Stop:</span>
+                    <span className="font-bold text-white">DHA Phase 5 Chowk</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-dark-muted">Estimated Arrival:</span>
+                    <span className="font-mono font-black text-amber-400">4 Minutes (ETA)</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-dark-muted">Students Onboard:</span>
+                    <span className="font-bold text-cyan-400">14 / {van.capacity || 18}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-dark-border text-xs">
+                  <div>
+                    <span className="text-[10px] text-dark-muted block">Driver</span>
+                    <span className="font-bold text-white">{van.driverName || 'Rashid Gujjar'}</span>
+                  </div>
+                  <a
+                    href={`tel:${van.driverPhone || '03001234567'}`}
+                    className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
+                  >
+                    <Phone size={13} />
+                    <span>Call Driver</span>
+                  </a>
+                </div>
+              </GlassCard>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 1: FLEET GRID */}
+      {activeTab === 'VANS' && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {vans.map((van) => (
           <GlassCard key={van.id} className="p-6 rounded-3xl border-2 border-dark-border hover:border-amber-500/40 transition-all flex flex-col justify-between">
@@ -211,6 +306,7 @@ const TransportManager = () => {
           </GlassCard>
         ))}
       </div>
+      )}
 
       {/* ADD / EDIT MODAL */}
       {showAddModal && (

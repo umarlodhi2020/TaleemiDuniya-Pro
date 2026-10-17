@@ -1,16 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import GlassCard from '../../components/common/GlassCard';
 import {
-  CreditCard, CheckCircle2, XCircle, Plus, Edit2,
+  CreditCard, CheckCircle2, XCircle, Plus, Edit2, Trash2,
   Zap, Building2, Star, Crown, Users, Save, X, ToggleLeft, ToggleRight, RefreshCw,
   Clock, Check, AlertCircle, DollarSign, Sliders, Shield, CheckSquare, Square, Lock, Unlock,
   Search, Filter, Sparkles, Layers, RotateCcw, Key, Globe, Smartphone, QrCode, Eye, EyeOff, ShieldCheck, Activity, Terminal, Image as ImageIcon
 } from 'lucide-react';
-import { collection, getDocs, doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { SAAS_FEATURE_CATALOG, getAllowedFeaturesForPlan } from '../../config/saasFeaturesConfig';
 
 const defaultPlans = [
+  {
+    id: 'basic', name: 'Basic Plan', priceMonthly: 2500, priceYearly: 25000,
+    maxStudents: '250', maxStaff: '15', maxClasses: '10', enabled: true, recommended: false,
+    features: [
+      'Student & Staff Management',
+      'Fee & Challan Management',
+      'Basic Reports & Analytics'
+    ],
+    locked: [
+      'Exams & Grading System',
+      'Timetable & SMS Alerts',
+      'AI Copilot & Features',
+      'Digital Library Hub',
+      'Custom School Website Domain',
+      '24/7 Dedicated Support'
+    ],
+  },
   {
     id: 'standard', name: 'Standard Plan', priceMonthly: 3500, priceYearly: 35000,
     maxStudents: '500', maxStaff: '30', maxClasses: '15', enabled: true, recommended: false,
@@ -41,6 +58,18 @@ const defaultPlans = [
       '24/7 Dedicated Support'
     ],
     locked: [],
+  },
+  {
+    id: 'enterprise', name: 'Enterprise Elite Plan', priceMonthly: 8000, priceYearly: 80000,
+    maxStudents: 'Unlimited', maxStaff: 'Unlimited', maxClasses: 'Unlimited', enabled: true, recommended: false,
+    features: [
+      'Everything in Premium Pro Plus:',
+      'Multi-Branch & Franchise Hub',
+      'Dedicated Database Cluster',
+      'Custom Domain & Android App APK',
+      'Priority 24/7 Dedicated Phone Support'
+    ],
+    locked: [],
   }
 ];
 
@@ -55,6 +84,18 @@ const Subscriptions = () => {
   const [rechargeRequests, setRechargeRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editForm, setEditForm] = useState({});
+
+  // Advanced Online Payment Review & Approval States
+  const [approveModalReq, setApproveModalReq] = useState(null);
+  const [selectedApprovePlan, setSelectedApprovePlan] = useState('premium');
+  const [rejectModalReq, setRejectModalReq] = useState(null);
+  const [previewScreenshotUrl, setPreviewScreenshotUrl] = useState(null);
+  const [rechargeDaysToAdd, setRechargeDaysToAdd] = useState(30);
+  const [rechargeAdminNote, setRechargeAdminNote] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('Payment TID could not be verified in the bank statement.');
+  const [reqStatusFilter, setReqStatusFilter] = useState('ALL');
+  const [reqSearchQuery, setReqSearchQuery] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Feature Matrix states
   const [selectedSchoolIdForMatrix, setSelectedSchoolIdForMatrix] = useState('');
@@ -137,10 +178,19 @@ const Subscriptions = () => {
         setSelectedSchoolIdForMatrix(list[0].id);
       }
 
-      // const plansSnap = await getDocs(collection(db, 'plans'));
-      // if (plansSnap.docs.length > 0) {
-      //   setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      // }
+      const plansSnap = await getDocs(collection(db, 'plans'));
+      if (plansSnap.docs.length > 0) {
+        setPlans(plansSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      } else {
+        for (const p of defaultPlans) {
+          try {
+            await setDoc(doc(db, 'plans', p.id), { ...p, createdAt: serverTimestamp() });
+          } catch (e) {
+            console.error('Seed plan error:', e);
+          }
+        }
+        setPlans(defaultPlans);
+      }
 
       const reqSnap = await getDocs(collection(db, 'saas_recharge_requests'));
       setRechargeRequests(reqSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => (b.createdAt || '').localeCompare(a.createdAt || '')));
@@ -179,32 +229,121 @@ const Subscriptions = () => {
     setShowSecretKeys(prev => ({ ...prev, [fieldKey]: !prev[fieldKey] }));
   };
 
-  const approveRecharge = async (req) => {
+  const openApproveModal = (req) => {
+    setApproveModalReq(req);
+    setSelectedApprovePlan(req.requestedPlan || 'premium');
+    setRechargeDaysToAdd(30);
+    setRechargeAdminNote('');
+  };
+
+  const confirmApproveRecharge = async () => {
+    if (!approveModalReq) return;
+    setActionLoading(true);
     try {
-      await updateDoc(doc(db, 'saas_recharge_requests', req.id), { status: 'approved', verifiedAt: serverTimestamp() });
-      const daysToAdd = 30; // 1-year plans removed; subscriptions are strictly 30 days
-      const newExpiry = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
-      await updateDoc(doc(db, 'schools', req.schoolId), {
-        plan: req.requestedPlan,
-        subscriptionPlan: req.requestedPlan,
-        subscriptionStatus: 'active',
-        expiryDate: newExpiry,
-        updatedAt: serverTimestamp()
+      const req = approveModalReq;
+      const targetSchool = schools.find(s => s.id === req.schoolId);
+      const planToAssign = selectedApprovePlan || req.requestedPlan || targetSchool?.plan || 'premium';
+      const matchedPlan = plans.find(p => p.id === planToAssign || (p.name && p.name.toLowerCase() === planToAssign.toLowerCase()));
+      const planNameFormatted = matchedPlan?.name || req.planName || planToAssign;
+      
+      // Calculate new expiry date:
+      // If current expiry is in the future, add extension to it; otherwise start from now
+      const now = new Date();
+      let startDate = now;
+      if (targetSchool?.expiryDate || targetSchool?.expiry) {
+        const curExp = new Date(targetSchool.expiryDate || targetSchool.expiry);
+        if (!isNaN(curExp.getTime()) && curExp > now) {
+          startDate = curExp;
+        }
+      }
+      const newExpiry = new Date(startDate.getTime() + Number(rechargeDaysToAdd) * 24 * 60 * 60 * 1000).toISOString();
+
+      // 1. Update saas_recharge_requests doc
+      await updateDoc(doc(db, 'saas_recharge_requests', req.id), {
+        status: 'approved',
+        verifiedAt: serverTimestamp(),
+        verifiedBy: 'SaaS Super Admin',
+        extendedDays: Number(rechargeDaysToAdd),
+        newExpiryDate: newExpiry,
+        approvedPlan: planToAssign,
+        adminNotes: rechargeAdminNote || 'Verified & Activated by SaaS Super Admin'
       });
-      alert(`✅ Recharge Approved!\nSchool: ${req.schoolName}\nPlan activated: ${req.planName} (${req.billingCycle})\nValid till: ${new Date(newExpiry).toLocaleDateString()}`);
+
+      // 2. Add verified transaction to payments collection for real financial revenue tracking
+      await addDoc(collection(db, 'payments'), {
+        schoolId: req.schoolId,
+        schoolName: req.schoolName || targetSchool?.name || 'School',
+        plan: planToAssign,
+        planName: planNameFormatted,
+        amount: Number(req.amount) || 0,
+        paymentMethod: req.payMethod || 'Online Transfer',
+        tid: req.tid || 'VERIFIED-ONLINE',
+        screenshotUrl: req.screenshotUrl || '',
+        status: 'paid',
+        type: req.requestedPlan === 'add_ons' ? 'addon_purchase' : 'subscription',
+        date: new Date().toISOString().slice(0, 10),
+        notes: rechargeAdminNote || '',
+        createdAt: serverTimestamp(),
+        verifiedAt: serverTimestamp(),
+        verifiedBy: 'SaaS Super Admin'
+      });
+
+      // 3. Update schools document in Firestore
+      const schoolUpdate = {
+        plan: req.requestedPlan === 'add_ons' ? (targetSchool?.plan || planToAssign) : planToAssign,
+        subscriptionPlan: req.requestedPlan === 'add_ons' ? (targetSchool?.subscriptionPlan || planToAssign) : planToAssign,
+        subscriptionStatus: 'active',
+        status: 'active',
+        expiryDate: newExpiry,
+        expiry: newExpiry,
+        updatedAt: serverTimestamp()
+      };
+
+      if (req.addonsRequested && Array.isArray(req.addonsRequested)) {
+        const curAllowed = { ...(targetSchool?.allowedFeatures || {}) };
+        req.addonsRequested.forEach(featKey => {
+          curAllowed[featKey] = true;
+        });
+        schoolUpdate.allowedFeatures = curAllowed;
+      }
+
+      await updateDoc(doc(db, 'schools', req.schoolId), schoolUpdate);
+
+      setApproveModalReq(null);
+      setRechargeAdminNote('');
+      alert(`✅ PAYMENT VERIFIED & PLAN ACTIVATED!\n\nSchool: ${req.schoolName}\nPlan: ${planNameFormatted}\nExtended By: ${rechargeDaysToAdd} days\nNew Expiry: ${new Date(newExpiry).toLocaleDateString()}\n\nPayment has been saved to the verified revenue ledger.`);
       fetchData();
-    } catch (e) {
-      alert(`❌ Error approving recharge: ${e.message}`);
+    } catch (err) {
+      console.error('Error approving recharge:', err);
+      alert(`❌ Error approving payment: ${err.message}`);
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const rejectRecharge = async (req) => {
+  const openRejectModal = (req) => {
+    setRejectModalReq(req);
+    setRejectionReason('Transaction ID (TID) could not be verified in the bank / wallet statement.');
+  };
+
+  const confirmRejectRecharge = async () => {
+    if (!rejectModalReq) return;
+    setActionLoading(true);
     try {
-      await updateDoc(doc(db, 'saas_recharge_requests', req.id), { status: 'rejected', verifiedAt: serverTimestamp() });
-      alert(`❌ Recharge request from ${req.schoolName} rejected.`);
+      await updateDoc(doc(db, 'saas_recharge_requests', rejectModalReq.id), {
+        status: 'rejected',
+        rejectionReason: rejectionReason || 'Payment TID could not be verified in bank records.',
+        verifiedAt: serverTimestamp(),
+        verifiedBy: 'SaaS Super Admin'
+      });
+      alert(`❌ Payment request from ${rejectModalReq.schoolName} marked as REJECTED.\n\nReason: "${rejectionReason}"\nSchool portal has been updated with this audit notice.`);
+      setRejectModalReq(null);
       fetchData();
-    } catch (e) {
-      alert(`Error: ${e.message}`);
+    } catch (err) {
+      console.error('Error rejecting request:', err);
+      alert(`❌ Error: ${err.message}`);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -252,6 +391,16 @@ const Subscriptions = () => {
     setNewPlan({ name: '', priceMonthly: '', priceYearly: '', maxStudents: '', maxStaff: '' });
     setNewPlanModal(false);
     await savePlanToFirestore(plan);
+  };
+
+  const deletePlan = async (planId) => {
+    if (!window.confirm('Are you sure you want to delete this subscription plan?')) return;
+    setPlans(prev => prev.filter(p => p.id !== planId));
+    try {
+      await deleteDoc(doc(db, 'plans', planId));
+    } catch (e) {
+      console.error('Delete plan error:', e);
+    }
   };
 
   // Toggle granular feature override for selected school in Matrix tab
@@ -437,8 +586,9 @@ const Subscriptions = () => {
                       <span className={`${style.text} font-black text-base`}><PlanIcon id={plan.id} size={18} /></span>
                       <span className={`font-black text-sm uppercase tracking-widest ${style.text}`}>{plan.name}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => startEdit(plan)} className="p-1.5 hover:bg-white/10 rounded-lg text-dark-muted hover:text-white transition-all" title="Edit"><Edit2 size={14} /></button>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => startEdit(plan)} className="p-1.5 hover:bg-white/10 rounded-lg text-dark-muted hover:text-white transition-all" title="Edit Plan"><Edit2 size={14} /></button>
+                      <button onClick={() => deletePlan(plan.id)} className="p-1.5 hover:bg-red-500/20 text-dark-muted hover:text-red-400 rounded-lg transition-all" title="Delete Plan"><Trash2 size={14} /></button>
                       <button onClick={() => togglePlan(plan.id)}
                         className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase transition-all ${plan.enabled ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                         {plan.enabled ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
@@ -830,113 +980,212 @@ const Subscriptions = () => {
       {/* TAB 4: RECHARGE REQUESTS & ONLINE PAYMENT VERIFICATION */}
       {/* ============================================================== */}
       {activeTab === 'requests' && (
-        <GlassCard className="p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Zap className="text-amber-400" size={20} /> Pending Online Recharge & Plan Upgrade Proofs
-            </h2>
-            <button onClick={fetchData} className="premium-button-secondary py-1.5 text-xs">
+        <GlassCard className="p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  ● Manual Admin Verification Required
+                </span>
+                <span className="text-xs text-dark-muted font-bold">No Auto-Renewals Allowed</span>
+              </div>
+              <h2 className="text-2xl font-black text-white mt-1 flex items-center gap-2">
+                <Zap className="text-amber-400" size={24} /> Online Payment & TID Verification Desk
+              </h2>
+              <p className="text-xs text-dark-muted mt-0.5">
+                Every online recharge submitted by schools requires Super Admin inspection. Subscriptions do not renew until you confirm receipt.
+              </p>
+            </div>
+            <button onClick={fetchData} className="premium-button-secondary py-2 text-xs flex items-center gap-2 self-start sm:self-auto">
               <RefreshCw size={14} /> Refresh Requests
             </button>
           </div>
 
+          {/* Filter Pills & Live Search Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: 'ALL', label: 'All Requests', count: rechargeRequests.length },
+                { 
+                  id: 'pending_verification', 
+                  label: 'Pending Review', 
+                  count: rechargeRequests.filter(r => r.status === 'pending_verification' || r.status === 'pending').length,
+                  color: 'text-amber-400 bg-amber-500/20 border-amber-500/40' 
+                },
+                { 
+                  id: 'approved', 
+                  label: 'Approved & Active', 
+                  count: rechargeRequests.filter(r => r.status === 'approved').length,
+                  color: 'text-green-400 bg-green-500/20 border-green-500/40'
+                },
+                { 
+                  id: 'rejected', 
+                  label: 'Rejected Proofs', 
+                  count: rechargeRequests.filter(r => r.status === 'rejected').length,
+                  color: 'text-red-400 bg-red-500/20 border-red-500/40'
+                }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setReqStatusFilter(f.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-2 ${
+                    reqStatusFilter === f.id
+                      ? 'bg-primary-500 text-white border-primary-500 shadow-lg shadow-primary-500/20'
+                      : 'bg-white/5 text-dark-muted hover:text-white border-white/5 hover:border-white/10'
+                  }`}
+                >
+                  <span>{f.label}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${f.color || 'bg-white/10 text-white'}`}>
+                    {f.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted" size={15} />
+              <input
+                type="text"
+                placeholder="Search school, TID, or method..."
+                value={reqSearchQuery}
+                onChange={e => setReqSearchQuery(e.target.value)}
+                className="pl-9 pr-3 py-2 rounded-xl bg-dark-card border border-white/10 text-xs text-white focus:outline-none focus:border-primary-500 w-full md:w-64"
+              />
+            </div>
+          </div>
+
+          {/* Table */}
           {rechargeRequests.length === 0 ? (
-            <div className="text-center py-12 text-dark-muted">
+            <div className="text-center py-16 text-dark-muted border border-dashed border-white/10 rounded-2xl">
               <CreditCard size={44} className="mx-auto opacity-30 mb-3" />
-              <p className="font-bold text-base">No online recharge requests found</p>
-              <p className="text-xs mt-1">When schools recharge or upgrade online, their payment proofs (TID) will appear here for 1-click verification.</p>
+              <p className="font-bold text-base text-gray-300">No online recharge requests found</p>
+              <p className="text-xs text-dark-muted mt-1">When schools submit payment proofs (JazzCash, EasyPaisa, Meezan IBFT, Cards), they will be queued here for audit.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-dark-border text-dark-muted text-[10px] uppercase tracking-widest font-black">
-                    <th className="pb-4 px-4">School Name</th>
+                    <th className="pb-4 px-4">School Institution</th>
                     <th className="pb-4 px-4">Requested Plan</th>
-                    <th className="pb-4 px-4">Billing & Amount</th>
+                    <th className="pb-4 px-4">Amount & Gateway</th>
                     <th className="pb-4 px-4">TID / Payment Proof</th>
-                    <th className="pb-4 px-4">Submitted At</th>
-                    <th className="pb-4 px-4">Status</th>
-                    <th className="pb-4 px-4 text-right">Actions</th>
+                    <th className="pb-4 px-4">Submission Date</th>
+                    <th className="pb-4 px-4 text-center">Status</th>
+                    <th className="pb-4 px-4 text-right">Verification Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-dark-border">
-                  {rechargeRequests.map(req => {
-                    const isPending = req.status === 'pending_verification';
-                    return (
-                      <tr key={req.id} className="hover:bg-white/5 transition-all text-xs font-semibold">
-                        <td className="py-4 px-4">
-                          <p className="font-bold text-sm text-white">{req.schoolName || req.schoolId}</p>
-                          <p className="text-[11px] text-dark-muted font-mono">{req.schoolId}</p>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
-                            req.requestedPlan === 'enterprise' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                            req.requestedPlan === 'premium' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
-                            'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          }`}>
-                            {req.planName || req.requestedPlan}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <p className="font-black text-sm text-green-400">Rs. {Number(req.amount || 0).toLocaleString()}</p>
-                          <p className="text-[10px] text-dark-muted uppercase font-bold">{req.billingCycle || 'monthly'} ({req.payMethod || 'JAZZCASH'})</p>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex flex-col gap-1 items-start">
-                            <span className="px-3 py-1 rounded-xl bg-[#151926] border border-white/10 font-mono text-xs text-yellow-300 font-black">
-                              {req.tid || 'Screenshot Attached'}
+                  {rechargeRequests
+                    .filter(req => {
+                      const matchesStatus = reqStatusFilter === 'ALL' || 
+                        (reqStatusFilter === 'pending_verification' ? (req.status === 'pending_verification' || req.status === 'pending') : req.status === reqStatusFilter);
+                      const matchesSearch = !reqSearchQuery ||
+                        (req.schoolName || '').toLowerCase().includes(reqSearchQuery.toLowerCase()) ||
+                        (req.tid || '').toLowerCase().includes(reqSearchQuery.toLowerCase()) ||
+                        (req.payMethod || '').toLowerCase().includes(reqSearchQuery.toLowerCase()) ||
+                        (req.planName || '').toLowerCase().includes(reqSearchQuery.toLowerCase());
+                      return matchesStatus && matchesSearch;
+                    })
+                    .map(req => {
+                      const isPending = req.status === 'pending_verification' || req.status === 'pending';
+                      const targetSchool = schools.find(s => s.id === req.schoolId);
+
+                      return (
+                        <tr key={req.id} className="hover:bg-white/5 transition-all text-xs font-semibold">
+                          <td className="py-4 px-4">
+                            <p className="font-bold text-sm text-white">{req.schoolName || targetSchool?.name || req.schoolId}</p>
+                            <p className="text-[10px] text-dark-muted font-mono">{req.schoolId}</p>
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className={`px-3 py-1 rounded-lg text-xs font-black uppercase ${
+                              req.requestedPlan === 'enterprise' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                              req.requestedPlan === 'premium' ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' :
+                              req.requestedPlan === 'add_ons' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' :
+                              'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                            }`}>
+                              {req.planName || req.requestedPlan}
                             </span>
-                            {req.screenshotUrl && (
-                              <button onClick={() => window.open(req.screenshotUrl, '_blank')} className="text-[10px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1">
-                                <ImageIcon size={12} /> View Screenshot
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-xs text-dark-muted">
-                          {req.createdAt ? new Date(req.createdAt).toLocaleString() : 'Just now'}
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${
-                            req.status === 'approved' ? 'bg-green-500/20 text-green-400 border border-green-500/40' :
-                            req.status === 'rejected' ? 'bg-red-500/20 text-red-400 border border-red-500/40' :
-                            'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 animate-pulse'
-                          }`}>
-                            {req.status === 'approved' ? '✓ Activated' : req.status === 'rejected' ? '✗ Rejected' : '⏳ Pending'}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-right">
-                          {isPending ? (
-                            <div className="flex items-center justify-end gap-2">
+                          </td>
+                          <td className="py-4 px-4">
+                            <p className="font-black text-sm text-green-400">Rs. {Number(req.amount || 0).toLocaleString()}</p>
+                            <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-white/5 text-gray-300 border border-white/10">
+                              {req.payMethod || 'Online Transfer'}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="px-2.5 py-1 rounded-xl bg-[#151926] border border-white/10 font-mono text-xs text-yellow-300 font-black">
+                                {req.tid || 'Slip Attached'}
+                              </span>
                               {req.screenshotUrl && (
                                 <button
-                                  onClick={() => window.open(req.screenshotUrl, '_blank')}
-                                  className="px-3 py-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 font-bold text-xs flex items-center gap-1"
+                                  type="button"
+                                  onClick={() => setPreviewScreenshotUrl(req.screenshotUrl)}
+                                  className="text-[11px] text-cyan-400 hover:text-cyan-300 font-bold flex items-center gap-1 hover:underline mt-0.5"
                                 >
-                                  <ImageIcon size={14} /> Proof
+                                  <ImageIcon size={13} /> View Receipt Proof
                                 </button>
                               )}
-                              <button
-                                onClick={() => approveRecharge(req)}
-                                className="px-4 py-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1 shadow-lg shadow-green-600/20"
-                              >
-                                <Check size={14} /> Approve & Activate
-                              </button>
-                              <button
-                                onClick={() => rejectRecharge(req)}
-                                className="px-3 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-xs"
-                              >
-                                <X size={14} />
-                              </button>
                             </div>
-                          ) : (
-                            <span className="text-xs text-dark-muted font-bold">Processed ✓</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                          <td className="py-4 px-4 text-xs text-dark-muted font-mono">
+                            {req.createdAt ? new Date(req.createdAt).toLocaleString() : 'Just now'}
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                              req.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/40' :
+                              req.status === 'rejected' ? 'bg-red-500/20 text-red-400 border-red-500/40' :
+                              'bg-amber-500/20 text-amber-400 border-amber-500/40 animate-pulse'
+                            }`}>
+                              {req.status === 'approved' ? '✓ Activated' : req.status === 'rejected' ? '✗ Rejected' : '⏳ Pending Review'}
+                            </span>
+                            {req.status === 'rejected' && req.rejectionReason && (
+                              <p className="text-[10px] text-red-400/80 mt-1 max-w-[140px] truncate" title={req.rejectionReason}>
+                                {req.rejectionReason}
+                              </p>
+                            )}
+                          </td>
+                          <td className="py-4 px-4 text-right">
+                            {isPending ? (
+                              <div className="flex items-center justify-end gap-2">
+                                {req.screenshotUrl && (
+                                  <button
+                                    onClick={() => setPreviewScreenshotUrl(req.screenshotUrl)}
+                                    className="p-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-400"
+                                    title="Inspect Payment Receipt"
+                                  >
+                                    <Eye size={16} />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => openApproveModal(req)}
+                                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg shadow-green-600/20 active:scale-98"
+                                >
+                                  <Check size={14} /> Audit & Approve
+                                </button>
+                                <button
+                                  onClick={() => openRejectModal(req)}
+                                  className="px-3 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-xs"
+                                  title="Reject Payment Request"
+                                >
+                                  <X size={15} />
+                                </button>
+                              </div>
+                            ) : req.status === 'approved' ? (
+                              <div className="text-right">
+                                <span className="text-[11px] text-green-400 font-bold block">Audited & Verified ✓</span>
+                                <span className="text-[10px] text-dark-muted font-mono">
+                                  {req.verifiedAt?.toDate ? req.verifiedAt.toDate().toLocaleDateString() : 'Active'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-red-400 font-bold">Declined ✗</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -1471,6 +1720,318 @@ const Subscriptions = () => {
             <div className="flex gap-3 mt-6">
               <button onClick={addPlan} className="flex-1 premium-button-primary"><Save size={16} /> Create Plan</button>
               <button onClick={() => setNewPlanModal(false)} className="flex-1 premium-button-secondary"><X size={16} /> Cancel</button>
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {/* LIGHTBOX SCREENSHOT PREVIEW MODAL */}
+      {previewScreenshotUrl && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-4 animate-fade-in">
+          <div className="max-w-2xl w-full bg-[#151926] p-6 rounded-3xl border border-white/20 shadow-2xl space-y-4 relative">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="text-cyan-400" size={20} />
+                <h3 className="text-base font-black text-white">Payment Receipt / Bank Slip Proof</h3>
+              </div>
+              <button
+                onClick={() => setPreviewScreenshotUrl(null)}
+                className="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-auto flex items-center justify-center bg-black/40 rounded-2xl p-2 border border-white/5">
+              <img
+                src={previewScreenshotUrl}
+                alt="Payment Slip Proof"
+                className="max-h-[65vh] w-auto object-contain rounded-xl shadow-lg"
+              />
+            </div>
+            <div className="flex justify-between items-center pt-2">
+              <a
+                href={previewScreenshotUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-bold underline flex items-center gap-1"
+              >
+                Open Full Resolution in New Tab
+              </a>
+              <button
+                onClick={() => setPreviewScreenshotUrl(null)}
+                className="px-5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs"
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* APPROVE & ACTIVATE MODAL */}
+      {approveModalReq && (() => {
+        const targetSchool = schools.find(s => s.id === approveModalReq.schoolId);
+        const now = new Date();
+        let startDate = now;
+        if (targetSchool?.expiryDate || targetSchool?.expiry) {
+          const curExp = new Date(targetSchool.expiryDate || targetSchool.expiry);
+          if (!isNaN(curExp.getTime()) && curExp > now) {
+            startDate = curExp;
+          }
+        }
+        const calcNewExpiry = new Date(startDate.getTime() + Number(rechargeDaysToAdd) * 24 * 60 * 60 * 1000);
+
+        return (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fade-in">
+            <GlassCard className="p-8 w-full max-w-lg rounded-3xl border-2 border-green-500/50 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-5">
+              <div className="flex items-center justify-between pb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-2xl bg-green-500/20 text-green-400 border border-green-500/30">
+                    <CheckCircle2 size={24} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-green-400 block">SaaS Admin Audit</span>
+                    <h3 className="text-lg font-black text-white">Approve & Activate Subscription</h3>
+                  </div>
+                </div>
+                <button
+                  disabled={actionLoading}
+                  onClick={() => setApproveModalReq(null)}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Summary Details */}
+              <div className="p-4 rounded-2xl bg-[#111522] border border-white/10 space-y-2 text-xs">
+                <div className="flex justify-between items-center py-1 border-b border-white/5">
+                  <span className="text-dark-muted font-bold">School Name:</span>
+                  <span className="text-white font-black text-sm">{approveModalReq.schoolName || targetSchool?.name || approveModalReq.schoolId}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-white/5">
+                  <span className="text-dark-muted font-bold">Requested Package:</span>
+                  <span className="text-cyan-300 font-bold uppercase">{approveModalReq.planName || approveModalReq.requestedPlan}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-white/5">
+                  <span className="text-dark-muted font-bold">Payment Gateway:</span>
+                  <span className="text-yellow-300 font-bold uppercase">{approveModalReq.payMethod || 'Online Transfer'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-white/5">
+                  <span className="text-dark-muted font-bold">Transaction ID (TID):</span>
+                  <span className="font-mono text-yellow-400 font-black text-sm">{approveModalReq.tid || 'Attached'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-dark-muted font-bold">Amount Paid:</span>
+                  <span className="text-green-400 font-black text-base">PKR {Number(approveModalReq.amount || 0).toLocaleString()}</span>
+                </div>
+              </div>
+
+              {approveModalReq.screenshotUrl && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-blue-950/30 border border-blue-500/30 text-xs">
+                  <span className="text-blue-300 font-bold flex items-center gap-1.5">
+                    <ImageIcon size={15} /> Payment Receipt Attached
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewScreenshotUrl(approveModalReq.screenshotUrl)}
+                    className="text-xs text-blue-400 hover:text-blue-300 font-black underline"
+                  >
+                    Inspect Slip
+                  </button>
+                </div>
+              )}
+
+              {/* Select Activated Plan Tier (From Created Plans) */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="block text-[11px] font-black uppercase tracking-wider text-dark-muted">
+                    Assign Plan Tier (Created Plans)
+                  </label>
+                  <span className="text-[10px] font-bold text-cyan-400">
+                    Selected: {plans.find(p => p.id === selectedApprovePlan || (p.name && p.name.toLowerCase() === selectedApprovePlan?.toLowerCase()))?.name || selectedApprovePlan}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {plans.map(p => {
+                    const isSelected = selectedApprovePlan === p.id || selectedApprovePlan === p.name || (selectedApprovePlan && p.name && selectedApprovePlan.toLowerCase() === p.name.toLowerCase());
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setSelectedApprovePlan(p.id)}
+                        className={`py-2 px-1 text-center rounded-xl text-xs font-bold border transition-all ${
+                          isSelected
+                            ? 'bg-green-600 text-white border-green-400 shadow-md font-black'
+                            : 'bg-white/5 text-gray-400 border-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Renewal Duration Picker */}
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider text-dark-muted mb-2">
+                  Select Subscription Extension Duration
+                </label>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {[
+                    { label: '30 Days (1 Mo)', days: 30 },
+                    { label: '60 Days (2 Mo)', days: 60 },
+                    { label: '90 Days (Qtr)', days: 90 },
+                    { label: '365 Days (1 Yr)', days: 365 }
+                  ].map(d => (
+                    <button
+                      key={d.days}
+                      type="button"
+                      onClick={() => setRechargeDaysToAdd(d.days)}
+                      className={`py-2 px-1 rounded-xl text-[11px] font-bold border transition-all text-center ${
+                        rechargeDaysToAdd === d.days
+                          ? 'bg-green-500/20 text-green-300 border-green-500 font-black shadow-md'
+                          : 'bg-white/5 text-gray-400 border-white/5 hover:bg-white/10'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-[#151926] border border-green-500/30 text-xs space-y-1">
+                  <div className="flex justify-between text-gray-400">
+                    <span>Current Expiry:</span>
+                    <span className="font-mono text-gray-200">
+                      {targetSchool?.expiryDate ? new Date(targetSchool.expiryDate).toLocaleDateString() : 'Expired / Not Set'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-green-400 font-black text-sm pt-1 border-t border-white/5">
+                    <span>New Expiry After Approval:</span>
+                    <span className="font-mono">{calcNewExpiry.toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin Notes */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-dark-muted mb-1">
+                  Verification Audit Note (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={rechargeAdminNote}
+                  onChange={e => setRechargeAdminNote(e.target.value)}
+                  placeholder="e.g. Verified in Meezan Bank account statement (Reference #...)"
+                  className="w-full premium-input text-xs"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={confirmApproveRecharge}
+                  className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-98"
+                >
+                  {actionLoading ? <RefreshCw className="animate-spin" size={16} /> : <Check size={18} />}
+                  Confirm Approval & Activate Plan
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => setApproveModalReq(null)}
+                  className="px-5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </GlassCard>
+          </div>
+        );
+      })()}
+
+      {/* REJECT MODAL */}
+      {rejectModalReq && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-fade-in">
+          <GlassCard className="p-8 w-full max-w-md rounded-3xl border-2 border-red-500/50 shadow-2xl relative space-y-5">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-red-500/20 text-red-400 border border-red-500/30">
+                  <XCircle size={24} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-red-400 block">Decline Request</span>
+                  <h3 className="text-lg font-black text-white">Reject Payment Proof</h3>
+                </div>
+              </div>
+              <button
+                disabled={actionLoading}
+                onClick={() => setRejectModalReq(null)}
+                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-black/30 border border-white/5 text-xs space-y-1">
+              <p><strong className="text-gray-400">School:</strong> <span className="text-white">{rejectModalReq.schoolName}</span></p>
+              <p><strong className="text-gray-400">TID:</strong> <span className="text-yellow-400 font-mono font-bold">{rejectModalReq.tid}</span></p>
+              <p><strong className="text-gray-400">Amount:</strong> <span className="text-green-400 font-bold">Rs. {Number(rejectModalReq.amount || 0).toLocaleString()}</span></p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase tracking-wider text-dark-muted mb-2">
+                Select or Enter Rejection Reason
+              </label>
+              <div className="space-y-1.5 mb-3">
+                {[
+                  'Transaction ID (TID) not found in bank statement',
+                  'Amount received does not match package pricing',
+                  'Payment screenshot receipt is illegible or altered',
+                  'Duplicate TID submission detected'
+                ].map(r => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRejectionReason(r)}
+                    className={`w-full text-left p-2 rounded-lg text-xs font-medium border transition-all ${
+                      rejectionReason === r ? 'bg-red-500/20 text-red-300 border-red-500/50' : 'bg-white/5 text-gray-400 border-transparent hover:bg-white/10'
+                    }`}
+                  >
+                    • {r}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                rows={3}
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+                placeholder="Specify reason for rejecting this recharge request..."
+                className="w-full premium-input text-xs"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={confirmRejectRecharge}
+                className="flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 active:scale-98"
+              >
+                {actionLoading ? <RefreshCw className="animate-spin" size={16} /> : <XCircle size={18} />}
+                Confirm Rejection
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => setRejectModalReq(null)}
+                className="px-5 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs"
+              >
+                Cancel
+              </button>
             </div>
           </GlassCard>
         </div>

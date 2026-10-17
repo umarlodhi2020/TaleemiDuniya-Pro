@@ -12,7 +12,17 @@ import { addRecord } from '../../services/db';
 
 const MainLayout = () => {
   const { userData } = useAuth();
-  const { isFeatureAllowed, getFeatureInfo, currentSaaSPlan, schoolData } = useSchool();
+  const { 
+    isFeatureAllowed, 
+    getFeatureInfo, 
+    currentSaaSPlan, 
+    schoolData,
+    isOverdue,
+    isExpiring,
+    daysLeft,
+    daysOverdue,
+    isOverdueMoreThan7Days
+  } = useSchool();
   const location = useLocation();
   const navigate = useNavigate();
   const schoolId = userData?.schoolId || 'default-school';
@@ -42,53 +52,45 @@ const MainLayout = () => {
   const [unclosableSeconds, setUnclosableSeconds] = useState(0);
 
   useEffect(() => {
-    // Check if School Admin rent is expiring or simulation requested
+    // Check if School Admin rent is expiring or overdue
     if (userData?.role === 'school-admin') {
-      let daysLeft = 0; // Default: 0 (no expiry set = expired/unknown)
-      if (schoolData?.expiryDate) {
-        const diff = new Date(schoolData.expiryDate).getTime() - Date.now();
-        daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
-      }
-      const isOverdue = daysLeft <= 0;
-      const isExpiring = daysLeft > 0 && daysLeft <= 5;
+      const isPaymentRoute = location.pathname.includes('/billing') || location.pathname.includes('/subscription');
 
-      // Set dynamic overdue flag in localStorage for expiry popup
-      if (isOverdue && schoolData?.expiryDate) {
-        localStorage.setItem('saas_is_overdue', 'true');
-      } else {
-        localStorage.removeItem('saas_is_overdue');
-      }
-      
-      const isDismissed = sessionStorage.getItem('saas_expiry_popup_shown');
-      
-      if (isOverdue && schoolData?.expiryDate) {
-        // ALWAYS show on overdue, even if dismissed
-        setTimeout(() => {
+      if (isOverdue) {
+        // Expiry date passed: On EVERY feature click/navigation, trigger popup with 10s unclosable timer
+        if (!isPaymentRoute) {
           setShowExpiryWarning(true);
           setUnclosableSeconds(10);
-        }, 300);
-      } else if (isExpiring && !isDismissed) {
-        setTimeout(() => setShowExpiryWarning(true), 2000);
-      } else if (!isDismissed && (userData?.subscriptionStatus === 'expiring_soon' || userData?.subscriptionStatus === 'expired')) {
-        setTimeout(() => setShowExpiryWarning(true), 2000);
+        }
+      } else if (isExpiring) {
+        // Expiring soon (1-5 days left): Trigger popup with 10s timer
+        const isExpiringShownThisSession = sessionStorage.getItem('saas_expiring_popup_session_shown');
+        if (!isPaymentRoute && !isExpiringShownThisSession) {
+          setTimeout(() => {
+            setShowExpiryWarning(true);
+            setUnclosableSeconds(10);
+            sessionStorage.setItem('saas_expiring_popup_session_shown', 'true');
+          }, 1200);
+        }
       }
     }
 
     // Attach global window trigger so any component can pop up the upgrade / expiry modal
     window.triggerSaaSExpiryPopup = () => {
       setShowExpiryWarning(true);
+      setUnclosableSeconds(10);
     };
     window.triggerSaaSFeatureLock = (featName = 'Premium Pro Feature') => {
       setLockedFeatureName(featName);
       setShowUpgradeModal(true);
     };
-  }, [userData, schoolData, location.pathname]);
+  }, [userData, schoolData, location.pathname, isOverdue, isExpiring]);
 
   useEffect(() => {
     let timer;
     if (showExpiryWarning && unclosableSeconds > 0) {
       timer = setInterval(() => {
-        setUnclosableSeconds(prev => prev - 1);
+        setUnclosableSeconds(prev => (prev <= 1 ? 0 : prev - 1));
       }, 1000);
     }
     return () => clearInterval(timer);
@@ -211,7 +213,7 @@ const MainLayout = () => {
         <Navbar toggleSidebar={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)} />
 
         <main className="py-6 px-4 sm:px-6 lg:px-8 print:p-0 flex-1 print:block transition-all duration-300 max-w-full overflow-x-hidden print:overflow-visible">
-          <div className="max-w-6xl mx-auto print:max-w-full print:mx-0 print:block">
+          <div className={`${location.pathname.includes('qr-scanner') ? 'max-w-[1500px]' : 'max-w-6xl'} mx-auto print:max-w-full print:mx-0 print:block`}>
             {/* Elegant Offline Banner */}
             {!isOnline && (
               <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-between text-amber-400 text-xs animate-pulse">
@@ -230,6 +232,57 @@ const MainLayout = () => {
                 const isCurrentAllowed = isFeatureAllowed(location.pathname);
                 const featInfo = getFeatureInfo(location.pathname);
                 if (userData?.role === 'school-admin' && !isCurrentAllowed) {
+                  if (isOverdueMoreThan7Days) {
+                    return (
+                      <div className="py-12 px-6 bg-gradient-to-br from-[#2a1116] to-[#160a0d] rounded-3xl border-2 border-red-500/80 shadow-2xl text-center max-w-2xl mx-auto space-y-6 animate-fade-in my-8 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+                          <AlertTriangle size={160} className="text-red-500" />
+                        </div>
+                        <div className="w-20 h-20 rounded-3xl bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto text-red-400 shadow-lg shadow-red-500/20">
+                          <Lock size={38} className="animate-bounce" />
+                        </div>
+                        <div>
+                          <span className="px-3.5 py-1 rounded-full bg-red-500/20 text-red-300 text-[10px] font-black uppercase tracking-widest border border-red-500/30">
+                            🚨 7 Days Grace Period Expired
+                          </span>
+                          <h2 className="text-2xl md:text-3xl font-black text-white mt-3">
+                            Feature Suspended (سروس معطل ہے)
+                          </h2>
+                          <p className="text-sm text-red-200 font-bold mt-1">
+                            {featInfo?.title || 'Operational Module'} — Access Disabled
+                          </p>
+                        </div>
+
+                        {/* Bilingual Alert Details */}
+                        <div className="p-4 rounded-2xl bg-black/40 border border-red-500/30 text-left space-y-3 text-xs text-gray-200 max-w-lg mx-auto">
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-red-400 block mb-0.5">📢 Roman Urdu:</span>
+                            <p className="leading-relaxed">Aap ke school ki subscription date ko guzray <strong>{daysOverdue} din</strong> ho chukay hain (7 din ki grace period khatam ho chuki hai). Fess ada na honay ki wajah se yeh feature temporary tor par muattal (disabled) kar diya gaya hai. Foran online payment kar ke account reactivate karein.</p>
+                          </div>
+                          <div className="pt-2 border-t border-white/10 text-right" dir="rtl">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-red-400 block mb-0.5 text-right">🇵🇰 اردو پیغام:</span>
+                            <p className="leading-relaxed">آپ کے اسکول کی سافٹ ویئر فیس کی مقررہ تاریخ کو گزرے ہوئے 7 دن سے زائد ہو چکے ہیں۔ فیس ادا نہ ہونے کی وجہ سے یہ سروس عارضی طور پر بند کر دی گئی ہے۔ تمام فیچرز فوری بحال کرنے کے لیے ابھی آن لائن ادائیگی کریں۔</p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                          <button
+                            onClick={() => navigate('/school-admin/billing')}
+                            className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+                          >
+                            <CreditCard size={16} /> Pay Online Now / ابھی فیس ادا کریں (Reactivate)
+                          </button>
+                          <button
+                            onClick={() => navigate('/school-admin/dashboard')}
+                            className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white/5 hover:bg-white/10 text-gray-300 font-bold text-xs transition-all"
+                          >
+                            Return to Dashboard
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div className="py-12 px-6 bg-gradient-to-br from-[#1b1e32] to-[#121422] rounded-3xl border-2 border-purple-500/50 shadow-2xl text-center max-w-2xl mx-auto space-y-6 animate-fade-in my-8 relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
@@ -412,47 +465,132 @@ const MainLayout = () => {
       {/* 🚨 POPUP 1: SAAS RENT / SUBSCRIPTION EXPIRY WARNING MODAL */}
       {/* ============================================================== */}
       {showExpiryWarning && (() => {
-        const isOverdue = localStorage.getItem('saas_is_overdue') === 'true';
-        const bgColor = isOverdue ? 'bg-red-950 border-red-500' : 'bg-orange-950 border-orange-500';
-        const blurColor = isOverdue ? 'bg-red-600/20' : 'bg-orange-600/20';
-        const iconColor = isOverdue ? 'text-red-500' : 'text-orange-500';
-        const title = isOverdue ? 'Subscription Overdue!' : 'Subscription Expiring Soon!';
-        const message = isOverdue 
-          ? 'Aap ke plan ki date expire ho chuki hai. Bara-e-meharbani apni subscription renew karein taa ke aap services use karna jari rakh sakein.'
-          : 'Aap ke plan ki date jald expire hone wali hai. Bara-e-meharbani apni subscription renew karein.';
-        const btnGradient = isOverdue ? 'from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500' : 'from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400';
-        const waitBg = isOverdue ? 'bg-red-900/40 text-red-400/60 border-red-900/50' : 'bg-orange-900/40 text-orange-400/60 border-orange-900/50';
+        const isCriticalOverdue = isOverdueMoreThan7Days;
+        const titleEn = isOverdue ? 'SUBSCRIPTION OVERDUE!' : 'SUBSCRIPTION EXPIRING SOON!';
+        const titleUr = isOverdue ? 'سافٹ ویئر فیس کی میعاد ختم ہو چکی ہے' : 'پلان کی میعاد جلد ختم ہونے والی ہے';
+        
+        const romanMsg = isOverdue
+          ? isCriticalOverdue
+            ? `Aap ki subscription date ko guzray ${daysOverdue} din ho chukay hain (7 din ki grace period khatam). Important features disable ho chukay hain. Foran payment karein taake TaleemiDunya chalta rahay.`
+            : `Aap ke school plan ki date expire ho chuki hai (${daysOverdue || 1} din guzar chukay hain). Bara-e-meharbani apni subscription renew karein taake TaleemiDunya ki sahuliyat bina rukawat chalti rahein.`
+          : `Aap ke school plan ki date jald expire hone wali hai (${daysLeft} din baqi hain). Bara-e-meharbani waqt par payment karein taake koi feature band na ho.`;
+
+        const urduMsg = isOverdue
+          ? isCriticalOverdue
+            ? `آپ کے اسکول کی سافٹ ویئر فیس کی تاریخ کو گزرے 7 دن سے زیادہ ہو چکے ہیں۔ اہم سروسز معطل ہو رہی ہیں۔ فوری فیس ادا کر کے اکاؤنٹ بحال کروائیں۔`
+            : `آپ کے اسکول کے سافٹ ویئر پلان کی تاریخ ختم ہو چکی ہے۔ برائے مہربانی فوری آن لائن فیس ادا کریں تاکہ سسٹم بلا تعطل کام کرتا رہے۔`
+          : `آپ کے اسکول کے پلان کی میعاد جلد ختم ہونے والی ہے۔ بغیر تعطل سسٹم استعمال کرنے کے لیے وقت پر رینیو کروائیں۔`;
 
         return (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-md">
-          <div className={`${bgColor} border rounded-3xl p-8 max-w-md w-full shadow-2xl text-center relative overflow-hidden animate-fade-in`}>
-            <div className={`absolute -top-10 -left-10 w-40 h-40 ${blurColor} rounded-full blur-3xl`}></div>
-            <div className={`absolute -bottom-10 -right-10 w-40 h-40 ${blurColor} rounded-full blur-3xl`}></div>
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in font-sans">
+          <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center relative overflow-hidden">
             
-            <AlertTriangle size={56} className={`${iconColor} mx-auto mb-6 animate-bounce relative z-10`} />
-            <h2 className="text-2xl font-black text-white mb-3 uppercase tracking-wider relative z-10">{title}</h2>
-            <p className="text-gray-300 text-sm mb-8 font-medium leading-relaxed relative z-10">
-              {message}
-            </p>
-            
-            <div className="relative z-10">
+            {/* Top-Right Close Button & Adjacent Countdown Timer */}
+            <div className="absolute top-4 right-4 sm:top-5 sm:right-5 flex items-center gap-2 z-20">
               {unclosableSeconds > 0 ? (
-                <button disabled className={`w-full py-4 rounded-xl font-black text-sm uppercase cursor-not-allowed border ${waitBg}`}>
-                  Please Wait {unclosableSeconds}s...
+                <>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-slate-800 text-xs font-mono font-bold shadow-xs">
+                    <Clock size={13} className="text-amber-600 animate-spin" />
+                    <span>{unclosableSeconds}s</span>
+                  </div>
+                  <button 
+                    disabled 
+                    className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-400 flex items-center justify-center cursor-not-allowed opacity-60"
+                    title={`انتظار فرمائیں ${unclosableSeconds} سیکنڈ`}
+                    aria-label="Wait to close"
+                  >
+                    <X size={16} />
+                  </button>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setShowExpiryWarning(false)}
+                  className="w-8 h-8 rounded-full bg-black hover:bg-slate-800 text-white flex items-center justify-center transition-all shadow-md active:scale-95 cursor-pointer"
+                  title="بند کریں / Close"
+                  aria-label="Close"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            
+            {/* Top Alert Icon */}
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3.5 shadow-sm border ${isOverdue ? 'bg-red-50 border-red-200 text-red-600' : 'bg-amber-50 border-amber-200 text-amber-600'}`}>
+              <AlertTriangle size={30} className="animate-bounce" />
+            </div>
+            
+            {/* Bilingual Black Titles */}
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{titleEn}</h2>
+            <p className="text-slate-700 font-bold text-sm mt-0.5">{titleUr}</p>
+
+            {/* Status Pill */}
+            <div className="my-3 flex justify-center">
+              {isCriticalOverdue ? (
+                <span className="px-3 py-1 rounded-full bg-red-100 text-red-900 border border-red-300 text-[11px] font-black uppercase tracking-wider">
+                  🚨 7+ Days Overdue (سروس معطل)
+                </span>
+              ) : isOverdue ? (
+                <span className="px-3 py-1 rounded-full bg-red-50 text-red-800 border border-red-200 text-[11px] font-black uppercase tracking-wider">
+                  ⚠️ Overdue: {daysOverdue || 1} Days ({daysOverdue || 1} دن تاخیر)
+                </span>
+              ) : (
+                <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-black uppercase tracking-wider">
+                  ⏳ {daysLeft} Days Remaining ({daysLeft} دن باقی)
+                </span>
+              )}
+            </div>
+
+            {/* Bilingual Messages in Clean Light Cards with Black Text */}
+            <div className="space-y-2.5 my-4 text-left">
+              {/* Roman Urdu Box */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed font-medium">
+                <span className="font-black text-slate-900 block mb-1 text-[11px] uppercase tracking-wider">📢 Roman Urdu Message:</span>
+                <p>{romanMsg}</p>
+              </div>
+
+              {/* Urdu Script Box */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed font-medium text-right" dir="rtl">
+                <span className="font-black text-slate-900 block mb-1 text-[11px] text-right">🇵🇰 اردو پیغام:</span>
+                <p>{urduMsg}</p>
+              </div>
+            </div>
+            
+            {/* Buttons: Black Color Buttons with White Text */}
+            <div className="space-y-2.5 pt-2">
+              {/* BUTTON 1: Black Pay Online Button with White Text */}
+              <button 
+                onClick={() => {
+                  setShowExpiryWarning(false);
+                  navigate('/school-admin/billing');
+                }}
+                className="w-full py-3.5 rounded-2xl bg-black hover:bg-slate-900 text-white font-black text-xs sm:text-sm uppercase shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                <CreditCard size={17} className="text-white" />
+                <span>Pay Online Now / ابھی فیس ادا کریں</span>
+              </button>
+
+              {/* BUTTON 2: Close Button with 10s Countdown */}
+              {unclosableSeconds > 0 ? (
+                <button 
+                  disabled 
+                  className="w-full py-3 rounded-2xl bg-slate-100 border border-slate-200 text-slate-500 font-bold text-xs cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <Clock size={15} className="animate-spin text-slate-600" />
+                  <span>Wait {unclosableSeconds}s to Close (انتظار فرمائیں {unclosableSeconds} سیکنڈ)</span>
                 </button>
               ) : (
                 <button 
                   onClick={() => {
                     setShowExpiryWarning(false);
-                    sessionStorage.setItem('saas_expiry_popup_shown', 'true');
-                    window.location.hash = '#/school-admin/subscription';
                   }}
-                  className={`w-full py-4 rounded-xl bg-gradient-to-r ${btnGradient} text-white font-black text-sm uppercase shadow-lg transition-all active:scale-[0.98]`}
+                  className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
-                  I Understand, Let me Pay
+                  <X size={15} className="text-white" />
+                  <span>Close / Samjh Gaya (بند کریں)</span>
                 </button>
               )}
             </div>
+
           </div>
         </div>
         );

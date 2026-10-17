@@ -732,26 +732,26 @@ const FeeRecord = () => {
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-white flex items-center gap-3">
-            <FileText className="text-blue-400" size={30} /> Fee Reports
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
+            <FileText className="text-blue-600" size={30} /> Fee Reports
           </h1>
-          <p className="text-dark-muted text-sm font-bold mt-1">Printable monthly fee collection registers • WhatsApp reminders.</p>
+          <p className="text-slate-500 text-sm font-semibold mt-1">Printable monthly fee collection registers • WhatsApp reminders.</p>
         </div>
 
         {/* Print Buttons */}
         <div className="flex flex-wrap gap-2">
           <button onClick={() => { setLoading(true); setStudents([]); setVouchers([]); setTimeout(() => window.location.reload(), 100); }}
-            className="flex items-center gap-2 px-3 py-2.5 bg-dark-card border border-dark-border rounded-xl text-xs font-black text-dark-muted hover:bg-white/5 transition-all">
+            className="flex items-center gap-2 px-3 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition-all">
             <RefreshCw size={14} /> Refresh
           </button>
           <button onClick={handleDeleteAllMonthVouchers}
-            className="flex items-center gap-2 px-3.5 py-2.5 bg-red-500/10 border border-red-500/30 rounded-xl text-xs font-black text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-all uppercase tracking-widest"
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-xl text-xs font-bold text-rose-700 shadow-sm transition-all uppercase tracking-wider"
             title="Delete all vouchers for this selected month"
           >
             <Trash2 size={14} /> Delete Month Vouchers
           </button>
           <button onClick={handleFixMonthAnnualFund} disabled={fixingVouchers}
-            className="flex items-center gap-2 px-3.5 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs font-black text-amber-400 hover:bg-amber-500/20 transition-all uppercase tracking-widest disabled:opacity-50"
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl text-xs font-bold text-amber-900 shadow-sm transition-all uppercase tracking-wider disabled:opacity-50"
             title="Remove duplicate Annual Fund from this month's vouchers"
           >
             {fixingVouchers ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Fix Annual Fund
@@ -787,25 +787,25 @@ const FeeRecord = () => {
             } catch(err) { alert('Error: ' + err.message); }
             finally { setFixingVouchers(false); }
           }} disabled={fixingVouchers}
-            className="flex items-center gap-2 px-3.5 py-2.5 bg-orange-500/10 border border-orange-500/30 rounded-xl text-xs font-black text-orange-400 hover:bg-orange-500/20 transition-all uppercase tracking-widest disabled:opacity-50"
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-orange-50 hover:bg-orange-100 border border-orange-300 rounded-xl text-xs font-extrabold text-orange-950 shadow-sm transition-all uppercase tracking-wider disabled:opacity-50"
             title="Remove Annual Fund from ALL this month's vouchers"
           >
             {fixingVouchers ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Remove Annual Fund
           </button>
           <button onClick={() => handlePrint('blank')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-xl text-xs font-black text-gray-800 dark:text-white hover:bg-gray-200 dark:hover:bg-white/5 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 shadow-sm transition-all uppercase tracking-wider">
             <FileText size={14} /> Blank Register
           </button>
           <button onClick={() => handlePrint('paid')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 dark:bg-dark-card border border-emerald-200 dark:border-dark-border rounded-xl text-xs font-black text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl text-xs font-bold text-emerald-800 shadow-sm transition-all uppercase tracking-wider">
             <CheckCircle size={14} /> Paid Record
           </button>
           <button onClick={() => handlePrint('unpaid')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-dark-card border border-rose-200 dark:border-dark-border rounded-xl text-xs font-black text-rose-700 dark:text-rose-400 hover:bg-rose-100 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-xl text-xs font-bold text-rose-800 shadow-sm transition-all uppercase tracking-wider">
             <AlertCircle size={14} /> Unpaid Record
           </button>
           <button onClick={() => handlePrint('all')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-lg shadow-blue-500/20 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all uppercase tracking-wider">
             <Printer size={14} /> Print Register
           </button>
           
@@ -835,7 +835,7 @@ const FeeRecord = () => {
             
             alert(`Audit complete! Check browser console (F12) for details.\n\nTotal Vouchers: ${filteredVouchers.length}\nUnpaid Vouchers: ${unpaid.length}\nDuplicates: ${duplicates.length}`);
           }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 dark:bg-dark-card border border-rose-200 dark:border-rose-500/50 rounded-xl text-xs font-black text-rose-700 dark:text-rose-400 hover:bg-rose-100 transition-all uppercase tracking-widest">
+            className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-300 rounded-xl text-xs font-bold text-rose-800 shadow-sm transition-all uppercase tracking-wider">
             <Search size={14} /> Audit Unpaid Vouchers
           </button>
         </div>
@@ -849,9 +849,9 @@ const FeeRecord = () => {
           { label: 'Total Collected', val: `Rs. ${totalPaid.toLocaleString()}`, color: 'emerald' },
           { label: 'Total Pending', val: `Rs. ${totalBalance.toLocaleString()}`, color: 'rose' },
         ].map((s, i) => (
-          <GlassCard key={i} className={`p-4 border-b-2 border-b-${s.color}-500`}>
-            <p className="text-[10px] font-black text-dark-muted uppercase tracking-widest">{s.label}</p>
-            <p className={`text-xl font-black mt-1 text-${s.color === 'white' ? 'white' : s.color + '-400'}`}>{s.val}</p>
+          <GlassCard key={i} className={`p-4 border-b-2 border-b-${s.color}-500 bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border shadow-sm`}>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{s.label}</p>
+            <p className={`text-xl font-black mt-1 ${s.color === 'white' ? 'text-slate-900 dark:text-white' : s.color === 'blue' ? 'text-blue-600 dark:text-blue-400' : s.color === 'emerald' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{s.val}</p>
           </GlassCard>
         ))}
       </div>

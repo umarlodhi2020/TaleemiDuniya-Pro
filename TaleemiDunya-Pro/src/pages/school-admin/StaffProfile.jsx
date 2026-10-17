@@ -33,14 +33,15 @@ import {
   TrendingUp,
   TrendingDown,
   Lock,
-  Printer
+  Printer,
+  Camera
 } from 'lucide-react';
 
 import GlassCard from '../../components/common/GlassCard';
 import PayslipModal from '../../components/common/PayslipModal';
 import BatchPayslipModal from '../../components/common/BatchPayslipModal';
 import { getSingleRecord, updateRecord, addRecord, getRecords } from '../../services/db';
-import { uploadDocument, markForDeletion } from '../../services/cloudinary';
+import { uploadDocument, uploadStaffPhoto, markForDeletion } from '../../services/cloudinary';
 import { useAuth } from '../../context/AuthContext';
 import { calculateMonthlyPayroll, validatePayrollEligibility, formatPeriod, summarizeStaffAttendance, exportStaffPayrollHistoryToCSV } from '../../utils/payrollUtils';
 
@@ -138,6 +139,55 @@ const StaffProfile = () => {
   const [uploadingDocument, setUploadingDocument] = useState(false);
   const [documentType, setDocumentType] = useState('Other');
   const [documentTitle, setDocumentTitle] = useState('');
+  const [uploadingProfilePhoto, setUploadingProfilePhoto] = useState(false);
+
+  const handleDirectPhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file (JPG, PNG, WebP).');
+      return;
+    }
+
+    setUploadingProfilePhoto(true);
+    try {
+      const schoolId = staff?.schoolId || userData?.schoolId || 'default-school';
+      const staffIdentifier = staff?.staffId || staff?.id || id;
+      
+      const res = await uploadStaffPhoto(file, schoolId, staffIdentifier);
+      if (res && res.success && (res.url || res.secure_url)) {
+        const photoUrl = res.url || res.secure_url;
+        const photoPublicId = res.publicId || res.public_id || '';
+
+        await updateRecord('staff', staff?.id || id, {
+          photoUrl,
+          profilePhoto: photoUrl,
+          photo: photoUrl,
+          avatar: photoUrl,
+          photoPublicId
+        });
+
+        setStaff(prev => ({
+          ...prev,
+          photoUrl,
+          profilePhoto: photoUrl,
+          photo: photoUrl,
+          avatar: photoUrl,
+          photoPublicId
+        }));
+
+        alert('Staff profile photo updated successfully!');
+      } else {
+        throw new Error(res?.error || 'Photo upload failed');
+      }
+    } catch (err) {
+      console.error('Error updating staff photo:', err);
+      alert('Failed to upload photo: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUploadingProfilePhoto(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStaff = async () => {
@@ -1304,20 +1354,39 @@ const StaffProfile = () => {
 
         <div className="relative pt-12 px-6 pb-6 sm:px-10 flex flex-col sm:flex-row items-center sm:items-end gap-6 text-center sm:text-left">
 
-          {/* Avatar */}
-          <div className="w-32 h-32 rounded-full border-4 border-white dark:border-dark-card bg-slate-100 dark:bg-dark-hover flex items-center justify-center overflow-hidden shrink-0 shadow-lg relative z-10">
-            {staff.photoUrl ? (
-              <img
-                src={staff.photoUrl}
-                alt={staff.name}
-                className="w-full h-full object-cover"
+          {/* Avatar with Direct Photo Upload */}
+          <div className="w-32 h-32 rounded-full border-4 border-white dark:border-dark-card bg-slate-100 dark:bg-dark-hover flex items-center justify-center overflow-hidden shrink-0 shadow-lg relative z-10 group">
+            {(() => {
+              const photoSrc = staff.photoUrl || staff.profilePhoto || staff.photo || staff.avatar || staff.imageUrl || staff.picture;
+              return photoSrc ? (
+                <img
+                  src={photoSrc}
+                  alt={staff.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ) : (
+                <User
+                  size={48}
+                  className="text-slate-400 dark:text-dark-muted"
+                />
+              );
+            })()}
+
+            {/* Direct Quick Photo Upload Overlay */}
+            <label className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white text-[11px] font-bold z-20">
+              <Camera size={22} className="mb-1" />
+              <span>{uploadingProfilePhoto ? 'Uploading...' : 'Change Photo'}</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingProfilePhoto}
+                onChange={handleDirectPhotoUpload}
               />
-            ) : (
-              <User
-                size={48}
-                className="text-slate-400 dark:text-dark-muted"
-              />
-            )}
+            </label>
           </div>
 
           {/* Main Identity */}

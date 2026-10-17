@@ -153,6 +153,19 @@ const CommercialLaunchAudit = React.lazy(() => import('./pages/school-admin/Comm
 const MultiBranchHub = React.lazy(() => import('./pages/school-admin/MultiBranchHub'));
 const FranchiseManager = React.lazy(() => import('./pages/school-admin/FranchiseManager'));
 const ComingSoon = React.lazy(() => import('./pages/school-admin/ComingSoon'));
+const AIQuestionPaperGenerator = React.lazy(() => import('./pages/school-admin/AIQuestionPaperGenerator'));
+const SyllabusTracker = React.lazy(() => import('./pages/school-admin/SyllabusTracker'));
+const ParentQuickPortal = React.lazy(() => import('./pages/public/ParentQuickPortal'));
+const AcademicCalendar = React.lazy(() => import('./pages/school-admin/AcademicCalendar'));
+const StudentHealthRecord = React.lazy(() => import('./pages/school-admin/StudentHealthRecord'));
+const VisitorManager = React.lazy(() => import('./pages/school-admin/VisitorManager'));
+const HouseMeritSystem = React.lazy(() => import('./pages/school-admin/HouseMeritSystem'));
+const LostAndFound = React.lazy(() => import('./pages/school-admin/LostAndFound'));
+const PTMScheduler = React.lazy(() => import('./pages/school-admin/PTMScheduler'));
+const AIVoiceTelephonyAgent = React.lazy(() => import('./pages/school-admin/AIVoiceTelephonyAgent'));
+const CanteenWalletManager = React.lazy(() => import('./pages/school-admin/CanteenWalletManager'));
+const StudentRetentionPredictor = React.lazy(() => import('./pages/school-admin/StudentRetentionPredictor'));
+const AlumniDirectory = React.lazy(() => import('./pages/school-admin/AlumniDirectory'));
 import GlassCard from './components/common/GlassCard';
 const FeatureVideos = React.lazy(() => import('./pages/super-admin/FeatureVideos'));
 
@@ -242,6 +255,10 @@ const AppRoutes = () => {
       <Route path="/privacy-policy" element={<PrivacyPolicy />} />
       <Route path="/terms-of-service" element={<TermsOfService />} />
       <Route path="/setup" element={<SuperAdminSetup />} />
+      <Route path="/parent-quick-view/:studentId" element={<ParentQuickPortal />} />
+      <Route path="/parent-quick-view" element={<ParentQuickPortal />} />
+      <Route path="/p/:studentId" element={<ParentQuickPortal />} />
+      <Route path="/p" element={<ParentQuickPortal />} />
 
       {/* Super Admin Routes */}
       <Route
@@ -369,6 +386,30 @@ const AppRoutes = () => {
         <Route path="exams/individual-marksheet" element={<MarksheetGenerator />} />
         <Route path="exams/class-report" element={<ExamReportSummary />} />
         <Route path="exams/report-summary" element={<ExamReportSummary />} />
+        <Route path="exams/ai-question-paper" element={<AIQuestionPaperGenerator />} />
+        <Route path="academics/ai-question-paper" element={<AIQuestionPaperGenerator />} />
+        <Route path="ai-question-paper" element={<AIQuestionPaperGenerator />} />
+        <Route path="academics/syllabus-tracker" element={<SyllabusTracker />} />
+        <Route path="syllabus-tracker" element={<SyllabusTracker />} />
+        <Route path="academic-calendar" element={<AcademicCalendar />} />
+        <Route path="academics/calendar" element={<AcademicCalendar />} />
+        <Route path="student-health" element={<StudentHealthRecord />} />
+        <Route path="students/health" element={<StudentHealthRecord />} />
+        <Route path="visitors" element={<VisitorManager />} />
+        <Route path="security/visitors" element={<VisitorManager />} />
+        <Route path="house-system" element={<HouseMeritSystem />} />
+        <Route path="students/house-system" element={<HouseMeritSystem />} />
+        <Route path="lost-and-found" element={<LostAndFound />} />
+        <Route path="ptm-scheduler" element={<PTMScheduler />} />
+        <Route path="academics/ptm-scheduler" element={<PTMScheduler />} />
+        <Route path="ai-voice-telephony" element={<AIVoiceTelephonyAgent />} />
+        <Route path="telephony" element={<AIVoiceTelephonyAgent />} />
+        <Route path="canteen-wallet" element={<CanteenWalletManager />} />
+        <Route path="canteen" element={<CanteenWalletManager />} />
+        <Route path="retention-predictor" element={<StudentRetentionPredictor />} />
+        <Route path="student-retention" element={<StudentRetentionPredictor />} />
+        <Route path="alumni-directory" element={<AlumniDirectory />} />
+        <Route path="alumni" element={<AlumniDirectory />} />
 
         {/* Backward Compatibility Aliases */}
         <Route path="exams/mark" element={<MarksEntry />} />

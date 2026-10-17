@@ -17,8 +17,11 @@ async function uploadAndRestart() {
 
     console.log('\n⏳ 1/4 Uploading updated server.js and serviceAccountKey.json...');
     const path = require('path');
+    const fs = require('fs');
     await ssh.putFile(path.join(__dirname, 'server.js'), `${remoteDir}/server.js`);
-    await ssh.putFile(path.join(__dirname, 'serviceAccountKey.json'), `${remoteDir}/serviceAccountKey.json`);
+    if (fs.existsSync(path.join(__dirname, 'serviceAccountKey.json'))) {
+        await ssh.putFile(path.join(__dirname, 'serviceAccountKey.json'), `${remoteDir}/serviceAccountKey.json`);
+    }
     console.log('✅ Files updated on disk.');
 
     console.log('\n⏳ Installing nodemailer on live server...');
@@ -53,10 +56,10 @@ async function uploadAndRestart() {
     for (let i = 0; i < 6; i++) {
         await new Promise(r => setTimeout(r, 3000));
         try {
-            const statusRes = await fetch('https://umarhayat.alwaysdata.net/api/session/status?schoolId=NNRuCtHxQNjISc9EPgMs');
+            const statusRes = await fetch('https://umarhayat.alwaysdata.net/api/session/status?schoolId=default_school');
             const statusJson = await statusRes.json();
-            console.log(`Live Status Check [${i+1}/6]:`, statusJson.status, statusJson.qrDataUrl ? '(QR Available)' : '');
-            if (statusJson.status === 'QR_READY') break;
+            console.log(`Live Status Check [${i+1}/6]:`, statusJson.status, statusJson.phone ? `(Phone: ${statusJson.phone})` : '', statusJson.qrDataUrl ? '(QR Available)' : '');
+            if (statusJson.status === 'CONNECTED' || statusJson.status === 'QR_READY') break;
         } catch (e) {}
     }
 

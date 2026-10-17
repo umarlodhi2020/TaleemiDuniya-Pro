@@ -26,17 +26,13 @@ async function check() {
     console.log('-------------------');
   });
 
-  console.log('\n--- DIAGNOSTIC: Search for STF-001 ---');
-  const match = snap.docs.find(d => {
-    const data = d.data();
-    return (data.staffId === 'STF-001') || (data.cnic && data.cnic.includes('001'));
-  });
-
-  if (match) {
-    console.log('MATCH FOUND!');
-    console.log(JSON.stringify(match.data(), null, 2));
+  console.log('\n--- DIAGNOSTIC: Check doc Fvi2HEK9WGtAdSfIpjtc ---');
+  const targetDoc = snap.docs.find(d => d.id === 'Fvi2HEK9WGtAdSfIpjtc');
+  if (targetDoc) {
+    console.log('FOUND Fvi2HEK9WGtAdSfIpjtc:');
+    console.log(JSON.stringify(targetDoc.data(), null, 2));
   } else {
-    console.log('NO MATCH FOUND FOR STF-001');
+    console.log('Doc Fvi2HEK9WGtAdSfIpjtc NOT found');
   }
 }
 

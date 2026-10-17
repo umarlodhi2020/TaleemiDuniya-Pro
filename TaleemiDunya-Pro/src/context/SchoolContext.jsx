@@ -126,7 +126,7 @@ export const SchoolProvider = ({ children }) => {
         .map(c => c.name || String(c.id))
         .filter(Boolean);
     }
-    return ['Nursery', 'Prep', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+    return [];
   }, [schoolClasses]);
 
   // Derive fee structure map directly from configured class objects
@@ -148,12 +148,34 @@ export const SchoolProvider = ({ children }) => {
   }, [schoolClasses]);
 
   const getExpiryDate = () => {
-    if (!schoolData?.expiryDate) return null;
-    if (typeof schoolData.expiryDate.toDate === 'function') {
-      return schoolData.expiryDate.toDate();
+    const raw = schoolData?.expiryDate || schoolData?.expiry;
+    if (!raw) return null;
+    if (typeof raw.toDate === 'function') {
+      return raw.toDate();
     }
-    return new Date(schoolData.expiryDate);
+    return new Date(raw);
   };
+
+  // Detailed expiry calculations
+  const getExpiryDiff = () => {
+    const isDeactivated = schoolData?.status === 'inactive' || schoolData?.status === 'disabled';
+    if (isDeactivated) {
+      return { daysLeft: 0, daysOverdue: 1, isOverdue: true, isExpiring: false, isOverdueMoreThan7Days: true, isDeactivated: true };
+    }
+    const exp = getExpiryDate();
+    if (!exp || isNaN(exp.getTime())) {
+      return { daysLeft: 999, daysOverdue: 0, isOverdue: false, isExpiring: false, isOverdueMoreThan7Days: false, isDeactivated: false };
+    }
+    const diff = exp.getTime() - Date.now();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    const isOverdue = days <= 0;
+    const daysOverdue = isOverdue ? Math.abs(days) : 0;
+    const isExpiring = days > 0 && days <= 5;
+    const isOverdueMoreThan7Days = isOverdue && daysOverdue > 7;
+    return { daysLeft: days, daysOverdue, isOverdue, isExpiring, isOverdueMoreThan7Days, isDeactivated: false };
+  };
+
+  const expiryMetrics = getExpiryDiff();
 
   // Compute exact allowed features map for this school
   const allowedFeaturesMap = useMemo(() => {
@@ -169,6 +191,47 @@ export const SchoolProvider = ({ children }) => {
     // Always allow super admin config BUT ONLY FOR ACTUAL SUPER ADMINS!
     if (keyOrPath === 'super-admin-config' || keyOrPath === '/super-admin/dashboard') {
       return userData?.role === 'super-admin';
+    }
+
+    // Always allow billing portal, subscription & main dashboard so admin can view and pay
+    if (
+      keyOrPath === '/school-admin/billing' || 
+      keyOrPath === '/school-admin/subscription' || 
+      keyOrPath === 'saas-billing-portal' ||
+      keyOrPath === '/school-admin/dashboard' ||
+      keyOrPath === 'executive-dashboard'
+    ) {
+      return true;
+    }
+
+    // If School Admin is more than 7 days overdue, lock important operational features
+    if (userData?.role === 'school-admin' && expiryMetrics.isOverdueMoreThan7Days) {
+      const lockedWhen7DaysOverdue = [
+        '/school-admin/attendance',
+        '/school-admin/qr-scanner',
+        '/school-admin/staff-attendance',
+        '/school-admin/students/add',
+        '/school-admin/inquiry-student',
+        '/school-admin/admissions/crm',
+        '/school-admin/collection',
+        '/school-admin/fees/generate',
+        '/school-admin/class-fees',
+        '/school-admin/exams',
+        '/school-admin/period-bell',
+        '/school-admin/sms-panel',
+        '/school-admin/staff/salary-setup',
+        'student-attendance',
+        'gate-scanner',
+        'inquiry-student',
+        'admission-crm',
+        'fee-collection',
+        'challan-manager',
+        'period-bell',
+        'online-quiz'
+      ];
+      if (lockedWhen7DaysOverdue.some(p => keyOrPath === p || (typeof keyOrPath === 'string' && keyOrPath.includes(p)))) {
+        return false;
+      }
     }
     
     return isFeatureAllowedByMap(keyOrPath, allowedFeaturesMap);
@@ -204,8 +267,12 @@ export const SchoolProvider = ({ children }) => {
     classesList,
     classFees,
     classesLoading,
-    isSubscriptionActive: schoolData?.status === 'active' && (getExpiryDate() ? getExpiryDate() > new Date() : true),
-    isOverdue: getExpiryDate() ? (getExpiryDate().getTime() - Date.now() <= 0) : false,
+    isSubscriptionActive: schoolData?.status === 'active' && !expiryMetrics.isOverdue,
+    isOverdue: expiryMetrics.isOverdue,
+    isExpiring: expiryMetrics.isExpiring,
+    daysLeft: expiryMetrics.daysLeft,
+    daysOverdue: expiryMetrics.daysOverdue,
+    isOverdueMoreThan7Days: expiryMetrics.isOverdueMoreThan7Days,
     allowedFeaturesMap,
     isFeatureAllowed,
     getFeatureInfo,
@@ -220,7 +287,12 @@ export const SchoolProvider = ({ children }) => {
     } else {
       localStorage.removeItem('saas_is_overdue');
     }
-  }, [value.isOverdue]);
+    if (value.isOverdueMoreThan7Days) {
+      localStorage.setItem('saas_is_overdue_7_days', 'true');
+    } else {
+      localStorage.removeItem('saas_is_overdue_7_days');
+    }
+  }, [value.isOverdue, value.isOverdueMoreThan7Days]);
 
   return (
     <SchoolContext.Provider value={value}>

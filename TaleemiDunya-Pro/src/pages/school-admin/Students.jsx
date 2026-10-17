@@ -13,7 +13,8 @@ import {
   Eye,
   UploadCloud,
   MessageSquare,
-  CheckCircle
+  CheckCircle,
+  QrCode
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { useNavigate } from 'react-router-dom';
@@ -604,6 +605,7 @@ const StudentManager = () => {
                               )}
                             </button>
                             <button onClick={() => navigate(`/school-admin/students/${student.id}`)} className="p-1.5 px-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-all text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"><Eye size={12} /> View</button>
+                            <a href={`#/parent-quick-view/${student.id}`} target="_blank" rel="noreferrer" title="Open Magic QR Parent Portal (No Password)" className="p-1.5 px-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-all text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"><QrCode size={12} /> Portal</a>
                             <button onClick={() => navigate(`/school-admin/students/edit/${student.id}`)} className="p-1.5 px-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-all text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"><Edit2 size={12} /> Edit</button>
                             <button onClick={() => handleDelete(student.id)} className="p-1.5 px-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-all text-[10px] uppercase tracking-wider font-bold flex items-center gap-1"><Trash2 size={12} /> Delete</button>
                           </div>

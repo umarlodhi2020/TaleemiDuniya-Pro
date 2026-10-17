@@ -116,12 +116,68 @@ const StaffIdCards = () => {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printTarget, setPrintTarget] = useState('auto'); // 'auto', 'single', 'selected', 'all'
+  const [cardsPerPage, setCardsPerPage] = useState(4);
+  const [bulkMode, setBulkMode] = useState('all');
 
   const previewStaff = staff.find(s => s.id === previewStaffId) || staff[0] || {};
   const selectedStaffData = staff.filter(s => selectedStaffIds.includes(s.id));
+
+  // Determine what staff should be printed dynamically
+  const staffToPrint = React.useMemo(() => {
+    if (printTarget === 'single') {
+      return previewStaff?.id ? [previewStaff] : (staff.length > 0 ? [staff[0]] : []);
+    }
+    if (printTarget === 'all') {
+      return filteredStaff.length > 0 ? filteredStaff : staff;
+    }
+    if (printTarget === 'selected') {
+      const selected = staff.filter(s => selectedStaffIds.includes(s.id));
+      if (selected.length > 0) return selected;
+      return previewStaff?.id ? [previewStaff] : (staff.length > 0 ? [staff[0]] : []);
+    }
+    // 'auto' mode (triggered by Ctrl+P or default print)
+    if (selectedStaffIds.length > 0) {
+      return staff.filter(s => selectedStaffIds.includes(s.id));
+    }
+    if (previewStaff?.id) {
+      return [previewStaff];
+    }
+    return filteredStaff.length > 0 ? filteredStaff : staff;
+  }, [printTarget, selectedStaffIds, staff, filteredStaff, previewStaff]);
+
+  // Guaranteed fallback so print output is NEVER empty
+  const finalStaffToPrint = staffToPrint.length > 0 ? staffToPrint : (
+    staff.length > 0 ? [staff[0]] : [
+      {
+        id: 'sample-staff-1',
+        name: 'Staff Member',
+        department: 'Academics',
+        employeeId: 'STF-001',
+        cnic: '42101-1234567-1',
+        phone: '0300-1234567',
+        role: 'Teacher'
+      }
+    ]
+  );
+
+  const handlePrint = (target = 'auto') => {
+    setPrintTarget(target);
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+    }, 250);
+  };
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setIsPrinting(false);
+      setPrintTarget('auto');
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   // Pagination for staff list (simple implementation for UI match)
   const [currentPage, setCurrentPage] = useState(1);
@@ -150,12 +206,84 @@ const StaffIdCards = () => {
     <div className="min-h-screen bg-[#f4f7fb] text-gray-800 p-4 md:p-6 font-sans">
       {/* Print Styles */}
       <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 8mm 6mm;
+        }
+
         @media print {
-          body * { visibility: hidden; }
-          #print-area, #print-area * { visibility: visible; }
-          #print-area { position: absolute; left: 0; top: 0; width: 100%; }
-          .no-print { display: none !important; }
-          .print-card-break { page-break-inside: avoid; break-inside: avoid; }
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            min-height: 100% !important;
+          }
+
+          /* Force exact print colors, backgrounds, and images */
+          *, *::before, *::after {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+
+          /* Hide app layout chrome, sidebars, headers, floating widgets, buttons, and no-print elements */
+          aside,
+          header,
+          nav,
+          .no-print,
+          .print-hide,
+          .print\\:hidden,
+          [class*="print:hidden"],
+          button,
+          [class*="fixed"],
+          [class*="sticky"] {
+            display: none !important;
+          }
+
+          #root,
+          .min-h-screen,
+          main,
+          main > div {
+            overflow: visible !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            background: #ffffff !important;
+          }
+
+          /* Hide everything by default */
+          body * {
+            visibility: hidden;
+          }
+
+          /* Make ONLY staff print area and its contents visible */
+          #staff-id-cards-print-area,
+          #staff-id-cards-print-area *,
+          #print-area,
+          #print-area *,
+          .printable-report-area,
+          .printable-report-area * {
+            visibility: visible !important;
+          }
+
+          #staff-id-cards-print-area,
+          #print-area {
+            display: block !important;
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+          }
+
+          .print-card-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
         }
       `}</style>
 
@@ -225,12 +353,22 @@ const StaffIdCards = () => {
                 >
                   {selectedStaffIds.includes(st.id) && <Check size={12} className="text-white" />}
                 </div>
-                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0">
-                  {st.profilePhoto || st.photoUrl ? (
-                    <img src={st.profilePhoto || st.photoUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <User size={16} className="m-auto h-full text-gray-400" />
-                  )}
+                <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden shrink-0 flex items-center justify-center">
+                  {(() => {
+                    const stPhoto = st.profilePhoto || st.photoUrl || st.photo || st.avatar || st.imageUrl || st.picture || st.image;
+                    return stPhoto ? (
+                      <img
+                        src={stPhoto}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <User size={16} className="m-auto h-full text-gray-400" />
+                    );
+                  })()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="text-xs font-bold text-gray-900 truncate">{st.name}</h4>
@@ -271,11 +409,11 @@ const StaffIdCards = () => {
 
         {/* CENTER PANEL: Preview */}
         <div className="lg:col-span-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col h-[700px] overflow-hidden">
-          <div className="flex justify-center mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
             <div className="inline-flex rounded-lg border border-gray-200 p-1 bg-gray-50">
               <button 
                 onClick={() => handleSettingChange('cardType', 'front')}
-                className={`px-6 py-1.5 rounded-md text-xs font-bold transition-all ${
+                className={`px-5 py-1.5 rounded-md text-xs font-bold transition-all ${
                   settings.cardType === 'front' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 hover:text-gray-800'
                 }`}
               >
@@ -283,7 +421,7 @@ const StaffIdCards = () => {
               </button>
               <button 
                 onClick={() => handleSettingChange('cardType', 'back')}
-                className={`px-6 py-1.5 rounded-md text-xs font-bold transition-all ${
+                className={`px-5 py-1.5 rounded-md text-xs font-bold transition-all ${
                   settings.cardType === 'back' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 hover:text-gray-800'
                 }`}
               >
@@ -291,13 +429,22 @@ const StaffIdCards = () => {
               </button>
               <button 
                 onClick={() => handleSettingChange('cardType', 'both')}
-                className={`px-6 py-1.5 rounded-md text-xs font-bold transition-all ${
+                className={`px-5 py-1.5 rounded-md text-xs font-bold transition-all ${
                   settings.cardType === 'both' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 hover:text-gray-800'
                 }`}
               >
                 Both Sides
               </button>
             </div>
+
+            <button
+              onClick={() => handlePrint('single')}
+              className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+              title="Print this previewed ID Card"
+            >
+              <Printer size={13} />
+              <span>Print This Card</span>
+            </button>
           </div>
 
           <div className="flex-1 bg-gray-100 rounded-xl border border-gray-200 overflow-hidden p-4 flex items-center justify-center">
@@ -452,36 +599,56 @@ const StaffIdCards = () => {
             <Users size={18} className="text-blue-600" />
             <h3 className="font-bold text-gray-800 text-sm">Bulk Generate ID Cards</h3>
           </div>
-          <p className="text-[10px] text-gray-500 mb-4">Generate multiple staff ID cards at once.</p>
+          <p className="text-[10px] text-gray-500 mb-4">Generate and print multiple staff ID cards together.</p>
           
           <div className="space-y-3 mb-4">
             <div className="flex items-center gap-4 text-xs font-semibold text-gray-700">
-              <label className="flex items-center gap-2 cursor-pointer" onClick={selectAllStaff}>
-                <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center ${selectedStaffIds.length === filteredStaff.length && filteredStaff.length > 0 ? 'border-blue-600 bg-white' : 'border-gray-300'}`} />
+              <label 
+                className="flex items-center gap-2 cursor-pointer" 
+                onClick={() => {
+                  setBulkMode('all');
+                  if (selectedStaffIds.length !== filteredStaff.length) {
+                    selectAllStaff();
+                  }
+                }}
+              >
+                <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center ${bulkMode === 'all' || selectedStaffIds.length === filteredStaff.length ? 'border-blue-600 bg-white' : 'border-gray-300'}`} />
                 All Staff ({filteredStaff.length})
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center ${selectedStaffIds.length > 0 && selectedStaffIds.length < filteredStaff.length ? 'border-blue-600 bg-white' : 'border-gray-300'}`} />
+              <label 
+                className="flex items-center gap-2 cursor-pointer" 
+                onClick={() => {
+                  setBulkMode('selected');
+                  if (selectedStaffIds.length === 0 && filteredStaff.length > 0) {
+                    setSelectedStaffIds([filteredStaff[0].id]);
+                  }
+                }}
+              >
+                <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center ${bulkMode === 'selected' && selectedStaffIds.length > 0 ? 'border-blue-600 bg-white' : 'border-gray-300'}`} />
                 Selected Staff ({selectedStaffIds.length})
               </label>
             </div>
             
             <div>
               <label className="text-[10px] text-gray-500 block mb-1">Cards Per Page</label>
-              <select className="w-full p-2 text-xs border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none bg-gray-50">
-                <option>4 Cards</option>
-                <option>6 Cards</option>
-                <option>8 Cards</option>
+              <select 
+                value={cardsPerPage}
+                onChange={(e) => setCardsPerPage(Number(e.target.value))}
+                className="w-full p-2 text-xs border border-gray-300 rounded-md focus:border-blue-500 focus:outline-none bg-gray-50 font-medium"
+              >
+                <option value={4}>4 Cards per A4 Sheet (Recommended)</option>
+                <option value={6}>6 Cards per A4 Sheet</option>
+                <option value={8}>8 Cards per A4 Sheet</option>
               </select>
             </div>
           </div>
           
           <button 
-            onClick={handlePrint}
-            disabled={selectedStaffIds.length === 0}
-            className="w-full py-3 flex items-center justify-center gap-2 bg-blue-600 text-white font-bold text-xs rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+            onClick={() => handlePrint(bulkMode === 'selected' && selectedStaffIds.length > 0 ? 'selected' : 'all')}
+            disabled={staff.length === 0}
+            className="w-full py-3 flex items-center justify-center gap-2 bg-blue-600 text-white font-bold text-xs rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:opacity-50 active:scale-[0.99] cursor-pointer"
           >
-            <Copy size={16} /> Generate Bulk Cards
+            <Copy size={16} /> {selectedStaffIds.length > 0 && bulkMode === 'selected' ? `Print Selected Cards (${selectedStaffIds.length})` : `Generate All Cards (${filteredStaff.length})`}
           </button>
         </div>
 
@@ -491,31 +658,65 @@ const StaffIdCards = () => {
             <Printer size={18} className="text-blue-600" />
             <h3 className="font-bold text-gray-800 text-sm">Print & Download</h3>
           </div>
-          <p className="text-[10px] text-gray-500 mb-4">Get your ID cards in different formats.</p>
-          <div className="space-y-3">
+          <p className="text-[10px] text-gray-500 mb-4">Print cards directly or save as high-res PDF.</p>
+          <div className="space-y-2.5">
             <button 
-              onClick={handlePrint}
-              disabled={selectedStaffIds.length === 0}
-              className="w-full py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-gray-800 transition-colors disabled:opacity-50"
+              onClick={() => handlePrint('auto')}
+              disabled={staff.length === 0}
+              className="w-full py-2.5 flex items-center justify-center gap-2 bg-gray-900 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-gray-800 transition-colors disabled:opacity-50 active:scale-[0.99] cursor-pointer"
             >
-              <Printer size={14} /> Print Now
+              <Printer size={14} /> {selectedStaffIds.length > 0 ? `Print Selected (${selectedStaffIds.length} Cards)` : `Print Current Card (${previewStaff.name || 'Staff'})`}
+            </button>
+            <button 
+              onClick={() => handlePrint('all')}
+              disabled={filteredStaff.length === 0}
+              className="w-full py-2 flex items-center justify-center gap-2 border border-gray-300 text-gray-700 font-semibold text-xs rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <Users size={14} /> Print All Staff ({filteredStaff.length})
             </button>
           </div>
         </div>
       </div>
 
       {/* Print Area Container */}
-      <div id="print-area" className="hidden">
-        <div className="p-4 bg-white" style={{ minHeight: '100vh', width: '100%', maxWidth: '800px', margin: '0 auto' }}>
-          <div className="grid grid-cols-2 gap-4">
-            {selectedStaffData.map(st => {
-              return (
-                <div key={st.id} className="print-card-break mb-8 inline-block">
+      <div 
+        id="staff-id-cards-print-area" 
+        className="hidden print:block printable-report-area text-black bg-white"
+      >
+        <div className="bg-white w-full max-w-[800px] mx-auto p-2">
+          {currentSettings.cardType === 'both' ? (
+            <div className="flex flex-col items-center gap-6 w-full py-2">
+              {finalStaffToPrint.map((st) => (
+                <div 
+                  key={st.id} 
+                  className="print-card-break flex flex-row items-center justify-center gap-4 py-2 w-full"
+                  style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+                >
+                  <div className="relative">
+                    {renderStaffCard(st, true, { ...currentSettings, cardType: 'front' })}
+                  </div>
+                  <div className="border-l-2 border-dashed border-gray-400 h-[290px] mx-1 opacity-60 flex items-center justify-center relative">
+                    <span className="absolute -top-3 text-[9px] text-gray-400 font-mono">✂</span>
+                  </div>
+                  <div className="relative">
+                    {renderStaffCard(st, true, { ...currentSettings, cardType: 'back' })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-6 justify-items-center w-full py-2">
+              {finalStaffToPrint.map((st) => (
+                <div 
+                  key={st.id} 
+                  className="print-card-break inline-block"
+                  style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}
+                >
                   {renderStaffCard(st, true, currentSettings)}
                 </div>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

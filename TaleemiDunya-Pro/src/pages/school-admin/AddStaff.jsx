@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Save, 
   ArrowLeft, 
@@ -18,36 +18,156 @@ import {
   Loader2,
   CheckCircle,
   Smartphone,
-  BookOpen
+  BookOpen,
+  Sparkles
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import GlassCard from '../../components/common/GlassCard';
 import { addRecord, getRecords, getSingleRecord, updateRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
-import { uploadStudentPhoto, getThumbnailUrl, markForDeletion } from '../../services/cloudinary';
+import { useSchool } from '../../context/SchoolContext';
+import { uploadStaffPhoto, uploadStaffSignature, getThumbnailUrl, markForDeletion, compressImage } from '../../services/cloudinary';
 import Swal from 'sweetalert2';
 import QRCode from 'react-qr-code';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, collection, query, where, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+
+const DESIGNATION_SUGGESTIONS = [
+  'Computer Teacher',
+  'Mathematics Teacher',
+  'English Teacher',
+  'Science Teacher',
+  'Urdu Teacher',
+  'Islamiat Teacher',
+  'Junior Teacher',
+  'Senior Teacher',
+  'Principal',
+  'Vice Principal',
+  'Accountant',
+  'Admin Officer',
+  'Librarian',
+  'Physical Education (PTI)'
+];
+
+const DEPARTMENT_SUGGESTIONS = [
+  'Academic',
+  'Management',
+  'Accounts',
+  'IT Department',
+  'Support'
+];
+
+const QUALIFICATION_SUGGESTIONS = [
+  'Matric',
+  'FA / F.Sc',
+  'ICS / I.Com',
+  'BA / B.Sc',
+  'BS Computer Science',
+  'BS English',
+  'BS Mathematics',
+  'B.Ed',
+  'MA / M.Sc',
+  'M.Ed',
+  'MS / M.Phil'
+];
+
+const SPECIALIZATION_SUGGESTIONS = [
+  'Computer Science',
+  'Mathematics',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'English',
+  'Urdu',
+  'Islamic Studies',
+  'General Science'
+];
+
+const CERTIFICATION_SUGGESTIONS = [
+  'B.Ed (1.5 Years)',
+  'B.Ed (4 Years)',
+  'M.Ed',
+  'Montessori Certified',
+  'IELTS',
+  'Microsoft Certified',
+  'ECE Certificate'
+];
+
+const SKILL_SUGGESTIONS = [
+  'Classroom Management',
+  'Lesson Planning',
+  'Curriculum Design',
+  'MS Office',
+  'Communication Skills',
+  'Online Teaching'
+];
+
+const SUBJECT_SUGGESTIONS = [
+  'Mathematics',
+  'English',
+  'Urdu',
+  'General Science',
+  'Physics',
+  'Chemistry',
+  'Biology',
+  'Computer Science',
+  'Islamiat',
+  'Pak Studies',
+  'Social Studies',
+  'Tarjuma-tul-Quran'
+];
+
+const RELATIONSHIP_SUGGESTIONS = [
+  'Father',
+  'Mother',
+  'Husband',
+  'Wife',
+  'Brother',
+  'Sister',
+  'Guardian'
+];
+
+const CAMPUS_SUGGESTIONS = [
+  'Main Campus',
+  'Boys Branch',
+  'Girls Branch',
+  'Junior Wing',
+  'Senior Wing'
+];
+
+const MANAGER_SUGGESTIONS = [
+  'Principal',
+  'Vice Principal',
+  'Headmistress',
+  'Section Head',
+  'Administrator'
+];
 
 const AddStaff = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { userData } = useAuth();
+  const { schoolClasses = [], classesLoading } = useSchool();
   
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const photoInputRef = useRef(null);
   const [signatureFile, setSignatureFile] = useState(null);
   const [signaturePreview, setSignaturePreview] = useState(null);
+  const signatureInputRef = useRef(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrSessionId, setQrSessionId] = useState('');
   const [mobileConnected, setMobileConnected] = useState(false);
+  const [generatingStaffId, setGeneratingStaffId] = useState(false);
+  const [usernameManuallyEdited, setUsernameManuallyEdited] = useState(false);
+  const [usernameSuggestions, setUsernameSuggestions] = useState([]);
+  const [studentSectionsMap, setStudentSectionsMap] = useState({});
 
   const [formData, setFormData] = useState({
-    staffId: '',
+    staffId: 'STF-001',
     username: '',
     name: '',
     role: '',
@@ -92,6 +212,72 @@ const AddStaff = () => {
 
   const isEditing = Boolean(id);
 
+  // Real-time listener for student sections in this school to capture all existing sections
+  useEffect(() => {
+    const schoolId = userData?.schoolId || localStorage.getItem('schoolId');
+    if (!schoolId) return;
+
+    try {
+      const q = query(collection(db, 'students'), where('schoolId', '==', schoolId));
+      const unsub = onSnapshot(q, (snapshot) => {
+        const map = {};
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.class && data.section) {
+            const cName = String(data.class).trim();
+            const sec = String(data.section).trim();
+            if (!map[cName]) map[cName] = new Set();
+            map[cName].add(sec);
+          }
+        });
+        const result = {};
+        Object.keys(map).forEach((k) => {
+          result[k] = Array.from(map[k]);
+        });
+        setStudentSectionsMap(result);
+      }, (err) => console.warn('Students sections listener error:', err));
+
+      return () => unsub();
+    } catch (err) {
+      console.warn('Error initiating students listener:', err);
+    }
+  }, [userData?.schoolId]);
+
+  // Derive selected class object from schoolClasses (created in Class Manager)
+  const selectedClassObj = useMemo(() => {
+    if (!formData.assignedClass) return null;
+    return schoolClasses.find(c => 
+      c.name === formData.assignedClass || 
+      c.id === formData.assignedClass
+    );
+  }, [formData.assignedClass, schoolClasses]);
+
+  // Derive dynamic sections for the selected class (from class doc in Class Manager + student records + current value)
+  const availableSections = useMemo(() => {
+    if (!formData.assignedClass) return [];
+    const sectionSet = new Set();
+
+    // 1. From class object defined in Class Manager
+    if (selectedClassObj) {
+      if (Array.isArray(selectedClassObj.sections)) {
+        selectedClassObj.sections.forEach(s => s && sectionSet.add(String(s).trim()));
+      } else if (typeof selectedClassObj.sections === 'string' && selectedClassObj.sections.trim()) {
+        selectedClassObj.sections.split(',').forEach(s => s && sectionSet.add(s.trim()));
+      }
+    }
+
+    // 2. From actual student records for this class
+    const studentSecs = studentSectionsMap[formData.assignedClass] || [];
+    studentSecs.forEach(s => s && sectionSet.add(String(s).trim()));
+
+    // 3. Keep current assignedSection if already saved
+    if (formData.assignedSection && formData.assignedSection.trim()) {
+      sectionSet.add(formData.assignedSection.trim());
+    }
+
+    return Array.from(sectionSet).sort();
+  }, [formData.assignedClass, selectedClassObj, studentSectionsMap, formData.assignedSection]);
+
   const toDateString = (val) => {
     if (!val) return '';
     try {
@@ -115,6 +301,7 @@ const AddStaff = () => {
           if (staffData && staffData.schoolId === userData?.schoolId) {
             setFormData({
               staffId: staffData.staffId || '',
+              username: staffData.username || '',
               name: staffData.name || '',
               role: staffData.role || '',
               department: staffData.department || '',
@@ -140,7 +327,7 @@ const AddStaff = () => {
               emergencyContactRelationship: staffData.emergencyContactRelationship || '',
               emergencyContactPhone: staffData.emergencyContactPhone || '',
               address: staffData.address || '',
-              photoUrl: staffData.photoUrl || '',
+              photoUrl: staffData.photoUrl || staffData.profilePhoto || staffData.photo || staffData.avatar || staffData.imageUrl || '',
               photoPublicId: staffData.photoPublicId || '',
               signatureUrl: staffData.signatureUrl || '',
               signaturePublicId: staffData.signaturePublicId || '',
@@ -150,9 +337,13 @@ const AddStaff = () => {
               isClassTeacher: staffData.isClassTeacher || false,
               classTeacherOf: staffData.classTeacherOf || '',
             });
+            if (staffData.username) {
+              setUsernameManuallyEdited(true);
+            }
             if (staffData.subjects) setSubjectInput('');
-            if (staffData.photoUrl) {
-              setPhotoPreview(staffData.photoUrl);
+            const currentStaffPhoto = staffData.photoUrl || staffData.profilePhoto || staffData.photo || staffData.avatar || staffData.imageUrl;
+            if (currentStaffPhoto) {
+              setPhotoPreview(currentStaffPhoto);
             }
             if (staffData.signatureUrl) {
               setSignaturePreview(staffData.signatureUrl);
@@ -165,44 +356,122 @@ const AddStaff = () => {
         }
       };
       fetchStaffData();
+    } else {
+      // Automatically generate Staff ID on mount for new staff registration
+      generateStaffIdGlobal();
     }
-  }, [id, userData]);
+  }, [id, isEditing, userData?.schoolId]);
 
   const generateStaffIdGlobal = async () => {
+    setGeneratingStaffId(true);
     try {
-      const allStaff = await getRecords('staff', userData?.schoolId || 'default-school');
-      if (allStaff.length > 0) {
-        let maxId = 0;
+      const schoolId = userData?.schoolId || localStorage.getItem('schoolId') || 'default-school';
+      const allStaff = await getRecords('staff', schoolId);
+      let maxId = 0;
+      if (allStaff && Array.isArray(allStaff) && allStaff.length > 0) {
         allStaff.forEach(s => {
-          if (s.staffId && s.staffId.startsWith('STF-')) {
-            const num = parseInt(s.staffId.replace('STF-', ''), 10);
+          if (s.staffId) {
+            const clean = String(s.staffId).trim();
+            const num = parseInt(clean.replace(/^[A-Za-z]+-/, '').replace(/\D/g, ''), 10);
             if (!isNaN(num) && num > maxId) {
               maxId = num;
             }
           }
         });
-        setFormData(prev => ({ ...prev, staffId: `STF-${(maxId + 1).toString().padStart(3, '0')}` }));
-      } else {
-        setFormData(prev => ({ ...prev, staffId: 'STF-001' }));
       }
+      const nextId = `STF-${(maxId + 1).toString().padStart(3, '0')}`;
+      setFormData(prev => ({ ...prev, staffId: nextId }));
     } catch (err) {
       console.error('Error generating staff ID:', err);
+      setFormData(prev => ({ ...prev, staffId: prev.staffId || 'STF-001' }));
+    } finally {
+      setGeneratingStaffId(false);
     }
   };
 
-  const handlePhotoSelect = (e) => {
+  const getUsernameSuggestions = (name) => {
+    if (!name || !name.trim()) return [];
+    const clean = name.trim().toLowerCase();
+    const words = clean.split(/\s+/).map(w => w.replace(/[^a-z0-9]/g, '')).filter(Boolean);
+    if (words.length === 0) return [];
+
+    const suggestions = [];
+    const titles = ['mr', 'mrs', 'ms', 'dr', 'prof', 'sir', 'madam', 'miss', 'syed', 'hafiz'];
+    const filtered = words.filter(w => !titles.includes(w));
+    const effective = filtered.length > 0 ? filtered : words;
+
+    const first = effective[0] || 'staff';
+    const last = effective.length > 1 ? effective[effective.length - 1] : '';
+
+    if (first && last) {
+      suggestions.push(`${first}${last}`);
+      suggestions.push(`${first}.${last}`);
+      suggestions.push(`${first[0]}${last}`);
+      suggestions.push(`${first}${Math.floor(1000 + Math.random() * 9000)}`);
+      suggestions.push(`${first}${last}${Math.floor(10 + Math.random() * 90)}`);
+    } else if (first) {
+      suggestions.push(`${first}${Math.floor(1000 + Math.random() * 9000)}`);
+      suggestions.push(`${first}_staff`);
+      suggestions.push(`${first}${Math.floor(10 + Math.random() * 90)}`);
+    }
+
+    return Array.from(new Set(suggestions)).slice(0, 5);
+  };
+
+  const handleRegenerateUsername = () => {
+    if (!formData.name || !formData.name.trim()) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Full Name Required',
+        text: 'Please enter staff full name first to get username suggestions.',
+        confirmButtonColor: '#3b82f6'
+      });
+      return;
+    }
+    const suggestions = getUsernameSuggestions(formData.name);
+    setUsernameSuggestions(suggestions);
+    if (suggestions.length > 0) {
+      const randomPicked = suggestions[Math.floor(Math.random() * suggestions.length)];
+      setFormData(prev => ({ ...prev, username: randomPicked }));
+    }
+    setUsernameManuallyEdited(false);
+  };
+
+  const handlePhotoSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file (JPG, PNG)');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Image Required',
+        text: 'Please select a valid image file (JPG, PNG, WebP).',
+        confirmButtonColor: '#3b82f6'
+      });
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Image size must be under 2MB');
+    if (file.size > 25 * 1024 * 1024) {
+      Swal.fire({
+        icon: 'error',
+        title: 'File Too Large',
+        text: 'Image file size must be under 25MB.',
+        confirmButtonColor: '#e11d48'
+      });
       return;
     }
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+
+    try {
+      // Auto-compress large image files client-side to ensure instant preview and fast upload
+      let finalFile = file;
+      if (file.size > 600 * 1024) {
+        finalFile = await compressImage(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.82 });
+      }
+      setPhotoFile(finalFile);
+      setPhotoPreview(URL.createObjectURL(finalFile));
+    } catch (err) {
+      console.warn('Auto-compression fallback to original file:', err);
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
   };
 
   const removePhoto = () => {
@@ -210,19 +479,40 @@ const AddStaff = () => {
     setPhotoPreview(formData.photoUrl || null);
   };
 
-  const handleSignatureSelect = (e) => {
+  const handleSignatureSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file (JPG, PNG)');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Image Required',
+        text: 'Please select an image file for signature (PNG, JPG, WebP).',
+        confirmButtonColor: '#3b82f6'
+      });
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Image size must be under 2MB');
+    if (file.size > 25 * 1024 * 1024) {
+      Swal.fire({
+        icon: 'error',
+        title: 'File Too Large',
+        text: 'Signature file size must be under 25MB.',
+        confirmButtonColor: '#e11d48'
+      });
       return;
     }
-    setSignatureFile(file);
-    setSignaturePreview(URL.createObjectURL(file));
+
+    try {
+      let finalFile = file;
+      if (file.size > 500 * 1024) {
+        finalFile = await compressImage(file, { maxWidth: 900, maxHeight: 450, quality: 0.85 });
+      }
+      setSignatureFile(finalFile);
+      setSignaturePreview(URL.createObjectURL(finalFile));
+    } catch (err) {
+      console.warn('Auto-compression fallback to original signature:', err);
+      setSignatureFile(file);
+      setSignaturePreview(URL.createObjectURL(file));
+    }
   };
 
   const removeSignature = () => {
@@ -323,31 +613,49 @@ const AddStaff = () => {
     let finalSignaturePublicId = formData.signaturePublicId;
 
     try {
+      const schoolId = userData?.schoolId || 'default-school';
+      const staffIdentifier = formData.staffId || id || 'new_staff';
+
       if (photoFile) {
         setUploadProgress(10);
-        const folder = `schools/${userData?.schoolId || 'default-school'}/staff_photos`;
-        
-        setUploadProgress(40);
-        const uploadResult = await uploadStudentPhoto(photoFile, folder); // Reusing uploadStudentPhoto logic
-        
-        if (uploadResult.secure_url) {
-          finalPhotoUrl = uploadResult.secure_url;
-          finalPublicId = uploadResult.public_id;
+        if (isEditing && formData.photoPublicId) {
+          markForDeletion(formData.photoPublicId).catch(console.error);
+        }
+
+        const uploadResult = await uploadStaffPhoto(
+          photoFile,
+          schoolId,
+          staffIdentifier,
+          (prog) => setUploadProgress(Math.min(45, 10 + Math.round(prog * 0.35)))
+        );
+
+        if (uploadResult && uploadResult.success && (uploadResult.url || uploadResult.secure_url)) {
+          finalPhotoUrl = uploadResult.url || uploadResult.secure_url;
+          finalPublicId = uploadResult.publicId || uploadResult.public_id || '';
         } else {
-          throw new Error('Image upload failed');
+          throw new Error(uploadResult?.error || 'Photo upload failed. Please verify the image file.');
         }
         setUploadProgress(45);
       }
 
       if (signatureFile) {
         setUploadProgress(50);
-        const folder = `schools/${userData?.schoolId || 'default-school'}/staff_signatures`;
-        const uploadResult = await uploadStudentPhoto(signatureFile, folder);
-        if (uploadResult.secure_url) {
-          finalSignatureUrl = uploadResult.secure_url;
-          finalSignaturePublicId = uploadResult.public_id;
+        if (isEditing && formData.signaturePublicId) {
+          markForDeletion(formData.signaturePublicId).catch(console.error);
+        }
+
+        const uploadResult = await uploadStaffSignature(
+          signatureFile,
+          schoolId,
+          staffIdentifier,
+          (prog) => setUploadProgress(Math.min(90, 50 + Math.round(prog * 0.4)))
+        );
+
+        if (uploadResult && uploadResult.success && (uploadResult.url || uploadResult.secure_url)) {
+          finalSignatureUrl = uploadResult.url || uploadResult.secure_url;
+          finalSignaturePublicId = uploadResult.publicId || uploadResult.public_id || '';
         } else {
-          throw new Error('Signature upload failed');
+          throw new Error(uploadResult?.error || 'Signature upload failed. Please verify the signature file.');
         }
         setUploadProgress(90);
       }
@@ -362,20 +670,23 @@ const AddStaff = () => {
         name: toTitleCase(formData.name),
         fatherName: toTitleCase(formData.fatherName),
         phone: sanitizedPhone,
-        photoUrl: finalPhotoUrl,
-        photoPublicId: finalPublicId,
-        signatureUrl: finalSignatureUrl,
-        signaturePublicId: finalSignaturePublicId
+        photoUrl: finalPhotoUrl || '',
+        profilePhoto: finalPhotoUrl || '',
+        photo: finalPhotoUrl || '',
+        avatar: finalPhotoUrl || '',
+        photoPublicId: finalPublicId || '',
+        signatureUrl: finalSignatureUrl || '',
+        signaturePublicId: finalSignaturePublicId || ''
       };
       
       let result;
       if (isEditing) {
         result = await updateRecord('staff', id, payload);
       } else {
-        result = await addRecord('staff', payload, userData?.schoolId || 'default-school');
+        result = await addRecord('staff', payload, schoolId);
       }
 
-      if (result.success) {
+      if (result && result.success) {
         // Sync with users collection if a user account exists for this staff
         try {
           const cleanEmail = (formData.email || '').trim().toLowerCase();
@@ -404,14 +715,30 @@ const AddStaff = () => {
         }
 
         setUploadProgress(100);
-        alert(`Staff member ${isEditing ? 'updated' : 'added'} successfully!`);
+        await Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: `Staff member ${isEditing ? 'updated' : 'added'} successfully!`,
+          confirmButtonColor: '#3b82f6'
+        });
         navigate('/school-admin/staff');
       } else {
-        alert('Error: ' + result.error.message);
+        const errorMsg = result?.error?.message || result?.error || 'Database operation failed';
+        Swal.fire({
+          icon: 'error',
+          title: 'Submission Error',
+          text: String(errorMsg),
+          confirmButtonColor: '#e11d48'
+        });
       }
     } catch (err) {
-      console.error(err);
-      alert('An error occurred during submission.');
+      console.error('Staff submission error:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: err?.message || 'An error occurred during submission. Please try again.',
+        confirmButtonColor: '#e11d48'
+      });
     } finally {
       setLoading(false);
       setUploading(false);
@@ -440,29 +767,49 @@ const AddStaff = () => {
       value = digits;
     }
 
+    if (name === 'username') {
+      setUsernameManuallyEdited(value.trim() !== '');
+    }
+
+    if (name === 'assignedClass') {
+      const clsObj = schoolClasses.find(c => c.name === value || c.id === value);
+      let classSecs = [];
+      if (clsObj) {
+        if (Array.isArray(clsObj.sections)) {
+          classSecs = clsObj.sections.map(s => String(s).trim()).filter(Boolean);
+        } else if (typeof clsObj.sections === 'string' && clsObj.sections.trim()) {
+          classSecs = clsObj.sections.split(',').map(s => s.trim()).filter(Boolean);
+        }
+      }
+      const studSecs = studentSectionsMap[value] || [];
+      const combined = Array.from(new Set([...classSecs, ...studSecs]));
+
+      setFormData(prev => ({
+        ...prev,
+        assignedClass: value,
+        assignedSection: combined.includes(prev.assignedSection) ? prev.assignedSection : (combined[0] || '')
+      }));
+      return;
+    }
+
     setFormData(prev => {
       const updated = { ...prev, [name]: value };
       
-      // Auto-generate or update username if it hasn't been manually changed
-      if (name === 'name' && value.trim() !== '') {
-        const base = value.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (base) {
-          let randomSuffix = Math.floor(1000 + Math.random() * 9000);
-          let shouldUpdate = false;
-          
-          if (!prev.username) {
-            shouldUpdate = true;
-          } else {
-            const oldBase = prev.name ? prev.name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '') : '';
-            const match = prev.username.match(/\d{4}$/);
-            if (match && oldBase && prev.username === `${oldBase}${match[0]}`) {
-              shouldUpdate = true;
-              randomSuffix = match[0];
-            }
+      // Auto-generate or update username when Full Name is typed
+      if (name === 'name') {
+        const val = value;
+        if (!val.trim()) {
+          setUsernameSuggestions([]);
+          if (!usernameManuallyEdited) {
+            updated.username = '';
           }
-          
-          if (shouldUpdate) {
-            updated.username = `${base}${randomSuffix}`;
+        } else {
+          const suggestions = getUsernameSuggestions(val);
+          setUsernameSuggestions(suggestions);
+          if (!prev.username || !usernameManuallyEdited) {
+            if (suggestions.length > 0) {
+              updated.username = suggestions[0];
+            }
           }
         }
       }
@@ -493,6 +840,7 @@ const AddStaff = () => {
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Staff ID */}
               <div className="space-y-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Staff ID *</label>
                 <div className="flex gap-2">
@@ -503,42 +851,70 @@ const AddStaff = () => {
                       name="staffId"
                       required
                       value={formData.staffId}
-                      placeholder="e.g. STF-001" 
+                      placeholder={generatingStaffId ? "Generating ID..." : "e.g. STF-001"} 
                       className="w-full premium-input pl-12 disabled:opacity-50"
                       onChange={handleChange}
-                      disabled={isEditing}
+                      disabled={isEditing || generatingStaffId}
                     />
                   </div>
                   {!isEditing && (
                     <button 
                       type="button"
                       onClick={generateStaffIdGlobal}
-                      className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20 whitespace-nowrap"
+                      disabled={generatingStaffId}
+                      className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20 whitespace-nowrap flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      title="Auto generate staff ID"
                     >
+                      {generatingStaffId ? <Loader2 size={14} className="animate-spin" /> : null}
                       Auto Generate
                     </button>
                   )}
                 </div>
+                {!isEditing && (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                      <Sparkles size={11} className="text-primary-400" /> Suggest ID:
+                    </span>
+                    {['STF', 'TCH', 'EMP'].map(prefix => {
+                      const numPart = formData.staffId.replace(/^[A-Za-z]+-/, '') || '001';
+                      const formatted = `${prefix}-${numPart}`;
+                      return (
+                        <button
+                          key={prefix}
+                          type="button"
+                          onClick={() => setFormData(f => ({ ...f, staffId: formatted }))}
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold transition-all cursor-pointer ${formData.staffId.startsWith(prefix) ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-white border border-dark-border'}`}
+                        >
+                          {formatted}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
+              {/* Status */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">App Username *</label>
+                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Status</label>
                 <div className="relative">
-                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-400" size={18} />
-                  <input 
-                    type="text" 
-                    name="username"
-                    required
-                    value={formData.username || ''}
-                    placeholder="e.g. asim8432 (For app login)" 
-                    className="w-full premium-input pl-12 border-primary-500/30 focus:border-primary-500"
+                  <select
+                    name="status"
+                    value={formData.status}
+                    className="w-full premium-input appearance-none"
                     onChange={handleChange}
-                  />
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="On Leave">On Leave</option>
+                    <option value="Suspended">Suspended</option>
+                    <option value="Former Staff">Former Staff</option>
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-muted pointer-events-none" size={16} />
                 </div>
-                <p className="text-[10px] text-dark-muted px-1">Used for mobile app login</p>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
+              {/* Full Name */}
+              <div className="space-y-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Full Name *</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted" size={18} />
@@ -554,6 +930,58 @@ const AddStaff = () => {
                 </div>
               </div>
 
+              {/* App Username */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-xs font-black text-dark-muted uppercase tracking-widest">App Username *</label>
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={handleRegenerateUsername}
+                      className="text-[10px] font-bold text-primary-400 hover:text-primary-300 transition-colors cursor-pointer flex items-center gap-1"
+                      title="Regenerate username from Full Name"
+                    >
+                      <Sparkles size={11} /> Auto Suggest
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 text-primary-400" size={18} />
+                  <input 
+                    type="text" 
+                    name="username"
+                    required
+                    value={formData.username || ''}
+                    placeholder="e.g. asim8432 (For app login)" 
+                    className="w-full premium-input pl-12 border-primary-500/30 focus:border-primary-500"
+                    onChange={handleChange}
+                  />
+                </div>
+                <p className="text-[10px] text-dark-muted px-1">Used for mobile app login</p>
+                {/* Username Suggestion Chips */}
+                {usernameSuggestions.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                      <Sparkles size={11} className="text-primary-400" /> Suggest:
+                    </span>
+                    {usernameSuggestions.map((uname, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setFormData(f => ({ ...f, username: uname }));
+                          setUsernameManuallyEdited(false);
+                        }}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-medium transition-all cursor-pointer ${formData.username === uname ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                      >
+                        @{uname}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Designation */}
               <div className="space-y-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Designation *</label>
                 <div className="relative">
@@ -568,8 +996,25 @@ const AddStaff = () => {
                     onChange={handleChange}
                   />
                 </div>
+                {/* Designation Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {DESIGNATION_SUGGESTIONS.map((roleName, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFormData(f => ({ ...f, role: roleName }))}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.role === roleName ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      {roleName}
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Department */}
               <div className="space-y-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Department *</label>
                 <div className="relative">
@@ -589,8 +1034,25 @@ const AddStaff = () => {
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-muted pointer-events-none" size={16} />
                 </div>
+                {/* Department Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {DEPARTMENT_SUGGESTIONS.map((dept, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFormData(f => ({ ...f, department: dept }))}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.department === dept ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      {dept}
+                    </button>
+                  ))}
+                </div>
               </div>
 
+              {/* Staff Type */}
               <div className="space-y-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Staff Type</label>
                 <div className="relative">
@@ -607,6 +1069,7 @@ const AddStaff = () => {
                 </div>
               </div>
 
+              {/* Employment Type */}
               <div className="space-y-2">
                 <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Employment Type</label>
                 <div className="relative">
@@ -625,25 +1088,6 @@ const AddStaff = () => {
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-muted pointer-events-none" size={16} />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Status</label>
-                <div className="relative">
-                  <select
-                    name="status"
-                    value={formData.status}
-                    className="w-full premium-input appearance-none"
-                    onChange={handleChange}
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="On Leave">On Leave</option>
-                    <option value="Suspended">Suspended</option>
-                    <option value="Former Staff">Former Staff</option>
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-muted pointer-events-none" size={16} />
-                </div>
-              </div>
             </div>
           </GlassCard>
 
@@ -658,14 +1102,31 @@ const AddStaff = () => {
                 placeholder="Contact Name"
                 className="w-full premium-input"
               />
-              <input
-                type="text"
-                name="emergencyContactRelationship"
-                value={formData.emergencyContactRelationship}
-                onChange={handleChange}
-                placeholder="Relationship"
-                className="w-full premium-input"
-              />
+              <div>
+                <input
+                  type="text"
+                  name="emergencyContactRelationship"
+                  value={formData.emergencyContactRelationship}
+                  onChange={handleChange}
+                  placeholder="Relationship (e.g. Father, Spouse, Brother)"
+                  className="w-full premium-input"
+                />
+                <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {RELATIONSHIP_SUGGESTIONS.map((rel, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFormData(f => ({ ...f, emergencyContactRelationship: rel }))}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.emergencyContactRelationship === rel ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      {rel}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <input
                 type="tel"
                 name="emergencyContactPhone"
@@ -679,7 +1140,7 @@ const AddStaff = () => {
 
           <GlassCard className="p-8">
             <h2 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <ShieldCheck size={18} className="text-primary-500" /> Qualification
+              <ShieldCheck size={18} className="text-primary-500" /> Qualification & Skills
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -695,6 +1156,22 @@ const AddStaff = () => {
                     onChange={handleChange}
                   />
                 </div>
+                {/* Qualification Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {QUALIFICATION_SUGGESTIONS.map((qual, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFormData(f => ({ ...f, highestQualification: qual }))}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.highestQualification === qual ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      {qual}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -704,10 +1181,26 @@ const AddStaff = () => {
                     type="text"
                     name="specialization"
                     value={formData.specialization}
-                    placeholder="e.g. Mathematics" 
+                    placeholder="e.g. Mathematics, Computer Science" 
                     className="w-full premium-input pl-4"
                     onChange={handleChange}
                   />
+                </div>
+                {/* Specialization Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {SPECIALIZATION_SUGGESTIONS.map((spec, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFormData(f => ({ ...f, specialization: spec }))}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.specialization === spec ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      {spec}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -722,6 +1215,24 @@ const AddStaff = () => {
                     className="w-full premium-input pl-4"
                     onChange={handleChange}
                   />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {['Fresh', '1 Year', '2 Years', '3 Years', '5+ Years', '10+ Years'].map((exp, idx) => {
+                    const num = exp.replace(/\D/g, '') || '0';
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setFormData(f => ({ ...f, totalExperience: num }))}
+                        className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${String(formData.totalExperience) === num ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                      >
+                        {exp}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -754,17 +1265,37 @@ const AddStaff = () => {
                         setCertificationInput('');
                       }
                     }}
-                    className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20"
+                    className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20 cursor-pointer"
                   >
                     + Add
                   </button>
+                </div>
+                {/* Certification Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {CERTIFICATION_SUGGESTIONS.map((cert, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        if (!formData.certifications.includes(cert)) {
+                          setFormData(f => ({ ...f, certifications: [...f.certifications, cert] }));
+                        }
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.certifications.includes(cert) ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      + {cert}
+                    </button>
+                  ))}
                 </div>
 
                 {formData.certifications.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {formData.certifications.map((c, idx) => (
                       <span key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-500/10 text-primary-400 border border-primary-500/20 rounded-lg text-xs font-bold">
-                        {c}
+                        📜 {c}
                         <button type="button" onClick={() => setFormData({ ...formData, certifications: formData.certifications.filter((_, i) => i !== idx) })} className="text-red-400 hover:text-red-300 ml-1">×</button>
                       </span>
                     ))}
@@ -801,17 +1332,37 @@ const AddStaff = () => {
                         setSkillsInput('');
                       }
                     }}
-                    className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20"
+                    className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20 cursor-pointer"
                   >
                     + Add
                   </button>
+                </div>
+                {/* Skill Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {SKILL_SUGGESTIONS.map((skill, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        if (!formData.skills.includes(skill)) {
+                          setFormData(f => ({ ...f, skills: [...f.skills, skill] }));
+                        }
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.skills.includes(skill) ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      + {skill}
+                    </button>
+                  ))}
                 </div>
 
                 {formData.skills.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {formData.skills.map((s, idx) => (
                       <span key={idx} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-500/10 text-primary-400 border border-primary-500/20 rounded-lg text-xs font-bold">
-                        {s}
+                        ⭐ {s}
                         <button type="button" onClick={() => setFormData({ ...formData, skills: formData.skills.filter((_, i) => i !== idx) })} className="text-red-400 hover:text-red-300 ml-1">×</button>
                       </span>
                     ))}
@@ -967,10 +1518,26 @@ const AddStaff = () => {
                     type="text"
                     name="campus"
                     value={formData.campus}
-                    placeholder="Campus (optional)"
+                    placeholder="Campus (e.g. Main Campus)"
                     className="w-full premium-input pl-4"
                     onChange={handleChange}
                   />
+                </div>
+                {/* Campus Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {CAMPUS_SUGGESTIONS.map((camp, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFormData(f => ({ ...f, campus: camp }))}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.campus === camp ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      {camp}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -981,10 +1548,26 @@ const AddStaff = () => {
                     type="text"
                     name="reportingManager"
                     value={formData.reportingManager}
-                    placeholder="Reporting Manager (optional)"
+                    placeholder="Reporting Manager (e.g. Principal)"
                     className="w-full premium-input pl-4"
                     onChange={handleChange}
                   />
+                </div>
+                {/* Manager Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {MANAGER_SUGGESTIONS.map((mgr, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setFormData(f => ({ ...f, reportingManager: mgr }))}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.reportingManager === mgr ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      {mgr}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -1000,7 +1583,12 @@ const AddStaff = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Assigned Class */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Assigned Class</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-xs font-black text-dark-muted uppercase tracking-widest">Assigned Class</label>
+                  {schoolClasses.length > 0 && (
+                    <span className="text-[11px] text-primary-400 font-semibold">{schoolClasses.length} Classes Created</span>
+                  )}
+                </div>
                 <div className="relative">
                   <select
                     name="assignedClass"
@@ -1009,31 +1597,79 @@ const AddStaff = () => {
                     onChange={handleChange}
                   >
                     <option value="">Select Class</option>
-                    {['Nursery','KG','1','2','3','4','5','6','7','8','9','10','11','12'].map(cls => (
-                      <option key={cls} value={cls}>Class {cls}</option>
-                    ))}
+                    {classesLoading ? (
+                      <option value="" disabled>School classes load ho rahi hain...</option>
+                    ) : schoolClasses.length === 0 ? (
+                      <option value="" disabled>Is school ki koi class nahi mili (Class Manager se create karein)</option>
+                    ) : (
+                      <>
+                        {schoolClasses.map(cls => (
+                          <option key={cls.id || cls.name} value={cls.name}>
+                            {cls.name}
+                          </option>
+                        ))}
+                        {formData.assignedClass && !schoolClasses.some(c => c.name === formData.assignedClass) && (
+                          <option value={formData.assignedClass}>{formData.assignedClass}</option>
+                        )}
+                      </>
+                    )}
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-muted pointer-events-none" size={16} />
                 </div>
+                {schoolClasses.length === 0 && !classesLoading && (
+                  <p className="text-[11px] text-amber-400 px-1">
+                    ⚠️ Is school ki koi class Class Manager mein add nahi hai. Panel ke "Class Manager" se classes create karein.
+                  </p>
+                )}
               </div>
 
               {/* Section */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Section</label>
+                <div className="flex items-center justify-between px-1">
+                  <label className="text-xs font-black text-dark-muted uppercase tracking-widest">Section</label>
+                  {formData.assignedClass && availableSections.length > 0 && (
+                    <span className="text-[11px] text-primary-400 font-semibold">{availableSections.length} Section(s)</span>
+                  )}
+                </div>
                 <div className="relative">
                   <select
                     name="assignedSection"
                     value={formData.assignedSection}
-                    className="w-full premium-input appearance-none"
+                    disabled={!formData.assignedClass}
+                    className="w-full premium-input appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
                     onChange={handleChange}
                   >
-                    <option value="">Select Section</option>
-                    {['A','B','C','D','E'].map(s => (
-                      <option key={s} value={s}>Section {s}</option>
-                    ))}
+                    {!formData.assignedClass ? (
+                      <option value="">Pehle Class Select Karein</option>
+                    ) : availableSections.length === 0 ? (
+                      <option value="">No sections defined in Class Manager</option>
+                    ) : (
+                      <>
+                        <option value="">Select Section</option>
+                        {availableSections.map(s => (
+                          <option key={s} value={s}>Section {s}</option>
+                        ))}
+                      </>
+                    )}
                   </select>
                   <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-muted pointer-events-none" size={16} />
                 </div>
+                {/* If selected class has no sections configured yet in panel, let user enter custom section */}
+                {formData.assignedClass && availableSections.length === 0 && (
+                  <div className="pt-1">
+                    <input
+                      type="text"
+                      name="assignedSection"
+                      placeholder="Section likhein (e.g. A, B, Green)..."
+                      value={formData.assignedSection}
+                      onChange={handleChange}
+                      className="w-full premium-input text-xs py-2 uppercase"
+                    />
+                    <p className="text-[11px] text-dark-muted mt-1 px-1">
+                      Tip: Class Manager mein is class ke sections add karein taake dropdown mein show hon.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Class Teacher Toggle */}
@@ -1086,10 +1722,31 @@ const AddStaff = () => {
                         setSubjectInput('');
                       }
                     }}
-                    className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20"
+                    className="px-4 py-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 rounded-xl text-xs font-bold transition-all border border-primary-500/20 cursor-pointer"
                   >
                     + Add
                   </button>
+                </div>
+
+                {/* Subject Suggestions */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1.5">
+                  <span className="text-[10px] text-dark-muted font-bold flex items-center gap-1">
+                    <Sparkles size={11} className="text-primary-400" /> Suggest:
+                  </span>
+                  {SUBJECT_SUGGESTIONS.map((sub, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        if (!formData.subjects.includes(sub)) {
+                          setFormData(f => ({ ...f, subjects: [...f.subjects, sub] }));
+                        }
+                      }}
+                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${formData.subjects.includes(sub) ? 'bg-primary-500/25 text-primary-300 border border-primary-500/40 shadow-sm' : 'bg-white/5 hover:bg-primary-500/15 text-dark-muted hover:text-primary-300 border border-dark-border'}`}
+                    >
+                      + {sub}
+                    </button>
+                  ))}
                 </div>
 
                 {/* Subject Tags */}
@@ -1126,8 +1783,19 @@ const AddStaff = () => {
               {/* Photo Upload */}
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-bold text-dark-muted">Photo</span>
-                <div className="relative group">
-                  <div className="w-24 h-24 rounded-full bg-dark-hover border-2 border-dashed border-dark-border flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-primary-500 transition-all">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoSelect}
+                  className="hidden"
+                />
+                <div 
+                  onClick={() => photoInputRef.current?.click()}
+                  className="relative group cursor-pointer"
+                  title="Click to select staff photo"
+                >
+                  <div className="w-24 h-24 rounded-full bg-dark-hover border-2 border-dashed border-dark-border flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-primary-500 transition-all shadow-inner">
                     {photoPreview ? (
                       <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
@@ -1140,21 +1808,23 @@ const AddStaff = () => {
                   {photoPreview && (
                     <button
                       type="button"
-                      onClick={removePhoto}
-                      className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removePhoto();
+                      }}
+                      className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow"
                     >
                       <X size={12} />
                     </button>
                   )}
                 </div>
-                <div className="relative mt-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handlePhotoSelect}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <button type="button" className="px-3 py-1.5 rounded-lg bg-dark-hover border border-dark-border text-[10px] font-bold text-dark-text hover:bg-dark-border transition-colors">
+                <div className="mt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => photoInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-lg bg-dark-hover border border-dark-border text-[10px] font-bold text-dark-text hover:bg-dark-border transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Upload size={12} />
                     Upload Photo
                   </button>
                 </div>
@@ -1163,8 +1833,19 @@ const AddStaff = () => {
               {/* Signature Upload */}
               <div className="flex flex-col items-center gap-2">
                 <span className="text-xs font-bold text-dark-muted">Signature</span>
-                <div className="relative group">
-                  <div className="w-32 h-24 rounded-lg bg-dark-hover border-2 border-dashed border-dark-border flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-primary-500 transition-all">
+                <input
+                  ref={signatureInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSignatureSelect}
+                  className="hidden"
+                />
+                <div 
+                  onClick={() => signatureInputRef.current?.click()}
+                  className="relative group cursor-pointer"
+                  title="Click to select staff signature"
+                >
+                  <div className="w-32 h-24 rounded-lg bg-dark-hover border-2 border-dashed border-dark-border flex flex-col items-center justify-center gap-2 overflow-hidden hover:border-primary-500 transition-all shadow-inner">
                     {signaturePreview ? (
                       <img src={signaturePreview} alt="Signature Preview" className="w-full h-full object-contain bg-white" />
                     ) : (
@@ -1177,21 +1858,23 @@ const AddStaff = () => {
                   {signaturePreview && (
                     <button
                       type="button"
-                      onClick={removeSignature}
-                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeSignature();
+                      }}
+                      className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all hover:scale-110 shadow"
                     >
                       <X size={12} />
                     </button>
                   )}
                 </div>
-                <div className="relative mt-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleSignatureSelect}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <button type="button" className="px-3 py-1.5 rounded-lg bg-dark-hover border border-dark-border text-[10px] font-bold text-dark-text hover:bg-dark-border transition-colors">
+                <div className="mt-2">
+                  <button 
+                    type="button" 
+                    onClick={() => signatureInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-lg bg-dark-hover border border-dark-border text-[10px] font-bold text-dark-text hover:bg-dark-border transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Upload size={12} />
                     Upload Signature
                   </button>
                 </div>
@@ -1217,7 +1900,7 @@ const AddStaff = () => {
               )}
             </div>
 
-            <p className="text-[10px] text-dark-muted mt-4">Passport size photo & transparent signature, max 2MB</p>
+            <p className="text-[10px] text-dark-muted mt-4">Passport size photo & transparent signature (Auto-compressed HD up to 25MB)</p>
 
             {uploading && (
               <div className="absolute inset-0 bg-dark-bg/80 backdrop-blur-sm flex flex-col items-center justify-center z-10">

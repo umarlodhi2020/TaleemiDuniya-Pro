@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSchool } from '../../context/SchoolContext';
 import { 
   BookOpen, 
@@ -14,7 +14,11 @@ import {
   Layers, 
   FileText, 
   Save,
-  Check
+  Check,
+  Mic,
+  Square,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassCard from '../../components/common/GlassCard';
@@ -125,17 +129,94 @@ const DailyDiary = () => {
     }
   };
 
-  const handleBroadcastWhatsApp = async () => {
-    if (!window.confirm(`Are you sure you want to broadcast today's homework diary via WhatsApp to all parents of Grade ${selectedClass}?`)) return;
-    setBroadcasting(true);
+  // Voice Note Recorder & Board Photo State
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const [boardPhoto, setBoardPhoto] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerIntervalRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, []);
+
+  const startVoiceRecording = async () => {
     try {
-      await new Promise(r => setTimeout(r, 1500));
-      alert(`📢 WhatsApp Homework Broadcast Delivered to all enrolled parents of Grade ${selectedClass}!\n\nMessage format delivered via AI Bot:\n"Assalam-o-Alaikum! Today's Homework Diary (${selectedDate}) for Grade ${selectedClass} has been updated..."`);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setBroadcasting(false);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          setAudioUrl(reader.result);
+        };
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      timerIntervalRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error(err);
+      alert('Microphone permission denied or microphone not found.');
     }
+  };
+
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+      clearInterval(timerIntervalRef.current);
+    }
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setBoardPhoto(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBroadcastWhatsApp = async () => {
+    // Generate WhatsApp Text
+    let msg = `*📢 Lodhi School System — Daily Homework Diary*\n`;
+    msg += `📅 *Date:* ${selectedDate} | *Class:* Grade ${selectedClass}\n\n`;
+    
+    let hasHomework = false;
+    SUBJECTS.forEach((subj) => {
+      if (homeworkForm[subj] && homeworkForm[subj].trim()) {
+        hasHomework = true;
+        msg += `📌 *${subj}:* ${homeworkForm[subj].trim()}\n`;
+      }
+    });
+
+    if (!hasHomework) {
+      msg += `Bugair kisi takheer classroom revision karein.\n`;
+    }
+
+    msg += `\n🔗 *Quick Parent Portal:* https://taleemidunya-pro-ed44e.web.app/#/parent-quick-view/demo`;
+    
+    const encoded = encodeURI(msg);
+    window.open(`https://wa.me/?text=${encoded}`, '_blank');
   };
 
   const handlePrintDiary = () => {
@@ -263,6 +344,85 @@ const DailyDiary = () => {
                 />
               </div>
             ))}
+          </div>
+
+          {/* Voice Note & Board Photo Media Additions */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-white/5 border border-dark-border/80">
+            {/* Voice Note Recording Box */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-dark-text flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-primary-400">
+                  <Mic size={15} /> Teacher Voice Instruction (وائس میسج)
+                </span>
+                {recordingTime > 0 && (
+                  <span className="font-mono text-xs text-red-400 animate-pulse font-bold">
+                    REC 0:{recordingTime < 10 ? `0${recordingTime}` : recordingTime}s
+                  </span>
+                )}
+              </label>
+
+              <div className="flex items-center gap-2">
+                {!isRecording ? (
+                  <button
+                    type="button"
+                    onClick={startVoiceRecording}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all active:scale-95 shadow-md"
+                  >
+                    <Mic size={14} />
+                    <span>Record Voice Note</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={stopVoiceRecording}
+                    className="px-4 py-2 bg-dark-card border border-red-500 text-red-400 rounded-xl text-xs font-bold flex items-center gap-2 transition-all active:scale-95 animate-pulse"
+                  >
+                    <Square size={14} />
+                    <span>Stop Recording</span>
+                  </button>
+                )}
+
+                {audioUrl && (
+                  <audio controls src={audioUrl} className="h-8 max-w-[200px]" />
+                )}
+              </div>
+              <p className="text-[10px] text-dark-muted">
+                Record a quick 30-sec audio note explaining homework to mothers and parents.
+              </p>
+            </div>
+
+            {/* Board Photo Upload Box */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-dark-text flex items-center justify-between text-primary-400">
+                <span className="flex items-center gap-1.5">
+                  <Camera size={15} /> Classroom Board Photo (بلیک بورڈ تصویر)
+                </span>
+                {boardPhoto && (
+                  <span className="text-[10px] text-emerald-400 font-bold">Photo Attached ✓</span>
+                )}
+              </label>
+
+              <div className="flex items-center gap-2">
+                <label className="px-4 py-2 bg-dark-card hover:bg-white/10 border border-dark-border text-dark-text rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-all">
+                  <ImageIcon size={14} />
+                  <span>{boardPhoto ? 'Change Photo' : 'Upload Board Photo'}</span>
+                  <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                </label>
+
+                {boardPhoto && (
+                  <button
+                    type="button"
+                    onClick={() => setBoardPhoto(null)}
+                    className="text-xs text-red-400 hover:text-red-300 font-bold"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-dark-muted">
+                Snap or upload blackboard / whiteboard photo so parents can see exact written work.
+              </p>
+            </div>
           </div>
 
           <div className="pt-6 border-t border-dark-border flex flex-col sm:flex-row items-center justify-between gap-4">

@@ -562,27 +562,27 @@ const PayrollManager = () => {
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2 print:hidden">
         <div>
-          <h1 className="text-3xl font-black text-white flex items-center gap-3">
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl shadow-lg shadow-emerald-500/20">
               <Calculator className="text-white" size={28} />
             </div>
             HR & Payroll Engine
           </h1>
-          <p className="text-dark-muted mt-1 max-w-2xl text-sm">
-            Executive management dashboard & monthly payroll processing engine (Period: <span className="text-emerald-400 font-bold font-mono">{formatPeriod(selectedPeriod)}</span>).
+          <p className="text-slate-500 dark:text-dark-muted mt-1 max-w-2xl text-sm">
+            Executive management dashboard & monthly payroll processing engine (Period: <span className="text-emerald-600 dark:text-emerald-400 font-bold font-mono">{formatPeriod(selectedPeriod)}</span>).
           </p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-dark-bg border border-dark-border rounded-xl px-3 py-1.5">
-            <Calendar size={18} className="text-emerald-400" />
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-dark-bg border border-slate-200 dark:border-dark-border rounded-xl px-3 py-1.5">
+            <Calendar size={18} className="text-emerald-600 dark:text-emerald-400" />
             <select 
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
-              className="bg-transparent text-white font-bold outline-none cursor-pointer text-sm"
+              className="bg-transparent text-slate-900 dark:text-white font-bold outline-none cursor-pointer text-sm"
             >
               {monthOptions.map(m => (
-                <option key={m.value} value={m.value} className="bg-dark-card text-white">{m.label}</option>
+                <option key={m.value} value={m.value} className="bg-white dark:bg-dark-card text-slate-900 dark:text-white">{m.label}</option>
               ))}
             </select>
           </div>
@@ -666,7 +666,7 @@ const PayrollManager = () => {
             </div>
           </div>
           <div className="mt-3">
-            <p className="text-2xl font-black text-white font-mono">{monthMetrics.totalEmployees}</p>
+            <p className="text-2xl font-black text-slate-900 dark:text-white font-mono">{monthMetrics.totalEmployees}</p>
             <p className="text-[10px] text-dark-muted mt-0.5">Staff in Period</p>
           </div>
         </GlassCard>
@@ -674,28 +674,28 @@ const PayrollManager = () => {
         {/* Card 2: Processed Count */}
         <GlassCard className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Processed</span>
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Processed</span>
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
               <CheckCircle2 size={18} />
             </div>
           </div>
           <div className="mt-3">
-            <p className="text-2xl font-black text-emerald-400 font-mono">{monthMetrics.processedCount}</p>
-            <p className="text-[10px] text-emerald-500/80 mt-0.5">Finalized Slips</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 font-mono">{monthMetrics.processedCount}</p>
+            <p className="text-[10px] text-emerald-600/80 dark:text-emerald-500/80 mt-0.5">Finalized Slips</p>
           </div>
         </GlassCard>
 
         {/* Card 3: Draft Count */}
         <GlassCard className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Draft</span>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Draft</span>
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
               <Clock size={18} />
             </div>
           </div>
           <div className="mt-3">
-            <p className="text-2xl font-black text-amber-400 font-mono">{monthMetrics.draftCount}</p>
-            <p className="text-[10px] text-amber-500/80 mt-0.5">Pending Action</p>
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400 font-mono">{monthMetrics.draftCount}</p>
+            <p className="text-[10px] text-amber-600/80 dark:text-amber-500/80 mt-0.5">Pending Action</p>
           </div>
         </GlassCard>
 
@@ -703,12 +703,12 @@ const PayrollManager = () => {
         <GlassCard className="p-4 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-dark-muted uppercase tracking-wider">Gross Payroll</span>
-            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
               <TrendingUp size={18} />
             </div>
           </div>
           <div className="mt-3">
-            <p className="text-lg font-black text-white font-mono">Rs. {monthMetrics.grossPayroll.toLocaleString()}</p>
+            <p className="text-lg font-black text-slate-900 dark:text-white font-mono">Rs. {monthMetrics.grossPayroll.toLocaleString()}</p>
             <p className="text-[10px] text-dark-muted mt-0.5">Basic + Allowances</p>
           </div>
         </GlassCard>
@@ -745,35 +745,35 @@ const PayrollManager = () => {
 
       {/* Attendance Analytics Snapshot Card */}
       {monthMetrics.processedCount > 0 && (
-        <GlassCard className="p-4 print:hidden border-indigo-500/20 bg-indigo-950/10">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 border-b border-indigo-500/20 pb-2">
-            <h3 className="text-xs font-bold text-indigo-300 uppercase tracking-wider flex items-center gap-2">
+        <GlassCard className="p-4 print:hidden border-indigo-200 dark:border-indigo-500/20 bg-indigo-50/60 dark:bg-indigo-950/10">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3 border-b border-indigo-200 dark:border-indigo-500/20 pb-2">
+            <h3 className="text-xs font-bold text-indigo-900 dark:text-indigo-300 uppercase tracking-wider flex items-center gap-2">
               <Calendar size={16} /> Attendance Snapshot Analytics ({monthMetrics.processedCount} Processed Staff)
             </h3>
-            <span className="text-xs font-mono font-bold text-rose-400">
+            <span className="text-xs font-mono font-bold text-rose-600 dark:text-rose-400">
               Total Attendance Deductions: - Rs. {monthMetrics.totalAttendanceDeduction.toLocaleString()}
             </span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center font-mono text-xs">
-            <div className="p-2 bg-dark-bg/60 rounded-xl border border-dark-border">
+            <div className="p-2 bg-white dark:bg-dark-bg/60 rounded-xl border border-slate-200 dark:border-dark-border shadow-xs">
               <p className="text-[10px] text-dark-muted font-bold uppercase">Present Days</p>
-              <p className="text-base font-black text-green-400 mt-0.5">{monthMetrics.totalPresentDays}</p>
+              <p className="text-base font-black text-emerald-600 dark:text-green-400 mt-0.5">{monthMetrics.totalPresentDays}</p>
             </div>
-            <div className="p-2 bg-dark-bg/60 rounded-xl border border-dark-border">
+            <div className="p-2 bg-white dark:bg-dark-bg/60 rounded-xl border border-slate-200 dark:border-dark-border shadow-xs">
               <p className="text-[10px] text-dark-muted font-bold uppercase">Absent Days</p>
-              <p className="text-base font-black text-red-400 mt-0.5">{monthMetrics.totalAbsentDays}</p>
+              <p className="text-base font-black text-red-600 dark:text-red-400 mt-0.5">{monthMetrics.totalAbsentDays}</p>
             </div>
-            <div className="p-2 bg-dark-bg/60 rounded-xl border border-dark-border">
+            <div className="p-2 bg-white dark:bg-dark-bg/60 rounded-xl border border-slate-200 dark:border-dark-border shadow-xs">
               <p className="text-[10px] text-dark-muted font-bold uppercase">Half Days</p>
-              <p className="text-base font-black text-amber-400 mt-0.5">{monthMetrics.totalHalfDays}</p>
+              <p className="text-base font-black text-amber-600 dark:text-amber-400 mt-0.5">{monthMetrics.totalHalfDays}</p>
             </div>
-            <div className="p-2 bg-dark-bg/60 rounded-xl border border-dark-border">
+            <div className="p-2 bg-white dark:bg-dark-bg/60 rounded-xl border border-slate-200 dark:border-dark-border shadow-xs">
               <p className="text-[10px] text-dark-muted font-bold uppercase">Paid Days</p>
-              <p className="text-base font-black text-emerald-300 mt-0.5">{monthMetrics.totalPaidDays}</p>
+              <p className="text-base font-black text-emerald-600 dark:text-emerald-300 mt-0.5">{monthMetrics.totalPaidDays}</p>
             </div>
-            <div className="p-2 bg-dark-bg/60 rounded-xl border border-dark-border">
+            <div className="p-2 bg-white dark:bg-dark-bg/60 rounded-xl border border-slate-200 dark:border-dark-border shadow-xs">
               <p className="text-[10px] text-dark-muted font-bold uppercase">Deduction Days</p>
-              <p className="text-base font-black text-rose-400 mt-0.5">{monthMetrics.totalDeductionDays}</p>
+              <p className="text-base font-black text-rose-600 dark:text-rose-400 mt-0.5">{monthMetrics.totalDeductionDays}</p>
             </div>
           </div>
         </GlassCard>
@@ -786,8 +786,8 @@ const PayrollManager = () => {
         <GlassCard className="p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4 border-b border-dark-border pb-2">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Layers size={16} className="text-purple-400" /> Department Financial Payroll Breakdown
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Layers size={16} className="text-purple-600 dark:text-purple-400" /> Department Financial Payroll Breakdown
               </h3>
               <span className="text-[11px] font-mono text-dark-muted font-bold">
                 {departmentMetrics.length} Active Depts
@@ -796,20 +796,20 @@ const PayrollManager = () => {
 
             <div className="space-y-3.5 max-h-[220px] overflow-y-auto pr-1">
               {departmentMetrics.map(dept => (
-                <div key={dept.dept} className="p-3 bg-dark-bg/60 border border-dark-border rounded-xl space-y-2">
+                <div key={dept.dept} className="p-3 bg-slate-50 dark:bg-dark-bg/60 border border-slate-200 dark:border-dark-border rounded-xl space-y-2">
                   <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-white flex items-center gap-2">
+                    <span className="text-slate-900 dark:text-white flex items-center gap-2">
                       {dept.dept}
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-500/20">
                         {dept.count} Staff ({dept.processedCount} Processed)
                       </span>
                     </span>
-                    <span className="font-mono text-emerald-400 text-sm">
+                    <span className="font-mono text-emerald-600 dark:text-emerald-400 text-sm">
                       Rs. {dept.net.toLocaleString()} ({dept.sharePct}%)
                     </span>
                   </div>
                   {/* Share Progress Bar */}
-                  <div className="w-full bg-dark-card h-2 rounded-full overflow-hidden border border-dark-border">
+                  <div className="w-full bg-slate-200 dark:bg-dark-card h-2 rounded-full overflow-hidden border border-slate-300/60 dark:border-dark-border">
                     <div 
                       className="bg-gradient-to-r from-purple-500 to-emerald-500 h-full transition-all duration-500 rounded-full" 
                       style={{ width: `${Math.max(5, dept.sharePct)}%` }}
@@ -831,23 +831,23 @@ const PayrollManager = () => {
         <GlassCard className="p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4 border-b border-dark-border pb-2">
-              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <TrendingUp size={16} className="text-emerald-400" /> Historical Monthly Net Payroll Cost Trend
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <TrendingUp size={16} className="text-emerald-600 dark:text-emerald-400" /> Historical Monthly Net Payroll Cost Trend
               </h3>
               <span className="text-[11px] font-mono text-dark-muted font-bold">Last 6 Cycles</span>
             </div>
 
             <div className="space-y-3 max-h-[220px] overflow-y-auto pr-1">
               {monthlyTrend.map((trend) => (
-                <div key={trend.period} className="p-3 bg-dark-bg/60 border border-dark-border rounded-xl flex items-center justify-between font-mono text-xs">
+                <div key={trend.period} className="p-3 bg-slate-50 dark:bg-dark-bg/60 border border-slate-200 dark:border-dark-border rounded-xl flex items-center justify-between font-mono text-xs">
                   <div>
-                    <p className="font-bold text-white text-sm">{formatPeriod(trend.period)}</p>
+                    <p className="font-bold text-slate-900 dark:text-white text-sm">{formatPeriod(trend.period)}</p>
                     <p className="text-[10px] text-dark-muted mt-0.5">
                       {trend.count} Processed Slips
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-black text-emerald-400 text-sm">
+                    <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm">
                       Rs. {trend.net.toLocaleString()}
                     </p>
                     <p className="text-[10px] text-dark-muted mt-0.5">
@@ -882,17 +882,17 @@ const PayrollManager = () => {
               placeholder="Search staff by name, role, or ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-dark-card border border-dark-border rounded-xl pl-10 p-3 text-sm text-white focus:border-emerald-500 outline-none shadow-sm font-medium"
+              className="w-full bg-slate-100 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl pl-10 p-3 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-dark-muted focus:border-emerald-500 outline-none shadow-sm font-medium"
             />
           </div>
 
           {/* Status Filter Dropdown */}
           <div className="flex items-center gap-2 w-full md:w-auto">
-            <span className="text-xs font-bold text-dark-muted uppercase whitespace-nowrap hidden sm:inline">Status:</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-dark-muted uppercase whitespace-nowrap hidden sm:inline">Status:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full md:w-auto bg-dark-card border border-dark-border rounded-xl p-3 text-xs font-bold text-white focus:border-emerald-500 outline-none cursor-pointer"
+              className="w-full md:w-auto bg-slate-100 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl p-3 text-xs font-bold text-slate-900 dark:text-white focus:border-emerald-500 outline-none cursor-pointer"
             >
               <option value="All">All Statuses ({monthMetrics.totalEmployees})</option>
               <option value="Processed">Processed Only ({monthMetrics.processedCount})</option>
@@ -902,11 +902,11 @@ const PayrollManager = () => {
 
           {/* Department Filter Dropdown */}
           <div className="flex items-center gap-2 w-full md:w-auto">
-            <span className="text-xs font-bold text-dark-muted uppercase whitespace-nowrap hidden sm:inline">Dept:</span>
+            <span className="text-xs font-bold text-slate-600 dark:text-dark-muted uppercase whitespace-nowrap hidden sm:inline">Dept:</span>
             <select
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="w-full md:w-auto bg-dark-card border border-dark-border rounded-xl p-3 text-xs font-bold text-white focus:border-emerald-500 outline-none cursor-pointer"
+              className="w-full md:w-auto bg-slate-100 dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-xl p-3 text-xs font-bold text-slate-900 dark:text-white focus:border-emerald-500 outline-none cursor-pointer"
             >
               <option value="All">All Departments</option>
               {departmentOptions.map(dept => (
@@ -922,68 +922,68 @@ const PayrollManager = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-dark-bg border-b border-dark-border">
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Staff Details</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Department</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Basic Salary</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Allowances</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Gross Salary</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Att. Deduction</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Total Deductions</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Net Salary</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider">Status</th>
-                  <th className="p-4 text-xs font-bold text-dark-muted uppercase tracking-wider text-right">Actions</th>
+                <tr className="bg-slate-100/90 dark:bg-dark-bg border-b border-slate-200 dark:border-dark-border">
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Staff Details</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Department</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Basic Salary</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Allowances</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Gross Salary</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Att. Deduction</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Total Deductions</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Net Salary</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider">Status</th>
+                  <th className="p-4 text-xs font-bold text-slate-700 dark:text-dark-muted uppercase tracking-wider text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-dark-border/50">
+              <tbody className="divide-y divide-slate-200/60 dark:divide-dark-border/50">
                 {filteredStaff.map((staff) => (
-                  <tr key={staff.id} className="hover:bg-white/5 transition-colors">
+                  <tr key={staff.id} className="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
                     
                     {/* Staff Details */}
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <p className="font-bold text-white">{staff.name}</p>
+                        <p className="font-bold text-slate-900 dark:text-white">{staff.name}</p>
                         {staff.staffStatus && staff.staffStatus !== 'Active' && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30">
                             {staff.staffStatus}
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-emerald-400 font-mono mt-0.5">{staff.role || 'Staff'}</p>
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">{staff.role || 'Staff'}</p>
                     </td>
 
                     {/* Department */}
-                    <td className="p-4 font-mono text-xs text-dark-muted font-bold">
+                    <td className="p-4 font-mono text-xs text-slate-600 dark:text-dark-muted font-bold">
                       {staff.department || 'N/A'}
                     </td>
 
                     {/* Basic */}
-                    <td className="p-4 font-mono text-white font-bold text-xs">
+                    <td className="p-4 font-mono text-slate-900 dark:text-white font-bold text-xs">
                       Rs. {staff.basicSalary.toLocaleString()}
                     </td>
 
                     {/* Allowances */}
-                    <td className="p-4 font-mono text-emerald-400 font-bold text-xs">
+                    <td className="p-4 font-mono text-emerald-600 dark:text-emerald-400 font-bold text-xs">
                       + Rs. {staff.totalAllowances.toLocaleString()}
                     </td>
 
                     {/* Gross */}
-                    <td className="p-4 font-mono text-white font-bold text-xs">
+                    <td className="p-4 font-mono text-slate-900 dark:text-white font-bold text-xs">
                       Rs. {staff.grossSalary.toLocaleString()}
                     </td>
 
                     {/* Attendance Deduction */}
-                    <td className="p-4 font-mono text-rose-400 font-bold text-xs">
+                    <td className="p-4 font-mono text-rose-600 dark:text-rose-400 font-bold text-xs">
                       - Rs. {staff.attendanceDeduction.toLocaleString()}
                     </td>
 
                     {/* Total Deductions */}
-                    <td className="p-4 font-mono text-red-400 font-bold text-xs">
+                    <td className="p-4 font-mono text-red-600 dark:text-red-400 font-bold text-xs">
                       - Rs. {staff.totalDeductions.toLocaleString()}
                     </td>
 
                     {/* Net Salary */}
-                    <td className="p-4 font-mono text-emerald-300 font-black text-sm">
+                    <td className="p-4 font-mono text-emerald-700 dark:text-emerald-300 font-black text-sm">
                       Rs. {staff.netSalary.toLocaleString()}
                     </td>
 
@@ -1089,48 +1089,48 @@ const PayrollManager = () => {
 
       {/* Audit Trail Section (Phase 8 & 9) */}
       <GlassCard className="p-6">
-        <div className="flex items-center justify-between mb-4 border-b border-dark-border pb-3">
+        <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-dark-border pb-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl">
+            <div className="p-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl">
               <ShieldCheck size={22} />
             </div>
             <div>
-              <h3 className="font-bold text-white text-base flex items-center gap-2">
+              <h3 className="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
                 Payroll Audit Trail & Activity Log
               </h3>
-              <p className="text-xs text-dark-muted">
+              <p className="text-xs text-slate-500 dark:text-dark-muted">
                 System-verified audit records for month finalizations and critical administrative payroll actions.
               </p>
             </div>
           </div>
-          <span className="text-xs font-mono text-indigo-400 font-bold bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+          <span className="text-xs font-mono text-indigo-700 dark:text-indigo-400 font-bold bg-indigo-50 dark:bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-200 dark:border-indigo-500/20">
             {auditLogs.length} Audit Event(s)
           </span>
         </div>
 
         {auditLogs.length === 0 ? (
-          <div className="py-6 text-center text-xs text-dark-muted font-bold border border-dashed border-dark-border rounded-xl">
+          <div className="py-6 text-center text-xs text-slate-500 dark:text-dark-muted font-bold border border-dashed border-slate-200 dark:border-dark-border rounded-xl">
             No payroll finalization audit records recorded yet.
           </div>
         ) : (
           <div className="space-y-3">
             {auditLogs.slice(0, 5).map((log) => (
-              <div key={log.id || log.timestamp} className="p-3.5 bg-dark-bg/60 border border-dark-border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-3">
+              <div key={log.id || log.timestamp} className="p-3.5 bg-slate-50 dark:bg-dark-bg/60 border border-slate-200 dark:border-dark-border rounded-xl flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-3">
                 <div className="flex items-center gap-3">
-                  <span className="px-2.5 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-md font-bold uppercase font-mono text-[10px]">
+                  <span className="px-2.5 py-0.5 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-800 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30 rounded-md font-bold uppercase font-mono text-[10px]">
                     {log.action || 'PAYROLL_FINALIZED'}
                   </span>
                   <div>
-                    <p className="font-bold text-white">
-                      Month: <span className="text-emerald-400">{log.periodLabel || formatPeriod(log.period)}</span> ({log.recordsCount ?? 0} staff records locked)
+                    <p className="font-bold text-slate-900 dark:text-white">
+                      Month: <span className="text-emerald-600 dark:text-emerald-400">{log.periodLabel || formatPeriod(log.period)}</span> ({log.recordsCount ?? 0} staff records locked)
                     </p>
-                    <p className="text-[11px] text-dark-muted mt-0.5">
-                      Performed by: <strong className="text-gray-300">{log.performedByName || log.performedByEmail || 'Admin'}</strong>
+                    <p className="text-[11px] text-slate-500 dark:text-dark-muted mt-0.5">
+                      Performed by: <strong className="text-slate-800 dark:text-gray-300">{log.performedByName || log.performedByEmail || 'Admin'}</strong>
                     </p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <span className="text-[11px] font-mono text-dark-muted">
+                  <span className="text-[11px] font-mono text-slate-500 dark:text-dark-muted">
                     {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
                   </span>
                 </div>
@@ -1143,29 +1143,29 @@ const PayrollManager = () => {
       {/* Confirmation Modal for Month Finalization (Phase 5) */}
       {showFinalizeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in print:hidden">
-          <div className="bg-dark-card border border-dark-border rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-5">
+          <div className="bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-2xl shrink-0">
+              <div className="p-3 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 rounded-2xl shrink-0">
                 <Lock size={28} />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                   Finalize Payroll Month — {formatPeriod(selectedPeriod)}?
                 </h3>
-                <p className="text-xs text-dark-muted mt-0.5">
-                  Confirm month locking for tenant <strong className="text-white">{userData?.schoolName || 'Current School'}</strong>
+                <p className="text-xs text-slate-500 dark:text-dark-muted mt-0.5">
+                  Confirm month locking for tenant <strong className="text-slate-800 dark:text-white font-semibold">{userData?.schoolName || 'Current School'}</strong>
                 </p>
               </div>
             </div>
 
-            <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-xs text-indigo-200 space-y-2">
-              <p className="font-bold text-indigo-300 text-sm flex items-center gap-1.5">
-                <ShieldCheck size={16} /> Important Notice:
+            <div className="p-4 bg-indigo-50/90 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded-xl text-xs space-y-2.5">
+              <p className="font-bold text-indigo-900 dark:text-indigo-300 text-sm flex items-center gap-2">
+                <ShieldCheck size={18} className="text-indigo-600 dark:text-indigo-400 shrink-0" /> Important Notice:
               </p>
-              <p>
-                After finalization, all processed payroll records for <strong>{formatPeriod(selectedPeriod)}</strong> will be permanently locked.
+              <p className="text-slate-700 dark:text-slate-200 leading-relaxed font-medium">
+                After finalization, all processed payroll records for <strong className="text-slate-900 dark:text-white font-bold">{formatPeriod(selectedPeriod)}</strong> will be permanently locked.
               </p>
-              <ul className="list-disc list-inside space-y-1 text-indigo-200/90 font-mono text-[11px] pt-1">
+              <ul className="list-disc list-inside space-y-1.5 text-slate-700 dark:text-slate-200 font-medium text-xs pt-1">
                 <li>Salary structures & deductions cannot be edited</li>
                 <li>Historical attendance snapshots will remain immutable</li>
                 <li>Records cannot be re-processed or overwritten</li>
@@ -1178,7 +1178,7 @@ const PayrollManager = () => {
                 type="button"
                 onClick={() => setShowFinalizeModal(false)}
                 disabled={isFinalizing}
-                className="px-4 py-2 bg-dark-bg border border-dark-border text-white hover:bg-white/5 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-dark-hover border border-slate-300 dark:border-dark-border text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
               >
                 Cancel
               </button>

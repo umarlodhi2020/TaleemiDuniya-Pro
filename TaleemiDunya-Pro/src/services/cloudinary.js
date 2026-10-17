@@ -15,7 +15,7 @@
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dz0mfu4al';
+const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'pfqctelz';
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'taleemidunya_unsigned';
 const UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
 
@@ -94,8 +94,8 @@ export const compressImage = (file, options = {}) => {
 
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 const ALLOWED_DOC_TYPES = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_DOC_SIZE = 10 * 1024 * 1024;  // 10MB
+const MAX_IMAGE_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_DOC_SIZE = 25 * 1024 * 1024;  // 25MB
 
 /**
  * Validate a file before upload
@@ -161,10 +161,10 @@ export const uploadToCloudinary = async (file, options = {}) => {
       return { success: false, error: 'No file provided' };
     }
 
-    // File size check (max 10MB)
-    const MAX_SIZE = 10 * 1024 * 1024;
+    // File size check (max 25MB)
+    const MAX_SIZE = 25 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      return { success: false, error: 'File size exceeds 10MB limit' };
+      return { success: false, error: 'File size exceeds 25MB limit' };
     }
 
     // Compress image if applicable
@@ -217,7 +217,9 @@ export const uploadToCloudinary = async (file, options = {}) => {
     return {
       success: true,
       url: response.secure_url,
+      secure_url: response.secure_url,
       publicId: response.public_id,
+      public_id: response.public_id,
       format: response.format,
       size: response.bytes,
       width: response.width,
@@ -261,7 +263,23 @@ export const uploadStudentPhoto = async (file, schoolId, studentId, onProgress) 
 export const uploadStaffPhoto = async (file, schoolId, staffId, onProgress) => {
   return uploadToCloudinary(file, {
     folder: `taleemidunya/${schoolId}/staff`,
-    publicId: `staff_${staffId}_${Date.now()}`,
+    publicId: `staff_${staffId || 'new'}_${Date.now()}`,
+    onProgress,
+    compress: true,
+  });
+};
+
+/**
+ * Upload a staff signature image
+ * @param {File} file - Image file
+ * @param {string} schoolId - School identifier
+ * @param {string} staffId - Staff identifier
+ * @param {Function} onProgress - Progress callback
+ */
+export const uploadStaffSignature = async (file, schoolId, staffId, onProgress) => {
+  return uploadToCloudinary(file, {
+    folder: `taleemidunya/${schoolId}/staff_signatures`,
+    publicId: `staff_sig_${staffId || 'new'}_${Date.now()}`,
     onProgress,
     compress: true,
   });

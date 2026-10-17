@@ -29,6 +29,7 @@ import {
   getStaffAttendanceByMonth, 
   saveStaffAttendanceBatch 
 } from '../../services/db';
+import StaffTimeSlipModal from '../../components/common/StaffTimeSlipModal';
 
 const ATTENDANCE_STATUSES = [
   { id: 'present', label: 'Present', short: 'P', color: 'emerald', bgClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' },
@@ -61,6 +62,9 @@ const StaffAttendanceRegister = () => {
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7)); // "YYYY-MM"
   const [monthlyAttendanceList, setMonthlyAttendanceList] = useState([]);
   const [loadingMonthlyAtt, setLoadingMonthlyAtt] = useState(false);
+
+  // Time Slip Modal State
+  const [timeSlipStaff, setTimeSlipStaff] = useState(null);
 
   // Toast message
   const [toast, setToast] = useState(null);
@@ -602,6 +606,7 @@ const StaffAttendanceRegister = () => {
                       <th className="py-3.5 px-4 text-center">Time In/Out</th>
                       <th className="py-3.5 px-4 text-center">Attendance Status</th>
                       <th className="py-3.5 px-4">Notes / Remarks</th>
+                      <th className="py-3.5 px-4 text-center">Time Slip</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-dark-border/50 text-sm">
@@ -700,6 +705,19 @@ const StaffAttendanceRegister = () => {
                               onChange={(e) => handleNotesChange(staff.id, e.target.value)}
                               className="w-full bg-dark-bg/60 border border-dark-border/60 rounded-lg px-2.5 py-1.5 text-xs text-dark-text placeholder-dark-muted focus:outline-none focus:border-primary-500"
                             />
+                          </td>
+
+                          {/* Time Slip (In / Out) */}
+                          <td className="py-3.5 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setTimeSlipStaff(staff)}
+                              className="px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold inline-flex items-center gap-1 transition-all"
+                              title="View & Print Staff Time Slip (In / Out Log)"
+                            >
+                              <Clock size={13} />
+                              <span>Time Slip</span>
+                            </button>
                           </td>
                         </tr>
                       );
@@ -850,10 +868,22 @@ const StaffAttendanceRegister = () => {
                         <tr key={staff.id} className="hover:bg-dark-paper/40 transition-colors">
                           {/* Sticky Staff Name Column */}
                           <td className="py-2.5 px-3 font-semibold text-dark-text sticky left-0 bg-dark-bg/90 backdrop-blur z-10 border-r border-dark-border">
-                            <div className="truncate font-bold max-w-[160px]" title={staff.name}>
-                              {staff.name || 'Unnamed'}
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0">
+                                <div className="truncate font-bold max-w-[130px]" title={staff.name}>
+                                  {staff.name || 'Unnamed'}
+                                </div>
+                                <div className="text-[10px] text-dark-muted font-mono">{staff.staffId || staff.employeeId || staff.id}</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setTimeSlipStaff(staff)}
+                                className="p-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 ml-1 shrink-0"
+                                title="View Monthly Time Slip"
+                              >
+                                <Clock size={12} />
+                              </button>
                             </div>
-                            <div className="text-[10px] text-dark-muted font-mono">{staff.staffId || staff.employeeId || staff.id}</div>
                           </td>
 
                           {/* Dept */}
@@ -912,6 +942,15 @@ const StaffAttendanceRegister = () => {
             )}
           </GlassCard>
         </div>
+      )}
+
+      {/* Staff Time Slip Modal */}
+      {timeSlipStaff && (
+        <StaffTimeSlipModal
+          staff={timeSlipStaff}
+          initialPeriod={selectedMonth}
+          onClose={() => setTimeSlipStaff(null)}
+        />
       )}
     </div>
   );

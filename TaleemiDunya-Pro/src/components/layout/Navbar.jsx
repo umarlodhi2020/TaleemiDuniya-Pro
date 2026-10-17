@@ -82,14 +82,14 @@ const Navbar = ({ toggleSidebar }) => {
           </button>
 
           {/* Web App Brand Title (Clickable to Home) */}
-          <NavLink to={getHomePath()} className="flex flex-col gap-1 hover:opacity-80 transition-opacity cursor-pointer shrink-0" title="Go to Home Dashboard">
-            <h1 className="text-lg sm:text-xl font-extrabold text-primary-400 tracking-wide leading-none truncate">
+          <NavLink to={getHomePath()} className="flex flex-col gap-0.5 hover:opacity-80 transition-opacity cursor-pointer shrink-0" title="Go to Home Dashboard">
+            <h1 className="text-base sm:text-xl font-extrabold text-primary-400 tracking-wide leading-none truncate">
               TaleemiDunya
             </h1>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-700 font-mono text-[9px] font-black tracking-wider flex items-center gap-1 shadow-sm max-w-[120px] sm:max-w-none truncate">
+            <div className="flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 rounded bg-green-500/10 border border-green-500/30 text-green-700 font-mono text-[9px] font-black tracking-wider flex items-center gap-1 shadow-sm shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-600 animate-ping shrink-0" />
-                <span className="truncate">v2.5.0 PRO <span className="hidden sm:inline">• AI CLOUD SYNC & OFFLINE READY</span></span>
+                <span>v2.5.0 PRO <span className="hidden sm:inline">• AI CLOUD SYNC</span></span>
               </span>
               <span className="text-[9px] text-dark-muted font-bold uppercase tracking-widest hidden sm:inline">
                 • {userData?.role === 'super-admin' ? 'Super Admin' : 'School Admin'}
@@ -118,7 +118,7 @@ const Navbar = ({ toggleSidebar }) => {
 
         {/* Global Quick Shortcuts Dropdown */}
         {userData?.role === 'school-admin' && (
-          <div className="relative" ref={shortcutsRef}>
+          <div className="relative hidden sm:block" ref={shortcutsRef}>
             <button
               onClick={() => setIsShortcutsOpen(!isShortcutsOpen)}
               title="Quick Action Shortcuts (Inquiry, Attendance, Fees, Reports)"
@@ -167,7 +167,7 @@ const Navbar = ({ toggleSidebar }) => {
         <button
           onClick={cycleZoom}
           title="Adjust Screen Scale (90% Compact / 85% High Density / 100% Normal)"
-          className="px-2.5 py-1.5 rounded-xl bg-dark-card border border-dark-border !text-slate-700 hover:!text-cyan-600 hover:border-cyan-500/50 transition-all duration-300 shadow-sm flex items-center gap-1.5 cursor-pointer font-mono text-[11px] font-bold shrink-0"
+          className="hidden md:flex px-2.5 py-1.5 rounded-xl bg-dark-card border border-dark-border !text-slate-700 hover:!text-cyan-600 hover:border-cyan-500/50 transition-all duration-300 shadow-sm items-center gap-1.5 cursor-pointer font-mono text-[11px] font-bold shrink-0"
         >
           <Monitor size={15} className="!text-cyan-600 shrink-0" />
           <span className="hidden lg:inline">{uiZoom === '90' ? '90% Sleek' : uiZoom === '85' ? '85% Compact' : '100% Norm'}</span>

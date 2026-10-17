@@ -56,7 +56,16 @@ import {
   Command,
   Zap,
   Lock,
-  TrendingDown
+  TrendingDown,
+  ScanBarcode,
+  CheckSquare,
+  HeartPulse,
+  CalendarDays,
+  Trophy,
+  Package,
+  UserCheck,
+  Coffee,
+  BrainCircuit
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
@@ -65,7 +74,7 @@ import GlobalSearchModal from '../common/GlobalSearchModal';
 
 const Sidebar = ({ role, isOpen, setIsOpen }) => {
   const { logout, userData } = useAuth();
-  const { isFeatureAllowed, allowedFeaturesMap, currentSaaSPlan, schoolData } = useSchool();
+  const { isFeatureAllowed, allowedFeaturesMap, currentSaaSPlan, schoolData, isOverdueMoreThan7Days } = useSchool();
   const location = useLocation();
   const currentPath = location.pathname;
   const [expanded, setExpanded] = React.useState({ 'Student Attendance': true });
@@ -252,11 +261,16 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                 featureKey: 'student-attendance',
                 sublinks: [
                   { name: 'Take Attendance', path: '/school-admin/attendance', featureKey: 'student-attendance' },
-                  { name: 'Attendance Register', path: '/school-admin/attendance-register', featureKey: 'student-attendance' }
+                  { name: 'Attendance Register', path: '/school-admin/attendance-register', featureKey: 'student-attendance' },
+                  { name: '2D QR & Barcode Machine', path: '/school-admin/qr-scanner', featureKey: 'gate-scanner' }
                 ]
               },
               { name: 'ID Cards Generator (Students)', icon: Award, path: '/school-admin/students/id-cards', featureKey: 'id-cards' },
               { name: 'Class Manager', icon: Settings2, path: '/school-admin/classes', featureKey: 'students-manager' },
+              { name: 'Student Health & Medical', icon: HeartPulse, path: '/school-admin/student-health', featureKey: 'students-manager' },
+              { name: 'House System & Merit Board', icon: Trophy, path: '/school-admin/house-system', featureKey: 'students-manager' },
+              { name: 'AI Drop-Out Risk Predictor', icon: BrainCircuit, path: '/school-admin/retention-predictor', featureKey: 'students-manager' },
+              { name: 'Alumni & Hall of Fame', icon: GraduationCap, path: '/school-admin/alumni-directory', featureKey: 'students-manager' },
             ]
           },
           {
@@ -267,6 +281,8 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
               { name: 'Add Staff', icon: PlusCircle, path: '/school-admin/staff/add', featureKey: 'staff-manager' },
               { name: 'Staff', icon: UserSquare2, path: '/school-admin/staff', featureKey: 'staff-manager' },
               { name: 'Staff Attendance', icon: ClipboardCheck, path: '/school-admin/staff-attendance', featureKey: 'staff-manager' },
+              { name: 'Salary Setup', icon: DollarSign, path: '/school-admin/staff/salary-setup', featureKey: 'staff-manager' },
+              { name: 'Payroll & Payslips', icon: Calculator, path: '/school-admin/staff/payroll', featureKey: 'payroll' },
               { name: 'ID Cards Generator (Staff)', icon: Award, path: '/school-admin/staff/id-cards', featureKey: 'id-cards' },
             ]
           },
@@ -280,6 +296,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
               { name: 'Voucher Generate', icon: Receipt, path: '/school-admin/fees/generate', featureKey: 'challan-manager' },
               { name: 'Challan Manager', icon: CreditCard, path: '/school-admin/fees', featureKey: 'challan-manager' },
               { name: 'Fee Record', icon: FileText, path: '/school-admin/fees/record', featureKey: 'challan-manager' },
+              { name: 'Canteen Cashless Wallet', icon: Coffee, path: '/school-admin/canteen-wallet', featureKey: 'fee-collection' },
               { name: 'Other Income Manager', icon: DollarSign, path: '/school-admin/other-income?tab=invoices', featureKey: 'other-income' },
               { name: 'Expense Manager', icon: TrendingDown, path: '/school-admin/accounts/expenses', featureKey: 'expense-manager' },
               { name: 'Payroll', icon: Calculator, path: '/school-admin/accounts/payroll', featureKey: 'payroll' },
@@ -300,6 +317,11 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
               { name: 'AI Homework Grader', icon: Wand2, path: '/school-admin/academics/ai-grader', featureKey: 'ai-grader' },
               { name: 'Live Classes', icon: Video, path: '/school-admin/academics/live-classes', featureKey: 'live-classes' },
               { name: 'AI Staff Proxy', icon: UserPlus, path: '/school-admin/academics/proxy-engine', featureKey: 'proxy-engine' },
+              { name: 'AI Exam Paper Generator', icon: Sparkles, path: '/school-admin/academics/ai-question-paper', featureKey: 'exams-hub' },
+              { name: 'Syllabus & Lesson Tracker', icon: CheckSquare, path: '/school-admin/academics/syllabus-tracker', featureKey: 'academics-manager' },
+              { name: 'Academic Calendar & Holidays', icon: CalendarDays, path: '/school-admin/academic-calendar', featureKey: 'academics-manager' },
+              { name: 'PTM Appointment Scheduler', icon: UserCheck, path: '/school-admin/ptm-scheduler', featureKey: 'academics-manager' },
+              { name: 'AI Voice Calling Receptionist', icon: PhoneCall, path: '/school-admin/ai-voice-telephony', featureKey: 'academics-manager' },
             ]
           },
           {
@@ -314,6 +336,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
               { name: 'Admit Cards', icon: Award, path: '/school-admin/exams/admit-cards', featureKey: 'exams-hub' },
               { name: 'Marksheet', icon: Award, path: '/school-admin/exams/marksheet', featureKey: 'exams-hub' },
               { name: 'Report Summary', icon: PieChart, path: '/school-admin/exams/report-summary', featureKey: 'exams-hub' },
+              { name: 'AI Exam Paper Generator', icon: Sparkles, path: '/school-admin/academics/ai-question-paper', featureKey: 'exams-hub' },
             ]
           },
           {
@@ -332,12 +355,13 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
               { name: 'Launch Security & Audit Hub', icon: ShieldCheck, path: '/school-admin/system-health-audit', featureKey: 'system-audit' },
               { name: 'Biometric Integration', icon: Fingerprint, path: '/school-admin/biometric-setup', featureKey: 'gate-scanner' },
               { name: 'Live ID Card Gate Scanner', icon: QrCode, path: '/school-admin/security/gate-scanner', featureKey: 'gate-scanner' },
-              { name: 'QR Attendance Scanner', icon: QrCode, path: '/school-admin/qr-scanner', featureKey: 'gate-scanner' },
+              { name: '2D QR & Barcode Machine', icon: ScanBarcode, path: '/school-admin/qr-scanner', featureKey: 'gate-scanner' },
               { name: 'Bus & Van Transport Fleet', icon: Bus, path: '/school-admin/transport', featureKey: 'transport-fleet' },
               { name: 'Digital Library & Notes Hub', icon: BookOpen, path: '/school-admin/library', featureKey: 'digital-library' },
               { name: 'Hostel & Dormitory Manager', icon: Bed, path: '/school-admin/hostel', featureKey: 'hostel-manager' },
-              { name: 'Security Gate Pass Logs', icon: ShieldCheck, path: '/school-admin/security/gate-pass', featureKey: 'gate-pass' },
+              { name: 'Security Visitor & Gate Pass', icon: ShieldCheck, path: '/school-admin/visitors', featureKey: 'gate-pass' },
               { name: 'Inventory & Stock Store', icon: Archive, path: '/school-admin/inventory', featureKey: 'inventory-store' },
+              { name: 'Lost & Found Noticeboard', icon: Package, path: '/school-admin/lost-and-found', featureKey: 'inventory-store' },
               { name: 'Assign Role & Access', icon: ShieldCheck, path: '/school-admin/roles', featureKey: 'roles-access' },
               { name: 'Reminders & Tasks', icon: Bell, path: '/school-admin/reminders', featureKey: 'reminders-tasks' },
               { name: 'Official Call Log', icon: PhoneCall, path: '/school-admin/call-log', featureKey: 'call-log' },
@@ -374,7 +398,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
     const allowedLinks = section.links.filter(link => {
       if (displayRole !== 'school-admin' || userData?.role === 'super-admin') return true;
       const keyOrPath = link.featureKey || link.path;
-      return isFeatureAllowed(keyOrPath);
+      return isFeatureAllowed(keyOrPath) || isOverdueMoreThan7Days;
     });
 
     // 2. Then apply search filter if user typed in menuSearch
@@ -551,6 +575,9 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-current flex-shrink-0" />
                                   <span className="truncate">{subLink.name}</span>
+                                  {isOverdueMoreThan7Days && !isFeatureAllowed(subLink.path) && (
+                                    <span className="ml-auto text-[10px] text-red-500 font-bold" title="Suspended: 7+ Days Overdue">🔒</span>
+                                  )}
                                 </NavLink>
                               ))}
                             </div>
@@ -567,6 +594,9 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
                         >
                           <link.icon size={15} className="flex-shrink-0 text-slate-600 dark:text-dark-muted" />
                           <span className="text-xs font-semibold transition-all duration-200 whitespace-nowrap overflow-hidden opacity-100 max-w-[125px] ml-1.5 text-slate-800 dark:text-dark-text">{link.name}</span>
+                          {isOverdueMoreThan7Days && !isFeatureAllowed(link.path) && (
+                            <span className="ml-auto text-[10px] text-red-500 font-bold" title="Suspended: 7+ Days Overdue">🔒</span>
+                          )}
                         </NavLink>
                       )
                     )}

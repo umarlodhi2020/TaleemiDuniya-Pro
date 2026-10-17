@@ -54,6 +54,8 @@ export const LAYOUTS = {
   custom: 'Custom Canva Design'
 };
 
+export const getStudentPhoto = (st) => st?.profilePhoto || st?.photoUrl || st?.photo || st?.avatar || st?.imageUrl || st?.picture || st?.image || '';
+
 // Internal Renderers
 const renderPortraitCard = (st, isPrint, settings) => {
   const { schoolName, cardSubtitle, validity, principalName, stampImage, activeTheme } = settings;
@@ -78,8 +80,8 @@ const renderPortraitCard = (st, isPrint, settings) => {
 
       <div className="flex-1 px-3.5 pt-3 pb-2 flex flex-col items-center justify-between bg-white text-center">
         <div className="relative z-10 w-[72px] h-[72px] rounded-full border-[3px] border-white shadow-md bg-gray-100 flex items-center justify-center overflow-hidden -mt-10 flex-shrink-0">
-          {st.profilePhoto || st.photoUrl ? (
-            <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+          {getStudentPhoto(st) ? (
+            <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover" />
           ) : (
             <svg className="w-full h-full text-gray-300 mt-3" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -154,8 +156,8 @@ const renderLandscapeCard = (st, isPrint, settings) => {
         <div className="absolute -bottom-10 -left-10 w-24 h-24 rounded-full bg-white/10 blur-xl" />
         
         <div className="relative z-10 w-[60px] h-[60px] mt-4 rounded-lg border-[2px] border-white shadow-md bg-gray-100 flex items-center justify-center overflow-hidden">
-          {st.profilePhoto || st.photoUrl ? (
-            <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+          {getStudentPhoto(st) ? (
+            <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover" />
           ) : (
             <svg className="w-full h-full text-gray-300 mt-2" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -239,8 +241,8 @@ const renderMinimalCard = (st, isPrint, settings) => {
       <div className="flex-1 flex flex-col items-center pt-2 pb-4 bg-gray-50/50">
         <div className={`relative w-[85px] h-[85px] rounded-full p-1 ${activeTheme.bg} mb-3 shadow-md`}>
           <div className="w-full h-full rounded-full border-[3px] border-white overflow-hidden bg-gray-100 flex items-center justify-center">
-            {st.profilePhoto || st.photoUrl ? (
-              <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+            {getStudentPhoto(st) ? (
+              <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover" />
             ) : (
               <svg className="w-full h-full text-gray-300 mt-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -294,8 +296,8 @@ const renderGovtCard = (st, isPrint, settings) => {
       <div className="flex-1 px-3 pt-2 pb-1 bg-white text-center flex flex-col">
         <div className="flex justify-center mb-2">
           <div className="w-[75px] h-[85px] border-2 border-gray-400 bg-gray-100 p-0.5">
-            {st.profilePhoto || st.photoUrl ? (
-              <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+            {getStudentPhoto(st) ? (
+              <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">Photo</div>
             )}
@@ -350,8 +352,8 @@ const renderEliteCard = (st, isPrint, settings) => {
          </h3>
          <div className="flex gap-3">
             <div className="w-[70px] h-[80px] rounded-lg overflow-hidden border border-gray-200">
-               {st.profilePhoto || st.photoUrl ? (
-                <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+               {getStudentPhoto(st) ? (
+                <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[8px] text-gray-400">Photo</div>
               )}
@@ -406,8 +408,8 @@ const renderMadrassaCard = (st, isPrint, settings) => {
 
       <div className="flex-1 px-4 pt-3 pb-1 text-center flex flex-col items-center">
         <div className="w-[65px] h-[65px] rounded-full border-2 border-yellow-500 bg-white p-0.5 overflow-hidden mb-2">
-          {st.profilePhoto || st.photoUrl ? (
-            <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover rounded-full" />
+          {getStudentPhoto(st) ? (
+            <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover rounded-full" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-[8px] text-gray-400">تصویر</div>
           )}
@@ -459,8 +461,8 @@ const renderCollegeCard = (st, isPrint, settings) => {
       <div className="flex-1 p-2 flex flex-col">
         <div className="flex gap-2 mb-2">
           <div className="w-[60px] h-[75px] border border-gray-300 bg-gray-50 flex-shrink-0">
-            {st.profilePhoto || st.photoUrl ? (
-              <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+            {getStudentPhoto(st) ? (
+              <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-[7px] text-gray-400">Photo</div>
             )}
@@ -521,8 +523,8 @@ const renderSmartScholarCard = (st, isPrint, settings) => {
       <div className="flex-1 flex p-2 gap-3 relative z-10">
          <div className="w-[65px] flex flex-col gap-1 items-center">
             <div className="w-[60px] h-[75px] rounded border border-gray-300 bg-white p-0.5">
-               {st.profilePhoto || st.photoUrl ? (
-                <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover rounded-sm" />
+               {getStudentPhoto(st) ? (
+                <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover rounded-sm" />
               ) : (
                 <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[7px] text-gray-400">Photo</div>
               )}
@@ -596,8 +598,8 @@ const renderUniCard = (st, isPrint, settings) => {
 
       <div className="flex justify-center mt-3 mb-2">
          <div className="w-[85px] h-[105px] border-2 border-gray-800 bg-gray-100 p-0.5 flex flex-col items-center justify-center shadow-sm">
-           {st.profilePhoto || st.photoUrl ? (
-              <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+           {getStudentPhoto(st) ? (
+              <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover" />
            ) : (
               <>
                 <span className="text-[9px] font-bold text-gray-500">PASSPORT</span>
@@ -704,8 +706,8 @@ const renderTechCard = (st, isPrint, settings) => {
          <div className="w-[85px] h-[105px] border-[3px] border-[#3b82f6] bg-gray-100 p-0.5 flex flex-col items-center justify-center relative">
            <div className="absolute -top-3 -left-3 text-[4px] text-gray-400 rotate-90 whitespace-nowrap">||||||||||||||||||||||||||||||||||||</div>
            <div className="absolute -bottom-3 -right-3 text-[4px] text-gray-400 rotate-90 whitespace-nowrap">||||||||||||||||||||||||||||||||||||</div>
-           {st.profilePhoto || st.photoUrl ? (
-              <img src={st.profilePhoto || st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+           {getStudentPhoto(st) ? (
+              <img src={getStudentPhoto(st)} alt={st.name} className="w-full h-full object-cover" />
            ) : (
               <span className="text-[8px] font-bold text-gray-400">PHOTO</span>
            )}
@@ -806,8 +808,8 @@ export const renderCustomCard = (st, isPrint, settings) => {
       {customTemplate.elements.map(el => {
         let content = null;
         if (el.type === 'profilePhoto') {
-          content = st.profilePhoto || st.photoUrl ? (
-            <img src={st.profilePhoto || st.photoUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          content = getStudentPhoto(st) ? (
+            <img src={getStudentPhoto(st)} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           ) : (
              <svg style={{ width: '100%', height: '100%', color: '#d1d5db' }} viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />

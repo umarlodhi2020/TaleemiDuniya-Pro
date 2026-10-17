@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
-  Calendar, 
-  Search, 
   CheckCircle2, 
   XCircle, 
   Clock, 
@@ -11,15 +10,17 @@ import {
   Filter,
   Save,
   Fingerprint,
-  Activity
+  Activity,
+  ScanBarcode
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
-import { getRecords, addRecord } from '../../services/db';
+import { getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
-import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
+import { setDoc, doc } from 'firebase/firestore';
 import { db as firestore } from '../../services/firebase';
 
 const AttendanceManager = () => {
+  const navigate = useNavigate();
   const { userData } = useAuth();
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedClass, setSelectedClass] = useState('');
@@ -27,22 +28,10 @@ const AttendanceManager = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [syncMode, setSyncMode] = useState('manual'); // 'manual' | 'live'
-  const [lastScanned, setLastScanned] = useState(null);
+  const [syncMode, setSyncMode] = useState('manual');
+  const [lastScanned] = useState(null);
 
-  useEffect(() => {
-    fetchClasses();
-  }, [userData]);
-
-  useEffect(() => {
-    if (selectedClass) {
-      fetchStudents();
-    } else {
-      setStudents([]);
-    }
-  }, [selectedClass, userData]);
-
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     if (!userData?.schoolId) return;
     try {
       const classList = await getRecords('classes', userData.schoolId);
@@ -54,22 +43,31 @@ const AttendanceManager = () => {
     } catch (err) {
       console.error('Error fetching classes:', err);
     }
-  };
+  }, [userData?.schoolId, selectedClass]);
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getRecords('students', userData?.schoolId || 'default-school', [
         { field: 'class', operator: '==', value: selectedClass }
       ]);
-      // Initialize with default status
       setStudents(data.map(s => ({ ...s, status: 'present', time: '08:00 AM' })));
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userData?.schoolId, selectedClass]);
+
+  useEffect(() => {
+    fetchClasses();
+  }, [fetchClasses]);
+
+  useEffect(() => {
+    if (selectedClass) {
+      fetchStudents();
+    }
+  }, [selectedClass, fetchStudents]);
 
   const updateStatus = (id, status) => {
     setStudents(students.map(s => s.id === id ? { ...s, status } : s));
@@ -111,7 +109,15 @@ const AttendanceManager = () => {
           <p className="text-dark-muted mt-1">Mark daily attendance for students.</p>
         </div>
         
-        <div className="flex gap-4">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/school-admin/qr-scanner')}
+            className="px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm"
+            title="Launch Hardware Barcode Scanner Terminal"
+          >
+            <ScanBarcode size={18} />
+            <span>2D QR & Barcode Machine</span>
+          </button>
           <button className="premium-button-secondary">
             View History
           </button>

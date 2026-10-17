@@ -47,26 +47,34 @@ const SuperAdminDashboard = () => {
            plansList = plansSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         } catch(err) {}
 
-        // 4. Fetch Pending Approvals
+        // 4. Fetch Pending Approvals (pending_verification & pending)
         let pendingCount = 0;
         try {
-           const requestsSnap = await getDocs(query(collection(db, 'saas_recharge_requests'), where('status', '==', 'pending')));
-           pendingCount = requestsSnap.size;
-        } catch (err) {}
+           const requestsSnap = await getDocs(collection(db, 'saas_recharge_requests'));
+           pendingCount = requestsSnap.docs.filter(d => {
+             const status = d.data().status;
+             return status === 'pending_verification' || status === 'pending';
+           }).length;
+        } catch (err) {
+           console.error('Error fetching pending approvals:', err);
+        }
 
-        const activeSchools = schoolsList.filter(s => s.status === 'active' || !s.status);
+        const activeSchools = schoolsList.filter(s => s.status === 'active' || s.subscriptionStatus === 'active');
         
         // Calculate real MRR based on school plans
         let realMrr = 0;
         activeSchools.forEach(school => {
-            const planId = school.subscriptionPlan || 'basic';
+            const planId = (school.plan || school.subscriptionPlan || 'basic').toLowerCase();
             const planDef = plansList.find(p => p.id === planId) || { priceMonthly: 3500 };
-            realMrr += Number(planDef.priceMonthly) || 0;
+            realMrr += Number(school.revenue || planDef.priceMonthly) || 0;
         });
+
+        // Calculate real total students by summing school student counts
+        const aggregatedStudents = schoolsList.reduce((acc, s) => acc + (Number(s.students) || Number(s.studentsCount) || 0), 0);
 
         setCounts({
           schools: schoolsList.length,
-          students: totalStudents || schoolsList.length * 350,
+          students: totalStudents || aggregatedStudents,
           mrr: realMrr,
           pendingApprovals: pendingCount,
           activePercentage: schoolsList.length > 0 ? `${Math.round((activeSchools.length / schoolsList.length) * 100)}%` : '100%'
@@ -114,7 +122,13 @@ const SuperAdminDashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, index) => (
-          <StatCard key={index} {...stat} />
+          <div 
+            key={index} 
+            onClick={() => stat.title.includes('Pending') ? navigate('/super-admin/subscriptions') : stat.title.includes('Revenue') ? navigate('/super-admin/revenue') : null}
+            className={stat.title.includes('Pending') || stat.title.includes('Revenue') ? 'cursor-pointer hover:scale-[1.02] transition-transform' : ''}
+          >
+            <StatCard {...stat} />
+          </div>
         ))}
       </div>
 

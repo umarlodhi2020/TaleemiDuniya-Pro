@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassCard from '../../components/common/GlassCard';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 
@@ -24,6 +24,7 @@ const AddSchool = () => {
   const { createUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [availablePlans, setAvailablePlans] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     adminEmail: '',
@@ -38,6 +39,24 @@ const AddSchool = () => {
     students: 0,
     staff: 0,
   });
+
+  React.useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'plans'));
+        if (snap.docs.length > 0) {
+          const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.enabled !== false);
+          setAvailablePlans(list);
+          if (list.length > 0 && !formData.plan) {
+            setFormData(prev => ({ ...prev, plan: list[0].name || list[0].id }));
+          }
+        }
+      } catch (err) {
+        console.error('Error loading plans in AddSchool:', err);
+      }
+    };
+    loadPlans();
+  }, []);
 
   const showToast = (type, message) => {
     setToast({ type, message });
@@ -61,8 +80,10 @@ const AddSchool = () => {
         city: formData.city.trim(),
         address: formData.address.trim(),
         plan: formData.plan,
+        subscriptionPlan: formData.plan,
         status: formData.status,
         expiryDate: formData.expiryDate,
+        expiry: formData.expiryDate,
         revenue: parseFloat(formData.revenue) || 0,
         website: formData.website.trim(),
         students: parseInt(formData.students) || 0,
@@ -216,9 +237,20 @@ const AddSchool = () => {
                   <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted" size={18} />
                   <select name="plan" value={formData.plan} onChange={handleChange}
                     className="w-full premium-input pl-12 appearance-none bg-dark-card">
-                    <option value="Basic">Basic Plan</option>
-                    <option value="Premium">Premium Plan</option>
-                    <option value="Enterprise">Enterprise Plan</option>
+                    {availablePlans.length > 0 ? (
+                      availablePlans.map(p => (
+                        <option key={p.id} value={p.name || p.id}>
+                          {p.name || p.id} (PKR {Number(p.priceMonthly || 0).toLocaleString()}/mo)
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Basic">Basic Plan</option>
+                        <option value="Standard">Standard Plan</option>
+                        <option value="Premium">Premium Plan</option>
+                        <option value="Enterprise">Enterprise Plan</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
