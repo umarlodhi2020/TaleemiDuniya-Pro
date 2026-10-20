@@ -164,6 +164,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             title: 'Core',
             links: [
               { name: 'Dashboard', icon: LayoutDashboard, path: '/super-admin/dashboard' },
+              { name: 'Hardware License & DRM', icon: ShieldCheck, path: '/super-admin/licenses' },
               { name: 'SaaS AI Agent', icon: Bot, path: '/super-admin/ai-agent' },
               { name: 'Manage Schools', icon: School, path: '/super-admin/schools' },
               { name: 'Subscriptions & Matrix', icon: CreditCard, path: '/super-admin/subscriptions' },

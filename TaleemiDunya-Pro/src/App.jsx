@@ -27,6 +27,7 @@ const SuperAdminSettings = React.lazy(() => import('./pages/super-admin/SuperAdm
 const SuperAdminAiAgent = React.lazy(() => import('./pages/super-admin/AiAgent'));
 const LandingPageCMS = React.lazy(() => import('./pages/super-admin/LandingPageCMS'));
 const SchoolBackups = React.lazy(() => import('./pages/super-admin/SchoolBackups'));
+const LicenseManager = React.lazy(() => import('./pages/super-admin/LicenseManager'));
 const BulkPromotionEngine = React.lazy(() => import('./pages/school-admin/BulkPromotionEngine'));
 const BulkFeeUpdate = React.lazy(() => import('./pages/school-admin/BulkFeeUpdate'));
 const BulkStudentEdit = React.lazy(() => import('./pages/school-admin/BulkStudentEdit'));
@@ -283,6 +284,8 @@ const AppRoutes = () => {
         <Route path="settings" element={<SuperAdminSettings />} />
         <Route path="landing-page" element={<LandingPageCMS />} />
         <Route path="school-backups" element={<SchoolBackups />} />
+        <Route path="licenses" element={<LicenseManager />} />
+        <Route path="drm" element={<LicenseManager />} />
       </Route>
 
       {/* School Admin Routes */}
@@ -519,6 +522,8 @@ const AppRoutes = () => {
 };
 
 import { SchoolProvider } from './context/SchoolContext';
+import { LicenseProvider } from './context/LicenseContext';
+import LicenseLockModal from './components/licensing/LicenseLockModal';
 import { ThemeProvider } from './context/ThemeContext';
 import NetworkStatusBar from './components/common/NetworkStatusBar';
 
@@ -529,16 +534,19 @@ function App() {
   }
   return (
     <ThemeProvider>
+      <LicenseProvider>
       <AuthProvider>
         <SchoolProvider>
           <Router>
             <ErrorBoundary>
               <AppRoutes />
+              <LicenseLockModal />
             </ErrorBoundary>
             <NetworkStatusBar />
           </Router>
         </SchoolProvider>
       </AuthProvider>
+    </LicenseProvider>
     </ThemeProvider>
   );
 }

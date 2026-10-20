@@ -233,6 +233,7 @@ service cloud.firestore {
     match /revenue/{docId} { allow read, write: if isSuperAdmin(); }
     match /cloudinary_deletions/{docId} { allow create: if isSignedIn(); allow read, write: if isSuperAdmin(); }
     match /photo_sessions/{docId} { allow read, write: if isSignedIn(); }
+    match /licenses/{hwid} { allow read: if true; allow write: if isSuperAdmin(); }
 
     // ─────────────────────────────────────────────
     // 6. GLOBAL FALLBACK: LOCK EVERYTHING ELSE DOWN

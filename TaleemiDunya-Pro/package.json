@@ -13,6 +13,9 @@
     "build:exe": "npm run build && electron-builder",
     "deploy": "npx vercel --prod --yes",
     "deploy:firebase": "npm run build && npx -y firebase-tools deploy",
+    "license:gen": "node scripts/license-cli.cjs generate",
+    "license:verify": "node scripts/license-cli.cjs verify",
+    "license:hwid": "node scripts/test-hwid.cjs",
     "test:e2e": "playwright test",
     "test:ui": "playwright test --ui"
   },
@@ -81,6 +84,7 @@
     "files": [
       "dist/**/*",
       "electron.cjs",
+      "electron-preload.cjs",
       "package.json",
       "cctv-connector/**/*",
       "!node_modules/**/*"
