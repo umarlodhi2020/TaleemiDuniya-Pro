@@ -69,9 +69,62 @@ const MarksheetGenerator = () => {
   const [marksheetVersion, setMarksheetVersion] = useState('v1'); // 'v1', 'v2'
   const [printFontSize, setPrintFontSize] = useState(18);
   
+  // Student Photo & Remarks Customization Options
+  const [showStudentPhoto, setShowStudentPhoto] = useState(true);
+  const [remarksDisplayMode, setRemarksDisplayMode] = useState('percentage'); // 'percentage', 'both', 'grade', 'remarks'
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL', 'PASSED', 'FAILED'
   const [activePreviewIndex, setActivePreviewIndex] = useState(0);
+
+  // Helper functions for Remarks column rendering
+  const getRemarksColumnHeader = () => {
+    switch (remarksDisplayMode) {
+      case 'percentage':
+        return 'Remarks (%)';
+      case 'both':
+        return 'Remarks (% / Gr)';
+      case 'grade':
+        return 'Grade';
+      case 'remarks':
+        return 'Remarks';
+      default:
+        return 'Remarks (%)';
+    }
+  };
+
+  const getSubjectRemarksText = (sub) => {
+    if (sub.isAbsent) return 'Absent';
+    if (!sub.isEntered && reportMode === 'single') return '—';
+
+    switch (remarksDisplayMode) {
+      case 'percentage':
+        return sub.percentageText || `${sub.percentage || 0}%`;
+      case 'both':
+        return `${sub.percentageText || `${sub.percentage || 0}%`} (${sub.grade || 'F'})`;
+      case 'grade':
+        return sub.grade || sub.status || '—';
+      case 'remarks':
+        return sub.remarks || sub.status || '—';
+      default:
+        return sub.percentageText || `${sub.percentage || 0}%`;
+    }
+  };
+
+  const getTotalRemarksText = (marksheet) => {
+    switch (remarksDisplayMode) {
+      case 'percentage':
+        return `${marksheet.percentage}%`;
+      case 'both':
+        return `${marksheet.percentage}% (${marksheet.overallGrade})`;
+      case 'grade':
+        return marksheet.overallGrade;
+      case 'remarks':
+        return `${marksheet.percentage}%`;
+      default:
+        return `${marksheet.percentage}%`;
+    }
+  };
 
   const availableClasses = dbClasses.length > 0 ? dbClasses : [];
 
@@ -373,14 +426,21 @@ const MarksheetGenerator = () => {
             hasAnyMarkEntered = true;
           }
 
+          const subjPct = max > 0 ? (obtVal / max) * 100 : 0;
+          const gObj = calculateGrade(subjPct, 100, gradingRules);
+          const subjRemarks = typeof gObj === 'object' ? (gObj?.remarks || (obtVal >= pass ? 'Pass' : 'Fail')) : (obtVal >= pass ? 'Pass' : 'Fail');
+
           subjectRows.push({
             subjectName: subName,
             maxMarks: max,
             passMarks: pass,
             obtainedText: obtText,
             obtainedMarks: obtVal,
+            percentage: isEntered ? Number(subjPct.toFixed(1)) : 0,
+            percentageText: isAbsent ? 'Absent' : (isEntered ? `${subjPct % 1 === 0 ? subjPct : subjPct.toFixed(1)}%` : '—'),
             grade: subjGrade,
             status: subjStatus,
+            remarks: subjRemarks,
             isAbsent,
             isEntered
           });
@@ -413,7 +473,7 @@ const MarksheetGenerator = () => {
           fatherName: student.fatherName || '—',
           className: student.class || selectedClass,
           section: student.section || 'A',
-          photo: student.photo || student.avatarUrl || student.imageUrl || null,
+          photo: student.photoUrl || student.profilePhoto || student.photo || student.picture || student.profileImage || student.avatar || student.studentPhoto || student.imageUrl || student.image || student.profilePicture || null,
           academicSession: selectedSession,
           termName: selectedTerm,
           subjectRows,
@@ -566,6 +626,7 @@ const MarksheetGenerator = () => {
         const subjPct = subjCombinedMax > 0 ? (subjCombinedObt / subjCombinedMax) * 100 : 0;
         const gObj = calculateGrade(subjPct, 100, gradingRules);
         const subjGrade = typeof gObj === 'object' ? (gObj?.grade || 'F') : (gObj || 'F');
+        const subjRemarks = typeof gObj === 'object' ? (gObj?.remarks || (subjCombinedObt >= subjPassMarks ? 'Pass' : 'Fail')) : (subjCombinedObt >= subjPassMarks ? 'Pass' : 'Fail');
         const subjPassMarks = subjCombinedMax * 0.4;
         const subjStatus = subjCombinedObt >= subjPassMarks ? 'PASS' : 'FAIL';
         if (subjStatus === 'FAIL') hasFailedSubject = true;
@@ -575,8 +636,11 @@ const MarksheetGenerator = () => {
           combinedMax: subjCombinedMax % 1 === 0 ? String(subjCombinedMax) : subjCombinedMax.toFixed(1),
           combinedObtainedText: subjCombinedObt % 1 === 0 ? String(subjCombinedObt) : subjCombinedObt.toFixed(1),
           combinedObtainedVal: subjCombinedObt,
+          percentage: hasAnyMarkEntered ? Number(subjPct.toFixed(1)) : 0,
+          percentageText: hasAnyMarkEntered ? `${subjPct % 1 === 0 ? subjPct : subjPct.toFixed(1)}%` : '—',
           grade: subjGrade,
           status: subjStatus,
+          remarks: subjRemarks,
           termBreakdown
         });
       });
@@ -608,7 +672,7 @@ const MarksheetGenerator = () => {
         fatherName: student.fatherName || '—',
         className: student.class || selectedClass,
         section: student.section || 'A',
-        photo: student.photo || student.avatarUrl || student.imageUrl || null,
+        photo: student.photoUrl || student.profilePhoto || student.photo || student.picture || student.profileImage || student.avatar || student.studentPhoto || student.imageUrl || student.image || student.profilePicture || null,
         academicSession: selectedSession,
         termName: `COMBINED MARKSHEET (${activeTerms.join(' + ')})`,
         activeTerms,
@@ -773,16 +837,35 @@ const MarksheetGenerator = () => {
     try {
       const getBase64ImageFromUrl = async (imageUrl) => {
         if (!imageUrl) return null;
+        if (imageUrl.startsWith('data:image/')) return imageUrl;
         try {
-          const res = await fetch(imageUrl);
+          const res = await fetch(imageUrl, { mode: 'cors' });
           const blob = await res.blob();
           return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
             reader.readAsDataURL(blob);
           });
         } catch (e) {
-          return null;
+          try {
+            return new Promise((resolve) => {
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/jpeg'));
+              };
+              img.onerror = () => resolve(null);
+              img.src = imageUrl;
+            });
+          } catch (err2) {
+            return null;
+          }
         }
       };
 
@@ -823,6 +906,23 @@ const MarksheetGenerator = () => {
           }
         }
 
+        // Student Profile Photo (Top Right)
+        let studentPhotoB64 = null;
+        if (showStudentPhoto && stMarksheet.photo) {
+          try {
+            studentPhotoB64 = await getBase64ImageFromUrl(stMarksheet.photo);
+            if (studentPhotoB64) {
+              const format = studentPhotoB64.includes('image/png') ? 'PNG' : 'JPEG';
+              doc.addImage(studentPhotoB64, format, 172, 12, 22, 26);
+              doc.setLineWidth(0.4);
+              doc.setDrawColor(0, 0, 0);
+              doc.rect(172, 12, 22, 26);
+            }
+          } catch (err) {
+            console.warn('Could not embed student photo in PDF:', err);
+          }
+        }
+
         // Header Top Tagline
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
@@ -839,8 +939,8 @@ const MarksheetGenerator = () => {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(51, 65, 85);
-        doc.text('Play Group To Matric', 20, 28);
-        doc.text('Reg & Recog', 190, 28, { align: 'right' });
+        doc.text('Play Group To Matric', 38, 28);
+        doc.text('Reg & Recog', studentPhotoB64 ? 168 : 190, 28, { align: 'right' });
 
         // Marksheet Title (Underlined)
         doc.setFontSize(14);
@@ -891,9 +991,10 @@ const MarksheetGenerator = () => {
 
         // Compute total pass marks sum for single term
         let totalPassMarksSum = 0;
+        const remarksColHeader = getRemarksColumnHeader();
 
         if (reportMode === 'single') {
-          tableHeaders = ['Subjects', 'M.Marks', 'Pass Marks', 'M.Obtained', 'Remarks'];
+          tableHeaders = ['Subjects', 'M.Marks', 'Pass Marks', 'M.Obtained', remarksColHeader];
           tableBody = stMarksheet.subjectRows.map(sub => {
             totalPassMarksSum += Number(sub.passMarks || 0);
             return [
@@ -901,7 +1002,7 @@ const MarksheetGenerator = () => {
               sub.maxMarks,
               sub.passMarks,
               sub.obtainedText,
-              sub.grade || sub.status
+              getSubjectRemarksText(sub)
             ];
           });
 
@@ -911,19 +1012,19 @@ const MarksheetGenerator = () => {
             stMarksheet.totalMaxMarks,
             totalPassMarksSum,
             stMarksheet.totalObtainedMarks,
-            `${stMarksheet.percentage}%`
+            getTotalRemarksText(stMarksheet)
           ]);
         } else {
           // Combined Mode Table Headers
           const activeTerms = stMarksheet.activeTerms || selectedCombinedTerms;
-          tableHeaders = ['Subjects', 'M.Marks', ...activeTerms, 'M.Obtained', 'Remarks'];
+          tableHeaders = ['Subjects', 'M.Marks', ...activeTerms, 'M.Obtained', remarksColHeader];
           tableBody = stMarksheet.subjectRows.map(sub => {
             const row = [sub.subjectName, sub.combinedMax];
             activeTerms.forEach(t => {
               row.push(sub.termBreakdown[t]?.obtText || '—');
             });
             row.push(sub.combinedObtainedText);
-            row.push(sub.grade || sub.status);
+            row.push(getSubjectRemarksText(sub));
             return row;
           });
 
@@ -934,7 +1035,7 @@ const MarksheetGenerator = () => {
             totalRow.push(tTot);
           });
           totalRow.push(stMarksheet.totalObtainedMarks);
-          totalRow.push(`${stMarksheet.percentage}%`);
+          totalRow.push(getTotalRemarksText(stMarksheet));
           tableBody.push(totalRow);
         }
 
@@ -989,14 +1090,17 @@ const MarksheetGenerator = () => {
         }
         doc.text(stMarksheet.overallStatus, 38, finalY + 10);
 
-        // Grade & Rank on Right
+        // Percentage & Grade on Right
         doc.setTextColor(0, 0, 0);
-        doc.text('Grade:', 150, finalY + 10);
-        doc.text(stMarksheet.overallGrade, 168, finalY + 10);
+        doc.text('Percentage:', 125, finalY + 10);
+        doc.text(`${stMarksheet.percentage}%`, 152, finalY + 10);
+
+        doc.text('Grade:', 168, finalY + 10);
+        doc.text(stMarksheet.overallGrade, 184, finalY + 10);
 
         if (!activeExam || activeExam?.visibilityControls?.showRankPosition !== false) {
-          doc.text('Rank:', 150, finalY + 18);
-          doc.text(stMarksheet.position, 168, finalY + 18);
+          doc.text('Rank:', 168, finalY + 18);
+          doc.text(stMarksheet.position, 184, finalY + 18);
         }
 
         // Signatures Block at Bottom
@@ -1157,8 +1261,8 @@ const MarksheetGenerator = () => {
             </div>
           </div>
           
-          {/* Grid Row 1: Session, Term Selection, Class, Section, Version */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Grid Row 1: Session, Term Selection, Class, Section, Version, Photo, Remarks */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             
             {/* Session */}
             <div>
@@ -1254,6 +1358,41 @@ const MarksheetGenerator = () => {
                 {DEFAULT_SECTIONS.map((sec, i) => (
                   <option key={i} value={sec}>{sec === 'All' ? 'All Sections' : `Section ${sec}`}</option>
                 ))}
+              </select>
+            </div>
+
+            {/* Student Photo Feature Toggle */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                Student Photo
+              </label>
+              <label className="flex items-center gap-2.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl cursor-pointer hover:border-blue-500 transition-colors shadow-sm h-[38px]">
+                <input
+                  type="checkbox"
+                  checked={showStudentPhoto}
+                  onChange={(e) => setShowStudentPhoto(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 select-none">
+                  {showStudentPhoto ? 'Photo: Included' : 'Photo: Excluded'}
+                </span>
+              </label>
+            </div>
+
+            {/* Remarks Column Display Feature */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider">
+                Remarks Column Content
+              </label>
+              <select
+                value={remarksDisplayMode}
+                onChange={(e) => setRemarksDisplayMode(e.target.value)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer"
+              >
+                <option value="percentage">Percentage (%) [Recommended]</option>
+                <option value="both">Percentage & Grade (e.g. 80% [A])</option>
+                <option value="grade">Grade Only (e.g. A, B, F)</option>
+                <option value="remarks">Remarks (e.g. Pass, Fail)</option>
               </select>
             </div>
 
@@ -1619,8 +1758,34 @@ const MarksheetGenerator = () => {
                 </div>
               )}
 
-              {/* Action Toolbar Buttons */}
-              <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+              {/* Action Toolbar Buttons & Quick Toggles */}
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                {/* Quick Photo Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowStudentPhoto(prev => !prev)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    showStudentPhoto ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                  title="Toggle Student Profile Photo"
+                >
+                  <User size={13} />
+                  <span>Photo: {showStudentPhoto ? 'ON' : 'OFF'}</span>
+                </button>
+
+                {/* Quick Remarks Mode Selector */}
+                <select
+                  value={remarksDisplayMode}
+                  onChange={(e) => setRemarksDisplayMode(e.target.value)}
+                  className="bg-slate-800 text-slate-200 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-none cursor-pointer"
+                  title="Remarks Column Content"
+                >
+                  <option value="percentage">Remarks: %</option>
+                  <option value="both">Remarks: % + Gr</option>
+                  <option value="grade">Remarks: Grade</option>
+                  <option value="remarks">Remarks: Text</option>
+                </select>
+
                 <button
                   onClick={() => window.print()}
                   className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -1714,10 +1879,27 @@ const MarksheetGenerator = () => {
                         </div>
                       </div>
 
-                      {/* Right: Balance Spacer */}
-                      <div className="w-20 h-20 shrink-0 hidden sm:flex items-center justify-center opacity-0 pointer-events-none">
-                        {/* Spacer for symmetry */}
-                      </div>
+                      {/* Right: Student Photo or Balance Spacer */}
+                      {showStudentPhoto ? (
+                        <div className="w-20 h-24 shrink-0 flex items-center justify-center">
+                          {currentPreviewMarksheet.photo ? (
+                            <img
+                              src={currentPreviewMarksheet.photo}
+                              alt={currentPreviewMarksheet.studentName}
+                              className="w-full h-full object-cover border-2 border-slate-900 rounded shadow-sm"
+                            />
+                          ) : (
+                            <div className="w-full h-full border-2 border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-center p-1 bg-slate-50">
+                              <User size={22} className="text-slate-400" />
+                              <span className="text-[9px] font-black text-slate-500 uppercase leading-tight mt-1">NO PHOTO</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-20 h-20 shrink-0 hidden sm:flex items-center justify-center opacity-0 pointer-events-none">
+                          {/* Spacer for symmetry */}
+                        </div>
+                      )}
                     </div>
 
                     <div className="pt-2 text-center border-t-2 border-slate-900">
@@ -1773,7 +1955,7 @@ const MarksheetGenerator = () => {
                             <th className={`${cellPad} border-r-2 border-slate-900 w-24`}>M.Marks</th>
                             <th className={`${cellPad} border-r-2 border-slate-900 w-28`}>Pass Marks</th>
                             <th className={`${cellPad} border-r-2 border-slate-900 w-28`}>M.Obtained</th>
-                            <th className={`${cellPad} border-slate-900 w-32`}>Remarks</th>
+                            <th className={`${cellPad} border-slate-900 w-32`}>{getRemarksColumnHeader()}</th>
                           </tr>
                         ) : (
                           <tr className="border-b-2 border-slate-900 bg-slate-100 font-black text-slate-900">
@@ -1785,7 +1967,7 @@ const MarksheetGenerator = () => {
                               </th>
                             ))}
                             <th className={`${cellPad} border-r-2 border-slate-900 w-28`}>M.Obtained</th>
-                            <th className={`${cellPad} border-slate-900 w-28`}>Remarks</th>
+                            <th className={`${cellPad} border-slate-900 w-28`}>{getRemarksColumnHeader()}</th>
                           </tr>
                         )}
                       </thead>
@@ -1804,7 +1986,7 @@ const MarksheetGenerator = () => {
                                   {subj.passMarks}
                                 </td>
                                 <td className={`${cellPad} border-r-2 border-slate-900 text-slate-900 font-black`}>{subj.obtainedText}</td>
-                                <td className={`${cellPad} border-slate-900 font-bold text-slate-800`}>{subj.grade || subj.status}</td>
+                                <td className={`${cellPad} border-slate-900 font-bold text-slate-800`}>{getSubjectRemarksText(subj)}</td>
                               </>
                             ) : (
                               <>
@@ -1815,7 +1997,7 @@ const MarksheetGenerator = () => {
                                   </td>
                                 ))}
                                 <td className={`${cellPad} border-r-2 border-slate-900 text-slate-900 font-black`}>{subj.combinedObtainedText}</td>
-                                <td className={`${cellPad} border-slate-900 font-bold text-slate-800`}>{subj.grade || subj.status}</td>
+                                <td className={`${cellPad} border-slate-900 font-bold text-slate-800`}>{getSubjectRemarksText(subj)}</td>
                               </>
                             )}
                           </tr>
@@ -1837,7 +2019,7 @@ const MarksheetGenerator = () => {
                             ))
                           )}
                           <td className={`${cellPad} border-r-2 border-slate-900 font-black text-slate-900`}>{currentPreviewMarksheet.totalObtainedMarks}</td>
-                          <td className={`${cellPad} border-slate-900 font-black text-blue-900 text-base`}>{currentPreviewMarksheet.percentage}%</td>
+                          <td className={`${cellPad} border-slate-900 font-black text-blue-900 text-base`}>{getTotalRemarksText(currentPreviewMarksheet)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -1853,12 +2035,22 @@ const MarksheetGenerator = () => {
                     </div>
 
                     <div className="space-y-1 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <span className={`font-semibold ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-700'}`}>Grade:</span>
-                        <span className={`font-black underline ${marksheetVersion === 'v2' ? 'text-xl md:text-3xl text-black' : 'text-lg text-slate-900'}`}>{currentPreviewMarksheet.overallGrade}</span>
+                      <div className="flex items-center justify-end gap-3 md:gap-5 flex-wrap">
+                        {/* Percentage */}
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-semibold ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-700'}`}>Percentage:</span>
+                          <span className={`font-black underline ${marksheetVersion === 'v2' ? 'text-xl md:text-2xl text-black' : 'text-lg text-slate-900'}`}>{currentPreviewMarksheet.percentage}%</span>
+                        </div>
+
+                        {/* Grade */}
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-semibold ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-700'}`}>Grade:</span>
+                          <span className={`font-black underline ${marksheetVersion === 'v2' ? 'text-xl md:text-3xl text-black' : 'text-lg text-slate-900'}`}>{currentPreviewMarksheet.overallGrade}</span>
+                        </div>
                       </div>
+
                       {(!activeExam || activeExam?.visibilityControls?.showRankPosition !== false) && (
-                        <div className="flex items-center justify-end gap-3">
+                        <div className="flex items-center justify-end gap-2 text-sm md:text-base">
                           <span className={`font-semibold ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-700'}`}>Rank:</span>
                           <span className={`font-black ${marksheetVersion === 'v2' ? 'text-lg md:text-2xl text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.position}</span>
                         </div>
