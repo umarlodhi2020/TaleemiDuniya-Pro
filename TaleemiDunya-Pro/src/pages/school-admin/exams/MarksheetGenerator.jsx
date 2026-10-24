@@ -906,18 +906,11 @@ const MarksheetGenerator = () => {
           }
         }
 
-        // Student Profile Photo (Top Right)
+        // Student Profile Photo Base64
         let studentPhotoB64 = null;
         if (showStudentPhoto && stMarksheet.photo) {
           try {
             studentPhotoB64 = await getBase64ImageFromUrl(stMarksheet.photo);
-            if (studentPhotoB64) {
-              const format = studentPhotoB64.includes('image/png') ? 'PNG' : 'JPEG';
-              doc.addImage(studentPhotoB64, format, 172, 12, 22, 26);
-              doc.setLineWidth(0.4);
-              doc.setDrawColor(0, 0, 0);
-              doc.rect(172, 12, 22, 26);
-            }
           } catch (err) {
             console.warn('Could not embed student photo in PDF:', err);
           }
@@ -940,7 +933,7 @@ const MarksheetGenerator = () => {
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(51, 65, 85);
         doc.text('Play Group To Matric', 38, 28);
-        doc.text('Reg & Recog', studentPhotoB64 ? 168 : 190, 28, { align: 'right' });
+        doc.text('Reg & Recog', 190, 28, { align: 'right' });
 
         // Marksheet Title (Underlined)
         doc.setFontSize(14);
@@ -960,30 +953,64 @@ const MarksheetGenerator = () => {
         doc.setDrawColor(0, 0, 0);
         doc.line(14, 40, 196, 40);
 
-        doc.setFontSize(11);
-        // Row 1
-        doc.setFont('helvetica', 'bold');
-        doc.text('Name OF Student', 16, 46);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`: ${stMarksheet.studentName}`, 55, 46);
+        if (showStudentPhoto) {
+          // Embed Student Photo in info box (Right Side)
+          if (studentPhotoB64) {
+            try {
+              const format = studentPhotoB64.includes('image/png') ? 'PNG' : 'JPEG';
+              doc.addImage(studentPhotoB64, format, 172, 41.5, 22, 26);
+              doc.setLineWidth(0.4);
+              doc.setDrawColor(0, 0, 0);
+              doc.rect(172, 41.5, 22, 26);
+            } catch (err) {
+              console.warn('Could not embed photo in PDF:', err);
+            }
+          } else {
+            doc.setLineWidth(0.3);
+            doc.setDrawColor(160, 160, 160);
+            doc.rect(172, 41.5, 22, 26);
+            doc.setFontSize(7);
+            doc.setTextColor(150, 150, 150);
+            doc.text('NO PHOTO', 183, 55, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+          }
 
-        doc.setFont('helvetica', 'bold');
-        doc.text('Class', 140, 46);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`: ${stMarksheet.className} (${stMarksheet.section})`, 160, 46);
+          doc.setFontSize(11);
+          // Row 1
+          doc.setFont('helvetica', 'bold');
+          doc.text('Name OF Student', 16, 48);
+          doc.text(`: ${stMarksheet.studentName}`, 55, 48);
 
-        // Row 2
-        doc.setFont('helvetica', 'bold');
-        doc.text('Father Name', 16, 53);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`: ${stMarksheet.fatherName}`, 55, 53);
+          doc.text('Class', 115, 48);
+          doc.text(`: ${stMarksheet.className} (${stMarksheet.section})`, 130, 48);
 
-        doc.setFont('helvetica', 'bold');
-        doc.text('GR#', 140, 53);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`: ${stMarksheet.rollNo || stMarksheet.admissionNo}`, 160, 53);
+          // Row 2
+          doc.text('Father Name', 16, 60);
+          doc.text(`: ${stMarksheet.fatherName}`, 55, 60);
 
-        doc.line(14, 57, 196, 57);
+          doc.text('GR#', 115, 60);
+          doc.text(`: ${stMarksheet.rollNo || stMarksheet.admissionNo}`, 130, 60);
+
+          doc.line(14, 69, 196, 69);
+        } else {
+          doc.setFontSize(11);
+          // Row 1
+          doc.setFont('helvetica', 'bold');
+          doc.text('Name OF Student', 16, 46);
+          doc.text(`: ${stMarksheet.studentName}`, 55, 46);
+
+          doc.text('Class', 140, 46);
+          doc.text(`: ${stMarksheet.className} (${stMarksheet.section})`, 160, 46);
+
+          // Row 2
+          doc.text('Father Name', 16, 53);
+          doc.text(`: ${stMarksheet.fatherName}`, 55, 53);
+
+          doc.text('GR#', 140, 53);
+          doc.text(`: ${stMarksheet.rollNo || stMarksheet.admissionNo}`, 160, 53);
+
+          doc.line(14, 57, 196, 57);
+        }
 
         // Subject Marks Table
         let tableHeaders = [];
@@ -1040,7 +1067,7 @@ const MarksheetGenerator = () => {
         }
 
         autoTable(doc, {
-          startY: 60,
+          startY: showStudentPhoto ? 72 : 60,
           head: [tableHeaders],
           body: tableBody,
           theme: 'grid',
@@ -1879,27 +1906,10 @@ const MarksheetGenerator = () => {
                         </div>
                       </div>
 
-                      {/* Right: Student Photo or Balance Spacer */}
-                      {showStudentPhoto ? (
-                        <div className="w-20 h-24 shrink-0 flex items-center justify-center">
-                          {currentPreviewMarksheet.photo ? (
-                            <img
-                              src={currentPreviewMarksheet.photo}
-                              alt={currentPreviewMarksheet.studentName}
-                              className="w-full h-full object-cover border-2 border-slate-900 rounded shadow-sm"
-                            />
-                          ) : (
-                            <div className="w-full h-full border-2 border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-center p-1 bg-slate-50">
-                              <User size={22} className="text-slate-400" />
-                              <span className="text-[9px] font-black text-slate-500 uppercase leading-tight mt-1">NO PHOTO</span>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="w-20 h-20 shrink-0 hidden sm:flex items-center justify-center opacity-0 pointer-events-none">
-                          {/* Spacer for symmetry */}
-                        </div>
-                      )}
+                      {/* Right: Balance Spacer */}
+                      <div className="w-20 h-20 shrink-0 hidden sm:flex items-center justify-center opacity-0 pointer-events-none">
+                        {/* Spacer for symmetry with logo */}
+                      </div>
                     </div>
 
                     <div className="pt-2 text-center border-t-2 border-slate-900">
@@ -1911,31 +1921,52 @@ const MarksheetGenerator = () => {
                     </div>
                   </div>
 
-                  {/* 2. Student Information Box */}
-                  <div className={`border-t-2 border-b-2 border-slate-900 ${marksheetVersion === 'v2' ? 'py-4 md:py-6 text-base md:text-lg print:text-[18px] text-black' : 'py-3 text-base md:text-lg print:text-[18px]'} grid grid-cols-2 gap-x-6 gap-y-2 font-bold`}>
-                    <div className="flex items-center gap-2">
-                      <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32`}>Name OF Student</span>
-                      <span>:</span>
-                      <span className={`font-black underline uppercase ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.studentName}</span>
+                  {/* 2. Student Information Box with Photo on Right */}
+                  <div className={`border-t-2 border-b-2 border-slate-900 ${marksheetVersion === 'v2' ? 'py-3 md:py-4 text-base md:text-lg print:text-[18px] text-black' : 'py-2 text-base md:text-lg print:text-[18px]'} flex items-center justify-between gap-4 font-bold`}>
+                    {/* Left & Middle: Student Details Grid */}
+                    <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32 shrink-0`}>Name OF Student</span>
+                        <span>:</span>
+                        <span className={`font-black underline uppercase ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.studentName}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-20 shrink-0`}>Class</span>
+                        <span>:</span>
+                        <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.className}<sup>th</sup></span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32 shrink-0`}>Father Name</span>
+                        <span>:</span>
+                        <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.fatherName}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-20 shrink-0`}>GR#</span>
+                        <span>:</span>
+                        <span className={`font-black font-mono ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.rollNo || currentPreviewMarksheet.admissionNo}</span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-20`}>Class</span>
-                      <span>:</span>
-                      <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.className}<sup>th</sup></span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32`}>Father Name</span>
-                      <span>:</span>
-                      <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.fatherName}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-20`}>GR#</span>
-                      <span>:</span>
-                      <span className={`font-black font-mono ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.rollNo || currentPreviewMarksheet.admissionNo}</span>
-                    </div>
+                    {/* Right: Student Photo (Passport Size) */}
+                    {showStudentPhoto && (
+                      <div className="w-20 h-24 shrink-0 flex items-center justify-center pl-3 border-l-2 border-slate-900/10">
+                        {currentPreviewMarksheet.photo ? (
+                          <img
+                            src={currentPreviewMarksheet.photo}
+                            alt={currentPreviewMarksheet.studentName}
+                            className="w-full h-full object-cover border-2 border-slate-900 rounded shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-full h-full border-2 border-dashed border-slate-400 rounded flex flex-col items-center justify-center text-center p-1 bg-slate-50">
+                            <User size={22} className="text-slate-400" />
+                            <span className="text-[9px] font-black text-slate-500 uppercase leading-tight mt-1">NO PHOTO</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* 3. Marksheet Table */}
