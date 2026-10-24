@@ -954,24 +954,25 @@ const MarksheetGenerator = () => {
         doc.line(14, 40, 196, 40);
 
         if (showStudentPhoto) {
-          // Embed Student Photo in info box (Right Side)
+          // Embed Student Photo in info box (Positioned beside Class/GR, not in extreme corner)
+          const photoX = 152;
           if (studentPhotoB64) {
             try {
               const format = studentPhotoB64.includes('image/png') ? 'PNG' : 'JPEG';
-              doc.addImage(studentPhotoB64, format, 172, 41.5, 22, 26);
+              doc.addImage(studentPhotoB64, format, photoX, 41.5, 22, 26);
               doc.setLineWidth(0.4);
               doc.setDrawColor(0, 0, 0);
-              doc.rect(172, 41.5, 22, 26);
+              doc.rect(photoX, 41.5, 22, 26);
             } catch (err) {
               console.warn('Could not embed photo in PDF:', err);
             }
           } else {
             doc.setLineWidth(0.3);
             doc.setDrawColor(160, 160, 160);
-            doc.rect(172, 41.5, 22, 26);
+            doc.rect(photoX, 41.5, 22, 26);
             doc.setFontSize(7);
             doc.setTextColor(150, 150, 150);
-            doc.text('NO PHOTO', 183, 55, { align: 'center' });
+            doc.text('NO PHOTO', photoX + 11, 55, { align: 'center' });
             doc.setTextColor(0, 0, 0);
           }
 
@@ -1921,10 +1922,10 @@ const MarksheetGenerator = () => {
                     </div>
                   </div>
 
-                  {/* 2. Student Information Box with Photo on Right */}
-                  <div className={`border-t-2 border-b-2 border-slate-900 ${marksheetVersion === 'v2' ? 'py-3 md:py-4 text-base md:text-lg print:text-[18px] text-black' : 'py-2 text-base md:text-lg print:text-[18px]'} flex items-center justify-between gap-4 font-bold`}>
-                    {/* Left & Middle: Student Details Grid */}
-                    <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-2">
+                  {/* 2. Student Information Box with Photo */}
+                  <div className={`border-t-2 border-b-2 border-slate-900 ${marksheetVersion === 'v2' ? 'py-3 md:py-4 text-base md:text-lg print:text-[18px] text-black' : 'py-2 text-base md:text-lg print:text-[18px]'} ${showStudentPhoto ? 'flex items-center justify-start gap-6 md:gap-10' : 'grid grid-cols-2 gap-x-6 gap-y-2'} font-bold px-2`}>
+                    {/* Left Column: Student Name & Father Name */}
+                    <div className="space-y-2 min-w-[270px] md:min-w-[300px]">
                       <div className="flex items-center gap-2">
                         <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32 shrink-0`}>Name OF Student</span>
                         <span>:</span>
@@ -1932,27 +1933,30 @@ const MarksheetGenerator = () => {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-20 shrink-0`}>Class</span>
+                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32 shrink-0`}>Father Name</span>
+                        <span>:</span>
+                        <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.fatherName}</span>
+                      </div>
+                    </div>
+
+                    {/* Middle Column: Class & GR# */}
+                    <div className="space-y-2 min-w-[150px] md:min-w-[170px]">
+                      <div className="flex items-center gap-2">
+                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-16 shrink-0`}>Class</span>
                         <span>:</span>
                         <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.className}<sup>th</sup></span>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32 shrink-0`}>Father Name</span>
-                        <span>:</span>
-                        <span className={`font-black ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.fatherName}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-20 shrink-0`}>GR#</span>
+                        <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-16 shrink-0`}>GR#</span>
                         <span>:</span>
                         <span className={`font-black font-mono ${marksheetVersion === 'v2' ? 'text-black' : 'text-slate-900'}`}>{currentPreviewMarksheet.rollNo || currentPreviewMarksheet.admissionNo}</span>
                       </div>
                     </div>
 
-                    {/* Right: Student Photo (Passport Size) */}
+                    {/* Right Column: Student Photo (Positioned directly beside Class/GR#, not in extreme right corner) */}
                     {showStudentPhoto && (
-                      <div className="w-20 h-24 shrink-0 flex items-center justify-center pl-3 border-l-2 border-slate-900/10">
+                      <div className="w-20 h-24 shrink-0 flex items-center justify-center ml-2 md:ml-4">
                         {currentPreviewMarksheet.photo ? (
                           <img
                             src={currentPreviewMarksheet.photo}
