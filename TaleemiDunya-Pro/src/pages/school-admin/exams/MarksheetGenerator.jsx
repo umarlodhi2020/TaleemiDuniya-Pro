@@ -954,8 +954,8 @@ const MarksheetGenerator = () => {
         doc.line(14, 40, 196, 40);
 
         if (showStudentPhoto) {
-          // Embed Student Photo in info box (Positioned beside Class/GR, not in extreme corner)
-          const photoX = 152;
+          // Embed Student Photo with 1.5cm space from right outer border (196 - 15 - 22 = 159)
+          const photoX = 159;
           if (studentPhotoB64) {
             try {
               const format = studentPhotoB64.includes('image/png') ? 'PNG' : 'JPEG';
@@ -1923,9 +1923,9 @@ const MarksheetGenerator = () => {
                   </div>
 
                   {/* 2. Student Information Box with Photo */}
-                  <div className={`border-t-2 border-b-2 border-slate-900 ${marksheetVersion === 'v2' ? 'py-3 md:py-4 text-base md:text-lg print:text-[18px] text-black' : 'py-2 text-base md:text-lg print:text-[18px]'} ${showStudentPhoto ? 'flex items-center justify-start gap-6 md:gap-10' : 'grid grid-cols-2 gap-x-6 gap-y-2'} font-bold px-2`}>
+                  <div className={`border-t-2 border-b-2 border-slate-900 ${marksheetVersion === 'v2' ? 'py-3 md:py-4 text-base md:text-lg print:text-[18px] text-black' : 'py-2.5 text-base md:text-lg print:text-[18px]'} ${showStudentPhoto ? 'flex items-center justify-between' : 'grid grid-cols-2 gap-x-6 gap-y-2'} font-bold px-2`}>
                     {/* Left Column: Student Name & Father Name */}
-                    <div className="space-y-2 min-w-[270px] md:min-w-[300px]">
+                    <div className="space-y-2 pl-1">
                       <div className="flex items-center gap-2">
                         <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-32 shrink-0`}>Name OF Student</span>
                         <span>:</span>
@@ -1940,7 +1940,7 @@ const MarksheetGenerator = () => {
                     </div>
 
                     {/* Middle Column: Class & GR# */}
-                    <div className="space-y-2 min-w-[150px] md:min-w-[170px]">
+                    <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <span className={`${marksheetVersion === 'v2' ? 'font-black text-black' : 'text-slate-800 font-semibold'} w-16 shrink-0`}>Class</span>
                         <span>:</span>
@@ -1954,9 +1954,12 @@ const MarksheetGenerator = () => {
                       </div>
                     </div>
 
-                    {/* Right Column: Student Photo (Positioned directly beside Class/GR#, not in extreme right corner) */}
+                    {/* Right Column: Student Photo - exactly 1.5cm space from right corner */}
                     {showStudentPhoto && (
-                      <div className="w-20 h-24 shrink-0 flex items-center justify-center ml-2 md:ml-4">
+                      <div 
+                        className="w-20 h-24 shrink-0 flex items-center justify-center"
+                        style={{ marginRight: '1.5cm' }}
+                      >
                         {currentPreviewMarksheet.photo ? (
                           <img
                             src={currentPreviewMarksheet.photo}
