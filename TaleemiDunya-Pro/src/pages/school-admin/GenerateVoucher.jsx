@@ -16,11 +16,13 @@ import {
  Users,
  History,
  X,
- Clock
+ Clock,
+  Package,
+  ShoppingBag
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import GlassCard from '../../components/common/GlassCard';
-import { addRecord, getRecords, getSingleRecord } from '../../services/db';
+import { addRecord, getRecords, getSingleRecord, updateRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
@@ -252,6 +254,13 @@ const GenerateVoucher = () => {
   const [showBulkHistory, setShowBulkHistory] = useState(false);
   const [bulkBatches, setBulkBatches] = useState([]);
 
+  // Store Products (Uniform, Books, Syllabus copies, etc.) for Voucher
+  const [inventoryItems, setInventoryItems] = useState([]);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [selectedProductItem, setSelectedProductItem] = useState(null);
+  const [productQty, setProductQty] = useState(1);
+
   useEffect(() => {
     setClassFees(prev => ({ ...prev, ...contextClassFees }));
   }, [contextClassFees]);
@@ -259,13 +268,15 @@ const GenerateVoucher = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [students, vouchers, batches] = await Promise.all([
+        const [students, vouchers, batches, inventory] = await Promise.all([
           getRecords('students', schoolId),
           getRecords('vouchers', schoolId),
-          getRecords('voucher_batches', schoolId)
+          getRecords('voucher_batches', schoolId),
+          getRecords('inventory', schoolId)
         ]);
         setAllStudents(students || []);
         setAllVouchers(vouchers || []);
+        setInventoryItems(inventory || []);
         
         const existingBatches = batches || [];
         const existingMonths = new Set(existingBatches.map(b => b.month));
@@ -404,6 +415,17 @@ const GenerateVoucher = () => {
           name: `Tuition Fee - ${child.name} (${rawClass || 'N/A'})`,
           amount: feeAmount || 0
         });
+
+        // Auto-include pending product charges (Uniform, Books, Syllabus copies, ID Card)
+        const childProducts = child.pendingProductCharges || [];
+        childProducts.forEach(prod => {
+          autoFeeItems.push({
+            name: `${prod.category || 'Store Item'} - ${child.name}: ${prod.itemName || prod.name} (${prod.quantity || 1}x)`,
+            amount: Number(prod.totalAmount || prod.amount || 0),
+            isProductCharge: true,
+            productSaleId: prod.id || prod.saleId
+          });
+        });
       });
       
       const dynamicArrears = calculateFamilyArrears(allVouchers, item);
@@ -424,6 +446,17 @@ const GenerateVoucher = () => {
         name: `Tuition Fee - ${item.name} (${rawClass || 'N/A'})`,
         amount: feeAmount || 0
       }];
+
+      // Auto-include pending product charges (Uniform, Books, Syllabus copies, ID Card)
+      const studentProducts = item.pendingProductCharges || [];
+      studentProducts.forEach(prod => {
+        items.push({
+          name: `${prod.category || 'Store Item'}: ${prod.itemName || prod.name} (${prod.quantity || 1}x)`,
+          amount: Number(prod.totalAmount || prod.amount || 0),
+          isProductCharge: true,
+          productSaleId: prod.id || prod.saleId
+        });
+      });
 
       const dynamicArrears = calculateStudentArrears(allVouchers, item);
       if (dynamicArrears > 0) {
@@ -541,6 +574,19 @@ const GenerateVoucher = () => {
       if (Number(discountAmount) > 0) {
         finalItems.push({ name: 'Discount / Scholarship', amount: -Math.abs(Number(discountAmount)) });
       }
+
+      // Clear or mark billed pending product charges on student
+      const productChargeItems = finalItems.filter(i => i.isProductCharge);
+      if (productChargeItems.length > 0 && selectedStudent) {
+        const remainingPending = (selectedStudent.pendingProductCharges || []).filter(
+          p => !productChargeItems.some(pi => pi.productSaleId === p.id)
+        );
+        if (!selectedStudent.id.startsWith('std-')) {
+          await updateRecord('students', selectedStudent.id, {
+            pendingProductCharges: remainingPending
+          });
+        }
+      }
       
       const totalAmt = finalItems.reduce((acc, item) => acc + (Number(item.amount) || 0), 0);
 
@@ -650,6 +696,17 @@ const GenerateVoucher = () => {
           items.push({
             name: `Tuition Fee - ${child.name} (${rawClass || 'N/A'})`,
             amount: feeAmount || 0
+          });
+
+          // Auto-include pending product charges for child (Uniform, Books, etc.)
+          const childProducts = child.pendingProductCharges || [];
+          childProducts.forEach(prod => {
+            items.push({
+              name: `${prod.category || 'Store Item'} - ${child.name}: ${prod.itemName || prod.name} (${prod.quantity || 1}x)`,
+              amount: Number(prod.totalAmount || prod.amount || 0),
+              isProductCharge: true,
+              productSaleId: prod.id || prod.saleId
+            });
           });
 
           // Annual Fund for each child (if enabled) - but ONLY if not already charged this year
@@ -933,7 +990,15 @@ const GenerateVoucher = () => {
  <h2 className="text-lg font-bold flex items-center gap-2 text-primary-500">
  <CreditCard size={20} /> Fee Structure {selectionType === 'all' && '(Bulk + Extras)'}
  </h2>
- <div className="flex items-center gap-4">
+ <div className="flex items-center gap-3 flex-wrap">
+ <button 
+ type="button"
+ onClick={() => setShowProductModal(true)}
+ className="text-xs font-black text-emerald-400 uppercase tracking-widest flex items-center gap-1 hover:text-emerald-300 transition-colors cursor-pointer bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/30"
+ title="Add Uniform, Books, Syllabus Copies or ID Card from School Store"
+ >
+ <Package size={14} /> Add Product Fee (Uniform/Books)
+ </button>
  <button 
  onClick={addAnnualFund}
  className="text-xs font-black text-cyan-500 uppercase tracking-widest flex items-center gap-1 hover:text-cyan-400 transition-colors"
@@ -1158,6 +1223,110 @@ const GenerateVoucher = () => {
    </div>
  )}
  
+  {/* STORE PRODUCT SELECTION MODAL (UNIFORM / BOOKS / ID CARD) */}
+  {showProductModal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
+      <div className="w-full max-w-lg p-6 bg-dark-card border border-emerald-500/30 rounded-2xl shadow-2xl relative space-y-4">
+        <button
+          type="button"
+          onClick={() => {
+            setShowProductModal(false);
+            setSelectedProductItem(null);
+          }}
+          className="absolute top-5 right-5 p-2 rounded-xl bg-dark-hover text-dark-muted hover:text-white cursor-pointer"
+        >
+          <X size={18} />
+        </button>
+
+        <div className="space-y-1">
+          <h3 className="text-xl font-black text-white flex items-center gap-2">
+            <Package className="text-emerald-400" size={22} /> Add Store Product to Fee Voucher
+          </h3>
+          <p className="text-xs text-dark-muted">
+            Add Uniform, Books, Syllabus, or ID Card fee head directly into this voucher.
+          </p>
+        </div>
+
+        {/* Product Search */}
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-muted" size={16} />
+          <input
+            type="text"
+            placeholder="Search products (Uniform, Books, Syllabus, Copies, ID Card)..."
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+            className="w-full bg-dark-hover border border-dark-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:border-emerald-500 outline-none"
+          />
+        </div>
+
+        {/* Products List */}
+        <div className="max-h-60 overflow-y-auto custom-scrollbar border border-dark-border rounded-xl divide-y divide-dark-border/50">
+          {inventoryItems
+            .filter(i => !productSearch || (i.name || '').toLowerCase().includes(productSearch.toLowerCase()) || (i.category || '').toLowerCase().includes(productSearch.toLowerCase()))
+            .map(item => (
+              <div
+                key={item.id}
+                onClick={() => setSelectedProductItem(item)}
+                className={`p-3 hover:bg-emerald-500/10 cursor-pointer transition-colors flex items-center justify-between ${
+                  selectedProductItem?.id === item.id ? 'bg-emerald-500/15 border-l-4 border-l-emerald-500' : ''
+                }`}
+              >
+                <div>
+                  <p className="text-sm font-bold text-white">{item.name}</p>
+                  <p className="text-[11px] text-dark-muted">{item.category} • {item.quantity} in store</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-black text-emerald-400">PKR {Number(item.price).toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+        </div>
+
+        {/* Quantity and Add to Voucher Button */}
+        {selectedProductItem && (
+          <div className="p-3.5 rounded-xl bg-dark-hover border border-dark-border flex items-center justify-between gap-4">
+            <div>
+              <span className="text-xs text-dark-muted block">Selected Product:</span>
+              <span className="text-sm font-bold text-white">{selectedProductItem.name}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-dark-muted font-bold">Qty:</label>
+              <input
+                type="number"
+                min="1"
+                value={productQty}
+                onChange={(e) => setProductQty(Math.max(1, Number(e.target.value)))}
+                className="w-16 bg-dark-card border border-dark-border rounded-lg p-1.5 text-center text-sm font-bold text-white"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const totalAmt = Number(selectedProductItem.price) * productQty;
+                setFeeItems([
+                  ...feeItems,
+                  {
+                    name: `${selectedProductItem.category || 'Store Item'}: ${selectedProductItem.name} (${productQty}x)`,
+                    amount: totalAmt,
+                    isProductCharge: true
+                  }
+                ]);
+                setShowProductModal(false);
+                setSelectedProductItem(null);
+                setProductQty(1);
+              }}
+              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs cursor-pointer shadow-lg shadow-emerald-500/20"
+            >
+              Add to Voucher
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )}
+
  </div>
  );
 };
