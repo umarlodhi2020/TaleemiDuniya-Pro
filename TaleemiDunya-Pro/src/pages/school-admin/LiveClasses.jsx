@@ -17,30 +17,17 @@ const LiveClasses = () => {
     link: ''
   });
 
-  const [classes, setClasses] = useState([
-    {
-      id: 1,
-      title: 'Thermodynamics Revision',
-      classId: '10',
-      subject: 'Physics',
-      date: new Date().toISOString().split('T')[0],
-      time: '10:00 AM',
-      platform: 'Zoom',
-      status: 'live',
-      link: 'https://zoom.us/j/123456789'
-    },
-    {
-      id: 2,
-      title: 'Algebra Basics',
-      classId: '8',
-      subject: 'Mathematics',
-      date: new Date().toISOString().split('T')[0],
-      time: '02:00 PM',
-      platform: 'Google Meet',
-      status: 'upcoming',
-      link: 'https://meet.google.com/abc-defg-hij'
+  const schoolId = userData?.schoolId || 'default-school';
+
+  const [classes, setClasses] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`live_classes_${schoolId}`);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
     }
-  ]);
+    return [];
+  });
 
   const [copied, setCopied] = useState(null);
 
@@ -58,7 +45,13 @@ const LiveClasses = () => {
       return;
     }
     
-    setClasses([{ ...form, id: Date.now(), status: 'upcoming' }, ...classes]);
+    const updated = [{ ...form, id: Date.now(), status: 'upcoming' }, ...classes];
+    setClasses(updated);
+    try {
+      localStorage.setItem(`live_classes_${schoolId}`, JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
     setForm({ ...form, title: '', link: '' });
     showToast('success', 'Live class scheduled successfully!');
   };

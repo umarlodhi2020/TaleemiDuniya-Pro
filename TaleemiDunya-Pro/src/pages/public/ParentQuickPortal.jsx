@@ -61,49 +61,11 @@ const ParentQuickPortal = () => {
         }
       }
 
-      // Fallback Demo Student so preview is always stunning
-      setStudent({
-        id: studentId || 'STD-2026-904',
-        name: 'Muhammad Ahmad Lodhi',
-        rollNumber: '104',
-        className: 'Class 9',
-        section: 'A (Rose)',
-        fatherName: 'Tariq Mahmood Lodhi',
-        schoolName: 'TaleemiDunya Model School System',
-        schoolPhone: '0300-1234567',
-        schoolLogo: '',
-        photo: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&h=200&fit=crop&crop=faces',
-        attendanceToday: {
-          status: 'Present',
-          time: '08:14 AM',
-          date: new Date().toLocaleDateString('en-GB')
-        },
-        feeStatus: {
-          currentMonth: 'October 2026',
-          status: 'Unpaid',
-          amount: 3500,
-          dueDate: '10 Oct 2026',
-          challanNo: 'CH-2026-904'
-        },
-        diaryToday: [
-          { subject: 'Mathematics', task: 'Exercise 3.2 - Questions 1 to 5 solve on notebook.' },
-          { subject: 'English', task: 'Unit 4 Vocabulary words and sentence formation.' },
-          { subject: 'General Science', task: 'Chapter 2: Learn Rutherford atomic model postulates.' },
-          { subject: 'Urdu', task: 'سبق "کاہلی" کے سوال نمبر ۱ تا ۳ یاد کریں۔' }
-        ],
-        voiceNote: true,
-        examResult: {
-          title: '1st Term Examination',
-          totalMarks: 500,
-          obtainedMarks: 442,
-          percentage: '88.4%',
-          grade: 'A+',
-          position: '2nd in Class',
-          teacherRemarks: 'Ahmad is extremely disciplined and shows exceptional understanding in Mathematics and Sciences. Keep up the high standard!'
-        }
-      });
+      // No student found in database
+      setStudent(null);
     } catch (err) {
       console.error(err);
+      setStudent(null);
     } finally {
       setLoading(false);
     }
@@ -114,7 +76,23 @@ const ParentQuickPortal = () => {
       <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
         <div className="text-center space-y-3">
           <RefreshCw className="animate-spin text-slate-800 mx-auto" size={32} />
-          <p className="text-xs font-bold text-slate-600">Loading Student Magic Portal...</p>
+          <p className="text-xs font-bold text-slate-600">Loading Student Portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!student) {
+    return (
+      <div className="min-h-screen bg-slate-900/5 flex items-center justify-center p-4">
+        <div className="bg-white border border-slate-200 rounded-3xl p-8 max-w-md w-full shadow-lg text-center space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center mx-auto font-bold">
+            <ShieldCheck size={32} />
+          </div>
+          <h2 className="text-xl font-black text-slate-900">Student Record Not Found</h2>
+          <p className="text-xs text-slate-600">
+            Please make sure you followed the direct link sent by your school via WhatsApp containing your child&apos;s verified Student ID.
+          </p>
         </div>
       </div>
     );

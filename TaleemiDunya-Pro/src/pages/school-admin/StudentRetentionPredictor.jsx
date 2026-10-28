@@ -21,76 +21,13 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
-const PRELOADED_STUDENTS_RISK = [
-  {
-    id: 'risk_1',
-    name: 'Hamza Tariq',
-    rollNo: '118',
-    className: 'Class 9',
-    riskScore: 88,
-    riskLevel: 'HIGH',
-    factors: [
-      'Attendance dropped to 64% in last 30 days',
-      'Fee unpaid for 2 consecutive months (Rs. 7,000 overdue)',
-      'Math exam marks dropped from 72% to 38%'
-    ],
-    aiRecommendation: 'Schedule urgent Parent-Principal counseling session & offer 20% need-based fee relief to prevent migration to competitor.',
-    parentPhone: '0300-8877665',
-    status: 'ACTION_REQUIRED'
-  },
-  {
-    id: 'risk_2',
-    name: 'Zeeshan Ali',
-    rollNo: '122',
-    className: 'Class 8',
-    riskScore: 74,
-    riskLevel: 'MODERATE',
-    factors: [
-      'Frequent Friday/Monday leaves (72% attendance)',
-      'Exam performance stable but low homework submission'
-    ],
-    aiRecommendation: 'Class teacher should conduct 1-on-1 student interview and assign a study buddy.',
-    parentPhone: '0321-4433221',
-    status: 'IN_REVIEW'
-  },
-  {
-    id: 'risk_3',
-    name: 'Danish Khan',
-    rollNo: '130',
-    className: 'Class 10',
-    riskScore: 82,
-    riskLevel: 'HIGH',
-    factors: [
-      'Parent requested School Leaving Certificate (SLC) inquiry last week',
-      'Board exam fee pending'
-    ],
-    aiRecommendation: 'Principal should call father directly to discuss academic scholarship incentives before official SLC issuance.',
-    parentPhone: '0333-7788990',
-    status: 'ACTION_REQUIRED'
-  },
-  {
-    id: 'risk_4',
-    name: 'Aisha Fatima',
-    rollNo: '108',
-    className: 'Class 9',
-    riskScore: 12,
-    riskLevel: 'SAFE',
-    factors: [
-      '96% punctual attendance',
-      'Fee paid on 1st of every month',
-      'Grade A+ in mid-terms'
-    ],
-    aiRecommendation: 'Safe & thriving student. Recommend for House Captain leadership role.',
-    parentPhone: '0321-9876543',
-    status: 'RESOLVED'
-  }
-];
+import { getRecords } from '../../services/db';
 
 const StudentRetentionPredictor = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
   const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
-  const schoolName = schoolData?.name || userData?.schoolName || 'Lodhi Model School System';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School';
 
   const [students, setStudents] = useState(() => {
     try {
@@ -99,7 +36,7 @@ const StudentRetentionPredictor = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_STUDENTS_RISK;
+    return [];
   });
 
   const [filterLevel, setFilterLevel] = useState('ALL'); // 'ALL' | 'HIGH' | 'MODERATE' | 'SAFE'
@@ -115,13 +52,69 @@ const StudentRetentionPredictor = () => {
     }
   };
 
-  const handleRunAiAnalysis = () => {
+  const handleRunAiAnalysis = async () => {
     setIsAnalyzing(true);
-    setTimeout(() => {
+    try {
+      const [allStudents, allVouchers] = await Promise.all([
+        getRecords('students', schoolId),
+        getRecords('vouchers', schoolId).catch(() => [])
+      ]);
+
+      const analyzed = (allStudents || []).map(st => {
+        const studentVouchers = (allVouchers || []).filter(v => 
+          String(v.studentId) === String(st.id) || 
+          String(v.rollNo) === String(st.rollNumber) || 
+          String(v.rollNo) === String(st.rollNo)
+        );
+        const unpaidVouchers = studentVouchers.filter(v => v.status === 'Unpaid' || v.status === 'Pending');
+        const factors = [];
+        let score = 15;
+        let level = 'SAFE';
+
+        if (unpaidVouchers.length >= 2) {
+          factors.push(`Fee unpaid for ${unpaidVouchers.length} consecutive vouchers`);
+          score += 45;
+        } else if (unpaidVouchers.length === 1) {
+          factors.push('Fee pending for current month');
+          score += 20;
+        }
+
+        if (st.status === 'Inactive') {
+          factors.push('Student marked inactive in registry');
+          score += 35;
+        }
+
+        if (score >= 60) level = 'HIGH';
+        else if (score >= 35) level = 'MODERATE';
+
+        return {
+          id: st.id,
+          name: st.name,
+          rollNo: st.rollNumber || st.rollNo || st.admissionNo || 'N/A',
+          className: st.class || st.className || 'N/A',
+          riskScore: score,
+          riskLevel: level,
+          factors: factors.length > 0 ? factors : ['Satisfactory academic and fee records'],
+          aiRecommendation: level === 'HIGH' ? 'Principal counseling and parent consultation advised.' : 'Regular progress on track.',
+          parentPhone: st.phone || st.guardianPhone || st.parentPhone || '',
+          status: level === 'SAFE' ? 'RESOLVED' : 'ACTION_REQUIRED'
+        };
+      });
+
+      saveStudents(analyzed);
+      alert(`✨ AI Retention Analysis Complete!\nScanned ${allStudents?.length || 0} active students across database records.`);
+    } catch (err) {
+      console.error(err);
+    } finally {
       setIsAnalyzing(false);
-      alert('✨ AI Retention Analysis Complete!\nScanned 340 active students across attendance records, fee books, and examination marks.\nIdentified 2 High-Risk and 1 Moderate-Risk student requiring intervention.');
-    }, 1500);
+    }
   };
+
+  useEffect(() => {
+    if (students.length === 0) {
+      handleRunAiAnalysis();
+    }
+  }, [schoolId]);
 
   const handleMarkResolved = (id) => {
     const updated = students.map(s => {

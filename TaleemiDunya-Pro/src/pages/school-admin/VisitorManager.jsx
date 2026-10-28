@@ -22,59 +22,11 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
-const PRELOADED_VISITORS = [
-  {
-    id: 'vis_101',
-    passNo: 'VP-2026-081',
-    name: 'Tariq Mahmood Lodhi',
-    cnic: '35201-1234567-1',
-    phone: '0300-1234567',
-    purpose: 'Fee Deposit & Parent Inquiry',
-    meetingWith: 'Accounts Office (Sir Bilal)',
-    personsCount: 1,
-    vehicleNo: 'LEA-4920 (Car)',
-    timeIn: '09:15 AM',
-    timeOut: null,
-    date: new Date().toISOString().split('T')[0],
-    status: 'INSIDE'
-  },
-  {
-    id: 'vis_102',
-    passNo: 'VP-2026-082',
-    name: 'Kamran Ashraf (TCS Courier)',
-    cnic: '35202-9876543-3',
-    phone: '0321-7654321',
-    purpose: 'Document / Courier Delivery',
-    meetingWith: 'Admin Reception',
-    personsCount: 1,
-    vehicleNo: 'LHO-8812 (Bike)',
-    timeIn: '10:05 AM',
-    timeOut: '10:20 AM',
-    date: new Date().toISOString().split('T')[0],
-    status: 'CHECKED_OUT'
-  },
-  {
-    id: 'vis_103',
-    passNo: 'VP-2026-083',
-    name: 'Engr. Zafar Iqbal',
-    cnic: '35201-5544332-9',
-    phone: '0333-4455667',
-    purpose: 'Meeting regarding IT Lab CCTV Setup',
-    meetingWith: 'Principal Office',
-    personsCount: 2,
-    vehicleNo: 'LEB-1019 (Car)',
-    timeIn: '10:30 AM',
-    timeOut: null,
-    date: new Date().toISOString().split('T')[0],
-    status: 'INSIDE'
-  }
-];
-
 const VisitorManager = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
   const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
-  const schoolName = schoolData?.name || userData?.schoolName || 'Lodhi Model School System';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School';
 
   const [visitors, setVisitors] = useState(() => {
     try {
@@ -83,7 +35,7 @@ const VisitorManager = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_VISITORS;
+    return [];
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -273,8 +225,17 @@ const VisitorManager = () => {
         </div>
 
         <div className="space-y-3">
-          {filteredVisitors.map((v) => {
-            const isInside = v.status === 'INSIDE';
+          {filteredVisitors.length === 0 ? (
+            <div className="py-16 text-center bg-slate-50 border border-slate-200 rounded-2xl p-6">
+              <ShieldCheck size={44} className="mx-auto text-slate-300 mb-3" />
+              <h3 className="text-base font-bold text-slate-800">No visitors logged today</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                Click &quot;Check-In New Visitor&quot; to issue a gate pass and track campus visitors.
+              </p>
+            </div>
+          ) : (
+            filteredVisitors.map((v) => {
+              const isInside = v.status === 'INSIDE';
 
             return (
               <div 
@@ -335,7 +296,7 @@ const VisitorManager = () => {
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
 

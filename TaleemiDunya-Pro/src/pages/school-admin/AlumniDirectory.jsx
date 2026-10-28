@@ -21,118 +21,41 @@ import {
   DollarSign
 } from 'lucide-react';
 
+import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
+import { getRecords, addRecord } from '../../services/db';
+
 export default function AlumniDirectory() {
+  const { userData } = useAuth();
+  const { schoolData } = useSchool();
+  const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
+
   const [selectedBatch, setSelectedBatch] = useState('All');
   const [selectedIndustry, setSelectedIndustry] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeStoryModal, setActiveStoryModal] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [alumniList, setAlumniList] = useState([
-    {
-      id: 'ALM-2017-001',
-      name: 'Dr. Fatima Zahra',
-      batch: '2017',
-      classPassed: 'F.Sc Pre-Medical (Gold Medalist)',
-      currentRole: 'Resident Medical Officer (Cardiology)',
-      organization: 'Aga Khan University Hospital, Karachi',
-      industry: 'Medical',
-      location: 'Karachi, Pakistan',
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=150&auto=format&fit=crop&q=80',
-      quote: 'The rigorous discipline and encouragement from my teachers at TaleemiDunya laid the foundation of my medical journey.',
-      badges: ['Guest Speaker', 'Scholarship Sponsor'],
-      phone: '+92 300 1234567',
-      email: 'dr.fatima.zahra@alumni.org',
-      linkedin: 'https://linkedin.com/in/example',
-      donations: 'PKR 150,000'
-    },
-    {
-      id: 'ALM-2016-042',
-      name: 'Capt. Bilal Tariq',
-      batch: '2016',
-      classPassed: 'Matric (Science) & F.Sc Pre-Engineering',
-      currentRole: 'Captain & Helicopter Pilot',
-      organization: 'Pakistan Army Aviation',
-      industry: 'Armed Forces',
-      location: 'Rawalpindi, Pakistan',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-      quote: 'Morning assemblies and NCC training at school taught me leadership, honor, and duty to the motherland.',
-      badges: ['Chief Guest', 'Mentorship Volunteer'],
-      phone: '+92 333 9876543',
-      email: 'bilal.tariq@alumni.org',
-      linkedin: 'https://linkedin.com/in/example',
-      donations: 'PKR 50,000'
-    },
-    {
-      id: 'ALM-2019-108',
-      name: 'Hamza Arshad, PSP',
-      batch: '2015',
-      classPassed: 'F.A / I.Com',
-      currentRole: 'Assistant Superintendent of Police (ASP - CSS 49th CTP)',
-      organization: 'Police Service of Pakistan (PSP)',
-      industry: 'Civil Services',
-      location: 'Lahore, Pakistan',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
-      quote: 'Library hours and debate club competitions in 9th grade ignited my passion for public administration and civil service.',
-      badges: ['Guest Speaker', 'Mentorship Volunteer'],
-      phone: '+92 321 4455667',
-      email: 'hamza.psp@alumni.org',
-      linkedin: 'https://linkedin.com/in/example',
-      donations: 'PKR 75,000'
-    },
-    {
-      id: 'ALM-2020-019',
-      name: 'Ayesha Siddiqua',
-      batch: '2020',
-      classPassed: 'ICS (Computer Science - Board Topper)',
-      currentRole: 'Senior Machine Learning Engineer',
-      organization: 'TechVenture AI (Remote / Berlin)',
-      industry: 'Technology',
-      location: 'Islamabad / Berlin',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      quote: 'Writing my first lines of C++ code in our school computer lab changed my life forever. Now building world-class AI models.',
-      badges: ['Hackathon Judge', 'Scholarship Sponsor'],
-      phone: '+92 345 7788990',
-      email: 'ayesha.ai@alumni.org',
-      linkedin: 'https://linkedin.com/in/example',
-      donations: 'PKR 250,000'
-    },
-    {
-      id: 'ALM-2018-067',
-      name: 'Zeeshan Munir',
-      batch: '2018',
-      classPassed: 'Matric Science',
-      currentRole: 'Founder & CEO',
-      organization: 'PakAgriTech Solutions (Series-A Funded)',
-      industry: 'Business',
-      location: 'Faisalabad, Pakistan',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
-      quote: 'Science fairs and business day stalls in 10th grade gave me the entrepreneurship spark that built a 100+ member company.',
-      badges: ['Incubator Mentor', 'Guest Speaker'],
-      phone: '+92 312 6655443',
-      email: 'zeeshan@pakagritech.com',
-      linkedin: 'https://linkedin.com/in/example',
-      donations: 'PKR 300,000'
-    },
-    {
-      id: 'ALM-2021-089',
-      name: 'Barrister Mahnoor Tariq',
-      batch: '2017',
-      classPassed: 'O/A Levels',
-      currentRole: 'Advocate High Court & Legal Consultant',
-      organization: 'Mahnoor & Associates Law Chambers',
-      industry: 'Law & Judiciary',
-      location: 'Peshawar, Pakistan',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
-      quote: 'School parliamentary debates shaped my argumentative precision and dedication to justice.',
-      badges: ['Legal Advisor', 'Mentorship Volunteer'],
-      phone: '+92 334 1122334',
-      email: 'mahnoor@barrister.pk',
-      linkedin: 'https://linkedin.com/in/example',
-      donations: 'PKR 100,000'
-    }
-  ]);
+  const [alumniList, setAlumniList] = useState([]);
+
+  useEffect(() => {
+    const fetchAlumni = async () => {
+      setLoading(true);
+      try {
+        const records = await getRecords('alumni', schoolId);
+        if (Array.isArray(records)) {
+          setAlumniList(records);
+        }
+      } catch (err) {
+        console.error('Error fetching alumni records:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAlumni();
+  }, [schoolId]);
 
   const [newAlumni, setNewAlumni] = useState({
     name: '',
@@ -240,7 +163,7 @@ export default function AlumniDirectory() {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-white">1,480+</div>
+            <div className="text-2xl font-bold text-slate-800 dark:text-white">{alumniList.length}</div>
             <div className="text-xs text-slate-500 dark:text-slate-400">Total Registered Alumni</div>
           </div>
         </div>
@@ -250,7 +173,9 @@ export default function AlumniDirectory() {
             <Trophy className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-white">142</div>
+            <div className="text-2xl font-bold text-slate-800 dark:text-white">
+              {alumniList.filter(a => a.badges && a.badges.length > 0).length}
+            </div>
             <div className="text-xs text-slate-500 dark:text-slate-400">Distinguished Achievers</div>
           </div>
         </div>
@@ -260,8 +185,13 @@ export default function AlumniDirectory() {
             <DollarSign className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-white">PKR 925K</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Scholarship Endowment Raised</div>
+            <div className="text-2xl font-bold text-slate-800 dark:text-white">
+              PKR {alumniList.reduce((acc, a) => {
+                const amt = Number(String(a.donations || 0).replace(/[^0-9]/g, '')) || 0;
+                return acc + amt;
+              }, 0).toLocaleString()}
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">Scholarship Donations</div>
           </div>
         </div>
 
@@ -270,8 +200,10 @@ export default function AlumniDirectory() {
             <HeartHandshake className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-slate-800 dark:text-white">38 Sessions</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Alumni Mentorship Held</div>
+            <div className="text-2xl font-bold text-slate-800 dark:text-white">
+              {alumniList.filter(a => a.badges?.includes('Mentorship Volunteer')).length}
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">Active Mentorship Volunteers</div>
           </div>
         </div>
       </div>
@@ -333,8 +265,29 @@ export default function AlumniDirectory() {
         </div>
       </div>
 
-      {/* Alumni Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Alumni Grid / Empty State */}
+      {filteredAlumni.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-12 text-center space-y-4">
+          <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mx-auto">
+            <GraduationCap className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white">
+            {loading ? 'Loading Alumni Directory...' : 'No Alumni Records Found'}
+          </h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            {loading ? 'Please wait while records are fetched from database.' : 'No distinguished graduates have been registered yet for this filter. Click "Register Alumni" to add your school graduates.'}
+          </p>
+          {!loading && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase px-4 py-2 rounded-xl transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Register First Alum
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredAlumni.map((alumnus) => (
           <div
             key={alumnus.id}
@@ -451,6 +404,7 @@ export default function AlumniDirectory() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Add Modal */}
       {showAddModal && (

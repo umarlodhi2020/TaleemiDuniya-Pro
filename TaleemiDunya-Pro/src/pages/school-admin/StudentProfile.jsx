@@ -80,7 +80,7 @@ const StudentProfile = () => {
     <div className="space-y-6 animate-fade-in pb-16">
       {/* ── Header Banner ── */}
       <div className="relative rounded-3xl overflow-hidden bg-dark-card border border-dark-border shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/30 via-indigo-900/20 to-purple-900/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-100/70 via-indigo-50/60 to-purple-100/60 dark:from-blue-900/30 dark:via-indigo-900/20 dark:to-purple-900/30 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 p-6 md:p-10 flex flex-col md:flex-row items-center md:items-end gap-6">

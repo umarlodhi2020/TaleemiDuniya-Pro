@@ -4,13 +4,26 @@ import GlassCard from '../../components/common/GlassCard';
 
 const SpeakerPASystem = () => {
   const [activeTab, setActiveTab] = useState('zones');
-  const [zones, setZones] = useState([
-    { id: 1, name: 'Main Campus Building A (Ground Floor)', status: 'Active', volume: '80%' },
-    { id: 2, name: 'Main Campus Building B (Auditorium)', status: 'Active', volume: '90%' },
-    { id: 3, name: 'Playground & Assembly Lawn', status: 'Active', volume: '100%' },
-  ]);
+  const [zones, setZones] = useState(() => {
+    try {
+      const saved = localStorage.getItem('speaker_zones');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return [];
+  });
   const [announcement, setAnnouncement] = useState('');
   const [playing, setPlaying] = useState(false);
+
+  const saveZones = (updated) => {
+    setZones(updated);
+    try {
+      localStorage.setItem('speaker_zones', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in pb-12">
@@ -67,25 +80,33 @@ const SpeakerPASystem = () => {
               <h2 className="text-lg font-bold text-white">Speaker Zones Directory</h2>
               <button onClick={() => {
                 const name = prompt('Enter new speaker zone name (e.g., Library Block):');
-                if (name) setZones([...zones, { id: Date.now(), name, status: 'Active', volume: '85%' }]);
+                if (name) saveZones([...zones, { id: Date.now(), name, status: 'Active', volume: '85%' }]);
               }} className="premium-button-primary text-xs">
                 <Plus size={16} /> Add Speaker Zone
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {zones.map(z => (
-                <div key={z.id} className="p-4 rounded-xl bg-dark-hover/40 border border-dark-border space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="px-2 py-0.5 rounded bg-green-500/10 text-green-400 font-mono text-[10px] uppercase font-bold">{z.status}</span>
-                    <span className="text-xs text-dark-muted font-mono">Volume: {z.volume}</span>
-                  </div>
-                  <h3 className="font-bold text-white text-sm">{z.name}</h3>
-                  <div className="pt-2 flex gap-2">
-                    <button onClick={() => alert(`Testing audio test tone in ${z.name}...`)} className="px-3 py-1 bg-primary-500/15 text-primary-400 text-xs rounded-lg font-bold">Test Audio Tone</button>
-                    <button onClick={() => setZones(zones.filter(x => x.id !== z.id))} className="p-1 text-red-400 hover:text-white"><Trash2 size={16} /></button>
-                  </div>
+              {zones.length === 0 ? (
+                <div className="col-span-full py-12 text-center bg-dark-hover/20 border border-dark-border rounded-2xl p-6">
+                  <Radio size={40} className="mx-auto text-dark-muted mb-2 opacity-40" />
+                  <h3 className="font-bold text-white text-sm">No speaker zones configured</h3>
+                  <p className="text-xs text-dark-muted mt-1">Click &quot;Add Speaker Zone&quot; to register campus speaker locations.</p>
                 </div>
-              ))}
+              ) : (
+                zones.map(z => (
+                  <div key={z.id} className="p-4 rounded-xl bg-dark-hover/40 border border-dark-border space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="px-2 py-0.5 rounded bg-green-500/10 text-green-400 font-mono text-[10px] uppercase font-bold">{z.status}</span>
+                      <span className="text-xs text-dark-muted font-mono">Volume: {z.volume}</span>
+                    </div>
+                    <h3 className="font-bold text-white text-sm">{z.name}</h3>
+                    <div className="pt-2 flex gap-2">
+                      <button onClick={() => alert(`Testing audio test tone in ${z.name}...`)} className="px-3 py-1 bg-primary-500/15 text-primary-400 text-xs rounded-lg font-bold">Test Audio Tone</button>
+                      <button onClick={() => saveZones(zones.filter(x => x.id !== z.id))} className="p-1 text-red-400 hover:text-white"><Trash2 size={16} /></button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

@@ -47,12 +47,12 @@ const GoogleDriveBackupVault = () => {
 
   // Google OAuth & Drive Connect States
   const [googleConnected, setGoogleConnected] = useState(() => localStorage.getItem('google_drive_oauth_token') ? true : false);
-  const [googleEmail, setGoogleEmail] = useState(() => localStorage.getItem('google_drive_email') || 'principal.school@gmail.com');
+  const [googleEmail, setGoogleEmail] = useState(() => localStorage.getItem('google_drive_email') || userData?.email || '');
   const [oauthToken, setOauthToken] = useState(() => localStorage.getItem('google_drive_oauth_token') || '');
   const [showOauthModal, setShowOauthModal] = useState(false);
   const [showPhysicalGuide, setShowPhysicalGuide] = useState(false);
   const [oauthStep, setOauthStep] = useState(1); // 1: Google Account Input, 2: Drive Permission Grant, 3: Success
-  const [oauthEmailInput, setOauthEmailInput] = useState(() => localStorage.getItem('google_drive_email') || '');
+  const [oauthEmailInput, setOauthEmailInput] = useState(() => localStorage.getItem('google_drive_email') || userData?.email || '');
   const [customClientId, setCustomClientId] = useState(() => localStorage.getItem('google_client_id') || '');
   const [liveApiToken, setLiveApiToken] = useState(() => localStorage.getItem('google_live_api_token') || '');
   const [autoFrequency, setAutoFrequency] = useState(() => localStorage.getItem('google_drive_frequency') || 'daily');
@@ -92,32 +92,7 @@ const GoogleDriveBackupVault = () => {
       });
 
       const savedLogs = JSON.parse(localStorage.getItem('cloud_backup_history') || '[]');
-      if (savedLogs.length === 0) {
-        const initialLogs = [
-          {
-            id: 'LOG-101',
-            timestamp: new Date(Date.now() - 86400000 * 2).toLocaleString(),
-            type: 'Automated Google Drive Sync',
-            status: 'Success',
-            records: total,
-            size: `${sizeKb} KB`,
-            destination: `Google Drive (/TaleemiDunya_Backups/${schoolId}/)`
-          },
-          {
-            id: 'LOG-102',
-            timestamp: new Date(Date.now() - 86400000 * 5).toLocaleString(),
-            type: 'Local Full JSON Vault Export',
-            status: 'Success',
-            records: Math.max(0, total - 5),
-            size: `${Math.max(10, sizeKb - 8)} KB`,
-            destination: 'Principal Local Storage / PC'
-          }
-        ];
-        setBackupLogs(initialLogs);
-        localStorage.setItem('cloud_backup_history', JSON.stringify(initialLogs));
-      } else {
-        setBackupLogs(savedLogs);
-      }
+      setBackupLogs(savedLogs);
     } catch (err) {
       console.error('Failed to fetch backup stats:', err);
     } finally {
@@ -843,21 +818,29 @@ const GoogleDriveBackupVault = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-dark-border/50 text-xs">
-              {backupLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-dark-hover/40 transition-colors">
-                  <td className="py-3 px-4 font-mono text-primary-400 font-bold">{log.id}</td>
-                  <td className="py-3 px-4 text-dark-muted">{log.timestamp}</td>
-                  <td className="py-3 px-4 font-semibold text-white">{log.type}</td>
-                  <td className="py-3 px-4 font-bold text-emerald-400">{log.records}</td>
-                  <td className="py-3 px-4 text-cyan-400">{log.size}</td>
-                  <td className="py-3 px-4 text-dark-text max-w-xs truncate">{log.destination}</td>
-                  <td className="py-3 px-4">
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-[11px]">
-                      {log.status}
-                    </span>
+              {backupLogs.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-12 text-center text-dark-muted">
+                    No cloud or local backups taken yet. Push a backup or export to create vault logs.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                backupLogs.map((log) => (
+                  <tr key={log.id} className="hover:bg-dark-hover/40 transition-colors">
+                    <td className="py-3 px-4 font-mono text-primary-400 font-bold">{log.id}</td>
+                    <td className="py-3 px-4 text-dark-muted">{log.timestamp}</td>
+                    <td className="py-3 px-4 font-semibold text-white">{log.type}</td>
+                    <td className="py-3 px-4 font-bold text-emerald-400">{log.records}</td>
+                    <td className="py-3 px-4 text-cyan-400">{log.size}</td>
+                    <td className="py-3 px-4 text-dark-text max-w-xs truncate">{log.destination}</td>
+                    <td className="py-3 px-4">
+                      <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-[11px]">
+                        {log.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

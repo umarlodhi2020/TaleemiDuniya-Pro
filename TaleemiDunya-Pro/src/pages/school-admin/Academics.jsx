@@ -62,22 +62,8 @@ const Academics = () => {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printStudent, setPrintStudent] = useState(null);
 
-  // Mock data for class teachers, attendance, and fee pending count
-  const mockClassData = {
-    'NURSERY': { teacher: 'Miss Fatima', attendance: '96.2%', pendingFees: 1 },
-    'KG': { teacher: 'Miss Ayesha', attendance: '95.4%', pendingFees: 2 },
-    '1': { teacher: 'Mrs. Sonia', attendance: '97.1%', pendingFees: 0 },
-    '2': { teacher: 'Mrs. Sadia', attendance: '94.8%', pendingFees: 3 },
-    '3': { teacher: 'Miss Amina', attendance: '96.5%', pendingFees: 1 },
-    '4': { teacher: 'Mr. Asif', attendance: '95.9%', pendingFees: 2 },
-    '5': { teacher: 'Mr. Zahid', attendance: '96.0%', pendingFees: 0 },
-    '6': { teacher: 'Miss Maria', attendance: '97.2%', pendingFees: 4 },
-    '7': { teacher: 'Mrs. Hina', attendance: '94.5%', pendingFees: 1 },
-    '8': { teacher: 'Mr. Kamran', attendance: '95.1%', pendingFees: 2 },
-    '9': { teacher: 'Mr. Bilal Khan', attendance: '96.8%', pendingFees: 3 },
-    '10': { teacher: 'Mr. Umar Lodhi', attendance: '98.3%', pendingFees: 0 },
-    'default': { teacher: 'Assigned Teacher', attendance: '95.0%', pendingFees: 0 }
-  };
+  // Class metadata state
+  const [classesMeta, setClassesMeta] = useState([]);
 
   useEffect(() => {
     fetchAcademicData();
@@ -93,11 +79,27 @@ const Academics = () => {
       // Fetch all subject-wise results
       const resultsData = await getRecords('results', schoolId);
       setResults(resultsData);
+
+      // Fetch real class configurations
+      try {
+        const classesData = await getRecords('classes', schoolId);
+        setClassesMeta(classesData || []);
+      } catch (e) {
+        console.error("Classes meta fetch error:", e);
+      }
     } catch (error) {
       console.error("Error fetching academic data:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getClassTeacher = (className) => {
+    const found = classesMeta.find(c => 
+      (c.name || '').toLowerCase() === (className || '').toLowerCase() || 
+      (c.className || '').toLowerCase() === (className || '').toLowerCase()
+    );
+    return found?.classTeacher || found?.teacher || 'Not Assigned';
   };
 
   // Helper: Format class display name (e.g. "9" -> "9th Grade")
@@ -639,7 +641,7 @@ const Academics = () => {
                     const sectionsArray = Array.from(cls.sections).sort();
                     const boysPercentage = cls.students.length ? Math.round((cls.maleCount / cls.students.length) * 100) : 0;
                     const girlsPercentage = cls.students.length ? Math.round((cls.femaleCount / cls.students.length) * 100) : 0;
-                    const metadata = mockClassData[cls.name] || mockClassData['default'];
+                    const teacher = getClassTeacher(cls.name);
 
                     return (
                       <GlassCard 
@@ -655,17 +657,10 @@ const Academics = () => {
                               <Layers size={22} />
                             </div>
                             
-                            {metadata.pendingFees > 0 ? (
-                              <span className="px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-[10px] font-black uppercase tracking-wider text-red-400 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                                {metadata.pendingFees} Dues Pending
-                              </span>
-                            ) : (
-                              <span className="px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-[10px] font-black uppercase tracking-wider text-green-400 flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                                Paid / Cleared
-                              </span>
-                            )}
+                            <span className="px-2.5 py-1 rounded-full bg-primary-500/10 border border-primary-500/20 text-[10px] font-black uppercase tracking-wider text-primary-400 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-primary-500" />
+                              {cls.students.length} Enrolled
+                            </span>
                           </div>
 
                           <h3 className="text-xl font-black text-dark-text group-hover:text-primary-400 transition-colors mb-1">
@@ -681,11 +676,11 @@ const Academics = () => {
                           <div className="grid grid-cols-2 gap-3 mb-5 py-3 border-y border-dark-border/40">
                             <div>
                               <p className="text-[9px] text-dark-muted font-black uppercase tracking-wider">Class Teacher</p>
-                              <p className="text-xs font-bold text-dark-text truncate mt-0.5">{metadata.teacher}</p>
+                              <p className="text-xs font-bold text-dark-text truncate mt-0.5">{teacher}</p>
                             </div>
                             <div>
-                              <p className="text-[9px] text-dark-muted font-black uppercase tracking-wider">Attendance Today</p>
-                              <p className="text-xs font-bold text-green-400 mt-0.5">{metadata.attendance}</p>
+                              <p className="text-[9px] text-dark-muted font-black uppercase tracking-wider">Active Students</p>
+                              <p className="text-xs font-bold text-green-400 mt-0.5">{cls.activeCount} Active</p>
                             </div>
                           </div>
 
@@ -776,9 +771,9 @@ const Academics = () => {
                     <span className="w-1.5 h-1.5 rounded-full bg-dark-border" />
                     <span className="flex items-center gap-1.5"><UserCheck size={14} className="text-green-500" /> {classGroups[selectedClass].activeCount} Active</span>
                     <span className="w-1.5 h-1.5 rounded-full bg-dark-border" />
-                    <span>Class Teacher: {mockClassData[selectedClass]?.teacher || 'Assigned Staff'}</span>
+                    <span>Class Teacher: {getClassTeacher(selectedClass)}</span>
                     <span className="w-1.5 h-1.5 rounded-full bg-dark-border" />
-                    <span>Daily Attendance: {mockClassData[selectedClass]?.attendance || '95.0%'}</span>
+                    <span>Grade Level: {selectedClass}</span>
                   </div>
                 </div>
 

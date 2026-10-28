@@ -1350,7 +1350,7 @@ const StaffProfile = () => {
       ====================================================== */}
       <div className="relative rounded-3xl overflow-hidden bg-white dark:bg-dark-card border border-slate-200 dark:border-dark-border shadow-xl">
 
-        <div className="h-32 bg-gradient-to-r from-purple-900/30 via-primary-900/30 to-blue-900/30 w-full absolute top-0 left-0" />
+        <div className="h-32 sm:h-36 bg-gradient-to-r from-purple-100/80 via-indigo-100/60 to-blue-100/80 dark:from-purple-900/30 dark:via-primary-900/30 dark:to-blue-900/30 w-full absolute top-0 left-0 border-b border-purple-200/50 dark:border-white/5" />
 
         <div className="relative pt-12 px-6 pb-6 sm:px-10 flex flex-col sm:flex-row items-center sm:items-end gap-6 text-center sm:text-left">
 

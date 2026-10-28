@@ -20,50 +20,13 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
-const PRELOADED_ITEMS = [
-  {
-    id: 'item_1',
-    title: 'Blue Milton Insulated Water Bottle',
-    category: 'Bottles & Lunchboxes',
-    location: 'Playground Bench (near Canteen)',
-    dateFound: new Date().toISOString().split('T')[0],
-    foundBy: 'Peon Aslam',
-    status: 'UNCLAIMED',
-    claimedBy: null,
-    image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=300&h=300&fit=crop'
-  },
-  {
-    id: 'item_2',
-    title: 'Navy Blue School Blazer with Crest (Size 32)',
-    category: 'Uniform & Clothing',
-    location: 'Auditorium Row 4',
-    dateFound: new Date().toISOString().split('T')[0],
-    foundBy: 'Madam Sarah',
-    status: 'UNCLAIMED',
-    claimedBy: null,
-    image: 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=300&h=300&fit=crop'
-  },
-  {
-    id: 'item_3',
-    title: 'Casio Scientific Calculator fx-991ES',
-    category: 'Stationery & Books',
-    location: 'Physics Lab Bench #2',
-    dateFound: new Date().toISOString().split('T')[0],
-    foundBy: 'Sir Usman',
-    status: 'CLAIMED',
-    claimedBy: 'Saad Ahmed (Class 10)',
-    claimDate: new Date().toISOString().split('T')[0],
-    image: 'https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=300&h=300&fit=crop'
-  }
-];
-
 const CATEGORIES = ['All', 'Bottles & Lunchboxes', 'Uniform & Clothing', 'Stationery & Books', 'Electronics & Watches', 'Other'];
 
 const LostAndFound = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
   const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
-  const schoolName = schoolData?.name || userData?.schoolName || 'Lodhi Model School System';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School';
 
   const [items, setItems] = useState(() => {
     try {
@@ -72,7 +35,7 @@ const LostAndFound = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_ITEMS;
+    return [];
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -292,8 +255,17 @@ const LostAndFound = () => {
 
       {/* ITEMS GALLERY GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredItems.map((item) => {
-          const isUnclaimed = item.status === 'UNCLAIMED';
+        {filteredItems.length === 0 ? (
+          <div className="col-span-full py-16 text-center bg-white border border-slate-200 rounded-3xl p-8">
+            <Package size={44} className="mx-auto text-slate-300 mb-3" />
+            <h3 className="text-base font-bold text-slate-800">No items found</h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+              No lost or found items currently logged. Click &quot;Post Found Item&quot; to report an item found on campus.
+            </p>
+          </div>
+        ) : (
+          filteredItems.map((item) => {
+            const isUnclaimed = item.status === 'UNCLAIMED';
 
           return (
             <div 
@@ -362,7 +334,7 @@ const LostAndFound = () => {
               </div>
             </div>
           );
-        })}
+        }))}
       </div>
 
       {/* MODAL: POST FOUND ITEM */}

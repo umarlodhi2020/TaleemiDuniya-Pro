@@ -19,14 +19,14 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
-const PRELOADED_SLOTS = [
-  { id: 'slot_1', time: '09:00 AM - 09:15 AM', status: 'BOOKED', studentName: 'Muhammad Ahmad', parentName: 'Tariq Mahmood Lodhi', phone: '0300-1234567', agenda: 'Discussing Math marks & Board Exam preparation' },
-  { id: 'slot_2', time: '09:15 AM - 09:30 AM', status: 'BOOKED', studentName: 'Aisha Fatima', parentName: 'Farooq Ashraf', phone: '0321-9876543', agenda: 'Reviewing Physics practical work' },
+const DEFAULT_SLOTS = [
+  { id: 'slot_1', time: '09:00 AM - 09:15 AM', status: 'AVAILABLE', studentName: null, parentName: null, phone: null, agenda: null },
+  { id: 'slot_2', time: '09:15 AM - 09:30 AM', status: 'AVAILABLE', studentName: null, parentName: null, phone: null, agenda: null },
   { id: 'slot_3', time: '09:30 AM - 09:45 AM', status: 'AVAILABLE', studentName: null, parentName: null, phone: null, agenda: null },
-  { id: 'slot_4', time: '09:45 AM - 10:00 AM', status: 'BOOKED', studentName: 'Ali Raza Lodhi', parentName: 'Raza Lodhi', phone: '0333-5566778', agenda: 'Late arrival and assembly discipline' },
+  { id: 'slot_4', time: '09:45 AM - 10:00 AM', status: 'AVAILABLE', studentName: null, parentName: null, phone: null, agenda: null },
   { id: 'slot_5', time: '10:00 AM - 10:15 AM', status: 'AVAILABLE', studentName: null, parentName: null, phone: null, agenda: null },
   { id: 'slot_6', time: '10:15 AM - 10:30 AM', status: 'AVAILABLE', studentName: null, parentName: null, phone: null, agenda: null },
-  { id: 'slot_7', time: '10:30 AM - 10:45 AM', status: 'BOOKED', studentName: 'Hamza Khan', parentName: 'Jamshed Khan', phone: '0301-2233445', agenda: 'General progress & sports balance' },
+  { id: 'slot_7', time: '10:30 AM - 10:45 AM', status: 'AVAILABLE', studentName: null, parentName: null, phone: null, agenda: null },
   { id: 'slot_8', time: '10:45 AM - 11:00 AM', status: 'AVAILABLE', studentName: null, parentName: null, phone: null, agenda: null }
 ];
 
@@ -34,12 +34,12 @@ const PTMScheduler = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
   const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
-  const schoolName = schoolData?.name || userData?.schoolName || 'Lodhi Model School System';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School';
 
-  const [ptmTitle, setPtmTitle] = useState('Mid-Term Result & Progress Parent-Teacher Meeting');
+  const [ptmTitle, setPtmTitle] = useState('Parent-Teacher Meeting (PTM)');
   const [ptmDate, setPtmDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedClass, setSelectedClass] = useState('Class 9');
-  const [selectedTeacher, setSelectedTeacher] = useState('Sir Usman (Class Incharge)');
+  const [selectedTeacher, setSelectedTeacher] = useState('Class Incharge');
 
   const [slots, setSlots] = useState(() => {
     try {
@@ -48,7 +48,7 @@ const PTMScheduler = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_SLOTS;
+    return DEFAULT_SLOTS;
   });
 
   const [showBookModal, setShowBookModal] = useState(false);
@@ -213,16 +213,17 @@ const PTMScheduler = () => {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">Class & Assigned Teacher</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1">Class Level</label>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
               className="w-full text-xs font-bold rounded-xl border-slate-200 bg-slate-50 py-2.5 px-3 focus:ring-2 focus:ring-slate-900 focus:bg-white"
             >
-              <option value="Class 10">Class 10 — Sir Rashid</option>
-              <option value="Class 9">Class 9 — Sir Usman</option>
-              <option value="Class 8">Class 8 — Madam Sarah</option>
-              <option value="Class 7">Class 7 — Sir Bilal</option>
+              <option value="Class 10">Class 10</option>
+              <option value="Class 9">Class 9</option>
+              <option value="Class 8">Class 8</option>
+              <option value="Class 7">Class 7</option>
+              <option value="Class 6">Class 6</option>
             </select>
           </div>
         </div>

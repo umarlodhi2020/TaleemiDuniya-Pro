@@ -118,41 +118,47 @@ const SingleStudent360 = () => {
       ) : (
         <>
           {/* ===== HERO BANNER (StaffProfile style) ===== */}
-          <div className="relative rounded-3xl overflow-hidden bg-dark-card border border-dark-border shadow-xl">
-            <div className="h-32 bg-gradient-to-r from-blue-900/50 via-primary-900/40 to-indigo-900/50 w-full absolute top-0 left-0" />
+          <div className="relative rounded-3xl overflow-hidden bg-white dark:bg-dark-card border border-slate-200/90 dark:border-dark-border shadow-xl transition-colors">
+            {/* Top Banner Gradient: Crisp luminous sky-indigo in light mode, sleek midnight glow in dark mode */}
+            <div className="h-32 sm:h-36 bg-gradient-to-r from-blue-100/90 via-indigo-100/60 to-sky-100/80 dark:from-blue-900/50 dark:via-primary-900/40 dark:to-indigo-900/50 w-full absolute top-0 left-0 border-b border-blue-200/60 dark:border-white/5" />
+            
+            {/* Subtle decorative ambient lights for modern SaaS depth */}
+            <div className="absolute -top-10 -right-10 w-48 h-48 bg-blue-400/10 dark:bg-primary-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute top-2 left-1/3 w-36 h-36 bg-indigo-400/10 dark:bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
+
             <div className="relative pt-10 px-6 pb-6 sm:px-10 flex flex-col sm:flex-row items-center sm:items-end gap-6 text-center sm:text-left">
               {/* Avatar */}
-              <div className="w-28 h-28 rounded-full border-4 border-dark-card bg-dark-hover flex items-center justify-center overflow-hidden shrink-0 shadow-lg relative z-10">
+              <div className="w-28 h-28 rounded-full border-4 border-white dark:border-dark-card bg-slate-50 dark:bg-dark-hover flex items-center justify-center overflow-hidden shrink-0 shadow-lg relative z-10">
                 {selectedStudent.photoUrl ? (
                   <img src={selectedStudent.photoUrl} alt={selectedStudent.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-4xl font-black text-primary-400">{selectedStudent.name?.charAt(0)}</span>
+                  <span className="text-4xl font-black text-primary-600 dark:text-primary-400">{selectedStudent.name?.charAt(0)}</span>
                 )}
               </div>
 
               {/* Info */}
               <div className="flex-1 pb-2">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-1">
-                  <h1 className="text-3xl font-black text-white">{selectedStudent.name}</h1>
-                  <span className={`px-3.5 py-1 rounded-full text-xs font-bold w-fit mx-auto sm:mx-0 ${getStatusClass(selectedStudent.status)}`}>
+                  <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{selectedStudent.name}</h1>
+                  <span className={`px-3.5 py-1 rounded-full text-xs font-bold w-fit mx-auto sm:mx-0 shadow-xs ${getStatusClass(selectedStudent.status)}`}>
                     {selectedStudent.status || 'Active'}
                   </span>
                 </div>
-                <p className="text-primary-400 font-bold text-base mb-1">
-                  Father: <span className="text-white">{selectedStudent.fatherName || 'N/A'}</span>
+                <p className="text-primary-600 dark:text-primary-400 font-bold text-base mb-1">
+                  Father: <span className="text-slate-800 dark:text-white font-semibold">{selectedStudent.fatherName || 'N/A'}</span>
                 </p>
                 <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
-                  <span className="px-3 py-1 rounded-lg bg-primary-500/10 border border-primary-500/20 text-primary-400 text-xs font-bold">
+                  <span className="px-3 py-1 rounded-lg bg-blue-50 dark:bg-primary-500/10 border border-blue-200/80 dark:border-primary-500/20 text-blue-700 dark:text-primary-400 text-xs font-bold shadow-2xs">
                     Class {selectedStudent.class} ({selectedStudent.section || 'A'})
                   </span>
-                  <span className="px-3 py-1 rounded-lg bg-white/5 border border-dark-border text-dark-muted text-xs font-bold font-mono">
+                  <span className="px-3 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-200/80 dark:border-dark-border text-slate-700 dark:text-dark-muted text-xs font-bold font-mono shadow-2xs">
                     Roll # {selectedStudent.rollNumber || 'N/A'}
                   </span>
-                  <span className="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold font-mono">
+                  <span className="px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/10 border border-blue-200/80 dark:border-blue-500/20 text-blue-700 dark:text-blue-400 text-xs font-bold font-mono shadow-2xs">
                     {selectedStudent.phone || 'No Phone'}
                   </span>
                   {selectedStudent.username && (
-                    <span className="px-3 py-1 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-xs font-bold font-mono">
+                    <span className="px-3 py-1 rounded-lg bg-amber-50 dark:bg-yellow-500/10 border border-amber-200/80 dark:border-yellow-500/20 text-amber-700 dark:text-yellow-400 text-xs font-bold font-mono shadow-2xs">
                       App: {selectedStudent.username}
                     </span>
                   )}
@@ -163,7 +169,7 @@ const SingleStudent360 = () => {
               <div className="flex flex-col gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                 <button
                   onClick={() => navigate(`/school-admin/students/edit/${selectedStudent.id}`)}
-                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all"
+                  className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 transition-all cursor-pointer active:scale-[0.98]"
                 >
                   <Edit2 size={16} /> Edit Profile
                 </button>
@@ -172,7 +178,7 @@ const SingleStudent360 = () => {
                     const phone = (selectedStudent.phone || '').replace(/[^0-9]/g, '');
                     window.open(`https://wa.me/${phone}`, '_blank');
                   }}
-                  className="px-6 py-2.5 rounded-xl bg-green-600 hover:bg-green-500 text-white text-sm font-bold flex items-center justify-center gap-2 transition-all"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer active:scale-[0.98]"
                 >
                   <MessageSquare size={16} /> WhatsApp
                 </button>

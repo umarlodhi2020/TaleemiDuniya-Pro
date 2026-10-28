@@ -24,86 +24,11 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
-const PRELOADED_HEALTH_RECORDS = [
-  {
-    id: 'hlth_1',
-    studentId: 'STD-101',
-    name: 'Muhammad Ahmad',
-    rollNo: '104',
-    className: 'Class 9',
-    bloodGroup: 'B+',
-    height: '5 ft 6 in',
-    weight: '58 kg',
-    bmi: '20.6 (Normal)',
-    allergies: 'Peanut allergy, Dust allergy',
-    chronicConditions: 'Mild Asthma (Uses inhaler during sports)',
-    emergencyDoctor: 'Dr. Kamran Malik (0301-8765432)',
-    vision: 'Uses Eyeglasses (Left: -1.5, Right: -1.75)',
-    vaccination: 'Fully Vaccinated (Polio, Typhoid, MMR)'
-  },
-  {
-    id: 'hlth_2',
-    studentId: 'STD-102',
-    name: 'Aisha Fatima',
-    rollNo: '108',
-    className: 'Class 9',
-    bloodGroup: 'O+',
-    height: '5 ft 2 in',
-    weight: '49 kg',
-    bmi: '19.8 (Normal)',
-    allergies: 'None reported',
-    chronicConditions: 'None',
-    emergencyDoctor: 'Dr. Saima (0321-4567890)',
-    vision: 'Normal (6/6)',
-    vaccination: 'Fully Vaccinated'
-  },
-  {
-    id: 'hlth_3',
-    studentId: 'STD-103',
-    name: 'Ali Raza Lodhi',
-    rollNo: '112',
-    className: 'Class 8',
-    bloodGroup: 'A+',
-    height: '5 ft 0 in',
-    weight: '44 kg',
-    bmi: '19.1 (Normal)',
-    allergies: 'Penicillin allergy',
-    chronicConditions: 'Prone to seasonal migraine',
-    emergencyDoctor: 'Dr. Tariq (0333-9876543)',
-    vision: 'Normal (6/6)',
-    vaccination: 'Fully Vaccinated'
-  }
-];
-
-const PRELOADED_DISPENSARY_LOGS = [
-  {
-    id: 'disp_1',
-    studentName: 'Muhammad Ahmad',
-    className: 'Class 9',
-    date: new Date().toISOString().split('T')[0],
-    time: '11:15 AM',
-    complaint: 'Mild headache & fever (99.8°F)',
-    treatment: 'Paracetamol 500mg given with water, 20 mins bed rest in sick room.',
-    disposition: 'Returned to class after rest',
-    parentNotified: true
-  },
-  {
-    id: 'disp_2',
-    studentName: 'Ali Raza Lodhi',
-    className: 'Class 8',
-    date: new Date().toISOString().split('T')[0],
-    time: '09:40 AM',
-    complaint: 'Knee scrape during physical education / PT period',
-    treatment: 'Antiseptic Pyodine cleaning and sterile bandage applied.',
-    disposition: 'Returned to class',
-    parentNotified: false
-  }
-];
-
 const StudentHealthRecord = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
   const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School';
 
   const [healthRecords, setHealthRecords] = useState(() => {
     try {
@@ -112,7 +37,7 @@ const StudentHealthRecord = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_HEALTH_RECORDS;
+    return [];
   });
 
   const [dispensaryLogs, setDispensaryLogs] = useState(() => {
@@ -122,7 +47,7 @@ const StudentHealthRecord = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_DISPENSARY_LOGS;
+    return [];
   });
 
   const [activeTab, setActiveTab] = useState('PROFILES'); // 'PROFILES' | 'SICK_BAY'
@@ -198,7 +123,7 @@ const StudentHealthRecord = () => {
   };
 
   const handleNotifyParentWhatsApp = (log) => {
-    let msg = `*🏥 Lodhi School System — First Aid & Sick Bay Notice*\n\n`;
+    let msg = `*🏥 ${schoolName.toUpperCase()} — First Aid & Sick Bay Notice*\n\n`;
     msg += `Bara-e-meharbani muttala farmayein ke aap ka bacha *${log.studentName}* (${log.className}) aaj *${log.time}* par school sick room tashreef laya tha.\n\n`;
     msg += `📌 *Complaint:* ${log.complaint}\n`;
     msg += `💊 *Treatment Administered:* ${log.treatment}\n`;
@@ -342,60 +267,70 @@ const StudentHealthRecord = () => {
 
           {/* HEALTH CARDS GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredRecords.map((r) => (
-              <div key={r.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden hover:shadow-md transition-all">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center font-black text-sm">
-                      {r.bloodGroup}
-                    </div>
-                    <div>
-                      <h3 className="font-black text-slate-950 text-sm leading-snug">{r.name}</h3>
-                      <p className="text-[11px] text-slate-500 font-bold">{r.className} • Roll #{r.rollNo}</p>
-                    </div>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[10px] font-bold">
-                    BMI: {r.bmi}
-                  </span>
-                </div>
-
-                {/* Medical Details */}
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-                    <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider flex items-center gap-1">
-                      <AlertCircle size={11} className="text-amber-600" /> Allergies & Conditions:
-                    </span>
-                    <p className="text-slate-800 font-medium leading-relaxed">
-                      {r.allergies} {r.chronicConditions !== 'None' ? `• ${r.chronicConditions}` : ''}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Height / Weight</span>
-                      <span className="font-bold text-slate-800">{r.height} • {r.weight}</span>
-                    </div>
-                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-slate-400 block text-[9px] uppercase font-bold">Eyesight</span>
-                      <span className="font-bold text-slate-800 truncate block">{r.vision}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <span className="text-[11px] text-slate-500 truncate max-w-[170px]" title={r.emergencyDoctor}>
-                    🩺 {r.emergencyDoctor || 'No doctor assigned'}
-                  </span>
-                  <button 
-                    onClick={() => saveProfiles(healthRecords.filter(item => item.id !== r.id))}
-                    className="text-slate-300 hover:text-red-500 p-1"
-                    title="Delete"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+            {filteredRecords.length === 0 ? (
+              <div className="col-span-full py-16 text-center bg-white border border-slate-200 rounded-3xl p-8">
+                <HeartPulse size={44} className="mx-auto text-slate-300 mb-3" />
+                <h3 className="text-base font-bold text-slate-800">No medical profiles registered</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                  Add student medical profiles to track blood groups, allergies, and emergency medical contacts.
+                </p>
               </div>
-            ))}
+            ) : (
+              filteredRecords.map((r) => (
+                <div key={r.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center font-black text-sm">
+                        {r.bloodGroup}
+                      </div>
+                      <div>
+                        <h3 className="font-black text-slate-950 text-sm leading-snug">{r.name}</h3>
+                        <p className="text-[11px] text-slate-500 font-bold">{r.className} • Roll #{r.rollNo}</p>
+                      </div>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-mono text-[10px] font-bold">
+                      BMI: {r.bmi}
+                    </span>
+                  </div>
+
+                  {/* Medical Details */}
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+                      <span className="text-[10px] font-black uppercase text-amber-800 tracking-wider flex items-center gap-1">
+                        <AlertCircle size={11} className="text-amber-600" /> Allergies & Conditions:
+                      </span>
+                      <p className="text-slate-800 font-medium leading-relaxed">
+                        {r.allergies} {r.chronicConditions !== 'None' ? `• ${r.chronicConditions}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Height / Weight</span>
+                        <span className="font-bold text-slate-800">{r.height} • {r.weight}</span>
+                      </div>
+                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="text-slate-400 block text-[9px] uppercase font-bold">Eyesight</span>
+                        <span className="font-bold text-slate-800 truncate block">{r.vision}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-[11px] text-slate-500 truncate max-w-[170px]" title={r.emergencyDoctor}>
+                      🩺 {r.emergencyDoctor || 'No doctor assigned'}
+                    </span>
+                    <button 
+                      onClick={() => saveProfiles(healthRecords.filter(item => item.id !== r.id))}
+                      className="text-slate-300 hover:text-red-500 p-1"
+                      title="Delete"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
         </div>
@@ -418,46 +353,56 @@ const StudentHealthRecord = () => {
           </div>
 
           <div className="space-y-3">
-            {dispensaryLogs.map((log) => (
-              <div key={log.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-mono text-[10px] font-bold">
-                      {log.time} • {log.date}
-                    </span>
-                    <h3 className="font-black text-slate-950 text-sm">{log.studentName}</h3>
-                    <span className="text-xs font-bold text-slate-500">({log.className})</span>
+            {dispensaryLogs.length === 0 ? (
+              <div className="py-12 text-center bg-slate-50 border border-slate-200 rounded-2xl p-6">
+                <Bandage size={36} className="mx-auto text-slate-300 mb-2" />
+                <h3 className="text-sm font-bold text-slate-800">No dispensary incidents recorded</h3>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                  Click &quot;New Incident&quot; to log first aid or medical assistance given in the dispensary.
+                </p>
+              </div>
+            ) : (
+              dispensaryLogs.map((log) => (
+                <div key={log.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 font-mono text-[10px] font-bold">
+                        {log.time} • {log.date}
+                      </span>
+                      <h3 className="font-black text-slate-950 text-sm">{log.studentName}</h3>
+                      <span className="text-xs font-bold text-slate-500">({log.className})</span>
+                    </div>
+
+                    <p className="text-xs text-slate-700">
+                      <strong className="text-slate-900">Complaint:</strong> {log.complaint}
+                    </p>
+                    <p className="text-xs text-emerald-800 font-medium">
+                      <strong className="text-slate-900">Treatment:</strong> {log.treatment}
+                    </p>
+                    <p className="text-[11px] text-slate-500 font-bold">
+                      Status: {log.disposition}
+                    </p>
                   </div>
 
-                  <p className="text-xs text-slate-700">
-                    <strong className="text-slate-900">Complaint:</strong> {log.complaint}
-                  </p>
-                  <p className="text-xs text-emerald-800 font-medium">
-                    <strong className="text-slate-900">Treatment:</strong> {log.treatment}
-                  </p>
-                  <p className="text-[11px] text-slate-500 font-bold">
-                    Status: {log.disposition}
-                  </p>
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    <button
+                      onClick={() => handleNotifyParentWhatsApp(log)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                    >
+                      <Send size={13} />
+                      <span>WhatsApp Parent</span>
+                    </button>
+                    <button
+                      onClick={() => saveLogs(dispensaryLogs.filter(item => item.id !== log.id))}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-500"
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                  <button
-                    onClick={() => handleNotifyParentWhatsApp(log)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
-                  >
-                    <Send size={13} />
-                    <span>WhatsApp Parent</span>
-                  </button>
-                  <button
-                    onClick={() => saveLogs(dispensaryLogs.filter(item => item.id !== log.id))}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500"
-                    title="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}

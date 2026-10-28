@@ -22,28 +22,13 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
-const PRELOADED_EVENTS = [
-  { id: 'ev_1', title: 'Session Commencement 2026-2027', date: '2026-04-01', category: 'Academic', description: 'New academic term classes start for all grades.', isHoliday: false },
-  { id: 'ev_2', title: '1st Monthly Assessments', date: '2026-05-18', category: 'Exam', description: 'First monthly tests across all subjects.', isHoliday: false },
-  { id: 'ev_3', title: 'Summer Vacations Start', date: '2026-06-01', endDate: '2026-08-14', category: 'Holiday', description: 'Annual summer break announced as per government notification.', isHoliday: true },
-  { id: 'ev_4', title: 'Independence Day Celebrations', date: '2026-08-14', category: 'Event', description: 'Flag hoisting ceremony and student national speeches.', isHoliday: true },
-  { id: 'ev_5', title: 'School Reopens after Summer Break', date: '2026-08-15', category: 'Academic', description: 'Regular academic classes resume.', isHoliday: false },
-  { id: 'ev_6', title: 'Eid Milad-un-Nabi (12 Rabi-ul-Awwal)', date: '2026-09-05', category: 'Holiday', description: 'Official gazetted holiday.', isHoliday: true },
-  { id: 'ev_7', title: 'Mid-Term Examinations', date: '2026-10-12', category: 'Exam', description: 'Comprehensive mid-term exams.', isHoliday: false },
-  { id: 'ev_8', title: 'Iqbal Day', date: '2026-11-09', category: 'Holiday', description: 'National holiday in honor of Allama Muhammad Iqbal.', isHoliday: true },
-  { id: 'ev_9', title: 'Annual Sports Gala', date: '2026-12-05', category: 'Event', description: 'Inter-house athletics, cricket, and prize distribution.', isHoliday: false },
-  { id: 'ev_10', title: 'Winter Vacations', date: '2026-12-24', endDate: '2027-01-02', category: 'Holiday', description: 'Winter break for extreme cold weather.', isHoliday: true },
-  { id: 'ev_11', title: 'Kashmir Solidarity Day', date: '2027-02-05', category: 'Holiday', description: 'National public holiday.', isHoliday: true },
-  { id: 'ev_12', title: 'Final Annual Board Examinations', date: '2027-03-10', category: 'Exam', description: 'Final examinations and annual result preparation.', isHoliday: false }
-];
-
 const CATEGORIES = ['All', 'Holiday', 'Exam', 'Academic', 'Event', 'Emergency'];
 
 const AcademicCalendar = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
   const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
-  const schoolName = schoolData?.name || userData?.schoolName || 'Lodhi Model School System';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School';
 
   const [events, setEvents] = useState(() => {
     try {
@@ -52,7 +37,7 @@ const AcademicCalendar = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_EVENTS;
+    return [];
   });
 
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -228,69 +213,79 @@ const AcademicCalendar = () => {
         </div>
 
         <div className="space-y-3">
-          {filteredEvents.map((ev, idx) => {
-            const isExam = ev.category === 'Exam';
-            const isHoliday = ev.isHoliday || ev.category === 'Holiday';
+          {filteredEvents.length === 0 ? (
+            <div className="py-16 text-center bg-slate-50 border border-slate-200 rounded-2xl p-6">
+              <CalendarDays size={44} className="mx-auto text-slate-300 mb-3" />
+              <h3 className="text-base font-bold text-slate-800">No calendar events scheduled</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                Click &quot;Schedule Event / Holiday&quot; to add term exams, sports days, gazetted holidays, or vacation breaks.
+              </p>
+            </div>
+          ) : (
+            filteredEvents.map((ev, idx) => {
+              const isExam = ev.category === 'Exam';
+              const isHoliday = ev.isHoliday || ev.category === 'Holiday';
 
-            return (
-              <div 
-                key={ev.id || idx}
-                className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isHoliday ? 'bg-red-50/50 border-red-200/80' : isExam ? 'bg-indigo-50/50 border-indigo-200/80' : 'bg-slate-50/80 border-slate-200'}`}
-              >
-                <div className="flex items-start gap-3.5">
-                  <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-black shrink-0 ${isHoliday ? 'bg-red-500 text-white shadow-sm' : isExam ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-900 text-white'}`}>
-                    <span className="text-[10px] font-bold uppercase tracking-tight leading-none">
-                      {new Date(ev.date).toLocaleString('default', { month: 'short' })}
-                    </span>
-                    <span className="text-base font-black leading-none mt-0.5">
-                      {new Date(ev.date).getDate()}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-black text-slate-950 text-sm">{ev.title}</h3>
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${isHoliday ? 'bg-red-100 text-red-800' : isExam ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-800'}`}>
-                        {ev.category} {ev.isHoliday && '• School Off'}
+              return (
+                <div 
+                  key={ev.id || idx}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isHoliday ? 'bg-red-50/50 border-red-200/80' : isExam ? 'bg-indigo-50/50 border-indigo-200/80' : 'bg-slate-50/80 border-slate-200'}`}
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div className={`w-12 h-12 rounded-2xl flex flex-col items-center justify-center font-black shrink-0 ${isHoliday ? 'bg-red-500 text-white shadow-sm' : isExam ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-900 text-white'}`}>
+                      <span className="text-[10px] font-bold uppercase tracking-tight leading-none">
+                        {new Date(ev.date).toLocaleString('default', { month: 'short' })}
+                      </span>
+                      <span className="text-base font-black leading-none mt-0.5">
+                        {new Date(ev.date).getDate()}
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-600 leading-relaxed font-medium">
-                      {ev.description || 'Official academic event scheduled.'}
-                    </p>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-black text-slate-950 text-sm">{ev.title}</h3>
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${isHoliday ? 'bg-red-100 text-red-800' : isExam ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-200 text-slate-800'}`}>
+                          {ev.category} {ev.isHoliday && '• School Off'}
+                        </span>
+                      </div>
 
-                    {ev.endDate && (
-                      <p className="text-[11px] font-mono text-slate-500">
-                        Duration: {ev.date} to {ev.endDate}
+                      <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                        {ev.description || 'Official academic event scheduled.'}
                       </p>
-                    )}
+
+                      {ev.endDate && (
+                        <p className="text-[11px] font-mono text-slate-500">
+                          Duration: {ev.date} to {ev.endDate}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                  {isHoliday && (
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    {isHoliday && (
+                      <button
+                        onClick={() => triggerHolidayBlast(ev)}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                        title="Send WhatsApp Holiday Alert"
+                      >
+                        <Send size={13} />
+                        <span>WhatsApp Blast</span>
+                      </button>
+                    )}
+
                     <button
-                      onClick={() => triggerHolidayBlast(ev)}
-                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
-                      title="Send WhatsApp Holiday Alert"
+                      onClick={() => handleDeleteEvent(ev.id)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-white transition-all"
+                      title="Delete"
                     >
-                      <Send size={13} />
-                      <span>WhatsApp Blast</span>
+                      <Trash2 size={14} />
                     </button>
-                  )}
+                  </div>
 
-                  <button
-                    onClick={() => handleDeleteEvent(ev.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-white transition-all"
-                    title="Delete"
-                  >
-                    <Trash2 size={14} />
-                  </button>
                 </div>
-
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
 

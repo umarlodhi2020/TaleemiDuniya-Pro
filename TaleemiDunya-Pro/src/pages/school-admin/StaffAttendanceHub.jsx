@@ -4,11 +4,7 @@ import GlassCard from '../../components/common/GlassCard';
 
 const StaffAttendanceHub = () => {
   const [activeTab, setActiveTab] = useState('take');
-  const [logs, setLogs] = useState([
-    { id: 1, staff: 'Sir Ahmad Raza (Physics)', time: '07:48 AM', type: 'IN / Biometric Fingerprint', status: 'Verified' },
-    { id: 2, staff: 'Madam Ayesha (Mathematics)', time: '07:55 AM', type: 'IN / Face Recognition Scanner', status: 'Verified' },
-    { id: 3, staff: 'Mr. Tariq (Accountant)', time: '08:15 AM', type: 'IN / RFID Card', status: 'Late Punch (+15 min)' }
-  ]);
+  const [logs, setLogs] = useState([]);
 
   const tabs = [
     { id: 'take', name: '1 Take Attendance' },
@@ -53,7 +49,7 @@ const StaffAttendanceHub = () => {
             <h2 className="text-lg font-bold text-dark-text border-b border-dark-border pb-2">1. Take Daily Staff Attendance</h2>
             <p className="text-xs text-dark-muted">Mark manual attendance or sync directly from ZKTeco biometric machine.</p>
             <div className="flex gap-3">
-              <button onClick={() => alert('Synced 18 biometric staff punches successfully!')} className="premium-button-primary"><RefreshCw size={16} /> Sync Live Biometric Machine</button>
+              <button onClick={() => alert('Biometric machine sync completed successfully.')} className="premium-button-primary"><RefreshCw size={16} /> Sync Live Biometric Machine</button>
               <button onClick={() => alert('All present marked!')} className="premium-button-secondary">Mark All Present</button>
             </div>
           </div>
@@ -89,14 +85,22 @@ const StaffAttendanceHub = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-dark-border">
-                {logs.map(l => (
-                  <tr key={l.id} className="hover:bg-slate-100/60 dark:hover:bg-white/5 transition-colors">
-                    <td className="p-3 font-bold text-dark-text">{l.staff}</td>
-                    <td className="p-3 font-mono">{l.time}</td>
-                    <td className="p-3 text-dark-muted">{l.type}</td>
-                    <td className="p-3 font-bold text-green-500 dark:text-green-400">{l.status}</td>
+                {logs.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" className="p-8 text-center text-dark-muted">
+                      No biometric punches recorded for today.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  logs.map(l => (
+                    <tr key={l.id} className="hover:bg-slate-100/60 dark:hover:bg-white/5 transition-colors">
+                      <td className="p-3 font-bold text-dark-text">{l.staff}</td>
+                      <td className="p-3 font-mono">{l.time}</td>
+                      <td className="p-3 text-dark-muted">{l.type}</td>
+                      <td className="p-3 font-bold text-green-500 dark:text-green-400">{l.status}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -109,7 +113,7 @@ const StaffAttendanceHub = () => {
             <p className="text-xs text-dark-muted max-w-md mx-auto">
               Run verification engine to match raw ZKTeco / face scanner punches against staff shift rules and calculate overtime or deductions.
             </p>
-            <button onClick={() => alert('Processed 142 punches! Shifts finalized.')} className="premium-button-primary">Process Raw Data Now</button>
+            <button onClick={() => alert('Raw machine data processed successfully.')} className="premium-button-primary">Process Raw Data Now</button>
           </div>
         )}
 
@@ -141,15 +145,10 @@ const StaffAttendanceHub = () => {
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-dark-text border-b border-dark-border pb-2">8. Attendance-Linked Salary Calculation</h2>
             <p className="text-xs text-dark-muted">Calculated monthly payroll based on biometric present days and late deductions.</p>
-            <div className="p-4 bg-dark-hover/30 rounded-xl flex justify-between items-center border border-dark-border">
-              <div>
-                <p className="font-bold text-dark-text text-sm">Sir Ahmad Raza (Physics)</p>
-                <p className="text-xs text-dark-muted font-mono">Present: 26 Days • Late: 0 • Base: Rs. 65,000</p>
-              </div>
-              <div className="text-right">
-                <p className="text-green-500 dark:text-green-400 font-mono font-bold text-base">Rs. 65,000</p>
-                <button onClick={() => alert('Salary slip generated')} className="text-[10px] text-primary-500 font-bold hover:underline">Approve & Pay</button>
-              </div>
+            <div className="p-8 text-center text-dark-muted bg-dark-hover/30 rounded-xl border border-dark-border">
+              <DollarSign size={36} className="mx-auto text-dark-muted mb-2" />
+              <p className="font-bold text-sm text-dark-text">No active payroll records calculated</p>
+              <p className="text-xs text-dark-muted mt-1">Processed attendance shifts will calculate payroll automatically.</p>
             </div>
           </div>
         )}

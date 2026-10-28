@@ -56,33 +56,28 @@ const LedgerPrintTemplate = ({ student, schoolData, ledgerType }) => {
           </tr>
         </thead>
         <tbody>
-          {/* Dummy Data for Presentation */}
-          <tr>
-            <td className="border p-2" style={{ borderColor: themeColor }}>01/07/2026</td>
-            <td className="border p-2" style={{ borderColor: themeColor }}>July 2026 Monthly Tuition Fee</td>
-            <td className="border p-2 text-right" style={{ borderColor: themeColor }}>3,500</td>
-            <td className="border p-2 text-right" style={{ borderColor: themeColor }}>-</td>
-            <td className="border p-2 text-right font-bold text-red-600" style={{ borderColor: themeColor }}>3,500 Dr</td>
-          </tr>
-          <tr>
-            <td className="border p-2" style={{ borderColor: themeColor }}>05/07/2026</td>
-            <td className="border p-2" style={{ borderColor: themeColor }}>Fee Paid via Cash (Receipt #1024)</td>
-            <td className="border p-2 text-right" style={{ borderColor: themeColor }}>-</td>
-            <td className="border p-2 text-right" style={{ borderColor: themeColor }}>3,500</td>
-            <td className="border p-2 text-right font-bold text-green-600" style={{ borderColor: themeColor }}>0</td>
-          </tr>
-          <tr>
-            <td className="border border-black p-2">01/08/2026</td>
-            <td className="border border-black p-2">August 2026 Monthly Tuition Fee</td>
-            <td className="border border-black p-2 text-right">3,500</td>
-            <td className="border border-black p-2 text-right">0</td>
-            <td className="border border-black p-2 text-right font-bold">3,500</td>
-          </tr>
+          {(student?.transactions && student.transactions.length > 0) ? (
+            student.transactions.map((t, idx) => (
+              <tr key={idx}>
+                <td className="border p-2" style={{ borderColor: themeColor }}>{t.date || '-'}</td>
+                <td className="border p-2" style={{ borderColor: themeColor }}>{t.description || t.title || 'Tuition Fee / Payment'}</td>
+                <td className="border p-2 text-right" style={{ borderColor: themeColor }}>{t.debit ? Number(t.debit).toLocaleString() : '-'}</td>
+                <td className="border p-2 text-right" style={{ borderColor: themeColor }}>{t.credit ? Number(t.credit).toLocaleString() : '-'}</td>
+                <td className="border p-2 text-right font-bold" style={{ borderColor: themeColor }}>{t.balance ? Number(t.balance).toLocaleString() : '0'}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan="5" className="border p-4 text-center text-gray-500 italic" style={{ borderColor: themeColor }}>
+                No transaction ledger history recorded for this student account.
+              </td>
+            </tr>
+          )}
         </tbody>
         <tfoot className="bg-gray-100 font-black">
           <tr>
             <td colSpan="2" className="border border-black p-2 text-right">TOTAL CLOSING BALANCE</td>
-            <td colSpan="3" className="border border-black p-2 text-right text-lg">Rs. {student?.balance || 3500}</td>
+            <td colSpan="3" className="border border-black p-2 text-right text-lg">Rs. {Number(student?.balance || 0).toLocaleString()}</td>
           </tr>
         </tfoot>
       </table>

@@ -26,26 +26,17 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
-const PRELOADED_CALL_QUEUES = {
-  absent: [
-    { id: 'call_1', studentName: 'Muhammad Ahmad', rollNo: '104', className: 'Class 9', parentName: 'Tariq Mahmood Lodhi', phone: '0300-1234567', reason: 'Absent today (08:30 AM gate closure)', status: 'PENDING' },
-    { id: 'call_2', studentName: 'Bilal Hassan', rollNo: '109', className: 'Class 8', parentName: 'Hassan Riaz', phone: '0321-9876543', reason: 'Absent 2 consecutive days', status: 'PENDING' },
-    { id: 'call_3', studentName: 'Zainab Bibi', rollNo: '115', className: 'Class 7', parentName: 'Abdul Rehman', phone: '0333-4567890', reason: 'Absent without leave application', status: 'COMPLETED', response: 'Medical Leave (Fever)', callDuration: '1m 12s' }
-  ],
-  fee: [
-    { id: 'call_4', studentName: 'Ali Raza Lodhi', rollNo: '112', className: 'Class 8', parentName: 'Raza Lodhi', phone: '0301-5544332', amount: 3500, reason: 'October Fee Overdue by 5 days', status: 'PENDING' },
-    { id: 'call_5', studentName: 'Saad Ahmed', rollNo: '120', className: 'Class 10', parentName: 'Ahmed Malik', phone: '0345-1122334', amount: 4200, reason: 'Exam Fee Reminder', status: 'PENDING' }
-  ],
-  admissions: [
-    { id: 'call_6', parentName: 'Kamran Akram', childName: 'Hamza (For Class 6)', phone: '0302-9988776', reason: 'Website Admission Form Submitted 20 mins ago', status: 'PENDING' }
-  ]
+const EMPTY_QUEUES = {
+  absent: [],
+  fee: [],
+  admissions: []
 };
 
 const AIVoiceTelephonyAgent = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
   const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
-  const schoolName = schoolData?.name || userData?.schoolName || 'Lodhi Model School System';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School';
 
   const [activeTab, setActiveTab] = useState('ABSENT'); // 'ABSENT' | 'FEE' | 'ADMISSION' | 'HISTORY'
   const [queues, setQueues] = useState(() => {
@@ -55,7 +46,7 @@ const AIVoiceTelephonyAgent = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_CALL_QUEUES;
+    return EMPTY_QUEUES;
   });
 
   // Active Calling Simulation Modal State
@@ -231,13 +222,17 @@ const AIVoiceTelephonyAgent = () => {
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Completed AI Calls</span>
           <span className="text-2xl font-black text-emerald-600 font-mono mt-1 block">
-            {queues.absent.filter(c => c.status === 'COMPLETED').length + 42} Calls
+            {queues.absent.filter(c => c.status === 'COMPLETED').length + queues.fee.filter(c => c.status === 'COMPLETED').length} Calls
           </span>
         </div>
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm">
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">Parent Contact Rate</span>
           <span className="text-2xl font-black text-indigo-600 font-mono mt-1 block">
-            94.8% Picked
+            {(() => {
+              const total = queues.absent.length + queues.fee.length + queues.admissions.length;
+              const completed = queues.absent.filter(c => c.status === 'COMPLETED').length + queues.fee.filter(c => c.status === 'COMPLETED').length;
+              return total > 0 ? `${Math.round((completed / total) * 100)}% Picked` : '100% Ready';
+            })()}
           </span>
         </div>
       </div>
@@ -286,66 +281,80 @@ const AIVoiceTelephonyAgent = () => {
         </div>
 
         <div className="space-y-3">
-          {(activeTab === 'ABSENT' ? queues.absent : activeTab === 'FEE' ? queues.fee : queues.admissions).map((item) => {
-            const isCompleted = item.status === 'COMPLETED';
+          {(() => {
+            const list = activeTab === 'ABSENT' ? queues.absent : activeTab === 'FEE' ? queues.fee : queues.admissions;
+            if (list.length === 0) {
+              return (
+                <div className="py-12 text-center bg-slate-50 border border-slate-200 rounded-2xl p-6">
+                  <PhoneCall size={36} className="mx-auto text-slate-300 mb-2" />
+                  <h3 className="text-sm font-bold text-slate-800">No calls in this queue</h3>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                    No pending automated calls logged for this category.
+                  </p>
+                </div>
+              );
+            }
+            return list.map((item) => {
+              const isCompleted = item.status === 'COMPLETED';
 
-            return (
-              <div 
-                key={item.id}
-                className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isCompleted ? 'bg-emerald-50/40 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
-              >
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-black text-slate-950 text-sm">
-                      {item.studentName || item.childName}
-                    </h3>
-                    {item.className && (
-                      <span className="text-xs font-bold text-slate-500">
-                        ({item.className} • Roll #{item.rollNo})
+              return (
+                <div 
+                  key={item.id}
+                  className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${isCompleted ? 'bg-emerald-50/40 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-black text-slate-950 text-sm">
+                        {item.studentName || item.childName}
+                      </h3>
+                      {item.className && (
+                        <span className="text-xs font-bold text-slate-500">
+                          ({item.className} • Roll #{item.rollNo})
+                        </span>
+                      )}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                        {isCompleted ? '✓ Call Completed' : 'Pending Call'}
                       </span>
+                    </div>
+
+                    <p className="text-xs text-slate-700 font-medium">
+                      Parent: <strong className="text-slate-900">{item.parentName}</strong> • Phone: <span className="font-mono font-bold text-indigo-600">{item.phone}</span>
+                    </p>
+
+                    <p className="text-[11px] text-slate-500">
+                      Reason: {item.reason} {item.amount ? `(Rs. ${item.amount.toLocaleString()})` : ''}
+                    </p>
+
+                    {isCompleted && item.response && (
+                      <div className="p-2 rounded-xl bg-white border border-emerald-200 text-xs text-emerald-900 font-medium mt-1">
+                        🗣️ <strong>Parent Verbal Response:</strong> "{item.response}" (Duration: {item.callDuration})
+                      </div>
                     )}
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {isCompleted ? '✓ Call Completed' : 'Pending Call'}
-                    </span>
                   </div>
 
-                  <p className="text-xs text-slate-700 font-medium">
-                    Parent: <strong className="text-slate-900">{item.parentName}</strong> • Phone: <span className="font-mono font-bold text-indigo-600">{item.phone}</span>
-                  </p>
-
-                  <p className="text-[11px] text-slate-500">
-                    Reason: {item.reason} {item.amount ? `(Rs. ${item.amount.toLocaleString()})` : ''}
-                  </p>
-
-                  {isCompleted && item.response && (
-                    <div className="p-2 rounded-xl bg-white border border-emerald-200 text-xs text-emerald-900 font-medium mt-1">
-                      🗣️ <strong>Parent Verbal Response:</strong> "{item.response}" (Duration: {item.callDuration})
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    {!isCompleted ? (
+                      <button
+                        onClick={() => handleStartCall(item, activeTab)}
+                        className="px-4 py-2 rounded-xl bg-black hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
+                      >
+                        <PhoneCall size={14} className="text-emerald-400 animate-bounce" />
+                        <span>Start AI Phone Call</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleStartCall(item, activeTab)}
+                        className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5"
+                      >
+                        <RotateCcwIcon size={13} />
+                        <span>Call Again</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                  {!isCompleted ? (
-                    <button
-                      onClick={() => handleStartCall(item, activeTab)}
-                      className="px-4 py-2 rounded-xl bg-black hover:bg-slate-900 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-md active:scale-95 transition-all cursor-pointer"
-                    >
-                      <PhoneCall size={14} className="text-emerald-400 animate-bounce" />
-                      <span>Start AI Phone Call</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleStartCall(item, activeTab)}
-                      className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5"
-                    >
-                      <RotateCcwIcon size={13} />
-                      <span>Call Again</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            });
+          })()}
         </div>
       </div>
 

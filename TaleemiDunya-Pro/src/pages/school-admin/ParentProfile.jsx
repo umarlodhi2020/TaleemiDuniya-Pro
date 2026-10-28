@@ -115,7 +115,7 @@ const ParentProfile = () => {
     <div className="space-y-6 animate-fade-in pb-16">
       {/* ── Header Banner ── */}
       <div className="relative rounded-3xl overflow-hidden bg-dark-card border border-dark-border shadow-2xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-pink-900/20 to-blue-900/30 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-100/70 via-pink-50/50 to-blue-100/60 dark:from-purple-900/30 dark:via-pink-900/20 dark:to-blue-900/30 pointer-events-none" />
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 p-6 md:p-10 flex flex-col md:flex-row items-center md:items-end gap-6">

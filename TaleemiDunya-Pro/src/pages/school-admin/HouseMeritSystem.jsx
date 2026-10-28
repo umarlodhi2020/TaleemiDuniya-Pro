@@ -23,17 +23,11 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
-const PRELOADED_HOUSES = [
-  { id: 'h_1', name: 'Jinnah House', color: 'emerald', captain: 'Hamza Tariq (Class 10)', points: 485, motto: 'Unity, Faith and Discipline' },
-  { id: 'h_2', name: 'Iqbal House', color: 'indigo', captain: 'Bilal Hassan (Class 10)', points: 460, motto: 'Khudi Ko Kar Buland Itna' },
-  { id: 'h_3', name: 'Sir Syed House', color: 'amber', captain: 'Saad Ahmed (Class 9)', points: 420, motto: 'Education & Enlightenment' },
-  { id: 'h_4', name: 'Liaquat House', color: 'rose', captain: 'Abdullah Khan (Class 9)', points: 395, motto: 'Service & Sacrifice' }
-];
-
-const PRELOADED_MERIT_LOGS = [
-  { id: 'm_1', studentName: 'Muhammad Ahmad', rollNo: '104', className: 'Class 9', house: 'Jinnah House', type: 'MERIT', points: 15, reason: '1st Position in Inter-School Science Quiz', date: new Date().toISOString().split('T')[0], awardedBy: 'Sir Usman' },
-  { id: 'm_2', studentName: 'Aisha Fatima', rollNo: '108', className: 'Class 9', house: 'Iqbal House', type: 'MERIT', points: 10, reason: 'High Discipline & Helping Librarian', date: new Date().toISOString().split('T')[0], awardedBy: 'Madam Sarah' },
-  { id: 'm_3', studentName: 'Ali Raza Lodhi', rollNo: '112', className: 'Class 8', house: 'Sir Syed House', type: 'DEMERIT', points: -5, reason: 'Late arrival to morning assembly (3rd time)', date: new Date().toISOString().split('T')[0], awardedBy: 'PTI Master Riaz' }
+const DEFAULT_HOUSES = [
+  { id: 'h_1', name: 'Jinnah House', color: 'emerald', captain: 'Unassigned', points: 0, motto: 'Unity, Faith and Discipline' },
+  { id: 'h_2', name: 'Iqbal House', color: 'indigo', captain: 'Unassigned', points: 0, motto: 'Khudi Ko Kar Buland Itna' },
+  { id: 'h_3', name: 'Sir Syed House', color: 'amber', captain: 'Unassigned', points: 0, motto: 'Education & Enlightenment' },
+  { id: 'h_4', name: 'Liaquat House', color: 'rose', captain: 'Unassigned', points: 0, motto: 'Service & Sacrifice' }
 ];
 
 const MERIT_REASONS = [
@@ -51,7 +45,7 @@ const HouseMeritSystem = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
   const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
-  const schoolName = schoolData?.name || userData?.schoolName || 'Lodhi Model School System';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School';
 
   const [houses, setHouses] = useState(() => {
     try {
@@ -60,7 +54,7 @@ const HouseMeritSystem = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_HOUSES;
+    return DEFAULT_HOUSES;
   });
 
   const [logs, setLogs] = useState(() => {
@@ -70,7 +64,7 @@ const HouseMeritSystem = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_MERIT_LOGS;
+    return [];
   });
 
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -221,7 +215,12 @@ const HouseMeritSystem = () => {
         </div>
 
         <div className="space-y-3">
-          {logs.map((log) => {
+          {logs.length === 0 ? (
+            <div className="text-center py-8 text-slate-400 text-xs">
+              No merit or demerit points logged yet. Click "+ Award Points" to record student merits.
+            </div>
+          ) : (
+            logs.map((log) => {
             const isMerit = log.type === 'MERIT';
 
             return (
@@ -274,7 +273,7 @@ const HouseMeritSystem = () => {
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
 

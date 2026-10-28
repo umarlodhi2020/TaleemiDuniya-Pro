@@ -23,6 +23,8 @@ import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
+import { getRecords } from '../../services/db';
+
 const MENU_ITEMS = [
   { id: 'm1', name: 'Chicken Club Sandwich', price: 90, category: 'Meals', icon: '🥪' },
   { id: 'm2', name: 'Fresh Apple / Orange Juice', price: 60, category: 'Drinks', icon: '🧃' },
@@ -32,17 +34,6 @@ const MENU_ITEMS = [
   { id: 'm6', name: 'Chocolate Wafer Biscuit', price: 35, category: 'Snacks', icon: '🍪' },
   { id: 'm7', name: 'Cold Mineral Water (500ml)', price: 40, category: 'Drinks', icon: '💧' },
   { id: 'm8', name: 'Vegetable Roll', price: 60, category: 'Snacks', icon: '🌯' }
-];
-
-const PRELOADED_WALLETS = [
-  { id: 'w1', studentName: 'Muhammad Ahmad', rollNo: '104', className: 'Class 9', balance: 1450, dailyLimit: 150, spentToday: 60, allergy: 'Peanut allergy', photo: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&h=150&fit=crop' },
-  { id: 'w2', studentName: 'Aisha Fatima', rollNo: '108', className: 'Class 9', balance: 820, dailyLimit: 120, spentToday: 0, allergy: 'None', photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&h=150&fit=crop' },
-  { id: 'w3', studentName: 'Ali Raza Lodhi', rollNo: '112', className: 'Class 8', balance: 210, dailyLimit: 100, spentToday: 95, allergy: 'Lactose Intolerant', photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' }
-];
-
-const PRELOADED_PURCHASES = [
-  { id: 'p1', studentName: 'Muhammad Ahmad', rollNo: '104', className: 'Class 9', items: 'Fresh Apple Juice', total: 60, time: '10:45 AM', date: new Date().toISOString().split('T')[0] },
-  { id: 'p2', studentName: 'Ali Raza Lodhi', rollNo: '112', className: 'Class 8', items: 'Vegetable Roll + Water', total: 100, time: '10:50 AM', date: new Date().toISOString().split('T')[0] }
 ];
 
 const CanteenWalletManager = () => {
@@ -57,7 +48,7 @@ const CanteenWalletManager = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_WALLETS;
+    return [];
   });
 
   const [purchases, setPurchases] = useState(() => {
@@ -67,16 +58,52 @@ const CanteenWalletManager = () => {
     } catch (e) {
       console.error(e);
     }
-    return PRELOADED_PURCHASES;
+    return [];
   });
 
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const dbStudents = await getRecords('students', schoolId);
+        if (Array.isArray(dbStudents) && dbStudents.length > 0) {
+          setWallets(prev => {
+            if (prev.length > 0) return prev;
+            return dbStudents.map(s => ({
+              id: s.id,
+              studentName: s.name,
+              rollNo: s.rollNumber || s.rollNo || s.admissionNo || 'N/A',
+              className: s.class || s.className || 'N/A',
+              balance: Number(s.canteenBalance || 0),
+              dailyLimit: Number(s.dailyLimit || 200),
+              spentToday: 0,
+              allergy: s.medicalNotes || s.allergy || 'None',
+              photo: s.photoUrl || s.photo || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&h=150&fit=crop'
+            }));
+          });
+        }
+      } catch (e) {
+        console.error('Error fetching students for canteen:', e);
+      }
+    };
+    fetchStudents();
+  }, [schoolId]);
+
   const [activeTab, setActiveTab] = useState('POS'); // 'POS' | 'WALLETS' | 'SALES'
-  const [selectedStudentRoll, setSelectedStudentRoll] = useState('104');
+  const [selectedStudentRoll, setSelectedStudentRoll] = useState('');
   const [cart, setCart] = useState([]);
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [topupAmount, setTopupAmount] = useState(500);
 
-  const selectedStudent = wallets.find(w => w.rollNo === selectedStudentRoll) || wallets[0];
+  const selectedStudent = wallets.find(w => w.rollNo === selectedStudentRoll) || wallets[0] || {
+    studentName: 'No Student Selected',
+    rollNo: 'N/A',
+    className: 'N/A',
+    balance: 0,
+    dailyLimit: 0,
+    spentToday: 0,
+    allergy: 'None',
+    photo: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=150&h=150&fit=crop'
+  };
 
   const saveWallets = (updatedW, updatedP) => {
     setWallets(updatedW);
@@ -217,18 +244,22 @@ const CanteenWalletManager = () => {
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-3">
             <h3 className="font-black text-slate-900 text-sm">Today's Live Canteen Sales Activity</h3>
             <div className="space-y-2">
-              {purchases.slice(0, 4).map((p) => (
-                <div key={p.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-bold text-slate-900">{p.studentName} ({p.className})</span>
-                    <p className="text-[11px] text-slate-500">{p.items}</p>
+              {purchases.length === 0 ? (
+                <p className="text-xs text-slate-400 py-3 text-center">No canteen sales recorded today.</p>
+              ) : (
+                purchases.slice(0, 4).map((p) => (
+                  <div key={p.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-bold text-slate-900">{p.studentName} ({p.className})</span>
+                      <p className="text-[11px] text-slate-500">{p.items}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-black font-mono text-slate-900">Rs. {p.total}</span>
+                      <span className="text-[10px] text-slate-400 block">{p.time}</span>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="font-black font-mono text-slate-900">Rs. {p.total}</span>
-                    <span className="text-[10px] text-slate-400 block">{p.time}</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
