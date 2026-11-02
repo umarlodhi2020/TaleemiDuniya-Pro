@@ -812,8 +812,6 @@ const SMSPanel = () => {
                     </button>
                   </div>
                 )}
-                  </div>
-                )}
               </GlassCard>
 
               {/* Bot Benefits Info */}
