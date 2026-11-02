@@ -1,0 +1,8 @@
+{
+  "name": "taleemiduniya-pro-main",
+  "private": true,
+  "scripts": {
+    "build": "cd TaleemiDunya-Pro && npm run build",
+    "install": "cd TaleemiDunya-Pro && npm install --legacy-peer-deps"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "buildCommand": "cd TaleemiDunya-Pro && npm run build",
+  "outputDirectory": "TaleemiDunya-Pro/dist",
+  "installCommand": "cd TaleemiDunya-Pro && npm install --legacy-peer-deps",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
