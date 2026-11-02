@@ -546,6 +546,131 @@ const CollectFee = () => {
     }
   };
 
+  // ─── Thermal Receipt (80mm POS Roll) Handler ─────────────────────────────
+  const handlePrintThermalReceipt = (receipt) => {
+    const tDue = Number(receipt.totalDue || receipt.totalAmount) || 0;
+    const tDisc = Number(receipt.discountAmount) || 0;
+    const tPaid = receipt.currentPaid !== undefined ? Number(receipt.currentPaid) : (Number(receipt.paidAmount) || 0);
+    const tPrevPaid = Number(receipt.previousPaid) || 0;
+    const tBal = Math.max(0, tDue - (tPrevPaid + tPaid) - tDisc);
+    const printDate = new Date().toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' });
+
+    const studentRows = (receipt.childrenDetails || []).map(c => `
+      <div style="display:flex; justify-content:space-between; margin-bottom:3px; font-size:12px;">
+        <span style="font-weight:bold;">${c.name || 'Student'}</span>
+        <span>Class: ${c.class || '-'}${c.admNo ? ` (Adm: ${c.admNo})` : ''}</span>
+      </div>
+    `).join('');
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Thermal Receipt - ${receipt.voucherNo || 'Fee'}</title>
+<style>
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 12px;
+    color: #000;
+  }
+  body {
+    width: 76mm;
+    margin: 0 auto;
+    padding: 10px 4px;
+    background: #fff;
+  }
+  .center { text-align: center; }
+  .bold { font-weight: bold; }
+  .school-title { font-size: 16px; font-weight: 900; margin-bottom: 2px; }
+  .school-sub { font-size: 10px; margin-bottom: 3px; }
+  .divider { border-top: 1px dashed #000; margin: 8px 0; }
+  .double-divider { border-top: 2px dashed #000; margin: 8px 0; }
+  .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .amount-box { background: #f0f0f0; padding: 4px; margin: 6px 0; }
+  .big-amt { font-size: 15px; font-weight: 900; }
+  .no-print { text-align: center; margin-bottom: 12px; }
+  .btn {
+    padding: 8px 16px;
+    background: #000;
+    color: #fff;
+    border: none;
+    font-weight: bold;
+    font-family: sans-serif;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  @media print {
+    .no-print { display: none !important; }
+    body { padding: 4px; }
+  }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <button class="btn" onclick="window.print()">🖨️ Print 80mm Thermal Slip</button>
+  </div>
+
+  <div class="center">
+    <div class="school-title">${schoolName}</div>
+    ${schoolData?.address ? `<div class="school-sub">${schoolData.address}</div>` : ''}
+    ${schoolData?.phone ? `<div class="school-sub">Helpline: ${schoolData.phone}</div>` : ''}
+    <div class="bold" style="font-size:13px; margin-top:4px; text-transform:uppercase;">** FEE PAYMENT RECEIPT **</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="row"><span>Receipt No:</span><span class="bold">#${receipt.voucherNo || receipt.id?.slice(0, 8) || 'REC'}</span></div>
+  <div class="row"><span>Date/Time:</span><span>${printDate}</span></div>
+  <div class="row"><span>Billing Month:</span><span class="bold">${receipt.month || '-'}</span></div>
+  <div class="row"><span>Parent:</span><span class="bold">${receipt.fatherName || 'Parent'}</span></div>
+  ${receipt.fatherPhone ? `<div class="row"><span>Phone:</span><span>${receipt.fatherPhone}</span></div>` : ''}
+
+  <div class="divider"></div>
+  <div class="bold" style="margin-bottom:4px;">STUDENT(S) BILLED:</div>
+  ${studentRows || `<div class="row"><span>${receipt.fatherName || 'Student'}</span><span>-</span></div>`}
+
+  <div class="double-divider"></div>
+
+  <div class="row"><span>Total Due Amount:</span><span>Rs. ${tDue.toLocaleString()}</span></div>
+  ${tDisc > 0 ? `<div class="row"><span>Special Discount:</span><span>- Rs. ${tDisc.toLocaleString()}</span></div>` : ''}
+  ${tPrevPaid > 0 ? `<div class="row"><span>Previously Paid:</span><span>Rs. ${tPrevPaid.toLocaleString()}</span></div>` : ''}
+
+  <div class="divider"></div>
+
+  <div class="row amount-box">
+    <span class="big-amt">PAID NOW:</span>
+    <span class="big-amt">Rs. ${tPaid.toLocaleString()}</span>
+  </div>
+
+  <div class="row bold" style="margin-top:4px;">
+    <span>REMAINING BALANCE:</span>
+    <span>Rs. ${tBal.toLocaleString()}</span>
+  </div>
+
+  <div class="double-divider"></div>
+
+  <div class="center" style="font-size:10px;">
+    <p>Computer Generated Fee Slip</p>
+    <p style="margin-top:2px; font-weight:bold;">Thank you for your cooperation!</p>
+    <p style="margin-top:4px; font-size:9px;">Powered by TaleemiDunya Pro</p>
+  </div>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=420,height=600');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
   const handleSendReminder = async (voucher) => {
     const phone = voucher.parentPhone || voucher.fatherPhone || voucher.phone ||
       familyStudents[0]?.parentPhone || familyStudents[0]?.fatherPhone || '';
@@ -1126,16 +1251,32 @@ const CollectFee = () => {
               )}
 
               <div className="mt-6 flex flex-col gap-3">
-                {/* Print Receipt Button */}
-                <button
-                  onClick={() => handlePrintReceipt({
-                    ...lastReceipt,
-                    childrenDetails: pendingVouchers[0]?.childrenDetails || []
-                  })}
-                  className="w-full py-3.5 rounded-xl font-black text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
-                >
-                  <Printer size={16} /> 🖨️ Print Receipt
-                </button>
+                {/* Print Buttons: Thermal & A4 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <button
+                    onClick={() => handlePrintThermalReceipt({
+                      ...lastReceipt,
+                      childrenDetails: pendingVouchers[0]?.childrenDetails || []
+                    })}
+                    className="py-3 px-4 rounded-xl font-black text-xs text-white bg-slate-900 hover:bg-black dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer border border-slate-700"
+                    title="Print on standard 80mm / 58mm Thermal Receipt POS Machine"
+                  >
+                    <Receipt size={16} className="text-emerald-400" />
+                    <span>🧾 80mm Thermal Slip</span>
+                  </button>
+
+                  <button
+                    onClick={() => handlePrintReceipt({
+                      ...lastReceipt,
+                      childrenDetails: pendingVouchers[0]?.childrenDetails || []
+                    })}
+                    className="py-3 px-4 rounded-xl font-black text-xs text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+                    title="Print 2-Copy A4 Slip (School Copy + Parent Copy)"
+                  >
+                    <Printer size={16} />
+                    <span>🖨️ Standard 2-Part Slip</span>
+                  </button>
+                </div>
 
                 <div className="flex gap-3">
                   <button onClick={() => { setStep(2); setLastReceipt(null); }}

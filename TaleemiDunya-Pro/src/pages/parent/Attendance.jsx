@@ -7,14 +7,50 @@ import { getRecords, addRecord } from '../../services/db';
 const ParentAttendance = () => {
   const { userData } = useAuth();
   const schoolId = userData?.schoolId || 'default-school';
-  const initialChildName = localStorage.getItem('taleemidunya_active_child_name') || userData?.childName || userData?.studentName || 'Ahmad Khan';
+  const initialChildName = localStorage.getItem('taleemidunya_active_child_name') || userData?.childName || userData?.studentName || '';
   
-  const [childrenList] = useState([]);
+  const [childrenList, setChildrenList] = useState([]);
   const [selectedChild, setSelectedChild] = useState(initialChildName);
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('All');
   const [toastMsg, setToastMsg] = useState('');
+
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const studentSnap = await getRecords('students', schoolId);
+        const parentPhone = String(userData?.phone || userData?.parentPhone || '').replace(/\D/g, '');
+        const parentCnic = String(userData?.cnic || userData?.fatherCnic || '').replace(/\D/g, '');
+        const parentEmail = String(userData?.email || '').trim().toLowerCase();
+
+        let myStudents = studentSnap || [];
+        if (userData?.role === 'parent' && (parentPhone.length >= 7 || parentCnic.length >= 8 || (parentEmail && !parentEmail.includes('admin')))) {
+          const filtered = (studentSnap || []).filter(s => {
+            const sPhone = String(s.parentPhone || s.phone || s.fatherPhone || '').replace(/\D/g, '');
+            const sCnic = String(s.fatherCnic || s.cnic || '').replace(/\D/g, '');
+            const sEmail = String(s.parentEmail || s.email || '').trim().toLowerCase();
+            return (parentPhone.length >= 7 && sPhone && (sPhone.includes(parentPhone) || parentPhone.includes(sPhone))) ||
+                   (parentCnic.length >= 8 && sCnic && sCnic === parentCnic) ||
+                   (parentEmail && sEmail && sEmail === parentEmail);
+          });
+          if (filtered.length > 0) myStudents = filtered;
+        }
+
+        const names = myStudents.map(s => s.name).filter(Boolean);
+        if (names.length > 0) {
+          setChildrenList(names);
+          if (!selectedChild) {
+            setSelectedChild(names[0]);
+            localStorage.setItem('taleemidunya_active_child_name', names[0]);
+          }
+        }
+      } catch (e) {
+        console.warn('Error fetching children for attendance:', e);
+      }
+    };
+    fetchChildren();
+  }, [schoolId, userData]);
 
   useEffect(() => {
     fetchAttendance();

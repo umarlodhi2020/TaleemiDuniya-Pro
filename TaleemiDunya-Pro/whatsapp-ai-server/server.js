@@ -299,7 +299,16 @@ function generateFamilyVoucherPDF(students, schoolName, voucherData, logoBuffer)
       currentY = doc.y;
 
       // Due Date: use real dueDate, or end of month
-      let vDueDate = (voucherData && voucherData.dueDate && voucherData.dueDate.trim()) ? voucherData.dueDate : null;
+      let vDueDate = null;
+      if (voucherData && voucherData.dueDate) {
+        if (typeof voucherData.dueDate === 'string' && voucherData.dueDate.trim()) {
+          vDueDate = voucherData.dueDate.trim();
+        } else if (voucherData.dueDate.toDate && typeof voucherData.dueDate.toDate === 'function') {
+          vDueDate = voucherData.dueDate.toDate().toISOString().slice(0, 10);
+        } else {
+          vDueDate = String(voucherData.dueDate).trim();
+        }
+      }
       if (!vDueDate) {
         const now = new Date();
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -955,12 +964,21 @@ async function startWhatsAppSession(schoolId = 'NNRuCtHxQNjISc9EPgMs') {
           if (aiResponse) {
             let sentMessageInfo = null;
             if (typeof aiResponse === 'object' && aiResponse.type === 'document') {
-              sentMessageInfo = await sock.sendMessage(senderJid, { 
-                document: aiResponse.document, 
-                mimetype: aiResponse.mimetype || 'application/pdf',
-                fileName: aiResponse.fileName || 'document.pdf',
-                caption: aiResponse.caption || ''
-              });
+              try {
+                sentMessageInfo = await sock.sendMessage(senderJid, { 
+                  document: aiResponse.document, 
+                  mimetype: aiResponse.mimetype || 'application/pdf',
+                  fileName: aiResponse.fileName || 'document.pdf',
+                  caption: aiResponse.caption || ''
+                });
+              } catch (docSendErr) {
+                console.error(`⚠️ [DOC SEND FAILED:${senderIdentity.correlationId}] Falling back to text:`, docSendErr.message);
+                if (aiResponse.caption) {
+                  sentMessageInfo = await sock.sendMessage(senderJid, { text: aiResponse.caption });
+                } else {
+                  throw docSendErr;
+                }
+              }
             } else {
               const replyText = typeof aiResponse === 'string' ? aiResponse : (aiResponse.text || String(aiResponse));
               // WhatsApp character limit safety: split if > 4000 characters
@@ -1006,12 +1024,18 @@ const schoolNamesCache = new Map();
 const schoolDetailsCache = new Map();
 
 async function getSchoolDetails(schoolId) {
-  if (schoolDetailsCache.has(schoolId)) return schoolDetailsCache.get(schoolId);
+  if (schoolDetailsCache.has(schoolId)) {
+    const cached = schoolDetailsCache.get(schoolId);
+    if (Date.now() - (cached._cachedAt || 0) < 60000) {
+      return cached;
+    }
+  }
   const fallback = {
     name: 'Smart Angels Grammar School',
     phone: '0300-1234567',
     address: 'Main Campus, Karachi',
-    logo: null
+    logo: null,
+    unregisteredConfig: null
   };
   if (!db) return fallback;
 
@@ -1023,7 +1047,9 @@ async function getSchoolDetails(schoolId) {
         name: data.name || data.schoolName || fallback.name,
         phone: data.phone || data.contact || data.eServices?.website?.contactPhone || data.eServices?.whatsApp?.phoneNumber || fallback.phone,
         address: data.address || data.eServices?.website?.address || fallback.address,
-        logo: data.logo || null
+        logo: data.logo || null,
+        unregisteredConfig: data.eServices?.whatsApp?.unregisteredNotice || data.botSettings?.unregisteredNotice || null,
+        _cachedAt: Date.now()
       };
       schoolDetailsCache.set(schoolId, details);
       return details;
@@ -1126,9 +1152,9 @@ async function handleAIBotReply(schoolId, senderInfo, queryText, originalJid, so
   // -------------------------------------------------------------------------
   let family = normalizedSender ? verifiedFamilies.get(normalizedSender) : null;
 
-  // Check in-memory cache validity (24 hours)
+  // Check in-memory cache validity (1 minute TTL so admin phone changes reflect almost immediately)
   if (normalizedSender && isValidPhone(normalizedSender)) {
-    if (!family || (Date.now() - family.verifiedAt > 86400000)) {
+    if (!family || (Date.now() - family.verifiedAt > 60000)) {
       let matchedStudents = [];
       let parentName = '';
 
@@ -1228,12 +1254,30 @@ async function handleAIBotReply(schoolId, senderInfo, queryText, originalJid, so
 
     const numberDisplay = normalizedSender ? ` (+${normalizedSender})` : '';
 
+    const unregCfg = school.unregisteredConfig || {};
+    const helplinePhone = unregCfg.helpline || school.phone || '0300-1234567';
+    const campusAddress = unregCfg.campus || school.address || 'Main Campus';
+    const customNote = unregCfg.customNote;
+    const customTemplate = unregCfg.template;
+
+    if (customTemplate && customTemplate.trim()) {
+      return customTemplate
+        .replace(/\{phone\}/g, numberDisplay)
+        .replace(/\{schoolName\}/g, school.name)
+        .replace(/\{helpline\}/g, helplinePhone)
+        .replace(/\{campus\}/g, campusAddress);
+    }
+
+    const privacyBody = customNote && customNote.trim()
+      ? customNote.trim()
+      : 'Bacho ki confidential information (Fees, Attendance, Results) ki hifazat ke liye TaleemiDunya AI Assistant sirf verified parent contacts ko direct access deta hai.';
+
     return `Assalam-o-Alaikum! Aap ka WhatsApp account${numberDisplay} hamare school record mein registered nahi mila.\n\n` +
            `🛡️ *Student Privacy Protection:*\n` +
-           `Bacho ki confidential information (Fees, Attendance, Results) ki hifazat ke liye TaleemiDunya AI Assistant sirf verified parent contacts ko direct access deta hai.\n\n` +
+           `${privacyBody}\n\n` +
            `Barah-e-karam school administration se rabta karein aur apna registered mobile number verify karwa lein:\n` +
-           `📞 *School Admin Helpline:* ${school.phone}\n` +
-           `📍 *Campus:* ${school.address}\n\n` +
+           `📞 *School Admin Helpline:* ${helplinePhone}\n` +
+           `📍 *Campus:* ${campusAddress}\n\n` +
            `💡 *Available Public Options:*\n` +
            `6️⃣ New Admission Inquiry\n` +
            `7️⃣ Contact Administration`;
@@ -1331,11 +1375,12 @@ async function handleAIBotReply(schoolId, senderInfo, queryText, originalJid, so
 
     try {
       const pdfBuffer = await generateFamilyVoucherPDF(children, school.name, matchedVoucherDoc, logoBuffer);
+      const safeName = String(family?.parentName || 'Parent').trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Parent';
       return {
         type: 'document',
         document: pdfBuffer,
         mimetype: 'application/pdf',
-        fileName: `Fee_Voucher_${family.parentName.replace(/\s+/g, '_')}.pdf`,
+        fileName: `Fee_Voucher_${safeName}.pdf`,
         caption: feeBreakdownText
       };
     } catch (pdfErr) {
@@ -1882,6 +1927,118 @@ app.get('/api/rules', async (req, res) => {
 });
 
 // POST /api/rules/update (Persisted to Firestore)
+
+// ========== CRON TRIGGER ENDPOINT ==========
+// POST /api/cron/trigger - Manually trigger scheduled automation jobs
+app.post('/api/cron/trigger', async (req, res) => {
+  const { job, schoolId: reqSchoolId } = req.body;
+  const targetSchoolId = reqSchoolId || 'NNRuCtHxQNjISc9EPgMs';
+  const sock = sessions.get(targetSchoolId) || (sessions.size > 0 ? sessions.values().next().value : null);
+  
+  if (!sock) {
+    return res.json({ success: false, message: 'WhatsApp bot connected nahi hai. Pehle QR scan karein.' });
+  }
+
+  try {
+    if (job === 'fee_reminders') {
+      // Get all students with outstanding balance
+      const studentsSnap = await db.collection('students')
+        .where('schoolId', '==', targetSchoolId)
+        .get();
+      
+      let sent = 0, failed = 0, skipped = 0;
+      for (const doc of studentsSnap.docs) {
+        const s = { id: doc.id, ...doc.data() };
+        const bal = Number(s.balance || s.currentBalance || s.feeBalance || 0);
+        if (bal <= 0) { skipped++; continue; }
+        
+        const rawPhone = s.phone || s.parentPhone || s.guardianPhone || '';
+        const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+        if (!cleanPhone) { failed++; continue; }
+        
+        const msg = [
+          '📢 *Fee Reminder*',
+          '',
+          'Assalam-o-Alaikum!',
+          'Student: *' + (s.name || s.studentName || 'Student') + '*',
+          'Class: ' + (s.class || s.className || ''),
+          'Outstanding: *Rs. ' + bal + '/-*',
+          '',
+          'Barah-e-karam jald fee jama karwayein. Shukriya 🙏'
+        ].join('\n');
+        
+        try {
+          const jid = cleanPhone.startsWith('92') ? cleanPhone + '@s.whatsapp.net' : '92' + cleanPhone.replace(/^0/, '') + '@s.whatsapp.net';
+          await sock.sendMessage(jid, { text: msg });
+          sent++;
+        } catch { failed++; }
+        await new Promise(r => setTimeout(r, 500));
+      }
+      return res.json({ success: true, message: `Fee reminders: ✅ ${sent} sent, ❌ ${failed} failed, ⏭️ ${skipped} no balance` });
+
+    } else if (job === 'absent_alerts') {
+      // Get today's absent students
+      const today = new Date().toISOString().split('T')[0];
+      const attSnap = await db.collection('attendance')
+        .where('schoolId', '==', targetSchoolId)
+        .where('date', '==', today)
+        .where('status', '==', 'absent')
+        .get();
+      
+      let sent = 0, failed = 0;
+      for (const doc of attSnap.docs) {
+        const a = doc.data();
+        const rawPhone = a.phone || a.parentPhone || '';
+        const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+        if (!cleanPhone) { failed++; continue; }
+        
+        const msg = '⚠️ *Attendance Alert*\n\nStudent *' + (a.studentName || '') + '* (Class: ' + (a.class || '') + ') aaj ABSENT hai.\n\nTaleemiDunya Pro 🏫';
+        try {
+          const jid = cleanPhone.startsWith('92') ? cleanPhone + '@s.whatsapp.net' : '92' + cleanPhone.replace(/^0/, '') + '@s.whatsapp.net';
+          await sock.sendMessage(jid, { text: msg });
+          sent++;
+        } catch { failed++; }
+        await new Promise(r => setTimeout(r, 400));
+      }
+      return res.json({ success: true, message: `Absent alerts: ✅ ${sent} sent, ❌ ${failed} failed` });
+
+    } else if (job === 'birthday_wishes') {
+      // Get students whose birthday is today
+      const todayMD = new Date().toISOString().substring(5, 10); // MM-DD
+      const studentsSnap = await db.collection('students')
+        .where('schoolId', '==', targetSchoolId)
+        .get();
+      
+      let sent = 0, failed = 0;
+      for (const doc of studentsSnap.docs) {
+        const s = { id: doc.id, ...doc.data() };
+        const dob = s.dob || s.dateOfBirth || s.birthday || '';
+        if (!dob || !dob.includes(todayMD)) continue;
+        
+        const rawPhone = s.phone || s.parentPhone || '';
+        const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+        if (!cleanPhone) { failed++; continue; }
+        
+        const msg = '🎂 *Happy Birthday!*\n\n*' + (s.name || 'Student') + '* ko aaj birthday mubarak ho! 🎉\n\nTaleemiDunya Pro ki taraf se dua hai ke aap ki zindagi khushiyon se bhari rahe. 🌟';
+        try {
+          const jid = cleanPhone.startsWith('92') ? cleanPhone + '@s.whatsapp.net' : '92' + cleanPhone.replace(/^0/, '') + '@s.whatsapp.net';
+          await sock.sendMessage(jid, { text: msg });
+          sent++;
+        } catch { failed++; }
+        await new Promise(r => setTimeout(r, 400));
+      }
+      return res.json({ success: true, message: `Birthday wishes: ✅ ${sent} sent, ❌ ${failed} failed` });
+
+    } else {
+      return res.json({ success: false, message: 'Unknown job: ' + job });
+    }
+  } catch (err) {
+    console.error('[CRON]', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+
 app.post('/api/rules/update', async (req, res) => {
   const { schoolId = 'NNRuCtHxQNjISc9EPgMs', rules } = req.body;
   if (Array.isArray(rules)) {
@@ -1900,6 +2057,51 @@ app.post('/api/rules/update', async (req, res) => {
     res.json({ success: true, message: 'AI Rules updated and persisted successfully!' });
   } else {
     res.status(400).json({ success: false, error: 'Invalid rules format.' });
+  }
+});
+
+// GET /api/settings/warning - Retrieve school-specific warning & privacy message
+app.get('/api/settings/warning', async (req, res) => {
+  const { schoolId = 'NNRuCtHxQNjISc9EPgMs' } = req.query;
+  try {
+    const school = await getSchoolDetails(schoolId);
+    res.json({
+      success: true,
+      helpline: school.unregisteredConfig?.helpline || school.phone || '',
+      campus: school.unregisteredConfig?.campus || school.address || '',
+      customNote: school.unregisteredConfig?.customNote || '',
+      template: school.unregisteredConfig?.template || ''
+    });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// POST /api/settings/warning - Save custom warning notice & invalidate cache immediately
+app.post('/api/settings/warning', async (req, res) => {
+  const { schoolId = 'NNRuCtHxQNjISc9EPgMs', helpline, campus, customNote, template } = req.body;
+  try {
+    const noticeData = {
+      helpline: helpline || '',
+      campus: campus || '',
+      customNote: customNote || '',
+      template: template || '',
+      updatedAt: new Date().toISOString()
+    };
+    if (db) {
+      await db.collection('schools').doc(schoolId).set({
+        eServices: {
+          whatsApp: {
+            unregisteredNotice: noticeData
+          }
+        }
+      }, { merge: true });
+    }
+    schoolDetailsCache.delete(schoolId);
+    console.log(`✅ [SETTINGS UPDATED] Warning notice customized for school: ${schoolId}`);
+    res.json({ success: true, message: 'Warning notice settings updated successfully!' });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 

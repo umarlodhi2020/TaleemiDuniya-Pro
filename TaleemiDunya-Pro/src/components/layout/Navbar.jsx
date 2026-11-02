@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Search, User, ChevronDown, ChevronLeft, ChevronRight, Sun, Moon, Command, Monitor, Zap, UserPlus, CalendarCheck, DollarSign, Activity, BarChart3, Settings, Menu, Palette, Check, Clock } from 'lucide-react';
+import { Bell, Search, User, ChevronDown, ChevronLeft, ChevronRight, Sun, Moon, Command, Monitor, Zap, UserPlus, CalendarCheck, DollarSign, Activity, BarChart3, Settings, Menu, Palette, Check, Clock, LogOut } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -8,15 +8,17 @@ import PwaInstallButton from '../common/PwaInstallButton';
 import GlobalSearchModal from '../common/GlobalSearchModal';
 
 const Navbar = ({ toggleSidebar }) => {
-  const { userData } = useAuth();
+  const { userData, logout } = useAuth();
   const { schoolData } = useSchool();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
   const [uiZoom, setUiZoom] = useState(() => localStorage.getItem('taleemidunya_ui_zoom') || '90');
   const shortcutsRef = useRef(null);
+  const profileRef = useRef(null);
   const themeRef = useRef(null);
 
   useEffect(() => {
@@ -40,6 +42,9 @@ const Navbar = ({ toggleSidebar }) => {
       if (shortcutsRef.current && !shortcutsRef.current.contains(e.target)) {
         setIsShortcutsOpen(false);
       }
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setIsProfileOpen(false);
+      }
       if (themeRef.current && !themeRef.current.contains(e.target)) {
         setIsThemeOpen(false);
       }
@@ -51,6 +56,14 @@ const Navbar = ({ toggleSidebar }) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const handleLogout = async () => {
+    setIsProfileOpen(false);
+    if (window.confirm('Are you sure you want to log out? / Kya aap logout karna chahte hain?')) {
+      await logout();
+      navigate('/login');
+    }
+  };
 
   const getHomePath = () => {
     if (userData?.role === 'super-admin') return '/super-admin/dashboard';
@@ -183,29 +196,94 @@ const Navbar = ({ toggleSidebar }) => {
             {theme === 'dark' ? <Moon size={12} className="text-indigo-600" /> : <Sun size={12} className="text-amber-500" />}
           </span>
         </button>
-        <button className="relative p-2 text-dark-muted hover:text-primary-600 dark:hover:text-white transition-colors shrink-0">
+        <button 
+          onClick={() => navigate(userData?.role === 'super-admin' ? '/super-admin/notifications' : '/school-admin/sms')}
+          title="Notifications & Alerts"
+          className="relative p-2 text-dark-muted hover:text-primary-600 dark:hover:text-white transition-colors shrink-0 cursor-pointer"
+        >
           <Bell size={22} />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary-500 rounded-full border-2 border-dark-bg"></span>
         </button>
 
         <div className="h-8 w-px bg-dark-border shrink-0"></div>
 
-        <div className="flex items-center gap-2.5 cursor-pointer group shrink-0 max-w-[160px]">
-          <div className="text-right hidden sm:block max-w-[110px] overflow-hidden">
-            <p className="text-sm font-semibold text-dark-text group-hover:text-primary-500 transition-colors truncate whitespace-nowrap" title={userData?.name || 'User Name'}>
-              {userData?.name || 'User Name'}
-            </p>
-            <p className="text-xs text-dark-muted capitalize truncate whitespace-nowrap" title={userData?.role?.replace('-', ' ') || 'Role'}>
-              {userData?.role?.replace('-', ' ') || 'Role'}
-            </p>
+        <div className="relative" ref={profileRef}>
+          <div 
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            className="flex items-center gap-2.5 cursor-pointer group shrink-0 max-w-[170px] select-none p-1 rounded-xl hover:bg-dark-hover/50 transition-colors"
+          >
+            <div className="text-right hidden sm:block max-w-[110px] overflow-hidden">
+              <p className="text-sm font-semibold text-dark-text group-hover:text-primary-500 transition-colors truncate whitespace-nowrap" title={userData?.name || 'User Name'}>
+                {userData?.name || 'User Name'}
+              </p>
+              <p className="text-xs text-dark-muted capitalize truncate whitespace-nowrap" title={userData?.role?.replace('-', ' ') || 'Role'}>
+                {userData?.role?.replace('-', ' ') || 'Role'}
+              </p>
+            </div>
+
+            <div className="w-10 h-10 rounded-xl bg-premium-gradient p-0.5 shrink-0">
+              <div className="w-full h-full rounded-[10px] bg-dark-card flex items-center justify-center">
+                <User size={20} className="text-primary-500" />
+              </div>
+            </div>
+            <ChevronDown size={16} className={`text-dark-muted transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
           </div>
 
-          <div className="w-10 h-10 rounded-xl bg-premium-gradient p-0.5">
-            <div className="w-full h-full rounded-[10px] bg-dark-card flex items-center justify-center">
-              <User size={20} className="text-primary-500" />
+          {/* User Profile Dropdown Menu */}
+          {isProfileOpen && (
+            <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-[#131120]/95 border border-slate-200 dark:border-primary-500/30 shadow-2xl backdrop-blur-xl p-3 z-50 animate-fade-in space-y-2">
+              <div className="px-3 py-2 border-b border-slate-200 dark:border-white/10">
+                <p className="text-xs font-bold text-dark-text truncate">{userData?.name || 'User Account'}</p>
+                <p className="text-[11px] text-dark-muted truncate">{userData?.email || userData?.username || 'No email'}</p>
+                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-full bg-primary-500/10 text-primary-500 text-[10px] font-bold uppercase tracking-wider">
+                    {userData?.role?.replace('-', ' ') || 'User'}
+                  </span>
+                  {(schoolData?.idNumber || userData?.idNumber) && (
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-white/10 text-dark-muted text-[10px] font-mono">
+                      ID: {schoolData?.idNumber || userData?.idNumber}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                {userData?.role === 'school-admin' && (
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      navigate('/school-admin/settings');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-dark-text hover:bg-slate-100 dark:hover:bg-dark-hover flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Settings size={15} className="text-primary-500" />
+                    <span>School Settings</span>
+                  </button>
+                )}
+
+                {userData?.role === 'super-admin' && (
+                  <button
+                    onClick={() => {
+                      setIsProfileOpen(false);
+                      navigate('/super-admin/settings');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-dark-text hover:bg-slate-100 dark:hover:bg-dark-hover flex items-center gap-2.5 transition-colors cursor-pointer"
+                  >
+                    <Settings size={15} className="text-primary-500" />
+                    <span>Super Admin Settings</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2.5 transition-colors cursor-pointer border-t border-slate-100 dark:border-white/5 pt-2"
+                >
+                  <LogOut size={15} className="text-rose-500" />
+                  <span>Logout</span>
+                </button>
+              </div>
             </div>
-          </div>
-          <ChevronDown size={16} className="text-dark-muted" />
+          )}
         </div>
       </div>
     </header>

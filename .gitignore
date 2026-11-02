@@ -21,3 +21,9 @@ Taleemidunya-pro app key store/
 # Ignore local files like DS_Store
 .DS_Store
 node_modules/
+
+.tmp.driveupload/
+TaleemiDunya-Pro-Backup-2026-10-12/
+.firebase/
+*.backup_*
+

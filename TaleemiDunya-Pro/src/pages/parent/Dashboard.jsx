@@ -68,10 +68,32 @@ const ParentDashboard = () => {
       const noticeSnap = await getDocs(query(collection(db, 'announcements'), where('schoolId', '==', schoolId)));
       setNotices(noticeSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
+      // Filter students to match this parent's account
+      const parentPhone = String(userData?.phone || userData?.parentPhone || '').replace(/\D/g, '');
+      const parentCnic = String(userData?.cnic || userData?.fatherCnic || '').replace(/\D/g, '');
+      const parentEmail = String(userData?.email || '').trim().toLowerCase();
+      const isParentRole = userData?.role === 'parent';
+
+      let myStudentsList = studentsList;
+      if (isParentRole && (parentPhone.length >= 7 || parentCnic.length >= 8 || (parentEmail && !parentEmail.includes('admin')))) {
+        const filtered = studentsList.filter(s => {
+          const sPhone = String(s.parentPhone || s.phone || s.fatherPhone || '').replace(/\D/g, '');
+          const sCnic = String(s.fatherCnic || s.cnic || '').replace(/\D/g, '');
+          const sEmail = String(s.parentEmail || s.email || '').trim().toLowerCase();
+          const phoneMatch = parentPhone.length >= 7 && sPhone && (sPhone.includes(parentPhone) || parentPhone.includes(sPhone));
+          const cnicMatch = parentCnic.length >= 8 && sCnic && (sCnic === parentCnic);
+          const emailMatch = parentEmail && sEmail && (sEmail === parentEmail);
+          return phoneMatch || cnicMatch || emailMatch;
+        });
+        if (filtered.length > 0) {
+          myStudentsList = filtered;
+        }
+      }
+
       // Map dynamic children data
-      const mappedChildren = studentsList.map(student => {
+      const mappedChildren = myStudentsList.map(student => {
         // Calculate fee status
-        const hasUnpaid = challansList.some(c => c.studentId === student.id && c.status === 'Unpaid');
+        const hasUnpaid = challansList.some(c => (c.studentId === student.id || c.studentName === student.name) && (c.status === 'Unpaid' || c.status === 'Pending'));
         
         // Find latest grade
         const studentResults = resultsList.filter(r => r.studentId === student.id);
@@ -91,12 +113,17 @@ const ParentDashboard = () => {
         };
       });
 
+      // Cache first child name if not yet set
+      if (mappedChildren.length > 0 && !localStorage.getItem('taleemidunya_active_child_name')) {
+        localStorage.setItem('taleemidunya_active_child_name', mappedChildren[0].name);
+        localStorage.setItem('taleemidunya_active_child_id', mappedChildren[0].id);
+      }
+
       // Fallback to defaults if no students exist in Firestore yet (e.g. sandbox or new school)
       if (mappedChildren.length === 0) {
-      setChildren([]);
+        setChildren([]);
       } else {
-        // If parent has specific children or if previewing, show up to 4 children
-        setChildren(mappedChildren.slice(0, 4));
+        setChildren(mappedChildren.slice(0, 6));
       }
     } catch (e) {
       console.error('Error fetching parent portal data:', e);

@@ -10,26 +10,33 @@ import {
   RefreshCw,
   Info
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import GlassCard from '../../components/common/GlassCard';
 
 const ChallanBook = () => {
   const { userData } = useAuth();
-  const schoolId = userData?.schoolId || 'default-school';
+  const { schoolData } = useSchool();
+  const navigate = useNavigate();
+  const schoolId = userData?.schoolId || schoolData?.id || 'default-school';
 
   const [students, setStudents] = useState([]);
   const [selectedClass, setSelectedClass] = useState('ALL');
   const [loading, setLoading] = useState(false);
 
   // Billing and Bank Configuration
-  const [schoolName, setSchoolName] = useState('The Knowledge Home School System');
-  const [billingMonth, setBillingMonth] = useState('October 2026');
-  const [dueDate, setDueDate] = useState('2026-10-10');
-  const [bankName, setBankName] = useState('Allied Bank Limited');
-  const [bankBranch, setBankBranch] = useState('Model Town Branch, LHR');
-  const [accountNo, setAccountNo] = useState('01-100-3942-01');
-  const [challanPrefix, setChallanPrefix] = useState('TKH-');
+  const [schoolName, setSchoolName] = useState(schoolData?.name || userData?.schoolName || 'Your School System');
+  const [billingMonth, setBillingMonth] = useState(() => new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' }));
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-10`;
+  });
+  const [bankName, setBankName] = useState(schoolData?.bankName || 'Allied Bank Limited');
+  const [bankBranch, setBankBranch] = useState(schoolData?.bankBranch || 'Main Branch');
+  const [accountNo, setAccountNo] = useState(schoolData?.accountNumber || '01-100-3942-01');
+  const [challanPrefix, setChallanPrefix] = useState((schoolData?.name || 'SCH').substring(0, 3).toUpperCase() + '-');
 
   // Dynamic Fee structure items
   const [feeItems, setFeeItems] = useState([
@@ -135,18 +142,27 @@ const ChallanBook = () => {
 
       {/* Header Panel */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 no-print">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-indigo-400">
-            Multi-Part Challan Book Generator
-          </h1>
-          <p className="text-xs text-dark-muted font-bold tracking-wider uppercase mt-1">
-            Generate and bulk-print standard 3-copy landscape school fee slips (Bank, School, Student)
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/school-admin/fees')}
+            className="p-2.5 rounded-xl border border-dark-border bg-dark-card hover:bg-dark-hover text-dark-text transition-all cursor-pointer"
+            title="Back to Fees"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary-400 to-indigo-400">
+              Multi-Part Challan Book Generator
+            </h1>
+            <p className="text-xs text-dark-muted font-bold tracking-wider uppercase mt-1">
+              Generate and bulk-print standard 3-copy landscape school fee slips (Bank, School, Student)
+            </p>
+          </div>
         </div>
         <div className="flex gap-2">
           <button 
             onClick={handlePrint}
-            className="premium-button-primary py-2.5 px-5 flex items-center justify-center gap-2 font-bold text-xs uppercase"
+            className="premium-button-primary py-2.5 px-5 flex items-center justify-center gap-2 font-bold text-xs uppercase cursor-pointer"
           >
             <Printer size={15} />
             <span>Print Challan Sheets</span>

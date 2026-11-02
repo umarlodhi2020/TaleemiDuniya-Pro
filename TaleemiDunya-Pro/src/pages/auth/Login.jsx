@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, LogIn, ShieldAlert, KeyRound, CheckCircle2, Eye, Users, UserPlus, BookOpen, CreditCard, CalendarCheck, Sun, Moon } from 'lucide-react';
+import { Mail, Lock, LogIn, ShieldAlert, KeyRound, CheckCircle2, Eye, EyeOff, Users, UserPlus, BookOpen, CreditCard, CalendarCheck, Sun, Moon } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import GlassCard from '../../components/common/GlassCard';
@@ -12,7 +13,8 @@ const Login = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const { currentUser, userData, login, loginWithGoogle, logout } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const { currentUser, userData, login, loginWithGoogle, logout, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -60,6 +62,46 @@ const Login = () => {
       setError('Google Sign In failed.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    const { value: resetEmail } = await Swal.fire({
+      title: 'Reset Password',
+      input: 'email',
+      inputLabel: 'Apna registered email address enter karein:',
+      inputPlaceholder: 'user@example.com',
+      inputValue: email.includes('@') ? email : '',
+      showCancelButton: true,
+      confirmButtonText: 'Send Reset Link',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#4f46e5',
+      background: theme === 'dark' ? '#18181b' : '#ffffff',
+      color: theme === 'dark' ? '#fafafa' : '#0f172a',
+    });
+
+    if (resetEmail) {
+      try {
+        await resetPassword(resetEmail);
+        Swal.fire({
+          icon: 'success',
+          title: 'Email Sent!',
+          text: `Password reset link ${resetEmail} par bhej diya gaya hai. Apna inbox check karein.`,
+          confirmButtonColor: '#4f46e5',
+          background: theme === 'dark' ? '#18181b' : '#ffffff',
+          color: theme === 'dark' ? '#fafafa' : '#0f172a',
+        });
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.message || 'Password reset email send nahi ho saki.',
+          confirmButtonColor: '#4f46e5',
+          background: theme === 'dark' ? '#18181b' : '#ffffff',
+          color: theme === 'dark' ? '#fafafa' : '#0f172a',
+        });
+      }
     }
   };
 
@@ -194,15 +236,20 @@ const Login = () => {
               <div className="relative group">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted group-focus-within:text-primary-500 transition-colors" size={16} />
                 <input 
-                  type="password" 
+                  type={showPassword ? 'text' : 'password'} 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-dark-border bg-dark-bg text-dark-text focus:border-primary-500 focus:ring-1 focus:ring-primary-500 outline-none transition-all text-[13px]"
                   placeholder="Enter your password"
                   required
                 />
-                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-muted hover:text-primary-500 transition-colors">
-                  <Eye size={16} />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-muted hover:text-primary-500 transition-colors cursor-pointer"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
@@ -217,7 +264,13 @@ const Login = () => {
                 />
                 <span className="text-[12px] text-dark-muted group-hover:text-dark-text transition-colors">Remember me</span>
               </label>
-              <a href="#" className="text-[12px] font-bold text-primary-500 hover:text-primary-400">Forgot password?</a>
+              <button 
+                type="button" 
+                onClick={handleForgotPassword}
+                className="text-[12px] font-bold text-primary-500 hover:text-primary-400 bg-transparent border-0 cursor-pointer p-0"
+              >
+                Forgot password?
+              </button>
             </div>
 
             <button 

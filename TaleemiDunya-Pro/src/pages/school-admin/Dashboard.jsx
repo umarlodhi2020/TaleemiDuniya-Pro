@@ -596,7 +596,7 @@ const SchoolAdminDashboard = () => {
           </button>
 
           <button 
-            onClick={() => navigate('/school-admin/students')}
+            onClick={() => navigate('/school-admin/bulk-promotion')}
             className="px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
             <Users size={15} />
@@ -604,7 +604,7 @@ const SchoolAdminDashboard = () => {
           </button>
 
           <button 
-            onClick={() => navigate('/school-admin/fees')}
+            onClick={() => navigate('/school-admin/fees/generate-voucher')}
             className="px-4 py-2 rounded-full bg-purple-500 hover:bg-purple-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
           >
             <CreditCard size={15} />
@@ -683,7 +683,7 @@ const SchoolAdminDashboard = () => {
             </button>
             
             <button
-              onClick={() => navigate('/school-admin/collection')}
+              onClick={() => navigate('/school-admin/fees/collect')}
               className="p-4 rounded-xl bg-dark-hover hover:border-green-500/50 text-left transition-all group"
             >
               <DollarSign className="text-green-500 dark:text-green-400 mb-2 group-hover:scale-110 transition-transform" size={20} />

@@ -118,7 +118,10 @@ const AttendanceManager = () => {
             <ScanBarcode size={18} />
             <span>2D QR & Barcode Machine</span>
           </button>
-          <button className="premium-button-secondary">
+          <button 
+            onClick={() => navigate('/school-admin/attendance-register')}
+            className="premium-button-secondary cursor-pointer"
+          >
             View History
           </button>
           <button 

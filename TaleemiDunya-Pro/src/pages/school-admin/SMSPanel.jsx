@@ -25,13 +25,24 @@ import {
   Wifi
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
-import { getRecords, addRecord } from '../../services/db';
+import { getRecords, addRecord, updateRecord } from '../../services/db';
+import { DollarSign, CalendarCheck, Gift, Play, BarChart2 } from 'lucide-react';
+import { Phone, MapPin, ShieldAlert, Save } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 
 const SMSPanel = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
+
+  // === BULK FEE REMINDER STATE ===
+  const [feeReminderSending, setFeeReminderSending] = useState(false);
+  const [feeReminderResult, setFeeReminderResult] = useState(null); // {sent, failed, total}
+  const [feeReminderProgress, setFeeReminderProgress] = useState('');
+
+  // === SCHEDULED CRON STATE ===
+  const [cronRunning, setCronRunning] = useState('');
+  const [cronLog, setCronLog] = useState([]);
 
   // WhatsApp AI Server Base URL (from .env — defaults to Alwaysdata Cloud deployment)
   const WA_SERVER = import.meta.env.VITE_WHATSAPP_SERVER_URL || 'https://umarhayat.alwaysdata.net';
@@ -45,10 +56,11 @@ const SMSPanel = () => {
   const [liveServerStatus, setLiveServerStatus] = useState('CHECKING'); // 'CONNECTED' | 'QR_READY' | 'DISCONNECTED' | 'OFFLINE'
 
   // QR Gateway & AI Bot State
-  const [isQrLinked, setIsQrLinked] = useState(true); // Default to linked in demo, will sync if live server connected
-  const [qrTimer, setQrTimer] = useState(24);
-  const [linkedPhone, setLinkedPhone] = useState(schoolData?.phone || '+92 317-2234518');
-  const [customPairPhone, setCustomPairPhone] = useState(schoolData?.phone || '+92 317-2234518');
+  const [isQrLinked, setIsQrLinked] = useState(false); // start disconnected; show real status
+  const [isMasterGateway, setIsMasterGateway] = useState(false);
+  const [qrTimer, setQrTimer] = useState(25);
+  const [linkedPhone, setLinkedPhone] = useState(schoolData?.phone || '');
+  const [customPairPhone, setCustomPairPhone] = useState(schoolData?.phone || '');
   const [botActive, setBotActive] = useState(true);
   const [isSimulatingScan, setIsSimulatingScan] = useState(false);
   const isDisconnectingRef = useRef(false);
@@ -110,41 +122,136 @@ const SMSPanel = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+    // Custom Unregistered Notice / Warning Message State
+  const defaultNoticeNote = 'Bacho ki confidential information (Fees, Attendance, Results) ki hifazat ke liye TaleemiDunya AI Assistant sirf verified parent contacts ko direct access deta hai.';
+  const [warningHelpline, setWarningHelpline] = useState('');
+  const [warningCampus, setWarningCampus] = useState('');
+  const [warningCustomNote, setWarningCustomNote] = useState(defaultNoticeNote);
+  const [warningTemplate, setWarningTemplate] = useState('');
+  const [useCustomTemplate, setUseCustomTemplate] = useState(false);
+  const [savingWarning, setSavingWarning] = useState(false);
+  const [warningSavedSuccess, setWarningSavedSuccess] = useState(false);
+
+  // Sync warning state with schoolData
+  useEffect(() => {
+    const unreg = schoolData?.eServices?.whatsApp?.unregisteredNotice;
+    if (unreg) {
+      if (unreg.helpline) setWarningHelpline(unreg.helpline);
+      if (unreg.campus) setWarningCampus(unreg.campus);
+      if (unreg.customNote) setWarningCustomNote(unreg.customNote);
+      if (unreg.template) {
+        setWarningTemplate(unreg.template);
+        setUseCustomTemplate(true);
+      }
+    } else if (schoolData) {
+      if (!warningHelpline) setWarningHelpline(schoolData.phone || '0300-1234567');
+      if (!warningCampus) setWarningCampus(schoolData.address || 'Main Campus, Pakistan');
+    }
+  }, [schoolData]);
+
+  // Handler to save Warning Settings
+  const handleSaveWarningSettings = async (e) => {
+    if (e) e.preventDefault();
+    setSavingWarning(true);
+    setWarningSavedSuccess(false);
+
+    const schoolId = schoolData?.id || userData?.schoolId || 'NNRuCtHxQNjISc9EPgMs';
+    const noticeData = {
+      helpline: warningHelpline || schoolData?.phone || '0300-1234567',
+      campus: warningCampus || schoolData?.address || 'Main Campus',
+      customNote: warningCustomNote || defaultNoticeNote,
+      template: useCustomTemplate ? warningTemplate : '',
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      // 1. Save directly to Firestore under school document
+      await updateRecord('schools', schoolId, {
+        'eServices.whatsApp.unregisteredNotice': noticeData
+      });
+
+      // 2. Also notify Alwaysdata bot server to invalidate cache immediately
+      try {
+        await fetch(`${WA_SERVER}/api/settings/warning`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            schoolId,
+            ...noticeData
+          })
+        });
+      } catch (apiErr) {
+        console.warn('Backend API notification non-fatal:', apiErr.message);
+      }
+
+      setWarningSavedSuccess(true);
+      setTimeout(() => setWarningSavedSuccess(false), 4000);
+      alert('✅ Unregistered warning message and contact details saved successfully! WhatsApp Bot is updated.');
+    } catch (err) {
+      console.error('Error saving warning settings:', err);
+      alert('Error saving settings: ' + err.message);
+    } finally {
+      setSavingWarning(false);
+    }
+  };
+
+  // Preview calculations
+  const previewNumber = '+92 326 8973045';
+  const previewHelpline = warningHelpline || schoolData?.phone || '0300-1234567';
+  const previewCampus = warningCampus || schoolData?.address || 'Main Campus, Lahore, Pakistan';
+  const previewSchool = schoolData?.name || 'Smart Angels Grammar School';
+  const previewNote = warningCustomNote || defaultNoticeNote;
+
+  let renderedWarningPreview = '';
+  if (useCustomTemplate && warningTemplate.trim()) {
+    renderedWarningPreview = warningTemplate
+      .replace(/\{phone\}/g, ` (${previewNumber})`)
+      .replace(/\{schoolName\}/g, previewSchool)
+      .replace(/\{helpline\}/g, previewHelpline)
+      .replace(/\{campus\}/g, previewCampus);
+  } else {
+    renderedWarningPreview = `Assalam-o-Alaikum! Aap ka WhatsApp account (${previewNumber}) hamare school record mein registered nahi mila.\n\n🛡️ *Student Privacy Protection:*\n${previewNote}\n\nBarah-e-karam school administration se rabta karein aur apna registered mobile number verify karwa lein:\n📞 *School Admin Helpline:* ${previewHelpline}\n📍 *Campus:* ${previewCampus}\n\n💡 *Available Public Options:*\n6️⃣ New Admission Inquiry\n7️⃣ Contact Administration`;
+  }
+
   // Poll Real Baileys Server if running on Alwaysdata Cloud
   useEffect(() => {
     let interval;
     const checkLiveStatus = async () => {
       try {
-        const schoolId = userData?.schoolId || 'default_school';
+        const schoolId = schoolData?.id || userData?.schoolId || 'default_school';
         let res = await fetch(`${WA_SERVER}/api/session/status?schoolId=${schoolId}`);
         let data = res.ok ? await res.json() : null;
-
-        // If school hasn't paired an isolated number, check if master gateway is active
-        if ((!data || data.status === 'DISCONNECTED') && schoolId !== 'default_school') {
-          try {
-            const masterRes = await fetch(`${WA_SERVER}/api/session/status?schoolId=default_school`);
-            if (masterRes.ok) {
-              const masterData = await masterRes.json();
-              if (masterData.status === 'CONNECTED') {
-                data = { ...masterData, schoolId, isMasterGateway: true };
-              }
-            }
-          } catch(e) {}
-        }
 
         if (data) {
           setIsLiveServerConnected(true);
           setLiveServerStatus(data.status);
-          if (data.qrDataUrl) {
-            setLiveQrDataUrl(data.qrDataUrl);
-          } else {
-            setLiveQrDataUrl(null);
-          }
+
           if (data.status === 'CONNECTED' && !isDisconnectingRef.current) {
             setIsQrLinked(true);
-            setLinkedPhone(data.phone || '+92 317-2234518');
+            setIsMasterGateway(false);
+            setLinkedPhone(data.phone || schoolData?.phone || 'Connected');
+            setLiveQrDataUrl(null);
           } else if (data.status === 'QR_READY') {
             setIsQrLinked(false);
+            setIsMasterGateway(false);
+            if (data.qrDataUrl) setLiveQrDataUrl(data.qrDataUrl);
+          } else {
+            // Disconnected for this school
+            setIsQrLinked(false);
+            setLiveQrDataUrl(null);
+
+            // Check if universal master gateway is running in background as fallback
+            if (schoolId !== 'default_school') {
+              try {
+                const masterRes = await fetch(`${WA_SERVER}/api/session/status?schoolId=default_school`);
+                if (masterRes.ok) {
+                  const masterData = await masterRes.json();
+                  if (masterData.status === 'CONNECTED') {
+                    setIsMasterGateway(true);
+                  }
+                }
+              } catch(e) {}
+            }
           }
         } else {
           setIsLiveServerConnected(false);
@@ -161,7 +268,7 @@ const SMSPanel = () => {
       interval = setInterval(checkLiveStatus, 3000);
     }
     return () => clearInterval(interval);
-  }, [activeTab, userData]);
+  }, [activeTab, userData, schoolData]);
 
   // QR countdown timer simulation when unlinked
   useEffect(() => {
@@ -210,47 +317,47 @@ const SMSPanel = () => {
     }
   };
 
-  // Simulate or Trigger real scanning QR session
+  // Trigger real or simulated scanning QR session for THIS school
   const handleSimulateScan = async () => {
+    const schoolId = schoolData?.id || userData?.schoolId || 'default_school';
+    setIsSimulatingScan(true);
     if (isLiveServerConnected) {
       try {
         await fetch(`${WA_SERVER}/api/session/start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ schoolId: userData?.schoolId || 'default_school' })
+          body: JSON.stringify({ schoolId })
         });
-        alert('🔄 Session initialization triggered! Please scan the QR code displayed on screen from your WhatsApp App.');
-        return;
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Live session start error:', e.message);
+      }
     }
-    setIsSimulatingScan(true);
     setTimeout(() => {
       setIsSimulatingScan(false);
-      setIsQrLinked(true);
-      if (customPairPhone) setLinkedPhone(customPairPhone);
-      alert(`✅ WhatsApp Mobile (${customPairPhone || linkedPhone}) paired successfully! Your free AI Auto-Reply Bot is now active 24/7.`);
-    }, 1800);
+    }, 2000);
   };
 
   const handleDisconnectQr = async () => {
-    if (window.confirm('Disconnect current WhatsApp number from the AI Bot Gateway? You will need to scan QR again to pair.')) {
+    const schoolId = schoolData?.id || userData?.schoolId || 'default_school';
+    if (window.confirm('Disconnect your school WhatsApp number from the AI Bot Gateway? You will need to scan QR again.')) {
       isDisconnectingRef.current = true;
       if (isLiveServerConnected) {
         try {
           await fetch(`${WA_SERVER}/api/session/logout`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ schoolId: userData?.schoolId || 'default_school' })
+            body: JSON.stringify({ schoolId })
           });
         } catch (e) {}
       }
       setIsQrLinked(false);
+      setLiveQrDataUrl(null);
       setQrTimer(30);
       
-      // Allow re-linking after a delay (give server time to actually disconnect)
+      // Allow re-linking after a delay
       setTimeout(() => {
         isDisconnectingRef.current = false;
-      }, 8000);
+      }, 5000);
     }
   };
 
@@ -625,43 +732,19 @@ const SMSPanel = () => {
                     </div>
                     <div>
                       <h3 className="text-lg font-black text-white">Device Linked & Synchronized</h3>
-                      <p className="text-xs text-green-400 font-mono mt-1 font-extrabold">{linkedPhone}</p>
-                    </div>
-
-                    {/* Live Number Customizer */}
-                    <div className="space-y-2 text-left bg-black/40 p-3.5 rounded-xl border border-dark-border">
-                      <label className="text-[10px] font-black text-green-400 uppercase tracking-wider block">Change Active School WhatsApp Number:</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={customPairPhone}
-                          onChange={(e) => setCustomPairPhone(e.target.value)}
-                          placeholder="+92 300 1234567"
-                          className="flex-1 premium-input text-xs py-1.5 px-3 bg-dark-bg text-white border-green-500/40"
-                        />
-                        <button
-                          onClick={() => {
-                            if (customPairPhone) {
-                              setLinkedPhone(customPairPhone);
-                              alert(`✅ Active WhatsApp identity updated to ${customPairPhone}!`);
-                            }
-                          }}
-                          className="px-3 py-1.5 bg-green-500 hover:bg-green-600 text-white font-bold text-[10px] rounded-lg transition-all"
-                        >
-                          Save
-                        </button>
-                      </div>
+                      <p className="text-xs text-green-400 font-mono mt-1 font-extrabold">{linkedPhone || schoolData?.phone || 'Connected'}</p>
+                      <p className="text-[11px] text-dark-muted mt-1">This school's isolated WhatsApp Baileys session is active.</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 text-[10px] font-bold uppercase tracking-wider bg-black/30 p-3 rounded-xl border border-dark-border text-dark-muted">
                       <div>Status: <span className="text-green-400">Online</span></div>
-                      <div>Battery: <span className="text-white">88% (Charging)</span></div>
-                      <div>Ping: <span className="text-green-400">14ms</span></div>
+                      <div>Engine: <span className="text-white">Baileys v6.7</span></div>
+                      <div>School ID: <span className="text-green-400 font-mono text-[9px] truncate">{schoolData?.id || userData?.schoolId || 'Isolated'}</span></div>
                       <div>API Cost: <span className="text-green-400 font-mono">$0.00 / Free</span></div>
                     </div>
                     <button
                       onClick={handleDisconnectQr}
-                      className="w-full py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold transition-all"
+                      className="w-full py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold transition-all cursor-pointer"
                     >
                       Disconnect & Pair Another Device
                     </button>
@@ -672,10 +755,10 @@ const SMSPanel = () => {
                       {isSimulatingScan ? (
                         <div className="text-center space-y-2">
                           <RefreshCw size={36} className="animate-spin text-green-600 mx-auto" />
-                          <div className="text-xs font-bold text-gray-800">Pairing Session...</div>
+                          <div className="text-xs font-bold text-gray-800">Starting Baileys Socket...</div>
                         </div>
                       ) : liveQrDataUrl ? (
-                        /* REAL QR CODE from Live Baileys Server */
+                        /* REAL QR CODE from Live Baileys Server for THIS school */
                         <div className="relative w-full h-full flex flex-col items-center justify-center bg-white rounded-lg overflow-hidden">
                           <img 
                             src={liveQrDataUrl} 
@@ -689,58 +772,46 @@ const SMSPanel = () => {
                           </div>
                         </div>
                       ) : (
-                        <div className="relative w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded-lg overflow-hidden border">
-                          {/* Demo simulated QR Code block */}
-                          <div className="grid grid-cols-6 gap-1.5 w-36 h-36 p-1">
-                            {Array.from({ length: 36 }).map((_, i) => (
-                              <div key={i} className={`rounded-xs ${((i * 7 + 3) % 5 === 0 || i === 0 || i === 5 || i === 30 || i === 35) ? 'bg-black' : (i % 2 === 0 ? 'bg-black' : 'bg-transparent')}`} />
-                            ))}
+                        <div className="flex flex-col items-center justify-center text-center p-4">
+                          <div className="w-14 h-14 bg-green-500/10 border border-green-500/30 rounded-2xl flex items-center justify-center text-green-500 mb-2">
+                            <QrCode size={30} />
                           </div>
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center text-white shadow-lg">
-                              <Smartphone size={22} />
-                            </div>
-                          </div>
-                          {!isLiveServerConnected && (
-                            <div className="absolute bottom-1 left-0 right-0 text-center">
-                              <span className="text-[7px] font-bold uppercase tracking-wider bg-yellow-500 text-black px-2 py-0.5 rounded-full">
-                                Demo Mode — Start Server for Real QR
-                              </span>
-                            </div>
-                          )}
+                          <p className="text-xs font-bold text-gray-800">QR Code Ready To Generate</p>
+                          <p className="text-[10px] text-gray-500 mt-1">Click below to start your school's WhatsApp QR session</p>
                         </div>
                       )}
                     </div>
 
                     <div className="space-y-1">
-                      <div className="text-xs font-bold text-white flex items-center justify-center gap-2">
-                        <RefreshCw size={12} className="animate-spin text-green-400" />
-                        <span>QR Code refreshes automatically in <strong className="text-green-400 font-mono">{qrTimer}s</strong></span>
-                      </div>
+                      {liveQrDataUrl && (
+                        <div className="text-xs font-bold text-white flex items-center justify-center gap-2">
+                          <RefreshCw size={12} className="animate-spin text-green-400" />
+                          <span>QR Code refreshes in <strong className="text-green-400 font-mono">{qrTimer}s</strong></span>
+                        </div>
+                      )}
                       <p className="text-[11px] text-dark-muted">
                         Open WhatsApp on your mobile &gt; <strong>Menu/Settings</strong> &gt; <strong>Linked Devices</strong> &gt; <strong>Link a Device</strong> &gt; Scan QR above.
                       </p>
                     </div>
 
-                    <div className="space-y-1 text-left bg-black/40 p-3 rounded-xl border border-dark-border">
-                      <label className="text-[10px] font-black text-green-400 uppercase tracking-wider block">Your Real WhatsApp Mobile Number:</label>
-                      <input
-                        type="text"
-                        value={customPairPhone}
-                        onChange={(e) => setCustomPairPhone(e.target.value)}
-                        placeholder="+92 300 1234567"
-                        className="w-full premium-input text-xs py-1.5 px-3 bg-dark-bg text-white border-green-500/40"
-                      />
-                    </div>
+                    {isMasterGateway && (
+                      <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-left">
+                        <p className="text-[10px] text-blue-300 font-medium leading-relaxed">
+                          ℹ️ <strong>Central Bot Active:</strong> Outgoing notifications will use Universal AI Sender until your school phone scans this QR.
+                        </p>
+                      </div>
+                    )}
 
                     <button
                       onClick={handleSimulateScan}
                       disabled={isSimulatingScan}
-                      className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <Smartphone size={16} />
-                      {isSimulatingScan ? 'Pairing...' : `Link & Pair ${customPairPhone || 'Device'}`}
+                      <QrCode size={16} />
+                      {isSimulatingScan ? 'Initializing Session...' : (liveQrDataUrl ? '🔄 Refresh QR Code' : '🚀 Generate School WhatsApp QR Code')}
                     </button>
+                  </div>
+                )}
                   </div>
                 )}
               </GlassCard>
@@ -850,7 +921,175 @@ const SMSPanel = () => {
             </div>
           </div>
 
-          {/* Bottom Interactive Chat Simulator */}
+                    {/* Custom Unregistered Warning & Privacy Notice Editor */}
+          <GlassCard className="p-6 border-t-4 border-amber-500/80">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-dark-border">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ShieldAlert className="text-amber-400" size={20} />
+                  <h3 className="text-lg font-black text-white">
+                    Unregistered Number Warning & Privacy Notice Customizer
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold text-[10px] border border-amber-500/30">
+                    Live Security Filter
+                  </span>
+                </div>
+                <p className="text-xs text-dark-muted mt-1">
+                  Jab koi anjaan ya unregistered parent WhatsApp par message kare, toh unhein yeh custom warning message, helpline number aur campus address show hoga.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWarningHelpline(schoolData?.phone || '0300-1234567');
+                    setWarningCampus(schoolData?.address || 'Main Campus, Lahore');
+                    setWarningCustomNote(defaultNoticeNote);
+                    setUseCustomTemplate(false);
+                    setWarningTemplate('');
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-dark-muted hover:text-white bg-white/5 hover:bg-white/10 border border-dark-border transition-all flex items-center gap-1.5"
+                >
+                  <RefreshCw size={13} /> Reset to Defaults
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              {/* Form Controls */}
+              <form onSubmit={handleSaveWarningSettings} className="lg:col-span-7 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Phone size={13} /> School Admin Helpline Number:
+                    </label>
+                    <input
+                      type="text"
+                      value={warningHelpline}
+                      onChange={(e) => setWarningHelpline(e.target.value)}
+                      placeholder="e.g. 0300-1234567 / 0321-9876543"
+                      className="premium-input text-xs py-2.5 font-mono"
+                      required
+                    />
+                    <span className="text-[10px] text-dark-muted">Unregistered parent ko rabta karne ke liye yeh helpline dikhegi.</span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin size={13} /> School Campus / Office Address:
+                    </label>
+                    <input
+                      type="text"
+                      value={warningCampus}
+                      onChange={(e) => setWarningCampus(e.target.value)}
+                      placeholder="e.g. Main Campus, Lahore / Gulshan Campus"
+                      className="premium-input text-xs py-2.5"
+                      required
+                    />
+                    <span className="text-[10px] text-dark-muted">Parent ko campus verification ke liye address.</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <MessageSquare size={13} /> Custom Privacy Short Note:
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setUseCustomTemplate(!useCustomTemplate)}
+                      className="text-[11px] font-bold text-primary-400 hover:text-primary-300 underline"
+                    >
+                      {useCustomTemplate ? '← Switch to Simple Mode' : '⚙️ Advanced: Edit Full Message Template'}
+                    </button>
+                  </div>
+
+                  {!useCustomTemplate ? (
+                    <>
+                      <textarea
+                        value={warningCustomNote}
+                        onChange={(e) => setWarningCustomNote(e.target.value)}
+                        placeholder="Type custom note explaining why verification is required..."
+                        className="premium-input text-xs py-2.5 h-20 resize-none w-full"
+                      />
+                      <span className="text-[10px] text-dark-muted">
+                        Yeh note "Student Privacy Protection" ke neeche show hoga.
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <textarea
+                        value={warningTemplate}
+                        onChange={(e) => setWarningTemplate(e.target.value)}
+                        placeholder="Write complete custom message... Use placeholders: {phone}, {schoolName}, {helpline}, {campus}"
+                        className="premium-input text-xs py-2.5 h-36 font-mono resize-none w-full"
+                      />
+                      <div className="flex flex-wrap gap-2 text-[10px] text-dark-muted font-mono mt-1">
+                        <span>Placeholders:</span>
+                        <code className="bg-white/10 px-1.5 py-0.5 rounded text-amber-300">&#123;phone&#125;</code>
+                        <code className="bg-white/10 px-1.5 py-0.5 rounded text-amber-300">&#123;schoolName&#125;</code>
+                        <code className="bg-white/10 px-1.5 py-0.5 rounded text-amber-300">&#123;helpline&#125;</code>
+                        <code className="bg-white/10 px-1.5 py-0.5 rounded text-amber-300">&#123;campus&#125;</code>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingWarning}
+                    className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
+                  >
+                    <Save size={16} />
+                    <span>{savingWarning ? 'Saving to Database & WhatsApp Bot...' : 'Save & Update Warning Notice'}</span>
+                  </button>
+                  {warningSavedSuccess && (
+                    <div className="mt-2 text-center text-xs font-bold text-green-400 bg-green-500/10 border border-green-500/30 py-2 rounded-lg animate-fade-in">
+                      ✅ Settings saved successfully! WhatsApp Bot is immediately synced.
+                    </div>
+                  )}
+                </div>
+              </form>
+
+              {/* Live WhatsApp Preview */}
+              <div className="lg:col-span-5">
+                <div className="rounded-2xl border border-dark-border bg-[#0b141a] p-4 text-white shadow-2xl relative overflow-hidden">
+                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-green-700 flex items-center justify-center font-bold text-xs text-white">
+                        WA
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-gray-200">Live WhatsApp Preview</div>
+                        <div className="text-[10px] text-green-400 font-mono">Unregistered Parent View</div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-gray-400">Preview</span>
+                  </div>
+
+                  {/* WhatsApp Incoming Bubble */}
+                  <div className="space-y-3">
+                    <div className="flex justify-end">
+                      <div className="bg-[#005c4b] text-white text-xs p-2.5 rounded-xl rounded-tr-none max-w-[80%] shadow">
+                        Hi, fee kitni hai?
+                        <div className="text-[9px] text-emerald-200/70 text-right mt-1 font-mono">11:42 PM ✓✓</div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-start">
+                      <div className="bg-[#202c33] text-gray-100 text-xs p-3.5 rounded-xl rounded-tl-none max-w-[95%] shadow-md whitespace-pre-line leading-relaxed font-sans border-l-2 border-amber-500">
+                        {renderedWarningPreview}
+                        <div className="text-[9px] text-gray-400 text-right mt-2 font-mono">11:42 PM</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </GlassCard>
+
+{/* Bottom Interactive Chat Simulator */}
           <GlassCard className="p-6 border-t-4 border-green-500">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>

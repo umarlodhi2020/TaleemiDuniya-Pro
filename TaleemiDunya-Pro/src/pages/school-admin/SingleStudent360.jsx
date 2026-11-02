@@ -4,7 +4,7 @@ import {
   User, CreditCard, Receipt, Printer, FileText, Edit2, History, Award, 
   CalendarCheck, BookOpen, MessageSquare, Bell, Search, ArrowLeft, 
   DollarSign, Hash, Phone, Mail, Home, GraduationCap, 
-  CheckCircle, Clock, Users, Download, UserCheck
+  CheckCircle, Clock, Users, Download, UserCheck, Loader2, Send
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, addRecord } from '../../services/db';
@@ -21,6 +21,59 @@ const SingleStudent360 = () => {
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [waSending, setWaSending] = useState(false);
+  const [customMsg, setCustomMsg] = useState('');
+
+  // Auto-Send WhatsApp Notice via Bot Engine (Background)
+  const handleSendWhatsAppNotice = async (overrideText = null) => {
+    if (!selectedStudent) return;
+    const rawPhone = selectedStudent.phone || selectedStudent.parentPhone || '';
+    const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+
+    if (!cleanPhone) {
+      alert('⚠️ Is student ke record mein WhatsApp / Mobile number mojood nahi hai. Pehle profile update karein.');
+      return;
+    }
+
+    const schoolName = userData?.schoolName || 'Smart Angels Grammar School';
+    const defaultText = `Assalam-o-Alaikum Respected Parent of *${selectedStudent.name}* (Roll: ${selectedStudent.rollNumber || 'N/A'}, Class: ${selectedStudent.class || 'N/A'}).\n\nThis is an official communication from *${schoolName}*. Please check your Parent Portal for recent attendance logs, examination reports, and fee challans.\n\nThank you for your cooperation!\n*Administration - ${schoolName}*`;
+    const messageToSend = overrideText || customMsg || defaultText;
+
+    setWaSending(true);
+    try {
+      const res = await fetch('https://umarhayat.alwaysdata.net/api/message/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schoolId: userData?.schoolId || 'NNRuCtHxQNjISc9EPgMs',
+          phone: cleanPhone,
+          message: messageToSend
+        })
+      });
+      const data = await res.json();
+
+      if (data.success && data.results?.[0]?.status === 'sent') {
+        alert(`✅ WhatsApp Notice automatically sent to ${selectedStudent.name}'s parent (${cleanPhone}) in the background!`);
+      } else {
+        const errorReason = data.error || data.results?.[0]?.error || 'WhatsApp Bot offline / waiting for QR scan';
+        const fallback = window.confirm(
+          `⚠️ Auto-Send Notice:\n\n${errorReason}\n\nAgar aap background auto-send chahte hain to 'WhatsApp AI Bot & SMS Center' mein ja kar QR code scan karein.\n\nKya aap abhi ke liye WhatsApp Web ke zariye direct bhejna chahte hain?`
+        );
+        if (fallback) {
+          window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageToSend)}`, '_blank');
+        }
+      }
+    } catch (err) {
+      const fallback = window.confirm(
+        `🌐 WhatsApp Server connect nahi ho saka.\n\nKya aap WhatsApp Web ke zariye direct bhejna chahte hain?`
+      );
+      if (fallback) {
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(messageToSend)}`, '_blank');
+      }
+    } finally {
+      setWaSending(false);
+    }
+  };
 
   const tabs = [
     { id: 'overview',       label: 'Overview',        icon: User },
@@ -174,13 +227,13 @@ const SingleStudent360 = () => {
                   <Edit2 size={16} /> Edit Profile
                 </button>
                 <button
-                  onClick={() => {
-                    const phone = (selectedStudent.phone || '').replace(/[^0-9]/g, '');
-                    window.open(`https://wa.me/${phone}`, '_blank');
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer active:scale-[0.98]"
+                  onClick={() => handleSendWhatsAppNotice()}
+                  disabled={waSending}
+                  className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50"
+                  title="Auto-Send WhatsApp notice in background without opening any tab"
                 >
-                  <MessageSquare size={16} /> WhatsApp
+                  {waSending ? <Loader2 size={16} className="animate-spin" /> : <MessageSquare size={16} />}
+                  {waSending ? 'Sending...' : 'WhatsApp (Auto)'}
                 </button>
               </div>
             </div>
@@ -463,19 +516,33 @@ const SingleStudent360 = () => {
                     <label className="block text-xs font-bold uppercase mb-1">Message</label>
                     <textarea 
                       rows={4}
-                      defaultValue={`Assalam-o-Alaikum, regarding ${selectedStudent.name} (Class ${selectedStudent.class}), please check fee status.`}
+                      value={customMsg || `Assalam-o-Alaikum, regarding ${selectedStudent.name} (Class ${selectedStudent.class}), please check fee status.`}
+                      onChange={(e) => setCustomMsg(e.target.value)}
                       className="w-full premium-input text-sm"
                     />
                   </div>
-                  <button 
-                    onClick={() => {
-                      const phone = (selectedStudent.phone || selectedStudent.parentPhone || '').replace(/[^0-9]/g, '');
-                      window.open(`https://wa.me/${phone}`, '_blank');
-                    }}
-                    className="premium-button-primary bg-emerald-600 hover:bg-emerald-500"
-                  >
-                    <MessageSquare size={16} /> Send via WhatsApp
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button 
+                      onClick={() => handleSendWhatsAppNotice(customMsg)}
+                      disabled={waSending}
+                      className="premium-button-primary bg-emerald-600 hover:bg-emerald-500 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {waSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                      {waSending ? 'Sending in Background...' : 'Auto-Send via WhatsApp Bot'}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const rawPhone = selectedStudent.phone || selectedStudent.parentPhone || '';
+                        const cleanPhone = rawPhone.replace(/[^0-9]/g, '');
+                        const msg = customMsg || `Assalam-o-Alaikum, regarding ${selectedStudent.name} (Class ${selectedStudent.class}), please check fee status.`;
+                        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-xs text-dark-muted hover:text-white transition-all flex items-center gap-1.5"
+                    >
+                      Open WhatsApp Web
+                    </button>
+                  </div>
                 </div>
               </GlassCard>
             )}

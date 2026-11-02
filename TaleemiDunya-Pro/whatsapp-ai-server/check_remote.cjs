@@ -1,27 +1,47 @@
-const { NodeSSH } = require('node-ssh');
+const path = require('path');
+const { NodeSSH } = require(path.join(__dirname, 'node_modules', 'node-ssh'));
 const ssh = new NodeSSH();
 
-ssh.connect({ host: 'ssh-umarhayat.alwaysdata.net', username: 'umarhayat', password: 'umar9900' }).then(async () => {
-  console.log('=== Connected ===');
+async function fix() {
+  await ssh.connect({
+    host: 'ssh-umarhayat.alwaysdata.net',
+    username: 'umarhayat',
+    password: 'umar9900'
+  });
 
-  const r1 = await ssh.execCommand('grep -c "All 3 fields" /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server/server.js 2>&1 || echo "NOT FOUND"');
-  console.log('"All 3 fields" in server.js:', r1.stdout);
+  const remoteDir = '/home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server';
+  const sessionDir = `${remoteDir}/auth_sessions/session_NNRuCtHxQNjISc9EPgMs`;
 
-  const r2 = await ssh.execCommand('wc -l /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server/server.js');
-  console.log('server.js line count:', r2.stdout);
+  // 1. Remove all corrupted session files and lock files
+  console.log('🧹 Removing locks and corrupted session keys...');
+  await ssh.execCommand(`rm -f ${remoteDir}/auth_sessions/.*lock* ${remoteDir}/auth_sessions/.lock*`);
+  await ssh.execCommand(`rm -f ${sessionDir}/session-212459700883552*`);
 
-  const r3 = await ssh.execCommand('head -5 /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server/server.js');
-  console.log('server.js first 5 lines:', r3.stdout);
+  // 2. Kill all manual and upstream node processes
+  console.log('🛑 Killing all node processes so Alwaysdata restarts upstream cleanly...');
+  await ssh.execCommand('pkill -9 -u umarhayat -f node');
+  
+  // 3. Touch restart.txt
+  await ssh.execCommand('touch /home/umarhayat/admin/config/restart.txt /home/umarhayat/restart.txt');
 
-  const r4 = await ssh.execCommand('ps aux | grep node | grep -v grep');
-  console.log('node processes:', r4.stdout);
+  // 4. Wait 12 seconds for Alwaysdata supervisor to start the single upstream worker
+  console.log('⏳ Waiting 12 seconds for Alwaysdata supervisor to start clean upstream...');
+  await new Promise(r => setTimeout(r, 12000));
 
-  const r5 = await ssh.execCommand('ls /home/umarhayat/TaleemiDunya-Pro/whatsapp-ai-server/*.js | head -20');
-  console.log('JS files in dir:', r5.stdout);
+  const ps = await ssh.execCommand('ps aux | grep node');
+  console.log('Running processes:\n', ps.stdout);
 
-  // Check what supervisor/uwsgi runs
-  const r6 = await ssh.execCommand('cat /home/umarhayat/admin/config/supervisord.conf 2>/dev/null || cat /home/umarhayat/supervisord.conf 2>/dev/null || echo "no supervisord.conf"');
-  console.log('supervisord conf:', r6.stdout.substring(0, 500));
+  // 5. Test the warning endpoint
+  const warningRes = await fetch('https://umarhayat.alwaysdata.net/api/settings/warning?schoolId=NNRuCtHxQNjISc9EPgMs');
+  const warningJson = await warningRes.json();
+  console.log('✅ Live /api/settings/warning API response:\n', warningJson);
 
-  ssh.dispose();
-}).catch(e => { console.error('SSH Error:', e.message); });
+  // 6. Test session status
+  const statusRes = await fetch('https://umarhayat.alwaysdata.net/api/session/status?schoolId=NNRuCtHxQNjISc9EPgMs');
+  const statusJson = await statusRes.json();
+  console.log('✅ Live session status:\n', statusJson);
+
+  process.exit(0);
+}
+
+fix().catch(console.error);

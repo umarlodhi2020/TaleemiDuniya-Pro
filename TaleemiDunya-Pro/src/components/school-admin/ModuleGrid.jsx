@@ -45,7 +45,7 @@ const modules = [
 
   // Attendance
   { name: 'Attendance', icon: Calendar, color: 'text-orange-400', path: '/school-admin/attendance', category: 'Attendance' },
-  { name: 'Attendance Report', icon: ClipboardCheck, color: 'text-orange-500', path: '/school-admin/attendance', category: 'Attendance' },
+  { name: 'Attendance Report', icon: ClipboardCheck, color: 'text-orange-500', path: '/school-admin/attendance-register', category: 'Attendance' },
 
   // Finance
   { name: 'Add Fee', icon: CreditCard, color: 'text-yellow-400', path: '/school-admin/fees', category: 'Finance' },

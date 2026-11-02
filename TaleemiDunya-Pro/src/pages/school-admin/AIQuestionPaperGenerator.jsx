@@ -360,20 +360,29 @@ const AIQuestionPaperGenerator = () => {
       
       {/* HEADER SECTION (Print Hidden) */}
       <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-indigo-50/90 via-white to-purple-50/70 border border-indigo-200/90 p-6 rounded-3xl shadow-sm relative overflow-hidden">
-        <div className="relative z-10 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-900 text-xs font-bold tracking-wider uppercase flex items-center gap-1.5">
-              <Sparkles size={14} className="text-indigo-600" />
-              Next-Gen AI Exam Suite
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
-              Urdu & English Boards
-            </span>
+        <div className="flex items-start gap-4 relative z-10">
+          <button
+            onClick={() => window.history.back()}
+            className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 transition-all cursor-pointer shrink-0 mt-1"
+            title="Go Back"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-900 text-xs font-bold tracking-wider uppercase flex items-center gap-1.5">
+                <Sparkles size={14} className="text-indigo-600" />
+                Next-Gen AI Exam Suite
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
+                Urdu & English Boards
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">AI Exam & Question Paper Generator</h1>
+            <p className="text-slate-600 text-xs sm:text-sm max-w-2xl font-medium leading-relaxed">
+              Create standard, curriculum-aligned exam papers with automatic MCQs, Short & Long questions, complete with school headers, watermark, and 1-click high-resolution printing.
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">AI Exam & Question Paper Generator</h1>
-          <p className="text-slate-600 text-xs sm:text-sm max-w-2xl font-medium leading-relaxed">
-            Create standard, curriculum-aligned exam papers with automatic MCQs, Short & Long questions, complete with school headers, watermark, and 1-click high-resolution printing.
-          </p>
         </div>
 
         {/* Action Tabs */}

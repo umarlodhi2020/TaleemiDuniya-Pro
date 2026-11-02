@@ -65,7 +65,8 @@ import {
   Package,
   UserCheck,
   Coffee,
-  BrainCircuit
+  BrainCircuit,
+  BarChart3
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
@@ -292,7 +293,8 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             title: 'FINANCE & ACCOUNTS',
             categoryKey: 'Finance',
             links: [
-              { name: 'Collect Fee', icon: CreditCard, path: '/school-admin/collection', featureKey: 'fee-collection' },
+              { name: 'Collect Fee', icon: CreditCard, path: '/school-admin/fees/collect', featureKey: 'fee-collection' },
+              { name: 'Daily Collection', icon: BarChart3, path: '/school-admin/collection', featureKey: 'fee-collection' },
               { name: 'Class Fee Setup', icon: Settings, path: '/school-admin/class-fees', featureKey: 'challan-manager' },
               { name: 'Voucher Generate', icon: Receipt, path: '/school-admin/fees/generate', featureKey: 'challan-manager' },
               { name: 'Challan Manager', icon: CreditCard, path: '/school-admin/fees', featureKey: 'challan-manager' },
