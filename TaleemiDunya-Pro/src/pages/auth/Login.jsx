@@ -17,13 +17,24 @@ const Login = () => {
   const { currentUser, userData, login, loginWithGoogle, logout, resetPassword } = useAuth();
   const navigate = useNavigate();
 
+  const getDestinationRoute = (role) => {
+    switch (role) {
+      case 'super-admin': return '/super-admin/dashboard';
+      case 'school-admin': return '/school-admin/dashboard';
+      case 'teacher': return '/teacher/dashboard';
+      case 'student': return '/student/dashboard';
+      case 'parent': return '/parent/dashboard';
+      default: return '/school-admin/dashboard';
+    }
+  };
+
   React.useEffect(() => {
     if (currentUser && userData?.role) {
       if (userData.role === 'guest') {
         setError('Access Denied: Your email is not registered.');
         logout();
       } else {
-        navigate(userData.role === 'super-admin' ? '/super-admin/dashboard' : '/school-admin/dashboard');
+        navigate(getDestinationRoute(userData.role));
       }
     }
   }, [currentUser, userData, navigate, logout]);
@@ -38,7 +49,7 @@ const Login = () => {
         setError('Access Denied: Your email is not registered.');
         await logout();
       } else {
-        navigate(result.role === 'super-admin' ? '/super-admin/dashboard' : '/school-admin/dashboard');
+        navigate(getDestinationRoute(result.role));
       }
     } catch (err) {
       setError('Invalid email or password.');
@@ -56,7 +67,7 @@ const Login = () => {
         setError('Access Denied: Your email is not registered with any school.');
         await logout();
       } else {
-        navigate(result.role === 'super-admin' ? '/super-admin/dashboard' : '/school-admin/dashboard');
+        navigate(getDestinationRoute(result.role));
       }
     } catch (err) {
       setError('Google Sign In failed.');
