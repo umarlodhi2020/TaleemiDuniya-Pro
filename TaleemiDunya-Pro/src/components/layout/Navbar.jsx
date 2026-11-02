@@ -197,7 +197,13 @@ const Navbar = ({ toggleSidebar }) => {
             </span>
           </button>
           <button
-            onClick={() => navigate(userData?.role === 'super-admin' ? '/super-admin/notifications' : '/school-admin/sms')}
+            onClick={() => {
+              if (userData?.role === 'super-admin') navigate('/super-admin/notifications');
+              else if (userData?.role === 'teacher') navigate('/teacher/communication');
+              else if (userData?.role === 'parent') navigate('/parent/dashboard');
+              else if (userData?.role === 'student') navigate('/student/dashboard');
+              else navigate('/school-admin/sms');
+            }}
             title="Notifications & Alerts"
             className="relative p-2 text-dark-muted hover:text-primary-600 dark:hover:text-white transition-colors shrink-0 cursor-pointer"
           >
