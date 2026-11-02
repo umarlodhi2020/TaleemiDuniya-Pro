@@ -37,46 +37,65 @@ export const AuthProvider = ({ children }) => {
             await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
           }
 
-          // Auto-sync staff profile if user is teacher / staff or has matching email/phone
+          // Auto-sync staff profile ONLY IF user is NOT an admin
           try {
             const cleanEmail = (user.email || '').trim().toLowerCase();
-            const staffRef = collection(db, 'staff');
-            let matchedStaff = null;
+            const isExplicitAdmin = profile.role === 'school-admin' || profile.role === 'super-admin';
 
-            if (profile.recordId) {
-              const sDoc = await getDoc(doc(db, 'staff', profile.recordId));
-              if (sDoc.exists()) matchedStaff = { id: sDoc.id, ...sDoc.data() };
-            }
+            // Check if user is registered as adminEmail in any school
+            const schoolsRef = collection(db, 'schools');
+            const qAdmin = query(schoolsRef, where('adminEmail', '==', cleanEmail));
+            const adminSnap = await getDocs(qAdmin);
 
-            if (!matchedStaff && cleanEmail) {
-              const qEmail = query(staffRef, where('email', '==', cleanEmail));
-              const snap = await getDocs(qEmail);
-              if (!snap.empty) matchedStaff = { id: snap.docs[0].id, ...snap.docs[0].data() };
-            }
+            if (!adminSnap.empty) {
+              // Always guarantee school-admin role for school owner email
+              if (profile.role !== 'school-admin' && profile.role !== 'super-admin') {
+                profile = {
+                  ...profile,
+                  role: 'school-admin',
+                  schoolId: adminSnap.docs[0].id
+                };
+                await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+              }
+            } else if (!isExplicitAdmin) {
+              const staffRef = collection(db, 'staff');
+              let matchedStaff = null;
 
-            if (!matchedStaff && cleanEmail) {
-              const qLinked = query(staffRef, where('linkedEmail', '==', cleanEmail));
-              const snapLinked = await getDocs(qLinked);
-              if (!snapLinked.empty) matchedStaff = { id: snapLinked.docs[0].id, ...snapLinked.docs[0].data() };
-            }
+              if (profile.recordId) {
+                const sDoc = await getDoc(doc(db, 'staff', profile.recordId));
+                if (sDoc.exists()) matchedStaff = { id: sDoc.id, ...sDoc.data() };
+              }
 
-            if (matchedStaff) {
-              profile = {
-                ...profile,
-                name: matchedStaff.name || profile.name || user.displayName,
-                role: 'teacher',
-                designation: matchedStaff.role || matchedStaff.designation || 'Teacher',
-                assignedClass: matchedStaff.assignedClass || '',
-                assignedSection: matchedStaff.assignedSection || '',
-                subjects: matchedStaff.subjects || [],
-                isClassTeacher: Boolean(matchedStaff.isClassTeacher),
-                staffId: matchedStaff.staffId || '',
-                schoolId: matchedStaff.schoolId || profile.schoolId || 'default-school',
-                department: matchedStaff.department || 'Academic',
-                recordId: matchedStaff.id,
-                phone: matchedStaff.phone || profile.phone || ''
-              };
-              await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+              if (!matchedStaff && cleanEmail) {
+                const qEmail = query(staffRef, where('email', '==', cleanEmail));
+                const snap = await getDocs(qEmail);
+                if (!snap.empty) matchedStaff = { id: snap.docs[0].id, ...snap.docs[0].data() };
+              }
+
+              if (!matchedStaff && cleanEmail) {
+                const qLinked = query(staffRef, where('linkedEmail', '==', cleanEmail));
+                const snapLinked = await getDocs(qLinked);
+                if (!snapLinked.empty) matchedStaff = { id: snapLinked.docs[0].id, ...snapLinked.docs[0].data() };
+              }
+
+              if (matchedStaff) {
+                profile = {
+                  ...profile,
+                  name: matchedStaff.name || profile.name || user.displayName,
+                  role: 'teacher',
+                  designation: matchedStaff.role || matchedStaff.designation || 'Teacher',
+                  assignedClass: matchedStaff.assignedClass || '',
+                  assignedSection: matchedStaff.assignedSection || '',
+                  subjects: matchedStaff.subjects || [],
+                  isClassTeacher: Boolean(matchedStaff.isClassTeacher),
+                  staffId: matchedStaff.staffId || '',
+                  schoolId: matchedStaff.schoolId || profile.schoolId || 'default-school',
+                  department: matchedStaff.department || 'Academic',
+                  recordId: matchedStaff.id,
+                  phone: matchedStaff.phone || profile.phone || ''
+                };
+                await setDoc(doc(db, 'users', user.uid), profile, { merge: true });
+              }
             }
           } catch (stfErr) {
             console.error('Error syncing staff profile:', stfErr);
