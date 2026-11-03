@@ -40,10 +40,12 @@ import { useNavigate } from 'react-router-dom';
 import { collection, query, where, getDocs, getDoc, addDoc, setDoc, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import { Html5Qrcode } from 'html5-qrcode';
 
 export default function QrScannerApp() {
   const { userData } = useAuth();
+  const { schoolData } = useSchool();
   const navigate = useNavigate();
 
   // Mode: 'barcode' (Physical 2D/1D scanner gun - default) OR 'camera' (Webcam/Phone camera)
@@ -107,8 +109,17 @@ export default function QrScannerApp() {
   const [voiceLanguage, setVoiceLanguage] = useState('ur'); // 'ur' (Urdu) | 'en' (English)
   const [soundEffectType, setSoundEffectType] = useState('chime'); // 'chime' | 'retail' | 'mute'
   const [whatsappAlertsEnabled, setWhatsappAlertsEnabled] = useState(true);
-  const [schoolStartTime, setSchoolStartTime] = useState('08:15'); // 24-hr format for Late detection
-  const [schoolEndTime, setSchoolEndTime] = useState('13:30'); // 24-hr format for Early Departure alert
+  const [schoolStartTime, setSchoolStartTime] = useState(() => schoolData?.staffTimings?.shiftStartTime || '08:00'); // 24-hr format for Late detection
+  const [schoolEndTime, setSchoolEndTime] = useState(() => schoolData?.staffTimings?.shiftEndTime || '14:00'); // 24-hr format for Early Departure alert
+  
+  useEffect(() => {
+    if (schoolData?.staffTimings?.shiftStartTime) {
+      setSchoolStartTime(schoolData.staffTimings.shiftStartTime);
+    }
+    if (schoolData?.staffTimings?.shiftEndTime) {
+      setSchoolEndTime(schoolData.staffTimings.shiftEndTime);
+    }
+  }, [schoolData]);
   const [doubleScanCooldownSec, setDoubleScanCooldownSec] = useState(20); // 20 seconds anti-duplicate
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showClassModal, setShowClassModal] = useState(false);

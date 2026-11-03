@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { NavLink } from 'react-router-dom';
 import { 
   Calendar, 
   Users, 
@@ -19,10 +20,16 @@ import {
   Sparkles,
   ClipboardList,
   CalendarDays,
-  ArrowLeftRight
+  Zap,
+  Settings,
+  LogIn,
+  LogOut,
+  Timer,
+  Printer
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import { 
   getRecords, 
   getStaffAttendanceByDate, 
@@ -30,6 +37,60 @@ import {
   saveStaffAttendanceBatch 
 } from '../../services/db';
 import StaffTimeSlipModal from '../../components/common/StaffTimeSlipModal';
+
+// ── Time Formatting & Normalization Helpers ──
+export const normalizeTo24h = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return '';
+  const trimmed = timeStr.trim();
+  if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/.test(trimmed)) {
+    return trimmed.slice(0, 5);
+  }
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([APap][Mm])?$/);
+  if (match) {
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2];
+    const modifier = match[3] ? match[3].toUpperCase() : null;
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, '0')}:${minutes}`;
+  }
+  return '';
+};
+
+export const formatTo12h = (timeStr) => {
+  if (!timeStr || typeof timeStr !== 'string') return '-';
+  const trimmed = timeStr.trim();
+  if (/[APap][Mm]/.test(trimmed)) return trimmed;
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return trimmed;
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+};
+
+export const calculateDutyHours = (timeIn, timeOut) => {
+  const normIn = normalizeTo24h(timeIn);
+  const normOut = normalizeTo24h(timeOut);
+  if (!normIn || !normOut) return null;
+  const [inH, inM] = normIn.split(':').map(Number);
+  const [outH, outM] = normOut.split(':').map(Number);
+  let diffMinutes = (outH * 60 + outM) - (inH * 60 + inM);
+  if (diffMinutes < 0) diffMinutes += 24 * 60; // overnight shift
+  const hrs = Math.floor(diffMinutes / 60);
+  const mins = diffMinutes % 60;
+  return { 
+    hrs, 
+    mins, 
+    totalMinutes: diffMinutes, 
+    formatted: `${hrs}h ${mins > 0 ? `${mins}m` : '0m'}`.trim() 
+  };
+};
 
 const ATTENDANCE_STATUSES = [
   { id: 'present', label: 'Present', short: 'P', color: 'emerald', bgClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' },
@@ -40,7 +101,12 @@ const ATTENDANCE_STATUSES = [
 
 const StaffAttendanceRegister = () => {
   const { userData } = useAuth();
-  const schoolId = userData?.schoolId;
+  const { schoolData } = useSchool();
+  const schoolId = userData?.schoolId || schoolData?.id;
+
+  // Active School Settings Staff Shift Timings
+  const defaultShiftIn = normalizeTo24h(schoolData?.staffTimings?.shiftStartTime || schoolData?.shiftStartTime || '08:00') || '08:00';
+  const defaultShiftOut = normalizeTo24h(schoolData?.staffTimings?.shiftEndTime || schoolData?.shiftEndTime || '14:00') || '14:00';
 
   // Tabs: 'daily' | 'monthly'
   const [activeTab, setActiveTab] = useState('daily');
@@ -63,7 +129,7 @@ const StaffAttendanceRegister = () => {
   const [monthlyAttendanceList, setMonthlyAttendanceList] = useState([]);
   const [loadingMonthlyAtt, setLoadingMonthlyAtt] = useState(false);
 
-  // Time Slip Modal State
+  // Time Slip Modal State ("Kub Aaya Kub Gya")
   const [timeSlipStaff, setTimeSlipStaff] = useState(null);
 
   // Toast message
@@ -97,6 +163,20 @@ const StaffAttendanceRegister = () => {
     setSelectedMonth(`${y}-${String(m).padStart(2, '0')}`);
   };
 
+  // Get specific staff's default shift (checks individual staff timing first, falls back to School Settings)
+  const getStaffDefaultTimings = (staff) => {
+    const customIn = staff?.timingIn || staff?.shiftStartTime || staff?.expectedTimeIn;
+    const customOut = staff?.timingOut || staff?.shiftEndTime || staff?.expectedTimeOut;
+    const shiftIn = normalizeTo24h(customIn) || defaultShiftIn;
+    const shiftOut = normalizeTo24h(customOut) || defaultShiftOut;
+    return {
+      shiftIn,
+      shiftOut,
+      shiftInFormatted: formatTo12h(shiftIn),
+      shiftOutFormatted: formatTo12h(shiftOut)
+    };
+  };
+
   // 1. Fetch Staff List
   useEffect(() => {
     if (!schoolId) return;
@@ -107,7 +187,6 @@ const StaffAttendanceRegister = () => {
     setLoadingStaff(true);
     try {
       const data = await getRecords('staff', schoolId);
-      // Filter out non-active staff if status exists
       const activeStaff = data.filter(s => !s.status || s.status === 'Active' || s.status === 'active');
       setStaffList(activeStaff.length > 0 ? activeStaff : data);
     } catch (error) {
@@ -130,17 +209,39 @@ const StaffAttendanceRegister = () => {
       const records = await getStaffAttendanceByDate(schoolId, selectedDate);
       const map = {};
       records.forEach(r => {
-        const key = r.staffId || r.id;
-        if (key) {
-          map[key] = {
-            status: r.status || 'present',
-            notes: r.notes || '',
-            timeIn: r.timeIn || r.time || '',
-            timeOut: r.timeOut || '',
-            existingDocId: r.id
-          };
+        const rawIn = r.timeIn || r.time || r.checkIn || '';
+        const rawOut = r.timeOut || r.checkOut || '';
+        const normalizedIn = normalizeTo24h(rawIn);
+        const normalizedOut = normalizeTo24h(rawOut);
+
+        const recordData = {
+          status: (r.status || 'present').toLowerCase(),
+          notes: r.notes || '',
+          timeIn: normalizedIn || rawIn,
+          timeOut: normalizedOut || rawOut,
+          timeInRaw: rawIn,
+          timeOutRaw: rawOut,
+          isLate: !!r.isLate,
+          minutesLate: r.minutesLate || 0,
+          existingDocId: r.id
+        };
+
+        const keys = [
+          r.staffId,
+          r.employeeId,
+          r.userId,
+          r.id && r.id.includes('_') ? r.id.split('_')[0] : r.id
+        ].filter(Boolean);
+
+        keys.forEach(k => {
+          map[k] = recordData;
+        });
+
+        if (r.staffName) {
+          map[`name_${String(r.staffName).toLowerCase().trim()}`] = recordData;
         }
       });
+
       setDailyAttendanceMap(map);
       setSavedDailyAttendanceMap(map);
     } catch (error) {
@@ -192,41 +293,68 @@ const StaffAttendanceRegister = () => {
     });
   }, [staffList, departmentFilter, searchTerm]);
 
+  // Lookup helper for a staff member's record in state
+  const getStaffAttendance = (staff) => {
+    if (!staff) return {};
+    return dailyAttendanceMap[staff.id] ||
+      dailyAttendanceMap[staff.employeeId] ||
+      dailyAttendanceMap[staff.staffId] ||
+      dailyAttendanceMap[`name_${String(staff.name || '').toLowerCase().trim()}`] ||
+      {};
+  };
+
   // Check if current daily map has unsaved edits
   const isDirty = useMemo(() => {
     for (const s of filteredStaff) {
-      const current = dailyAttendanceMap[s.id] || {};
-      const saved = savedDailyAttendanceMap[s.id] || {};
-      if (current.status !== saved.status || (current.notes || '') !== (saved.notes || '') || (current.timeIn || '') !== (saved.timeIn || '') || (current.timeOut || '') !== (saved.timeOut || '')) {
+      const current = getStaffAttendance(s);
+      const saved = savedDailyAttendanceMap[s.id] || savedDailyAttendanceMap[s.employeeId] || {};
+      if (
+        (current.status || '') !== (saved.status || '') ||
+        (current.notes || '') !== (saved.notes || '') ||
+        (current.timeIn || '') !== (saved.timeIn || '') ||
+        (current.timeOut || '') !== (saved.timeOut || '')
+      ) {
         return true;
       }
     }
     return false;
   }, [filteredStaff, dailyAttendanceMap, savedDailyAttendanceMap]);
 
-  // Handle status toggle in Daily Register
+  // Handle status toggle in Daily Register (AUTOMATICALLY sets shift timings on Present)
   const handleStatusChange = (staffId, status) => {
-    setDailyAttendanceMap(prev => ({
-      ...prev,
-      [staffId]: {
-        ...prev[staffId],
-        status
+    const staff = staffList.find(s => s.id === staffId);
+    const { shiftIn, shiftOut } = getStaffDefaultTimings(staff);
+
+    setDailyAttendanceMap(prev => {
+      const current = prev[staffId] || {};
+      let nextTimeIn = current.timeIn;
+      let nextTimeOut = current.timeOut;
+
+      if (status === 'present') {
+        // Automatic assignment from School Settings shift timings if currently empty
+        if (!nextTimeIn) nextTimeIn = shiftIn;
+        if (!nextTimeOut) nextTimeOut = shiftOut;
+      } else if (status === 'half') {
+        if (!nextTimeIn) nextTimeIn = shiftIn;
+        if (!nextTimeOut) nextTimeOut = '11:30';
+      } else if (status === 'absent' || status === 'leave') {
+        nextTimeIn = '';
+        nextTimeOut = '';
       }
-    }));
+
+      return {
+        ...prev,
+        [staffId]: {
+          ...current,
+          status,
+          timeIn: nextTimeIn,
+          timeOut: nextTimeOut
+        }
+      };
+    });
   };
 
-  // Handle notes change in Daily Register
-  const handleNotesChange = (staffId, notes) => {
-    setDailyAttendanceMap(prev => ({
-      ...prev,
-      [staffId]: {
-        ...prev[staffId],
-        notes
-      }
-    }));
-  };
-
-  // Handle time in change in Daily Register
+  // Handle manual time in change
   const handleTimeInChange = (staffId, timeIn) => {
     setDailyAttendanceMap(prev => ({
       ...prev,
@@ -237,7 +365,7 @@ const StaffAttendanceRegister = () => {
     }));
   };
 
-  // Handle time out change in Daily Register
+  // Handle manual time out change
   const handleTimeOutChange = (staffId, timeOut) => {
     setDailyAttendanceMap(prev => ({
       ...prev,
@@ -248,21 +376,102 @@ const StaffAttendanceRegister = () => {
     }));
   };
 
-  // Bulk mark all visible staff
+  // Handle notes change
+  const handleNotesChange = (staffId, notes) => {
+    setDailyAttendanceMap(prev => ({
+      ...prev,
+      [staffId]: {
+        ...prev[staffId],
+        notes
+      }
+    }));
+  };
+
+  // Quick 1-tap stamp: Sets timeIn to current clock time
+  const handleStampNowIn = (staffId) => {
+    const now24 = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    handleTimeInChange(staffId, now24);
+    showToast('info', `Clock In set to ${formatTo12h(now24)}`);
+  };
+
+  // Quick 1-tap stamp: Sets timeOut to current clock time
+  const handleStampNowOut = (staffId) => {
+    const now24 = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    handleTimeOutChange(staffId, now24);
+    showToast('info', `Clock Out set to ${formatTo12h(now24)}`);
+  };
+
+  // Bulk mark all visible staff with automatic shift timings
   const handleBulkMark = (status) => {
     setDailyAttendanceMap(prev => {
       const next = { ...prev };
       filteredStaff.forEach(s => {
+        const current = next[s.id] || {};
+        const { shiftIn, shiftOut } = getStaffDefaultTimings(s);
+        let nextTimeIn = current.timeIn;
+        let nextTimeOut = current.timeOut;
+
+        if (status === 'present') {
+          if (!nextTimeIn) nextTimeIn = shiftIn;
+          if (!nextTimeOut) nextTimeOut = shiftOut;
+        } else if (status === 'absent' || status === 'leave') {
+          nextTimeIn = '';
+          nextTimeOut = '';
+        }
+
         next[s.id] = {
-          ...next[s.id],
-          status
+          ...current,
+          status,
+          timeIn: nextTimeIn,
+          timeOut: nextTimeOut
         };
       });
       return next;
     });
+    showToast('info', `Marked all visible staff as ${status.toUpperCase()} with automatic shift timings!`);
   };
 
-  // Batch Save Attendance
+  // 1-Click: Auto-fill default shift timings for all present staff
+  const handleAutoFillAllShiftTimings = () => {
+    setDailyAttendanceMap(prev => {
+      const next = { ...prev };
+      filteredStaff.forEach(s => {
+        const current = next[s.id] || {};
+        const { shiftIn, shiftOut } = getStaffDefaultTimings(s);
+        next[s.id] = {
+          ...current,
+          status: current.status || 'present',
+          timeIn: shiftIn,
+          timeOut: shiftOut
+        };
+      });
+      return next;
+    });
+    showToast('success', `Applied Settings shift timings (${formatTo12h(defaultShiftIn)} - ${formatTo12h(defaultShiftOut)}) to all staff!`);
+  };
+
+  // 1-Click: Stamp live clock time for all present staff
+  const handleStampCurrentTimeInAll = () => {
+    const now24 = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    setDailyAttendanceMap(prev => {
+      const next = { ...prev };
+      filteredStaff.forEach(s => {
+        const current = next[s.id] || {};
+        if (current.status !== 'absent' && current.status !== 'leave') {
+          next[s.id] = {
+            ...current,
+            status: 'present',
+            timeIn: now24,
+            timeOut: current.timeOut || getStaffDefaultTimings(s).shiftOut
+          };
+        }
+      });
+      return next;
+    });
+    showToast('success', `Clocked In all staff at ${formatTo12h(now24)}!`);
+  };
+
+  // Batch Save Attendance to Firestore
   const handleSaveAttendance = async () => {
     if (!schoolId) {
       showToast('error', 'School context missing.');
@@ -278,20 +487,47 @@ const StaffAttendanceRegister = () => {
 
     try {
       const recordsToSave = filteredStaff.map(staff => {
-        const att = dailyAttendanceMap[staff.id] || {};
+        const att = getStaffAttendance(staff);
+        const { shiftIn, shiftOut } = getStaffDefaultTimings(staff);
+        
+        const finalStatus = att.status || 'present';
+        const finalTimeIn = att.timeIn || (finalStatus === 'present' ? shiftIn : '');
+        const finalTimeOut = att.timeOut || (finalStatus === 'present' ? shiftOut : '');
+        const duty = calculateDutyHours(finalTimeIn, finalTimeOut);
+
+        // Calculate late arrival
+        let isLate = false;
+        let minutesLate = 0;
+        if (finalTimeIn && shiftIn) {
+          const [inH, inM] = normalizeTo24h(finalTimeIn).split(':').map(Number);
+          const [sH, sM] = normalizeTo24h(shiftIn).split(':').map(Number);
+          const diff = (inH * 60 + inM) - (sH * 60 + sM);
+          if (diff > 5) {
+            isLate = true;
+            minutesLate = diff;
+          }
+        }
+
         return {
           staffId: staff.id,
-          employeeId: staff.employeeId || staff.id,
+          employeeId: staff.employeeId || staff.staffId || staff.id,
           staffName: staff.name || '',
           schoolId,
           campusId: staff.campusId || null,
           department: staff.department || 'General',
           designation: staff.designation || staff.role || '',
           date: selectedDate,
-          status: att.status || 'present', // Default to present if unmarked upon saving
+          status: finalStatus,
           notes: att.notes || '',
-          timeIn: att.timeIn || '',
-          timeOut: att.timeOut || '',
+          timeIn: finalTimeIn,
+          timeInFormatted: formatTo12h(finalTimeIn),
+          timeOut: finalTimeOut,
+          timeOutFormatted: formatTo12h(finalTimeOut),
+          hoursWorked: duty ? duty.formatted : '-',
+          totalMinutesWorked: duty ? duty.totalMinutes : 0,
+          isLate,
+          minutesLate,
+          expectedShift: `${formatTo12h(shiftIn)} - ${formatTo12h(shiftOut)}`
         };
       });
 
@@ -299,7 +535,6 @@ const StaffAttendanceRegister = () => {
 
       if (result.success) {
         showToast('success', `Attendance saved successfully for ${recordsToSave.length} staff members on ${selectedDate}!`);
-        // Re-fetch to reconcile with saved Firestore state
         await fetchDailyAttendance();
       } else {
         throw result.error || new Error('Failed to save attendance records.');
@@ -316,7 +551,7 @@ const StaffAttendanceRegister = () => {
   const daysInSelectedMonth = useMemo(() => {
     if (!selectedMonth || !selectedMonth.includes('-')) return [];
     const [year, month] = selectedMonth.split('-').map(Number);
-    const date = new Date(year, month, 0); // last day of month
+    const date = new Date(year, month, 0);
     const totalDays = date.getDate();
     return Array.from({ length: totalDays }, (_, i) => i + 1);
   }, [selectedMonth]);
@@ -325,14 +560,19 @@ const StaffAttendanceRegister = () => {
   const monthlyDataByStaff = useMemo(() => {
     const map = {};
     monthlyAttendanceList.forEach(rec => {
-      const staffKey = rec.staffId || rec.id;
+      const staffKey = rec.staffId || rec.employeeId || rec.id;
       if (!staffKey || !rec.date) return;
       
       const dayNum = parseInt(rec.date.split('-')[2], 10);
       if (!map[staffKey]) {
         map[staffKey] = {};
       }
-      map[staffKey][dayNum] = rec.status;
+      map[staffKey][dayNum] = {
+        status: (rec.status || '').toLowerCase(),
+        timeIn: rec.timeIn || rec.time || '-',
+        timeOut: rec.timeOut || '-',
+        hoursWorked: rec.hoursWorked || '-'
+      };
     });
     return map;
   }, [monthlyAttendanceList]);
@@ -362,10 +602,14 @@ const StaffAttendanceRegister = () => {
         <div className={`fixed top-5 right-5 z-50 p-4 rounded-xl shadow-2xl border flex items-center gap-3 animate-fade-in ${
           toast.type === 'success' 
             ? 'bg-emerald-950/90 text-emerald-200 border-emerald-500/50' 
+            : toast.type === 'info'
+            ? 'bg-indigo-950/90 text-indigo-200 border-indigo-500/50'
             : 'bg-red-950/90 text-red-200 border-red-500/50'
         }`}>
           {toast.type === 'success' ? (
             <CheckCircle2 size={22} className="text-emerald-400 shrink-0" />
+          ) : toast.type === 'info' ? (
+            <Sparkles size={22} className="text-indigo-400 shrink-0" />
           ) : (
             <AlertCircle size={22} className="text-red-400 shrink-0" />
           )}
@@ -381,11 +625,14 @@ const StaffAttendanceRegister = () => {
               <ClipboardList size={26} />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-black text-dark-text tracking-tight">
-                Staff Attendance Register
+              <h1 className="text-2xl md:text-3xl font-black text-dark-text tracking-tight flex items-center gap-2">
+                <span>Staff Attendance & Shift Register</span>
+                <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono font-bold">
+                  AUTO-TIMINGS
+                </span>
               </h1>
               <p className="text-dark-muted text-xs md:text-sm">
-                Daily attendance marking, updating, and monthly matrix overview for school staff.
+                Real-time arrival (In) & departure (Out) recording with auto-shift synchronization.
               </p>
             </div>
           </div>
@@ -398,10 +645,10 @@ const StaffAttendanceRegister = () => {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === 'daily'
                 ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
-                : 'text-dark-muted hover:text-dark-text hover:bg-dark-paper/50'
+                : 'text-dark-muted hover:text-dark-text'
             }`}
           >
-            <CalendarDays size={16} />
+            <Calendar size={16} />
             <span>Daily Register</span>
           </button>
           <button
@@ -409,7 +656,7 @@ const StaffAttendanceRegister = () => {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeTab === 'monthly'
                 ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
-                : 'text-dark-muted hover:text-dark-text hover:bg-dark-paper/50'
+                : 'text-dark-muted hover:text-dark-text'
             }`}
           >
             <Grid size={16} />
@@ -418,15 +665,65 @@ const StaffAttendanceRegister = () => {
         </div>
       </div>
 
-      {/* Filter & Date Navigation Toolbar */}
+      {/* SETTINGS STAFF TIMINGS BANNER */}
+      <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 border border-purple-500/20 rounded-2xl p-4 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold shrink-0">
+            <Clock size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-purple-400">Settings Staff Shift Timings:</span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-extrabold uppercase">
+                Active in System
+              </span>
+            </div>
+            <p className="text-sm font-black text-dark-text mt-0.5">
+              Shift In: <span className="text-emerald-400 font-mono font-bold">{formatTo12h(defaultShiftIn)}</span> &nbsp;•&nbsp; 
+              Shift Out: <span className="text-purple-400 font-mono font-bold">{formatTo12h(defaultShiftOut)}</span> &nbsp;•&nbsp; 
+              <span className="text-xs text-dark-muted font-normal">Auto-assigned jab staff Present mark ho</span>
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleAutoFillAllShiftTimings}
+            className="px-3.5 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            title="Auto-fill shift timings for all staff"
+          >
+            <Zap size={14} className="text-amber-400" />
+            <span>Auto-Fill Shift ({formatTo12h(defaultShiftIn)} - {formatTo12h(defaultShiftOut)})</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleStampCurrentTimeInAll}
+            className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+            title="Stamp live current time for all staff"
+          >
+            <Timer size={14} className="text-emerald-400" />
+            <span>Stamp Live Clock-In</span>
+          </button>
+          <NavLink
+            to="/school-admin/settings"
+            className="p-2 rounded-xl bg-dark-bg/60 border border-dark-border/60 text-dark-muted hover:text-dark-text hover:bg-dark-paper transition-all flex items-center gap-1.5 text-xs font-bold"
+            title="Change default staff shift timings in School Settings"
+          >
+            <Settings size={15} />
+            <span className="hidden sm:inline">Settings</span>
+          </NavLink>
+        </div>
+      </div>
+
+      {/* FILTER & DATE CONTROLS BAR */}
       <GlassCard className="p-4 md:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
-          {/* Date Selector (Daily Tab) or Month Selector (Monthly Tab) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Daily Date Selector */}
           {activeTab === 'daily' ? (
             <div>
               <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <Calendar size={14} className="text-primary-400" />
-                <span>Attendance Date</span>
+                <span>Selected Date</span>
               </label>
               <div className="flex items-center gap-1">
                 <button
@@ -456,8 +753,8 @@ const StaffAttendanceRegister = () => {
           ) : (
             <div>
               <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <Calendar size={14} className="text-primary-400" />
-                <span>Select Month & Year</span>
+                <CalendarDays size={14} className="text-primary-400" />
+                <span>Selected Month</span>
               </label>
               <div className="flex items-center gap-1">
                 <button
@@ -555,34 +852,36 @@ const StaffAttendanceRegister = () => {
       {activeTab === 'daily' && (
         <div className="space-y-4">
           {/* Quick Bulk Actions & Unsaved Banner */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-dark-bg/40 p-3 rounded-xl border border-dark-border/40">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-dark-bg/40 p-3.5 rounded-xl border border-dark-border/40">
             <div className="flex items-center gap-2 text-xs font-bold text-dark-muted">
               <span>Quick Actions for visible staff ({filteredStaff.length}):</span>
               {isDirty && (
-                <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] uppercase tracking-wider font-extrabold animate-pulse">
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] uppercase tracking-wider font-extrabold animate-pulse">
                   Unsaved Changes
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => handleBulkMark('present')}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5"
+                className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
-                <CheckCircle2 size={13} />
-                <span>Mark All Present</span>
+                <CheckCircle2 size={14} />
+                <span>Mark All Present (Auto-Shift)</span>
               </button>
               <button
+                type="button"
                 onClick={() => handleBulkMark('absent')}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center gap-1.5"
+                className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
-                <XCircle size={13} />
+                <XCircle size={14} />
                 <span>Mark All Absent</span>
               </button>
             </div>
           </div>
 
-          {/* Daily Table */}
+          {/* Daily Table with Clear In/Out Display */}
           <GlassCard className="p-0 overflow-hidden">
             {loadingStaff || loadingDailyAtt ? (
               <div className="p-12 text-center text-dark-muted flex flex-col items-center justify-center gap-3">
@@ -599,11 +898,20 @@ const StaffAttendanceRegister = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-dark-paper/70 border-b border-dark-border text-xs uppercase font-bold tracking-wider text-dark-muted">
+                    <tr className="bg-dark-paper/80 border-b border-dark-border text-xs uppercase font-black tracking-wider text-dark-muted">
                       <th className="py-3.5 px-4">Staff Member</th>
                       <th className="py-3.5 px-4">Employee ID</th>
-                      <th className="py-3.5 px-4">Department</th>
-                      <th className="py-3.5 px-4 text-center">Time In/Out</th>
+                      <th className="py-3.5 px-4 text-center">
+                        <span className="flex items-center justify-center gap-1.5 text-emerald-400">
+                          <LogIn size={14} /> Aane Ka Waqt (Time In)
+                        </span>
+                      </th>
+                      <th className="py-3.5 px-4 text-center">
+                        <span className="flex items-center justify-center gap-1.5 text-purple-400">
+                          <LogOut size={14} /> Jaane Ka Waqt (Time Out)
+                        </span>
+                      </th>
+                      <th className="py-3.5 px-4 text-center">Duty Duration</th>
                       <th className="py-3.5 px-4 text-center">Attendance Status</th>
                       <th className="py-3.5 px-4">Notes / Remarks</th>
                       <th className="py-3.5 px-4 text-center">Time Slip</th>
@@ -611,65 +919,137 @@ const StaffAttendanceRegister = () => {
                   </thead>
                   <tbody className="divide-y divide-dark-border/50 text-sm">
                     {filteredStaff.map((staff) => {
-                      const att = dailyAttendanceMap[staff.id] || {};
+                      const att = getStaffAttendance(staff);
                       const currentStatus = att.status || '';
-                      const savedAtt = savedDailyAttendanceMap[staff.id] || {};
-                      const isEdited = att.status !== savedAtt.status || (att.notes || '') !== (savedAtt.notes || '');
+                      const { shiftIn, shiftOut } = getStaffDefaultTimings(staff);
+
+                      const displayTimeIn = att.timeIn || (currentStatus === 'present' ? shiftIn : '');
+                      const displayTimeOut = att.timeOut || (currentStatus === 'present' ? shiftOut : '');
+                      const duty = calculateDutyHours(displayTimeIn, displayTimeOut);
+
+                      // Check punctuality against shift start time
+                      let isLate = false;
+                      let minutesLate = 0;
+                      if (displayTimeIn && shiftIn) {
+                        const [inH, inM] = normalizeTo24h(displayTimeIn).split(':').map(Number);
+                        const [sH, sM] = normalizeTo24h(shiftIn).split(':').map(Number);
+                        const diff = (inH * 60 + inM) - (sH * 60 + sM);
+                        if (diff > 5) {
+                          isLate = true;
+                          minutesLate = diff;
+                        }
+                      }
 
                       return (
                         <tr key={staff.id} className="hover:bg-dark-paper/40 transition-colors">
                           {/* Staff Details */}
                           <td className="py-3.5 px-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full bg-primary-500/10 text-primary-400 border border-primary-500/20 flex items-center justify-center font-bold text-sm shrink-0">
+                              <div className="w-10 h-10 rounded-xl bg-primary-500/10 text-primary-400 border border-primary-500/20 flex items-center justify-center font-bold text-sm shrink-0 shadow-sm">
                                 {staff.name ? staff.name.charAt(0).toUpperCase() : <User size={16} />}
                               </div>
                               <div>
                                 <div className="font-bold text-dark-text flex items-center gap-2">
                                   <span>{staff.name || 'Unnamed Staff'}</span>
-                                  {isEdited && (
-                                    <span className="w-2 h-2 rounded-full bg-amber-400" title="Modified in session" />
-                                  )}
                                 </div>
-                                <div className="text-xs text-dark-muted">{staff.designation || staff.role || 'Staff'}</div>
+                                <div className="text-xs text-dark-muted flex items-center gap-1.5 mt-0.5">
+                                  <span>{staff.designation || staff.role || 'Staff'}</span>
+                                  <span>•</span>
+                                  <span className="font-medium text-primary-400/80">{staff.department || 'General'}</span>
+                                </div>
                               </div>
                             </div>
                           </td>
 
                           {/* Employee ID */}
-                          <td className="py-3.5 px-4 font-mono text-xs text-dark-muted font-medium">
-                            {staff.staffId || staff.employeeId || staff.id}
-                          </td>
-
-                          {/* Department */}
-                          <td className="py-3.5 px-4 text-dark-text font-medium">
-                            <span className="inline-block px-2.5 py-1 rounded-md bg-dark-bg border border-dark-border/60 text-xs font-semibold">
-                              {staff.department || 'General'}
+                          <td className="py-3.5 px-4 font-mono text-xs text-dark-muted font-bold">
+                            <span className="px-2 py-1 rounded-md bg-dark-bg border border-dark-border/60">
+                              {staff.staffId || staff.employeeId || staff.id.slice(0, 8)}
                             </span>
                           </td>
 
-                          {/* Time In / Out */}
+                          {/* TIME IN (Aane Ka Waqt) */}
                           <td className="py-3.5 px-4">
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-dark-muted w-8">IN</span>
+                            <div className="flex flex-col items-center gap-1.5 min-w-[130px]">
+                              <div className="flex items-center gap-1.5 w-full">
                                 <input
                                   type="time"
-                                  value={att.timeIn || ''}
+                                  value={normalizeTo24h(att.timeIn || (currentStatus === 'present' ? shiftIn : ''))}
                                   onChange={(e) => handleTimeInChange(staff.id, e.target.value)}
-                                  className="w-full bg-dark-bg/60 border border-dark-border/60 rounded-md px-2 py-1 text-xs text-dark-text focus:outline-none focus:border-primary-500"
+                                  className="w-full bg-dark-bg/80 border border-emerald-500/30 focus:border-emerald-500 rounded-lg px-2 py-1 text-xs text-dark-text font-mono font-bold text-center"
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => handleStampNowIn(staff.id)}
+                                  className="px-1.5 py-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-[10px] font-black shrink-0"
+                                  title="Stamp current live time as Time In"
+                                >
+                                  Now
+                                </button>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-dark-muted w-8">OUT</span>
+
+                              {displayTimeIn ? (
+                                <div className="flex items-center gap-1 flex-wrap justify-center">
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-mono font-bold flex items-center gap-1">
+                                    <Clock size={10} />
+                                    <span>{formatTo12h(displayTimeIn)}</span>
+                                  </span>
+                                  {isLate ? (
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[9px] font-bold">
+                                      Late ({minutesLate}m)
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-bold">
+                                      On Time
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-dark-muted italic">Not Clocked In</span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* TIME OUT (Jaane Ka Waqt) */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex flex-col items-center gap-1.5 min-w-[130px]">
+                              <div className="flex items-center gap-1.5 w-full">
                                 <input
                                   type="time"
-                                  value={att.timeOut || ''}
+                                  value={normalizeTo24h(att.timeOut || (currentStatus === 'present' ? shiftOut : ''))}
                                   onChange={(e) => handleTimeOutChange(staff.id, e.target.value)}
-                                  className="w-full bg-dark-bg/60 border border-dark-border/60 rounded-md px-2 py-1 text-xs text-dark-text focus:outline-none focus:border-primary-500"
+                                  className="w-full bg-dark-bg/80 border border-purple-500/30 focus:border-purple-500 rounded-lg px-2 py-1 text-xs text-dark-text font-mono font-bold text-center"
                                 />
+                                <button
+                                  type="button"
+                                  onClick={() => handleStampNowOut(staff.id)}
+                                  className="px-1.5 py-1 rounded-md bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 text-[10px] font-black shrink-0"
+                                  title="Stamp current live time as Time Out"
+                                >
+                                  Now
+                                </button>
                               </div>
+
+                              {displayTimeOut ? (
+                                <span className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-mono font-bold flex items-center gap-1">
+                                  <Clock size={10} />
+                                  <span>{formatTo12h(displayTimeOut)}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] text-dark-muted italic">Not Clocked Out</span>
+                              )}
                             </div>
+                          </td>
+
+                          {/* DUTY DURATION */}
+                          <td className="py-3.5 px-4 text-center">
+                            {duty ? (
+                              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-extrabold text-xs">
+                                {duty.formatted}
+                              </span>
+                            ) : (
+                              <span className="text-dark-muted font-mono text-xs">-</span>
+                            )}
                           </td>
 
                           {/* Status Options */}
@@ -682,7 +1062,7 @@ const StaffAttendanceRegister = () => {
                                     key={st.id}
                                     type="button"
                                     onClick={() => handleStatusChange(staff.id, st.id)}
-                                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                    className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                                       isSelected
                                         ? st.bgClass + ' ring-2 ring-primary-500/40 shadow-sm'
                                         : 'bg-dark-bg/60 border-dark-border/60 text-dark-muted hover:text-dark-text hover:bg-dark-paper'
@@ -700,22 +1080,22 @@ const StaffAttendanceRegister = () => {
                           <td className="py-3.5 px-4">
                             <input
                               type="text"
-                              placeholder="Add remark..."
+                              placeholder="Remarks / notes..."
                               value={att.notes || ''}
                               onChange={(e) => handleNotesChange(staff.id, e.target.value)}
                               className="w-full bg-dark-bg/60 border border-dark-border/60 rounded-lg px-2.5 py-1.5 text-xs text-dark-text placeholder-dark-muted focus:outline-none focus:border-primary-500"
                             />
                           </td>
 
-                          {/* Time Slip (In / Out) */}
+                          {/* Time Slip ("Kub Aaya Kub Gya") */}
                           <td className="py-3.5 px-4 text-center">
                             <button
                               type="button"
                               onClick={() => setTimeSlipStaff(staff)}
-                              className="px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold inline-flex items-center gap-1 transition-all"
-                              title="View & Print Staff Time Slip (In / Out Log)"
+                              className="px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                              title="Staff Time Slip (Kub Aaya aur Kub Gya)"
                             >
-                              <Clock size={13} />
+                              <FileText size={13} />
                               <span>Time Slip</span>
                             </button>
                           </td>
@@ -729,7 +1109,7 @@ const StaffAttendanceRegister = () => {
           </GlassCard>
 
           {/* Bottom Save Bar */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-dark-paper/40 border border-dark-border/60">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl bg-dark-paper/40 border border-dark-border/60">
             <div className="text-xs text-dark-muted font-medium flex items-center gap-2">
               <span>Showing <strong className="text-dark-text">{filteredStaff.length}</strong> staff member(s) for <strong className="text-primary-400">{selectedDate}</strong></span>
               {isDirty && (
@@ -739,17 +1119,17 @@ const StaffAttendanceRegister = () => {
             <button
               onClick={handleSaveAttendance}
               disabled={savingDaily || loadingStaff}
-              className="premium-button-primary py-2.5 px-6 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-lg shadow-primary-500/20 disabled:opacity-50"
+              className="premium-button-primary py-2.5 px-6 rounded-xl flex items-center gap-2 text-sm font-semibold shadow-lg shadow-primary-500/20 disabled:opacity-50 cursor-pointer"
             >
               {savingDaily ? (
                 <>
                   <RefreshCw size={16} className="animate-spin" />
-                  <span>Saving...</span>
+                  <span>Saving to Database...</span>
                 </>
               ) : (
                 <>
                   <Save size={16} />
-                  <span>Save Attendance</span>
+                  <span>Save Attendance & Timings</span>
                 </>
               )}
             </button>
@@ -820,8 +1200,8 @@ const StaffAttendanceRegister = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                   <thead>
-                    <tr className="bg-dark-paper/70 border-b border-dark-border text-[11px] uppercase font-bold tracking-wider text-dark-muted">
-                      <th className="py-3 px-3 sticky left-0 bg-dark-paper/90 backdrop-blur z-10 border-r border-dark-border min-w-[180px]">
+                    <tr className="bg-dark-paper/80 border-b border-dark-border text-[11px] uppercase font-black tracking-wider text-dark-muted">
+                      <th className="py-3 px-3 sticky left-0 bg-dark-paper/95 backdrop-blur z-10 border-r border-dark-border min-w-[180px]">
                         Staff Member
                       </th>
                       <th className="py-3 px-2 border-r border-dark-border min-w-[90px]">
@@ -850,14 +1230,15 @@ const StaffAttendanceRegister = () => {
                   </thead>
                   <tbody className="divide-y divide-dark-border/50 text-xs">
                     {filteredStaff.map((staff) => {
-                      const staffAttMap = monthlyDataByStaff[staff.id] || {};
+                      const staffAttMap = monthlyDataByStaff[staff.id] || monthlyDataByStaff[staff.employeeId] || {};
                       let presentCount = 0;
                       let absentCount = 0;
                       let halfCount = 0;
                       let leaveCount = 0;
 
                       daysInSelectedMonth.forEach(day => {
-                        const st = staffAttMap[day];
+                        const dayRec = staffAttMap[day];
+                        const st = dayRec?.status || (typeof dayRec === 'string' ? dayRec : '');
                         if (st === 'present') presentCount++;
                         else if (st === 'absent') absentCount++;
                         else if (st === 'half') halfCount++;
@@ -867,21 +1248,21 @@ const StaffAttendanceRegister = () => {
                       return (
                         <tr key={staff.id} className="hover:bg-dark-paper/40 transition-colors">
                           {/* Sticky Staff Name Column */}
-                          <td className="py-2.5 px-3 font-semibold text-dark-text sticky left-0 bg-dark-bg/90 backdrop-blur z-10 border-r border-dark-border">
+                          <td className="py-2.5 px-3 font-semibold text-dark-text sticky left-0 bg-dark-bg/95 backdrop-blur z-10 border-r border-dark-border">
                             <div className="flex items-center justify-between">
                               <div className="min-w-0">
                                 <div className="truncate font-bold max-w-[130px]" title={staff.name}>
                                   {staff.name || 'Unnamed'}
                                 </div>
-                                <div className="text-[10px] text-dark-muted font-mono">{staff.staffId || staff.employeeId || staff.id}</div>
+                                <div className="text-[10px] text-dark-muted font-mono">{staff.staffId || staff.employeeId || staff.id.slice(0, 8)}</div>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => setTimeSlipStaff(staff)}
-                                className="p-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 ml-1 shrink-0"
-                                title="View Monthly Time Slip"
+                                className="p-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 ml-1 shrink-0 cursor-pointer"
+                                title="View & Print Monthly Time Slip"
                               >
-                                <Clock size={12} />
+                                <FileText size={12} />
                               </button>
                             </div>
                           </td>
@@ -891,9 +1272,10 @@ const StaffAttendanceRegister = () => {
                             {staff.department || 'General'}
                           </td>
 
-                          {/* Daily Status Cells */}
+                          {/* Daily Status Cells with In/Out Tooltip */}
                           {daysInSelectedMonth.map(day => {
-                            const status = staffAttMap[day];
+                            const dayRec = staffAttMap[day];
+                            const status = dayRec?.status || (typeof dayRec === 'string' ? dayRec : '');
                             let cellContent = '-';
                             let cellClass = 'text-dark-muted opacity-30';
 
@@ -911,8 +1293,12 @@ const StaffAttendanceRegister = () => {
                               cellClass = 'bg-purple-500/20 text-purple-400 font-bold border border-purple-500/30';
                             }
 
+                            const tooltipText = dayRec?.timeIn 
+                              ? `Day ${day}: In ${formatTo12h(dayRec.timeIn)} - Out ${formatTo12h(dayRec.timeOut)} (${dayRec.hoursWorked || 'Shift'})`
+                              : `Day ${day}: ${status || 'Not marked'}`;
+
                             return (
-                              <td key={day} className="py-2 px-1 text-center border-r border-dark-border/40">
+                              <td key={day} className="py-2 px-1 text-center border-r border-dark-border/40" title={tooltipText}>
                                 <span className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[10px] ${cellClass}`}>
                                   {cellContent}
                                 </span>
@@ -944,7 +1330,7 @@ const StaffAttendanceRegister = () => {
         </div>
       )}
 
-      {/* Staff Time Slip Modal */}
+      {/* Staff Time Slip Modal ("Kub Aaya Kub Gya") */}
       {timeSlipStaff && (
         <StaffTimeSlipModal
           staff={timeSlipStaff}

@@ -22,6 +22,7 @@ import { db } from '../../services/firebase';
 import { getRecords, getStaffAttendanceByMonth } from '../../services/db';
 import { useSchool } from '../../context/SchoolContext';
 import { useAuth } from '../../context/AuthContext';
+import { formatTo12h, calculateDutyHours } from '../../utils/timeFormat';
 
 /**
  * StaffTimeSlipModal
@@ -44,9 +45,11 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
   const [loading, setLoading] = useState(true);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
 
-  // Expected timings (fallback 08:00 AM to 02:00 PM)
-  const shiftTimeIn = staff?.timingIn || staff?.expectedTimeIn || '08:00 AM';
-  const shiftTimeOut = staff?.timingOut || staff?.expectedTimeOut || '02:00 PM';
+  // Expected timings (checks staff individual timing, falls back to School Settings staffTimings, then default)
+  const defaultShiftIn = schoolData?.staffTimings?.shiftStartTime ? formatTo12h(schoolData.staffTimings.shiftStartTime) : '08:00 AM';
+  const defaultShiftOut = schoolData?.staffTimings?.shiftEndTime ? formatTo12h(schoolData.staffTimings.shiftEndTime) : '02:00 PM';
+  const shiftTimeIn = staff?.timingIn || staff?.expectedTimeIn || defaultShiftIn;
+  const shiftTimeOut = staff?.timingOut || staff?.expectedTimeOut || defaultShiftOut;
 
   // Close on Escape key
   useEffect(() => {
@@ -187,26 +190,16 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
         status = 'sunday';
       } else if (match) {
         status = (match.status || 'present').toLowerCase();
-        timeIn = match.timeIn || match.time || '-';
-        timeOut = match.timeOut || '-';
+        const rawIn = match.timeIn || match.time || match.timeInRaw || '-';
+        const rawOut = match.timeOut || match.timeOutRaw || '-';
+        timeIn = rawIn !== '-' ? formatTo12h(rawIn) : '-';
+        timeOut = rawOut !== '-' ? formatTo12h(rawOut) : '-';
         isLate = !!match.isLate;
         minutesLate = match.minutesLate || 0;
 
-        // Calculate hours worked if both timeIn and timeOut exist
-        if (timeIn !== '-' && timeOut !== '-') {
-          try {
-            const today = '2000-01-01';
-            const inDate = new Date(`${today} ${timeIn}`);
-            const outDate = new Date(`${today} ${timeOut}`);
-            if (!isNaN(inDate) && !isNaN(outDate) && outDate > inDate) {
-              const diffMs = outDate - inDate;
-              const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-              const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-              hoursWorked = `${diffHrs}h ${diffMins}m`;
-            }
-          } catch {
-            hoursWorked = '-';
-          }
+        if (rawIn !== '-' && rawOut !== '-') {
+          const duty = calculateDutyHours(rawIn, rawOut);
+          hoursWorked = duty ? duty.formatted : '-';
         }
       }
 

@@ -362,7 +362,8 @@ const AppRoutes = () => {
         <Route path="single-student" element={<SingleStudent360 />} />
         <Route path="students/:id" element={<SingleStudent360 />} />
         <Route path="speaker" element={<SpeakerPASystem />} />
-        <Route path="staff-attendance" element={<StaffAttendanceHub />} />
+        <Route path="staff-attendance" element={<StaffAttendanceRegister />} />
+        <Route path="staff-attendance-hub" element={<StaffAttendanceHub />} />
         <Route path="other-income" element={<OtherIncomeManager />} />
         <Route path="reports-hub" element={<ComprehensiveReportsHub />} />
         <Route path="collection" element={<Collection />} />
