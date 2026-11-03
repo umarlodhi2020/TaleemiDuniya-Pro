@@ -442,23 +442,15 @@ const StaffAttendanceRegister = () => {
     });
   }, [filteredStaff, dailyStatusFilter, dailyAttendanceMap]);
 
-  // Handle status toggle in Daily Register (AUTOMATICALLY sets shift timings on Present)
+  // Handle status toggle in Daily Register (NO fake auto-fill on Time Out)
   const handleStatusChange = (staffId, status) => {
-    const staff = staffList.find(s => s.id === staffId);
-    const { shiftIn, shiftOut } = getStaffDefaultTimings(staff);
-
     setDailyAttendanceMap(prev => {
       const current = prev[staffId] || {};
       let nextTimeIn = current.timeIn;
       let nextTimeOut = current.timeOut;
 
       if (status === 'present') {
-        // Automatic assignment from School Settings shift timings if currently empty
-        if (!nextTimeIn) nextTimeIn = shiftIn;
-        if (!nextTimeOut) nextTimeOut = shiftOut;
-      } else if (status === 'half') {
-        if (!nextTimeIn) nextTimeIn = shiftIn;
-        if (!nextTimeOut) nextTimeOut = '11:30';
+        // Keep existing time or leave empty for real scan/stamp
       } else if (status === 'absent' || status === 'leave') {
         nextTimeIn = '';
         nextTimeOut = '';
@@ -469,8 +461,8 @@ const StaffAttendanceRegister = () => {
         [staffId]: {
           ...current,
           status,
-          timeIn: nextTimeIn,
-          timeOut: nextTimeOut
+          timeIn: nextTimeIn || '',
+          timeOut: nextTimeOut || ''
         }
       };
     });
@@ -568,7 +560,7 @@ const StaffAttendanceRegister = () => {
 
         if (status === 'present') {
           if (!nextTimeIn) nextTimeIn = shiftIn;
-          if (!nextTimeOut) nextTimeOut = shiftOut;
+          // DO NOT auto-fill timeOut! Staff is still on duty until checked out!
         } else if (status === 'absent' || status === 'leave') {
           nextTimeIn = '';
           nextTimeOut = '';
@@ -617,7 +609,7 @@ const StaffAttendanceRegister = () => {
             ...current,
             status: 'present',
             timeIn: now24,
-            timeOut: current.timeOut || getStaffDefaultTimings(s).shiftOut
+            timeOut: current.timeOut || ''
           };
         }
       });
@@ -646,9 +638,10 @@ const StaffAttendanceRegister = () => {
         const { shiftIn, shiftOut } = getStaffDefaultTimings(staff);
         
         const finalStatus = att.status || 'present';
-        const finalTimeIn = att.timeIn || (finalStatus === 'present' ? shiftIn : '');
-        const finalTimeOut = att.timeOut || (finalStatus === 'present' ? shiftOut : '');
-        const duty = calculateDutyHours(finalTimeIn, finalTimeOut);
+        // 100% REAL DATA: No fake automatic fallbacks for in or out!
+        const finalTimeIn = att.timeIn || '';
+        const finalTimeOut = att.timeOut || '';
+        const duty = (finalTimeIn && finalTimeOut) ? calculateDutyHours(finalTimeIn, finalTimeOut) : null;
 
         // Calculate late arrival
         let isLate = false;
@@ -674,11 +667,11 @@ const StaffAttendanceRegister = () => {
           date: selectedDate,
           status: finalStatus,
           notes: att.notes || '',
-          timeIn: finalTimeIn,
-          timeInFormatted: formatTo12h(finalTimeIn),
-          timeOut: finalTimeOut,
-          timeOutFormatted: formatTo12h(finalTimeOut),
-          hoursWorked: duty ? duty.formatted : '-',
+          timeIn: finalTimeIn || '',
+          timeInFormatted: finalTimeIn ? formatTo12h(finalTimeIn) : '',
+          timeOut: finalTimeOut || '',
+          timeOutFormatted: finalTimeOut ? formatTo12h(finalTimeOut) : '',
+          hoursWorked: duty ? duty.formatted : (finalTimeIn ? 'On Duty (حاضر)' : '-'),
           totalMinutesWorked: duty ? duty.totalMinutes : 0,
           isLate,
           minutesLate,
@@ -855,7 +848,7 @@ const StaffAttendanceRegister = () => {
             <p className="text-sm font-black text-dark-text mt-0.5">
               Shift In: <span className="text-emerald-400 font-mono font-bold">{formatTo12h(defaultShiftIn)}</span> &nbsp;•&nbsp; 
               Shift Out: <span className="text-purple-400 font-mono font-bold">{formatTo12h(defaultShiftOut)}</span> &nbsp;•&nbsp; 
-              <span className="text-xs text-dark-muted font-normal">Auto-assigned jab staff Present mark ho</span>
+              <span className="text-xs text-dark-muted font-normal">Standard Duty Reference • Real Scans &amp; Punch Stamped Live</span>
             </p>
           </div>
         </div>
@@ -1171,9 +1164,10 @@ const StaffAttendanceRegister = () => {
                       const currentStatus = att.status || '';
                       const { shiftIn, shiftOut } = getStaffDefaultTimings(staff);
 
-                      const displayTimeIn = att.timeIn || (currentStatus === 'present' ? shiftIn : '');
-                      const displayTimeOut = att.timeOut || (currentStatus === 'present' ? shiftOut : '');
-                      const duty = calculateDutyHours(displayTimeIn, displayTimeOut);
+                      // 100% Real recorded punch: only shows if actually entered, stamped, or scanned!
+                      const displayTimeIn = att.timeIn || '';
+                      const displayTimeOut = att.timeOut || '';
+                      const duty = (displayTimeIn && displayTimeOut) ? calculateDutyHours(displayTimeIn, displayTimeOut) : null;
 
                       // Check punctuality against shift start time
                       let isLate = false;
@@ -1222,7 +1216,7 @@ const StaffAttendanceRegister = () => {
                               <div className="flex items-center gap-1.5 w-full">
                                 <input
                                   type="time"
-                                  value={normalizeTo24h(att.timeIn || (currentStatus === 'present' ? shiftIn : ''))}
+                                  value={normalizeTo24h(att.timeIn || '')}
                                   onChange={(e) => handleTimeInChange(staff.id, e.target.value)}
                                   className="w-full bg-dark-bg/80 border border-emerald-500/30 focus:border-emerald-500 rounded-lg px-2 py-1 text-xs text-dark-text font-mono font-bold text-center"
                                 />
@@ -1269,7 +1263,7 @@ const StaffAttendanceRegister = () => {
                               <div className="flex items-center gap-1.5 w-full">
                                 <input
                                   type="time"
-                                  value={normalizeTo24h(att.timeOut || (currentStatus === 'present' ? shiftOut : ''))}
+                                  value={normalizeTo24h(att.timeOut || '')}
                                   onChange={(e) => handleTimeOutChange(staff.id, e.target.value)}
                                   className="w-full bg-dark-bg/80 border border-purple-500/30 focus:border-purple-500 rounded-lg px-2 py-1 text-xs text-dark-text font-mono font-bold text-center"
                                 />
@@ -1299,6 +1293,10 @@ const StaffAttendanceRegister = () => {
                             {duty ? (
                               <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-extrabold text-xs">
                                 {duty.formatted}
+                              </span>
+                            ) : displayTimeIn ? (
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                                On Duty (حاضر)
                               </span>
                             ) : (
                               <span className="text-dark-muted font-mono text-xs">-</span>
@@ -1590,12 +1588,12 @@ const StaffAttendanceRegister = () => {
                               cellClass = 'bg-purple-500/20 text-purple-400 font-bold border border-purple-500/30';
                             }
 
-                            const effectiveIn = dayRec?.timeIn || (status === 'present' ? defaultShiftIn : null);
-                            const effectiveOut = dayRec?.timeOut || (status === 'present' ? defaultShiftOut : null);
+                            const effectiveIn = dayRec?.timeIn ? formatTo12h(dayRec.timeIn) : (status === 'present' ? 'Present' : null);
+                            const effectiveOut = dayRec?.timeOut ? formatTo12h(dayRec.timeOut) : (status === 'present' ? 'On Duty' : null);
                             const tooltipText = isSun 
                               ? `Day ${day}: Sunday (School Holiday / Off)`
                               : effectiveIn 
-                              ? `Day ${day}: In ${formatTo12h(effectiveIn)} - Out ${formatTo12h(effectiveOut)} (Status: ${status.toUpperCase()})`
+                              ? `Day ${day}: In: ${effectiveIn} • Out: ${effectiveOut} (${status.toUpperCase()})`
                               : `Day ${day}: ${status || 'Not marked'}`;
 
                             return (

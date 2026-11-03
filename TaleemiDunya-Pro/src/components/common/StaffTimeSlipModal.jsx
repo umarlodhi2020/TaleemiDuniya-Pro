@@ -199,12 +199,20 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
         if (status === 'present') {
           const rawIn = match.timeIn || match.time || match.timeInRaw || '';
           const rawOut = match.timeOut || match.timeOutRaw || '';
-          // Automatic fallback to active shift timings if scan was not performed
-          timeIn = (rawIn && rawIn !== '-') ? formatTo12h(rawIn) : shiftTimeIn;
-          timeOut = (rawOut && rawOut !== '-') ? formatTo12h(rawOut) : shiftTimeOut;
+          const isEntryOnly = match.actionType === 'ENTRY';
+
+          // 100% REAL DATA: Sirf tab time show hoga jab waqai scan ya clock hua ho
+          timeIn = (rawIn && rawIn !== '-') ? formatTo12h(rawIn) : '-';
+          timeOut = (rawOut && rawOut !== '-' && !isEntryOnly) ? formatTo12h(rawOut) : '-';
           
-          const duty = calculateDutyHours(timeIn, timeOut);
-          hoursWorked = duty ? duty.formatted : '6h 0m';
+          if (timeIn && timeIn !== '-' && timeOut && timeOut !== '-') {
+            const duty = calculateDutyHours(timeIn, timeOut);
+            hoursWorked = duty ? duty.formatted : '-';
+          } else if (timeIn && timeIn !== '-') {
+            hoursWorked = 'On Duty (حاضر)';
+          } else {
+            hoursWorked = '-';
+          }
         } else if (status === 'leave') {
           timeIn = 'Approved';
           timeOut = 'Leave';
@@ -215,12 +223,12 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
           hoursWorked = '0h 0m';
         } else if (status === 'half') {
           const rawIn = match.timeIn || match.time || match.timeInRaw || '';
-          timeIn = (rawIn && rawIn !== '-') ? formatTo12h(rawIn) : shiftTimeIn;
+          timeIn = (rawIn && rawIn !== '-') ? formatTo12h(rawIn) : '-';
           timeOut = 'Half Day';
           hoursWorked = '3h 0m';
         } else {
-          timeIn = match.timeIn ? formatTo12h(match.timeIn) : '-';
-          timeOut = match.timeOut ? formatTo12h(match.timeOut) : '-';
+          timeIn = (match.timeIn && match.timeIn !== '-') ? formatTo12h(match.timeIn) : '-';
+          timeOut = (match.timeOut && match.timeOut !== '-') ? formatTo12h(match.timeOut) : '-';
           hoursWorked = '-';
         }
       }

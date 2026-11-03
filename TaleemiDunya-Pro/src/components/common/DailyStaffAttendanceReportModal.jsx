@@ -126,12 +126,12 @@ export default function DailyStaffAttendanceReportModal({
       assignedShiftOut = formatTo12h(assignedShiftOut);
       const assignedShiftStr = `${assignedShiftIn} - ${assignedShiftOut}`;
 
-      // In/Out and Duty duration
-      const rawIn = att.timeIn || (currentStatus === 'present' ? assignedShiftIn : '');
-      const rawOut = att.timeOut || (currentStatus === 'present' ? assignedShiftOut : '');
+      // In/Out and Duty duration (100% REAL: TimeOut is ONLY shown if actually clocked out)
+      const rawIn = att.timeIn || '';
+      const rawOut = (att.actionType === 'ENTRY') ? '' : (att.timeOut || '');
       const displayTimeIn = rawIn ? formatTo12h(rawIn) : '';
       const displayTimeOut = rawOut ? formatTo12h(rawOut) : '';
-      const duty = calculateDutyHours(displayTimeIn, displayTimeOut);
+      const duty = (displayTimeIn && displayTimeOut) ? calculateDutyHours(displayTimeIn, displayTimeOut) : null;
 
       // Check punctuality
       let isLate = !!att.isLate;
@@ -166,7 +166,7 @@ export default function DailyStaffAttendanceReportModal({
         assignedShiftOut,
         timeIn: displayTimeIn,
         timeOut: displayTimeOut,
-        dutyDuration: duty ? duty.formatted : (currentStatus === 'present' ? '5h 5m' : '-'),
+        dutyDuration: duty ? duty.formatted : (displayTimeIn ? 'On Duty (حاضر)' : '-'),
         isLate,
         minutesLate,
         isCardScan: !!att.isCardScan,
@@ -616,3 +616,4 @@ export default function DailyStaffAttendanceReportModal({
     </div>
   );
 }
+

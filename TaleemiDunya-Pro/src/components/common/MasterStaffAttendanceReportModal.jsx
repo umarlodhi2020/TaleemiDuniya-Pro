@@ -580,9 +580,9 @@ export default function MasterStaffAttendanceReportModal({
                           <div>
                             <div className="font-mono font-bold text-[11px] text-emerald-800 flex items-center justify-center gap-1">
                               <Clock size={11} className="text-emerald-600 shrink-0" />
-                              <span>{formatTo12h(s.actualPunchIn || s.assignedShiftIn)}</span>
+                              <span>{s.actualPunchIn ? formatTo12h(s.actualPunchIn) : s.assignedShiftIn}</span>
                               <span className="text-slate-400">-</span>
-                              <span>{formatTo12h(s.actualPunchOut || s.assignedShiftOut)}</span>
+                              <span>{s.actualPunchOut ? formatTo12h(s.actualPunchOut) : (s.actualPunchIn ? 'On Duty' : s.assignedShiftOut)}</span>
                             </div>
                             <div className="text-[9px] text-slate-400 font-mono mt-0.5">
                               Shift: {s.assignedShiftStr}
