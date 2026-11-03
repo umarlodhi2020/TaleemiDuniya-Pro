@@ -43,6 +43,7 @@ import {
 } from '../../services/db';
 import StaffTimeSlipModal from '../../components/common/StaffTimeSlipModal';
 import MasterStaffAttendanceReportModal from '../../components/common/MasterStaffAttendanceReportModal';
+import DailyStaffAttendanceReportModal from '../../components/common/DailyStaffAttendanceReportModal';
 
 // ── Time Formatting & Normalization Helpers ──
 export const normalizeTo24h = (timeStr) => {
@@ -140,6 +141,9 @@ const StaffAttendanceRegister = () => {
 
   // Master Monthly Report Modal State
   const [showMasterReport, setShowMasterReport] = useState(false);
+
+  // Daily Single-Day Report Modal State ("Rozana Attendance & In/Out Sheet")
+  const [showDailyReport, setShowDailyReport] = useState(false);
 
   // Quick Daily Status Filter: 'All' | 'present' | 'absent' | 'half' | 'leave'
   const [dailyStatusFilter, setDailyStatusFilter] = useState('All');
@@ -996,23 +1000,34 @@ const StaffAttendanceRegister = () => {
               <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 opacity-0 hidden sm:block">
                 Actions
               </label>
-              <button
-                onClick={handleSaveAttendance}
-                disabled={savingDaily || loadingStaff}
-                className="w-full premium-button-primary py-2 px-4 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-500/20"
-              >
-                {savingDaily ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    <span>Saving Batch...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save size={16} />
-                    <span>Save Attendance</span>
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDailyReport(true)}
+                  className="w-1/2 py-2 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
+                  title="Print Single-Day Staff Attendance & Punch Sheet (PDF)"
+                >
+                  <Printer size={15} />
+                  <span>Print Sheet</span>
+                </button>
+                <button
+                  onClick={handleSaveAttendance}
+                  disabled={savingDaily || loadingStaff}
+                  className="w-1/2 premium-button-primary py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-500/20"
+                >
+                  {savingDaily ? (
+                    <>
+                      <RefreshCw size={15} className="animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save size={15} />
+                      <span>Save</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col justify-end">
@@ -1101,6 +1116,15 @@ const StaffAttendanceRegister = () => {
               >
                 <XCircle size={14} />
                 <span>Mark All Absent</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowDailyReport(true)}
+                className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Print official single-day sheet or Save as PDF"
+              >
+                <Printer size={14} />
+                <span>Print Daily Sheet (PDF)</span>
               </button>
             </div>
           </div>
@@ -1631,6 +1655,18 @@ const StaffAttendanceRegister = () => {
           staffList={filteredStaff}
           monthlyDataByStaff={monthlyDataByStaff}
           selectedMonth={selectedMonth}
+        />
+      )}
+
+      {/* Daily Single-Day Staff Attendance & Punch Sheet Modal (PDF & Excel) */}
+      {showDailyReport && (
+        <DailyStaffAttendanceReportModal
+          isOpen={showDailyReport}
+          onClose={() => setShowDailyReport(false)}
+          selectedDate={selectedDate}
+          staffList={filteredStaff}
+          dailyAttendanceMap={dailyAttendanceMap}
+          onDateChange={(newDate) => setSelectedDate(newDate)}
         />
       )}
     </div>

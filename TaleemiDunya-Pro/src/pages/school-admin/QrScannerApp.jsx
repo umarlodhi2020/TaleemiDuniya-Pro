@@ -646,24 +646,41 @@ export default function QrScannerApp() {
 
     const val = rawVal.toLowerCase().trim();
     
-    // Find student by ID, Roll Number, GR Number, Registration Number, or CNIC
-    let foundMember = allStudentsRef.current.find(s =>
-      (s.id && s.id.toLowerCase() === val) ||
-      (s.rollNumber && String(s.rollNumber).trim().toLowerCase() === val) ||
-      (s.grNo && String(s.grNo).trim().toLowerCase() === val) ||
-      (s.grNumber && String(s.grNumber).trim().toLowerCase() === val) ||
-      (s.registrationNo && String(s.registrationNo).trim().toLowerCase() === val) ||
-      (s.rollNo && String(s.rollNo).trim().toLowerCase() === val) ||
-      (s.cnic && String(s.cnic).trim().replace(/[- ]/g, '').toLowerCase() === val.replace(/[- ]/g, ''))
-    );
+    let foundMember = null;
+
+    // 1. If scanned value indicates staff (starts with stf, emp, staff, or matches staff employeeId/staffId)
+    const isStaffFormat = val.startsWith('stf') || val.startsWith('emp') || val.startsWith('staff');
+    if (isStaffFormat) {
+      foundMember = allStaffRef.current.find(s => 
+        (s.id && s.id.toLowerCase() === val) ||
+        (s.employeeId && String(s.employeeId).trim().toLowerCase() === val) ||
+        (s.staffId && String(s.staffId).trim().toLowerCase() === val) ||
+        (s.registrationNo && String(s.registrationNo).trim().toLowerCase() === val) ||
+        (s.cnic && String(s.cnic).trim().replace(/[- ]/g, '').toLowerCase() === val.replace(/[- ]/g, ''))
+      );
+    }
+
+    // 2. Search Students if not already found
+    if (!foundMember) {
+      foundMember = allStudentsRef.current.find(s =>
+        (s.id && s.id.toLowerCase() === val) ||
+        (s.rollNumber && String(s.rollNumber).trim().toLowerCase() === val) ||
+        (s.grNo && String(s.grNo).trim().toLowerCase() === val) ||
+        (s.grNumber && String(s.grNumber).trim().toLowerCase() === val) ||
+        (s.registrationNo && String(s.registrationNo).trim().toLowerCase() === val) ||
+        (s.rollNo && String(s.rollNo).trim().toLowerCase() === val) ||
+        (s.cnic && String(s.cnic).trim().replace(/[- ]/g, '').toLowerCase() === val.replace(/[- ]/g, ''))
+      );
+    }
     
-    // Check staff if not found
+    // 3. Search Staff if still not found
     if (!foundMember) {
       foundMember = allStaffRef.current.find(s => 
         (s.id && s.id.toLowerCase() === val) ||
         (s.employeeId && String(s.employeeId).trim().toLowerCase() === val) ||
         (s.staffId && String(s.staffId).trim().toLowerCase() === val) ||
         (s.registrationNo && String(s.registrationNo).trim().toLowerCase() === val) ||
+        (s.name && String(s.name).trim().toLowerCase() === val) ||
         (s.cnic && String(s.cnic).trim().replace(/[- ]/g, '').toLowerCase() === val.replace(/[- ]/g, ''))
       );
     }
@@ -832,16 +849,13 @@ export default function QrScannerApp() {
           timestamp: item.createdAt?.toMillis ? item.createdAt.toMillis() : Date.now()
         });
 
-        if (memberId) {
-          scanMap[memberId] = Date.now();
-        }
+        // Don't poison lastScannedMemberMap on snapshot load
       });
 
       // Sort with newest scans on top
       scans.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
       setRecentScans(scans);
-      lastScannedMemberMap.current = { ...lastScannedMemberMap.current, ...scanMap };
     }, (err) => {
       console.warn('Real-time scans listener notice:', err);
     });
@@ -1022,9 +1036,18 @@ export default function QrScannerApp() {
   };
 
   // Filtered recent scan stream
+  const isItemStaff = (item) => Boolean(
+    item.isStaff || 
+    item.type === 'staff' || 
+    item.member?.memberType === 'staff' || 
+    item.staffId || 
+    item.class === 'Staff' ||
+    (item.department && item.department !== 'N/A')
+  );
+
   const filteredRecentScans = recentScans.filter(item => {
-    if (streamFilter === 'STUDENTS') return item.class !== 'Staff';
-    if (streamFilter === 'STAFF') return item.class === 'Staff';
+    if (streamFilter === 'STUDENTS') return !isItemStaff(item);
+    if (streamFilter === 'STAFF') return isItemStaff(item);
     if (streamFilter === 'LATE') return item.isLate === true;
     if (streamFilter === 'EXIT') return item.actionType === 'EXIT';
     return true;
@@ -1033,8 +1056,8 @@ export default function QrScannerApp() {
   // Today's summary metrics
   const totalScansCount = recentScans.length;
   const lateScansCount = recentScans.filter(s => s.isLate).length;
-  const staffScansCount = recentScans.filter(s => s.class === 'Staff').length;
-  const studentScansCount = totalScansCount - staffScansCount;
+  const staffScansCount = recentScans.filter(s => isItemStaff(s)).length;
+  const studentScansCount = recentScans.filter(s => !isItemStaff(s)).length;
   const totalStudentsCount = allStudents.length;
   const totalStaffCount = allStaff.length;
   const studentPresentPercent = totalStudentsCount > 0 ? Math.round((studentScansCount / totalStudentsCount) * 100) : 0;
