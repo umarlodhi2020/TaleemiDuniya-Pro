@@ -711,19 +711,29 @@ const StaffAttendanceRegister = () => {
   const monthlyDataByStaff = useMemo(() => {
     const map = {};
     monthlyAttendanceList.forEach(rec => {
-      const staffKey = rec.staffId || rec.employeeId || rec.id;
-      if (!staffKey || !rec.date) return;
-      
+      if (!rec.date) return;
       const dayNum = parseInt(rec.date.split('-')[2], 10);
-      if (!map[staffKey]) {
-        map[staffKey] = {};
-      }
-      map[staffKey][dayNum] = {
+      const keys = [
+        rec.staffId,
+        rec.employeeId,
+        rec.userId,
+        rec.id ? rec.id.split('_')[0] : null,
+        rec.staffName ? `name_${String(rec.staffName).toLowerCase().trim()}` : null
+      ].filter(Boolean);
+
+      const recordItem = {
         status: (rec.status || '').toLowerCase(),
         timeIn: rec.timeIn || rec.time || '-',
         timeOut: rec.timeOut || '-',
-        hoursWorked: rec.hoursWorked || '-'
+        hoursWorked: rec.hoursWorked || '-',
+        isLate: !!rec.isLate,
+        minutesLate: rec.minutesLate || 0
       };
+
+      keys.forEach(k => {
+        if (!map[k]) map[k] = {};
+        map[k][dayNum] = recordItem;
+      });
     });
     return map;
   }, [monthlyAttendanceList]);

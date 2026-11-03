@@ -80,7 +80,7 @@ export default function MasterStaffAttendanceReportModal({
   // Aggregate Data for all staff members with Payroll Deduction Engine
   const staffReportData = useMemo(() => {
     return staffList.map((st, index) => {
-      const staffAttMap = monthlyDataByStaff[st.id] || monthlyDataByStaff[st.employeeId] || {};
+      const staffAttMap = monthlyDataByStaff[st.id] || monthlyDataByStaff[st.employeeId] || monthlyDataByStaff[st.staffId] || {};
       
       let presentDays = 0;
       let absentDays = 0;
@@ -88,6 +88,8 @@ export default function MasterStaffAttendanceReportModal({
       let halfDays = 0;
       let lateDays = 0;
       let lateMinutes = 0;
+      let actualPunchIn = null;
+      let actualPunchOut = null;
 
       for (let day = 1; day <= daysInMonth; day++) {
         const dObj = new Date(year, month - 1, day);
@@ -104,9 +106,18 @@ export default function MasterStaffAttendanceReportModal({
             lateDays += 1;
             lateMinutes += (dayRec.minutesLate || 15);
           }
+          if (dayRec.timeIn && dayRec.timeIn !== '-' && dayRec.timeIn !== 'Weekend') {
+            actualPunchIn = dayRec.timeIn;
+          }
+          if (dayRec.timeOut && dayRec.timeOut !== '-' && dayRec.timeOut !== 'Off') {
+            actualPunchOut = dayRec.timeOut;
+          }
         } else if (status === 'half' || status === 'half day') {
           halfDays += 1;
           presentDays += 0.5;
+          if (dayRec.timeIn && dayRec.timeIn !== '-') {
+            actualPunchIn = dayRec.timeIn;
+          }
         } else if (status === 'leave') {
           leaveDays += 1;
         } else if (status === 'absent') {
@@ -142,18 +153,48 @@ export default function MasterStaffAttendanceReportModal({
       // Net payable days for the month (Sundays & Paid Holidays included)
       const netPayableDays = Math.max(0, daysInMonth - totalDeductionDays);
 
-      const staffShiftIn = st.timingIn ? formatTo12h(st.timingIn) : shiftIn;
-      const staffShiftOut = st.timingOut ? formatTo12h(st.timingOut) : shiftOut;
+      // Determine assigned shift based on staff individual settings or department/role
+      let assignedShiftIn = st.timingIn || st.shiftStartTime || st.expectedTimeIn;
+      let assignedShiftOut = st.timingOut || st.shiftEndTime || st.expectedTimeOut;
+
+      if (!assignedShiftIn || !assignedShiftOut) {
+        const dept = String(st.department || '').toLowerCase();
+        const desig = String(st.designation || st.role || '').toLowerCase();
+        if (dept.includes('support') || desig.includes('peon') || desig.includes('guard') || desig.includes('maid') || desig.includes('driver')) {
+          assignedShiftIn = '07:00 AM';
+          assignedShiftOut = '02:00 PM';
+        } else if (dept.includes('management') || desig.includes('principal') || desig.includes('admin') || desig.includes('head') || desig.includes('vice')) {
+          assignedShiftIn = '07:45 AM';
+          assignedShiftOut = '02:00 PM';
+        } else if (dept.includes('account') || desig.includes('accountant') || desig.includes('clerk') || desig.includes('cashier')) {
+          assignedShiftIn = '08:00 AM';
+          assignedShiftOut = '02:00 PM';
+        } else {
+          assignedShiftIn = shiftIn || '07:55 AM';
+          assignedShiftOut = shiftOut || '01:00 PM';
+        }
+      }
+      assignedShiftIn = formatTo12h(assignedShiftIn);
+      assignedShiftOut = formatTo12h(assignedShiftOut);
+      const assignedShiftStr = `${assignedShiftIn} - ${assignedShiftOut}`;
+
+      // Clean, professional employee ID (No raw 20-character Firestore hash)
+      const cleanEmployeeId = st.staffId || st.employeeId || st.empId || (st.id && st.id.length > 8 ? `STF-${String(index + 1).padStart(3, '0')}` : st.id);
 
       return {
         srNo: index + 1,
         id: st.id,
         name: st.name || 'Unnamed Staff',
-        employeeId: st.employeeId || st.empId || st.id,
+        employeeId: cleanEmployeeId,
         department: st.department || 'Academic',
         designation: st.designation || st.role || 'Teacher',
         phone: st.phone || '',
-        shiftTimings: `${staffShiftIn} - ${staffShiftOut}`,
+        assignedShiftStr,
+        assignedShiftIn,
+        assignedShiftOut,
+        actualPunchIn,
+        actualPunchOut,
+        shiftTimings: assignedShiftStr,
         totalDays: daysInMonth,
         schoolHolidays: sundayCount,
         workingDays: workingDaysInMonth,
@@ -487,7 +528,7 @@ export default function MasterStaffAttendanceReportModal({
                     <th className="py-2.5 px-2 text-center w-8">#</th>
                     <th className="py-2.5 px-3 min-w-[130px]">Staff Member</th>
                     <th className="py-2.5 px-2 min-w-[75px]">Role / Dept</th>
-                    <th className="py-2.5 px-2 text-center min-w-[90px]">Timings</th>
+                    <th className="py-2.5 px-2 text-center min-w-[130px]" title="Assigned shift and actual recorded punch timings">Timings & Punches (آمد و رخصت)</th>
                     <th className="py-2.5 px-2 text-center w-12" title="Days in Month">Month Days</th>
                     <th className="py-2.5 px-2 text-center w-12 bg-sky-50 text-sky-900" title="School Off (Sundays/Holidays)">School Off</th>
                     <th className="py-2.5 px-2 text-center w-12" title="Net Working Days">Work Days</th>
@@ -525,8 +566,29 @@ export default function MasterStaffAttendanceReportModal({
                         <div className="font-semibold text-slate-800">{s.designation}</div>
                         <div className="text-[10px] text-slate-500">{s.department}</div>
                       </td>
-                      <td className="py-2 px-2 text-center font-mono text-[11px] text-slate-600">
-                        {s.shiftTimings}
+                      <td className="py-2 px-2 text-center">
+                        {s.presentDays === 0 ? (
+                          <div>
+                            <span className="inline-block px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-bold">
+                              حاضری نہیں (Absent)
+                            </span>
+                            <span className="block text-[9px] text-slate-400 font-mono mt-0.5">
+                              Shift: {s.assignedShiftStr}
+                            </span>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-mono font-bold text-[11px] text-emerald-800 flex items-center justify-center gap-1">
+                              <Clock size={11} className="text-emerald-600 shrink-0" />
+                              <span>{formatTo12h(s.actualPunchIn || s.assignedShiftIn)}</span>
+                              <span className="text-slate-400">-</span>
+                              <span>{formatTo12h(s.actualPunchOut || s.assignedShiftOut)}</span>
+                            </div>
+                            <div className="text-[9px] text-slate-400 font-mono mt-0.5">
+                              Shift: {s.assignedShiftStr}
+                            </div>
+                          </div>
+                        )}
                       </td>
                       <td className="py-2 px-2 text-center text-slate-600 font-semibold">{s.totalDays}</td>
                       <td className="py-2 px-2 text-center text-sky-800 font-bold bg-sky-50/50">{s.schoolHolidays}</td>

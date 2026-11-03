@@ -427,7 +427,7 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                {staff?.name} • {staff?.designation || staff?.role || 'Staff'} • ID: {staff?.employeeId || staff?.id}
+                {staff?.name} • {staff?.designation || staff?.role || 'Staff'} • ID: {staff?.staffId || staff?.employeeId || staff?.empId || (staff?.id?.length > 8 ? staff?.id.slice(0, 8) : staff?.id)}
               </p>
             </div>
           </div>
@@ -523,7 +523,7 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Employee ID</span>
-                <span className="text-xs font-bold text-slate-800 tabular-nums">{staff?.employeeId || staff?.id}</span>
+                <span className="text-xs font-bold text-slate-800 tabular-nums">{staff?.staffId || staff?.employeeId || staff?.empId || (staff?.id?.length > 8 ? staff?.id.slice(0, 8) : staff?.id)}</span>
               </div>
               <div>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Department</span>
