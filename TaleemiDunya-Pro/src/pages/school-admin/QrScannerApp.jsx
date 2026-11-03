@@ -42,6 +42,7 @@ import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { Html5Qrcode } from 'html5-qrcode';
+import { dispatchAttendanceAlert } from '../../utils/notificationService';
 
 export default function QrScannerApp() {
   const { userData } = useAuth();
@@ -428,6 +429,16 @@ export default function QrScannerApp() {
               photo: member.photoUrl || member.profilePhoto || null,
               whatsappNotified: whatsappAlertsEnabled
             };
+            if (whatsappAlertsEnabled) {
+              dispatchAttendanceAlert({
+                schoolId: activeSchoolId,
+                schoolName: schoolData?.name,
+                type: 'student',
+                member,
+                action: 'EXIT',
+                timeStr: nowTime
+              });
+            }
             playSuccessSound();
             setScanResult(resultObj);
             setRecentScans(prev => [resultObj, ...prev.slice(0, 59)]);
@@ -503,6 +514,17 @@ export default function QrScannerApp() {
           photo: member.photoUrl || member.profilePhoto || null,
           whatsappNotified: whatsappAlertsEnabled
         };
+        if (whatsappAlertsEnabled) {
+          dispatchAttendanceAlert({
+            schoolId: activeSchoolId,
+            schoolName: schoolData?.name,
+            type: 'student',
+            member,
+            action: isLateStatus ? 'LATE' : 'ENTRY',
+            timeStr: nowTime,
+            minutesLate
+          });
+        }
         setScanResult(resultObj);
         setRecentScans(prev => [resultObj, ...prev.slice(0, 59)]);
         speakAnnouncement(
@@ -575,8 +597,20 @@ export default function QrScannerApp() {
           status: staffStatus,
           actionType: isStaffOut ? 'EXIT' : 'ENTRY',
           isStaff: true,
-          photo: member.photoUrl || member.profilePhoto || null
+          photo: member.photoUrl || member.profilePhoto || null,
+          whatsappNotified: whatsappAlertsEnabled
         };
+        if (whatsappAlertsEnabled) {
+          dispatchAttendanceAlert({
+            schoolId: activeSchoolId,
+            schoolName: schoolData?.name,
+            type: 'staff',
+            member,
+            action: isStaffOut ? 'EXIT' : (isLateStatus ? 'LATE' : 'ENTRY'),
+            timeStr: nowTime,
+            minutesLate
+          });
+        }
         setScanResult(resultObj);
         setRecentScans(prev => [resultObj, ...prev.slice(0, 59)]);
         speakAnnouncement(member.name, isStaffOut ? 'رخصت' : 'حاضر', isStaffOut ? 'Clocked out' : 'Clocked in');
