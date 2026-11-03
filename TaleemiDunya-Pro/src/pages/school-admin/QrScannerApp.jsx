@@ -37,7 +37,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, getDoc, addDoc, setDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, setDoc, doc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
@@ -149,6 +149,34 @@ export default function QrScannerApp() {
 
   // Hardware Scanner Diagnostic Stats
   const [lastScanSpeedMs, setLastScanSpeedMs] = useState(null);
+
+  // Member field extraction helpers (Guarantees no 'N/A • ROLL/ID: N/A')
+  const getMemberClassOrDept = (member) => {
+    if (!member) return 'General';
+    return member.class || 
+      member.className || 
+      member.grade || 
+      member.currentClass || 
+      member.standard || 
+      member.department || 
+      member.designation || 
+      member.role || 
+      (member.memberType === 'staff' ? 'Staff' : 'Student');
+  };
+
+  const getMemberRollOrId = (member) => {
+    if (!member) return '-';
+    return member.rollNumber || 
+      member.rollNo || 
+      member.roll || 
+      member.grNo || 
+      member.grNumber || 
+      member.admissionNo || 
+      member.registrationNo || 
+      member.employeeId || 
+      member.staffId || 
+      (member.id ? (member.id.length > 8 ? member.id.slice(0, 8) : member.id) : '-');
+  };
 
   // Camera Refs
   const scannerRef = useRef(null);
@@ -332,9 +360,9 @@ export default function QrScannerApp() {
         setScanResult({
           id: member.id,
           name: member.name || 'Member',
-          class: member.class || member.className || 'N/A',
-          rollNo: member.rollNumber || member.rollNo || member.grNo || 'N/A',
-          fatherName: member.fatherName || '-',
+          class: getMemberClassOrDept(member),
+          rollNo: getMemberRollOrId(member),
+          fatherName: member.fatherName || member.designation || '-',
           time: nowTime,
           status: 'Already Scanned',
           message: `Yeh card abhi ${secondsAgo} seconds pehle scan ho chuka hai.`,
@@ -387,8 +415,8 @@ export default function QrScannerApp() {
               id: member.id,
               member: member,
               name: member.name || 'Student',
-              class: member.class || member.className || 'N/A',
-              rollNo: member.rollNumber || member.rollNo || member.grNo || 'N/A',
+              class: getMemberClassOrDept(member),
+              rollNo: getMemberRollOrId(member),
               fatherName: member.fatherName || '-',
               fatherPhone: member.fatherPhone || member.phone || member.emergencyContact || member.whatsappNo || member.contactNumber || null,
               time: nowTime,
@@ -413,8 +441,8 @@ export default function QrScannerApp() {
               id: member.id,
               member: member,
               name: member.name || 'Student',
-              class: member.class || member.className || 'N/A',
-              rollNo: member.rollNumber || member.rollNo || member.grNo || 'N/A',
+              class: getMemberClassOrDept(member),
+              rollNo: getMemberRollOrId(member),
               fatherName: member.fatherName || '-',
               time: existingData.time || nowTime,
               status: 'Already Marked',
@@ -462,8 +490,8 @@ export default function QrScannerApp() {
           id: member.id,
           member: member,
           name: member.name || 'Student',
-          class: member.class || member.className || 'N/A',
-          rollNo: member.rollNumber || member.rollNo || member.grNo || 'N/A',
+          class: getMemberClassOrDept(member),
+          rollNo: getMemberRollOrId(member),
           fatherName: member.fatherName || '-',
           fatherPhone: member.fatherPhone || member.phone || member.emergencyContact || member.whatsappNo || member.contactNumber || null,
           time: nowTime,
@@ -535,12 +563,15 @@ export default function QrScannerApp() {
           id: member.id,
           member: member,
           name: member.name || 'Staff',
-          class: member.department || 'Staff',
-          rollNo: member.staffId || member.employeeId || member.id,
+          class: getMemberClassOrDept(member),
+          rollNo: getMemberRollOrId(member),
           fatherName: member.designation || member.role || '-',
           time: nowTime,
+          timeIn: payload.timeIn || nowTime,
+          timeOut: payload.timeOut || null,
           status: staffStatus,
           actionType: isStaffOut ? 'EXIT' : 'ENTRY',
+          isStaff: true,
           photo: member.photoUrl || member.profilePhoto || null
         };
         setScanResult(resultObj);
@@ -750,6 +781,70 @@ export default function QrScannerApp() {
     };
     fetchMembers();
   }, [isLoggedIn, activeSchoolId]);
+
+  // Real-time synchronization of today's scans from Firestore (Guarantees Stream & Counters are never 0)
+  useEffect(() => {
+    if (!isLoggedIn || !activeSchoolId) return;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const qAtt = query(
+      collection(db, 'attendance'),
+      where('schoolId', '==', activeSchoolId),
+      where('date', '==', todayStr)
+    );
+
+    const unsubscribe = onSnapshot(qAtt, (snapshot) => {
+      const scans = [];
+      const scanMap = {};
+
+      snapshot.docs.forEach((d) => {
+        const item = d.data();
+        const memberId = item.studentId || item.staffId || (d.id.includes('_') ? d.id.split('_')[0] : d.id);
+        
+        // Find member from allStudents or allStaff
+        const foundStudent = allStudentsRef.current.find(s => s.id === memberId || (item.rollNumber && s.rollNumber === item.rollNumber));
+        const foundStaff = allStaffRef.current.find(s => s.id === memberId || (item.employeeId && s.employeeId === item.employeeId));
+        const member = foundStudent || foundStaff || item;
+
+        const isStaff = item.type === 'staff' || member?.memberType === 'staff' || (!item.studentId && !!item.staffId);
+
+        scans.push({
+          id: memberId,
+          docId: d.id,
+          member: member,
+          isStaff: isStaff,
+          name: item.studentName || item.staffName || member?.name || 'Member',
+          class: getMemberClassOrDept(member) || item.class || item.department || (isStaff ? 'Staff' : 'Student'),
+          rollNo: getMemberRollOrId(member) || item.rollNumber || item.employeeId || '-',
+          fatherName: member?.fatherName || member?.designation || item.fatherName || '-',
+          fatherPhone: member?.fatherPhone || member?.phone || null,
+          time: item.time || item.timeIn || '08:00 AM',
+          timeIn: item.timeIn || item.time || '08:00 AM',
+          timeOut: item.timeOut || null,
+          status: item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : 'Present',
+          isLate: !!item.isLate,
+          minutesLate: item.minutesLate || 0,
+          actionType: item.actionType || (item.timeOut ? 'EXIT' : 'ENTRY'),
+          photo: member?.photoUrl || member?.profilePhoto || null,
+          timestamp: item.createdAt?.toMillis ? item.createdAt.toMillis() : Date.now()
+        });
+
+        if (memberId) {
+          scanMap[memberId] = Date.now();
+        }
+      });
+
+      // Sort with newest scans on top
+      scans.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      setRecentScans(scans);
+      lastScannedMemberMap.current = { ...lastScannedMemberMap.current, ...scanMap };
+    }, (err) => {
+      console.warn('Real-time scans listener notice:', err);
+    });
+
+    return () => unsubscribe();
+  }, [isLoggedIn, activeSchoolId, allStudents.length, allStaff.length]);
 
   // Global Hardware Keyboard Listener for 2D/1D Barcode Scanner Gun
   useEffect(() => {
