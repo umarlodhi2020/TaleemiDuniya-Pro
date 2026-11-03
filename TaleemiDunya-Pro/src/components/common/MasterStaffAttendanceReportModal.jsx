@@ -12,7 +12,11 @@ import {
   Calendar,
   Building,
   Check,
-  Percent
+  Percent,
+  Coins,
+  ShieldAlert,
+  Sparkles,
+  Search
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSchool } from '../../context/SchoolContext';
@@ -27,6 +31,15 @@ export default function MasterStaffAttendanceReportModal({
 }) {
   const { schoolData } = useSchool();
   const printAreaRef = useRef(null);
+
+  // View Mode: 'standard' | 'payroll'
+  const [viewMode, setViewMode] = useState('standard');
+  
+  // Late Deduction Policy: '3_lates_half' (3 lates = 0.5 day cut) | '3_lates_full' (3 lates = 1 day cut) | 'none'
+  const [lateDeductionPolicy, setLateDeductionPolicy] = useState('3_lates_half');
+
+  // Search filter
+  const [reportSearch, setReportSearch] = useState('');
 
   // Active School Settings Shift Timings
   const shiftIn = schoolData?.staffTimings?.shiftStartTime 
@@ -64,7 +77,7 @@ export default function MasterStaffAttendanceReportModal({
     };
   }, [selectedMonth]);
 
-  // Aggregate Data for all staff members
+  // Aggregate Data for all staff members with Payroll Deduction Engine
   const staffReportData = useMemo(() => {
     return staffList.map((st, index) => {
       const staffAttMap = monthlyDataByStaff[st.id] || monthlyDataByStaff[st.employeeId] || {};
@@ -108,6 +121,27 @@ export default function MasterStaffAttendanceReportModal({
         ? Math.round((presentDays / workingDaysInMonth) * 100) 
         : 100;
 
+      // Smart Payroll Deduction Engine
+      // 1. Late arrival penalty
+      let latePenaltyDays = 0;
+      if (lateDeductionPolicy === '3_lates_half') {
+        latePenaltyDays = Math.floor(lateDays / 3) * 0.5;
+      } else if (lateDeductionPolicy === '3_lates_full') {
+        latePenaltyDays = Math.floor(lateDays / 3) * 1.0;
+      }
+
+      // 2. Unexcused absents deduction (1 absent = 1 day cut)
+      const absentDeductionDays = absentDays;
+
+      // 3. Half day remaining deduction (0.5 day cut per half day)
+      const halfDayDeductionDays = halfDays * 0.5;
+
+      // Total deduction days
+      const totalDeductionDays = absentDeductionDays + latePenaltyDays + halfDayDeductionDays;
+
+      // Net payable days for the month (Sundays & Paid Holidays included)
+      const netPayableDays = Math.max(0, daysInMonth - totalDeductionDays);
+
       const staffShiftIn = st.timingIn ? formatTo12h(st.timingIn) : shiftIn;
       const staffShiftOut = st.timingOut ? formatTo12h(st.timingOut) : shiftOut;
 
@@ -118,6 +152,7 @@ export default function MasterStaffAttendanceReportModal({
         employeeId: st.employeeId || st.empId || st.id,
         department: st.department || 'Academic',
         designation: st.designation || st.role || 'Teacher',
+        phone: st.phone || '',
         shiftTimings: `${staffShiftIn} - ${staffShiftOut}`,
         totalDays: daysInMonth,
         schoolHolidays: sundayCount,
@@ -127,11 +162,25 @@ export default function MasterStaffAttendanceReportModal({
         absentDays, // Khud ki chuti
         lateDays,
         lateMinutes,
+        latePenaltyDays,
+        totalDeductionDays,
+        netPayableDays,
         dutyHours: `${totalDutyHoursRendered}h / ${expectedDutyHours}h`,
         attendancePercent
       };
     });
-  }, [staffList, monthlyDataByStaff, daysInMonth, sundayCount, workingDaysInMonth, year, month, shiftIn, shiftOut]);
+  }, [staffList, monthlyDataByStaff, daysInMonth, sundayCount, workingDaysInMonth, year, month, shiftIn, shiftOut, lateDeductionPolicy]);
+
+  // Filtered by search
+  const filteredReportData = useMemo(() => {
+    if (!reportSearch.trim()) return staffReportData;
+    const q = reportSearch.toLowerCase().trim();
+    return staffReportData.filter(s => 
+      s.name.toLowerCase().includes(q) || 
+      String(s.employeeId).toLowerCase().includes(q) ||
+      s.department.toLowerCase().includes(q)
+    );
+  }, [staffReportData, reportSearch]);
 
   // Overall School Totals
   const overallTotals = useMemo(() => {
@@ -139,12 +188,14 @@ export default function MasterStaffAttendanceReportModal({
     let totalLeaves = 0;
     let totalAbsents = 0;
     let totalLate = 0;
+    let totalDeduction = 0;
 
     staffReportData.forEach(s => {
       totalPresent += s.presentDays;
       totalLeaves += s.leaveDays;
       totalAbsents += s.absentDays;
       totalLate += s.lateDays;
+      totalDeduction += s.totalDeductionDays;
     });
 
     return {
@@ -152,7 +203,8 @@ export default function MasterStaffAttendanceReportModal({
       totalPresent,
       totalLeaves,
       totalAbsents,
-      totalLate
+      totalLate,
+      totalDeduction
     };
   }, [staffReportData]);
 
@@ -211,7 +263,7 @@ export default function MasterStaffAttendanceReportModal({
 
   // Excel Export Handler
   const handleExportExcel = () => {
-    const rows = staffReportData.map(s => ({
+    const rows = filteredReportData.map(s => ({
       "S#": s.srNo,
       "Staff Name": s.name,
       "Staff ID": s.employeeId,
@@ -219,12 +271,14 @@ export default function MasterStaffAttendanceReportModal({
       "Department": s.department,
       "Official Timings": s.shiftTimings,
       "Total Month Days": s.totalDays,
-      "School Off (Sundays/Gazetted)": s.schoolHolidays,
+      "School Off (Sundays)": s.schoolHolidays,
       "Working Days (تدریسی دن)": s.workingDays,
       "Present Days (حاضر)": s.presentDays,
       "Approved Leaves (رخصت)": s.leaveDays,
       "Khud Ki Chuti / Absent (غیر حاضر)": s.absentDays,
-      "Late Arrivals (تاخیر)": `${s.lateDays} (${s.lateMinutes} mins)`,
+      "Late Count (تاخیر)": `${s.lateDays} (${s.lateMinutes} mins)`,
+      "Salary Deduction Days (کٹوتی)": s.totalDeductionDays,
+      "Net Payable Days (قابلِ تنخواہ)": s.netPayableDays,
       "Duty Hours": s.dutyHours,
       "Attendance %": `${s.attendancePercent}%`
     }));
@@ -232,7 +286,7 @@ export default function MasterStaffAttendanceReportModal({
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Staff Attendance");
-    XLSX.writeFile(workbook, `Staff_Attendance_Report_${selectedMonth}.xlsx`);
+    XLSX.writeFile(workbook, `Master_Staff_Attendance_${selectedMonth}.xlsx`);
   };
 
   if (!isOpen) return null;
@@ -242,28 +296,71 @@ export default function MasterStaffAttendanceReportModal({
       className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-hidden font-sans"
       onClick={(e) => { if (e.target === e.currentTarget && onClose) onClose(); }}
     >
-      <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl w-full max-w-6xl max-h-[94vh] shadow-2xl flex flex-col overflow-hidden animate-scaleUp relative">
+      <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-3xl w-full max-w-7xl max-h-[95vh] shadow-2xl flex flex-col overflow-hidden animate-scaleUp relative">
         
         {/* Top Header Bar */}
-        <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0 sticky top-0 z-30">
+        <div className="p-4 sm:p-5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0 sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center shadow-sm">
               <Calendar size={20} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-black text-slate-900">Master Staff Attendance & Time Sheet</h2>
+                <h2 className="text-base font-black text-slate-900">Master Staff Attendance & Payroll Sheet</h2>
                 <span className="text-[10px] bg-indigo-100 text-indigo-800 font-black px-2 py-0.5 rounded-full uppercase">
-                  اسٹاف حاضری ماسٹر شیٹ
+                  ماسٹر حاضری و تنخواہ شیٹ
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium">
-                {monthLabel} • {staffReportData.length} Staff Members • Official Shift: {shiftIn} - {shiftOut}
+                {monthLabel} • {staffReportData.length} Staff • Shift: {shiftIn} - {shiftOut}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Mode Switch & Actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* View Mode Toggle */}
+            <div className="flex items-center bg-slate-200/80 p-0.5 rounded-xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setViewMode('standard')}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  viewMode === 'standard' 
+                    ? 'bg-white text-slate-900 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Standard View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('payroll')}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer ${
+                  viewMode === 'payroll' 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Coins size={13} />
+                <span>Payroll & Deduction</span>
+              </button>
+            </div>
+
+            {/* Late Deduction Rule Selector (Only shown in payroll mode) */}
+            {viewMode === 'payroll' && (
+              <select
+                value={lateDeductionPolicy}
+                onChange={(e) => setLateDeductionPolicy(e.target.value)}
+                className="bg-white border border-indigo-200 text-indigo-900 text-xs font-bold rounded-xl px-2.5 py-1.5 outline-none shadow-sm cursor-pointer"
+                title="Select Late Arrival Salary Deduction Policy"
+              >
+                <option value="3_lates_half">Policy: 3 Lates = 0.5 Day Cut</option>
+                <option value="3_lates_full">Policy: 3 Lates = 1 Day Cut</option>
+                <option value="none">Policy: No Late Penalty</option>
+              </select>
+            )}
+
+            {/* Print Button */}
             <button
               onClick={handlePrint}
               className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
@@ -271,6 +368,7 @@ export default function MasterStaffAttendanceReportModal({
               <Printer size={14} /> <span>Print Sheet (PDF)</span>
             </button>
 
+            {/* Excel Button */}
             <button
               onClick={handleExportExcel}
               className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
@@ -278,6 +376,7 @@ export default function MasterStaffAttendanceReportModal({
               <Download size={14} /> <span>Export Excel</span>
             </button>
 
+            {/* Close Button */}
             <button
               onClick={onClose}
               className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-rose-100 hover:text-rose-700 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer ml-1"
@@ -312,14 +411,14 @@ export default function MasterStaffAttendanceReportModal({
 
               <div className="sm:text-right">
                 <span className="inline-block px-3 py-1 rounded-full bg-slate-100 text-slate-900 font-black text-xs uppercase tracking-widest border border-slate-300">
-                  Monthly Master Attendance Register
+                  {viewMode === 'payroll' ? 'Official Payroll & Attendance Register' : 'Monthly Master Attendance Register'}
                 </span>
                 <p className="text-xs font-bold text-slate-700 mt-1">Period: <strong className="text-slate-950 font-black">{monthLabel}</strong></p>
                 <p className="text-[11px] text-slate-500 font-medium">Standard Shift: {shiftIn} to {shiftOut}</p>
               </div>
             </div>
 
-            {/* Quick 5-Way Summary KPI Strip */}
+            {/* Quick 6-Way Summary KPI Strip */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
                 <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Staff</span>
@@ -347,10 +446,37 @@ export default function MasterStaffAttendanceReportModal({
                 <span className="text-[10px] text-rose-600 block">غیر حاضر / خود چھٹی</span>
               </div>
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
-                <span className="text-[10px] font-bold text-amber-700 uppercase block">Late Arrivals</span>
-                <span className="text-xl font-black text-amber-900">{overallTotals.totalLate}</span>
-                <span className="text-[10px] text-amber-600 block">تاخیر آمد</span>
+                <span className="text-[10px] font-bold text-amber-700 uppercase block">
+                  {viewMode === 'payroll' ? 'Salary Deduction' : 'Late Arrivals'}
+                </span>
+                <span className="text-xl font-black text-amber-900">
+                  {viewMode === 'payroll' ? `${overallTotals.totalDeduction} Days` : overallTotals.totalLate}
+                </span>
+                <span className="text-[10px] text-amber-700 block">
+                  {viewMode === 'payroll' ? 'تنخواہ کٹوتی ایام' : 'تاخیر آمد'}
+                </span>
               </div>
+            </div>
+
+            {/* Quick In-Modal Search Bar (No Print) */}
+            <div className="no-print flex items-center justify-between gap-3">
+              <div className="relative max-w-xs w-full">
+                <input
+                  type="text"
+                  placeholder="Filter staff in table..."
+                  value={reportSearch}
+                  onChange={(e) => setReportSearch(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                />
+                <Search size={14} className="absolute left-2.5 top-2 text-slate-400" />
+              </div>
+
+              {viewMode === 'payroll' && (
+                <div className="text-xs text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200 font-bold flex items-center gap-1.5">
+                  <ShieldAlert size={14} />
+                  <span>Formula: Unexcused Absent (100% Cut) + {lateDeductionPolicy === '3_lates_half' ? '3 Lates = 0.5 Day Cut' : lateDeductionPolicy === '3_lates_full' ? '3 Lates = 1 Day Cut' : 'No late penalty'}</span>
+                </div>
+              )}
             </div>
 
             {/* Master Attendance Table */}
@@ -359,8 +485,8 @@ export default function MasterStaffAttendanceReportModal({
                 <thead>
                   <tr className="bg-slate-100 border-b border-slate-300 text-[10px] font-black text-slate-800 uppercase tracking-wider">
                     <th className="py-2.5 px-2 text-center w-8">#</th>
-                    <th className="py-2.5 px-3 min-w-[140px]">Staff Member</th>
-                    <th className="py-2.5 px-2 min-w-[80px]">Role / Dept</th>
+                    <th className="py-2.5 px-3 min-w-[130px]">Staff Member</th>
+                    <th className="py-2.5 px-2 min-w-[75px]">Role / Dept</th>
                     <th className="py-2.5 px-2 text-center min-w-[90px]">Timings</th>
                     <th className="py-2.5 px-2 text-center w-12" title="Days in Month">Month Days</th>
                     <th className="py-2.5 px-2 text-center w-12 bg-sky-50 text-sky-900" title="School Off (Sundays/Holidays)">School Off</th>
@@ -369,13 +495,26 @@ export default function MasterStaffAttendanceReportModal({
                     <th className="py-2.5 px-2 text-center w-12 bg-purple-50 text-purple-900">Leaves (رخصت)</th>
                     <th className="py-2.5 px-2 text-center w-12 bg-rose-50 text-rose-900">Absent (خود چھٹی)</th>
                     <th className="py-2.5 px-2 text-center w-14 bg-amber-50 text-amber-900">Late (تاخیر)</th>
-                    <th className="py-2.5 px-2 text-center min-w-[80px]">Duty Hours</th>
+                    
+                    {/* Additional Payroll Columns */}
+                    {viewMode === 'payroll' && (
+                      <>
+                        <th className="py-2.5 px-2 text-center w-14 bg-rose-100 text-rose-900 font-black border-l border-r border-rose-300">
+                          Cut Days (کٹوتی)
+                        </th>
+                        <th className="py-2.5 px-2 text-center w-16 bg-emerald-100 text-emerald-950 font-black border-r border-emerald-300">
+                          Payable Days (قابل ادا)
+                        </th>
+                      </>
+                    )}
+
+                    <th className="py-2.5 px-2 text-center min-w-[75px]">Duty Hours</th>
                     <th className="py-2.5 px-2 text-center w-14 font-black">Att %</th>
-                    <th className="py-2.5 px-3 text-center min-w-[80px]">Signature</th>
+                    <th className="py-2.5 px-3 text-center min-w-[75px]">Signature</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {staffReportData.map((s) => (
+                  {filteredReportData.map((s) => (
                     <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-2 px-2 text-center font-bold text-slate-500">{s.srNo}</td>
                       <td className="py-2 px-3">
@@ -404,6 +543,19 @@ export default function MasterStaffAttendanceReportModal({
                       <td className="py-2 px-2 text-center text-amber-800 font-semibold bg-amber-50/50">
                         {s.lateDays > 0 ? `${s.lateDays} (${s.lateMinutes}m)` : '-'}
                       </td>
+
+                      {/* Payroll Dynamic Columns */}
+                      {viewMode === 'payroll' && (
+                        <>
+                          <td className="py-2 px-2 text-center font-black bg-rose-50 text-rose-700 border-l border-r border-rose-200">
+                            {s.totalDeductionDays > 0 ? `-${s.totalDeductionDays}d` : '0d'}
+                          </td>
+                          <td className="py-2 px-2 text-center font-black bg-emerald-50 text-emerald-900 border-r border-emerald-200 text-sm">
+                            {s.netPayableDays}d
+                          </td>
+                        </>
+                      )}
+
                       <td className="py-2 px-2 text-center font-mono text-[11px] text-slate-700">
                         {s.dutyHours}
                       </td>

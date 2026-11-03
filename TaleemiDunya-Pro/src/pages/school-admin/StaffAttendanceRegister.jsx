@@ -25,7 +25,8 @@ import {
   LogIn,
   LogOut,
   Timer,
-  Printer
+  Printer,
+  MessageCircle
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
@@ -135,6 +136,19 @@ const StaffAttendanceRegister = () => {
 
   // Master Monthly Report Modal State
   const [showMasterReport, setShowMasterReport] = useState(false);
+
+  // Quick Daily Status Filter: 'All' | 'present' | 'absent' | 'half' | 'leave'
+  const [dailyStatusFilter, setDailyStatusFilter] = useState('All');
+
+  // Live System Clock
+  const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveClock(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Toast message
   const [toast, setToast] = useState(null);
@@ -324,6 +338,41 @@ const StaffAttendanceRegister = () => {
     return false;
   }, [filteredStaff, dailyAttendanceMap, savedDailyAttendanceMap]);
 
+  // Daily Status Counts
+  const dailyStatusCounts = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let half = 0;
+    let leave = 0;
+
+    filteredStaff.forEach(s => {
+      const att = getStaffAttendance(s);
+      const st = (att.status || 'present').toLowerCase();
+      if (st === 'present') present++;
+      else if (st === 'absent') absent++;
+      else if (st === 'half') half++;
+      else if (st === 'leave') leave++;
+    });
+
+    return {
+      all: filteredStaff.length,
+      present,
+      absent,
+      half,
+      leave
+    };
+  }, [filteredStaff, dailyAttendanceMap]);
+
+  // Displayed Daily Staff according to dailyStatusFilter
+  const displayedDailyStaff = useMemo(() => {
+    if (dailyStatusFilter === 'All') return filteredStaff;
+    return filteredStaff.filter(s => {
+      const att = getStaffAttendance(s);
+      const st = (att.status || 'present').toLowerCase();
+      return st === dailyStatusFilter;
+    });
+  }, [filteredStaff, dailyStatusFilter, dailyAttendanceMap]);
+
   // Handle status toggle in Daily Register (AUTOMATICALLY sets shift timings on Present)
   const handleStatusChange = (staffId, status) => {
     const staff = staffList.find(s => s.id === staffId);
@@ -403,6 +452,39 @@ const StaffAttendanceRegister = () => {
     const now24 = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
     handleTimeOutChange(staffId, now24);
     showToast('info', `Clock Out set to ${formatTo12h(now24)}`);
+  };
+
+  // Quick 1-Click WhatsApp Alert to Staff Member
+  const handleSendRowWhatsApp = (staff, att) => {
+    if (!staff?.phone) {
+      showToast('error', 'Staff member does not have a phone number saved.');
+      return;
+    }
+    const cleanPhone = String(staff.phone).replace(/[^0-9]/g, '');
+    const formattedPhone = cleanPhone.startsWith('0') 
+      ? '92' + cleanPhone.slice(1) 
+      : cleanPhone.startsWith('92') 
+      ? cleanPhone 
+      : '92' + cleanPhone;
+
+    const schoolName = schoolData?.name || 'Smart Angels Grammar School';
+    const status = att?.status || 'present';
+    const timeIn = att?.timeIn ? formatTo12h(att.timeIn) : '08:00 AM';
+    const timeOut = att?.timeOut ? formatTo12h(att.timeOut) : '02:00 PM';
+
+    let msg = '';
+    if (status === 'absent') {
+      msg = `*محترم ${staff.name}*\n\nآج بتاریخ *${selectedDate}* آپ کو ${schoolName} سے *غیر حاضر (ABSENT)* مارک کیا گیا ہے۔\n\nاگر کوئی بیماری یا ناگزیر عذر ہے تو برائے مہربانی فوری طور پر پرنسپل آفس کو مطلع فرمائیں۔\n\n_انتظامیہ: ${schoolName}_`;
+    } else if (att?.isLate) {
+      msg = `*محترم ${staff.name}*\n\nآج بتاریخ *${selectedDate}* آپ اسکول کے مقررہ وقت کے بعد *${timeIn}* پر تشریف لائے ہیں (تاخیر: *${att.minutesLate || 15} منٹ*)۔\n\nبراہ کرم صبح کے وقت کی پابندی کو یقینی بنائیں۔\n\n_پرنسپل آفس: ${schoolName}_`;
+    } else if (status === 'leave') {
+      msg = `*محترم ${staff.name}*\n\nآج بتاریخ *${selectedDate}* آپ کی *رخصت (LEAVE)* پرنسپل آفس سے منظور کی جا چکی ہے۔\n\n_پرنسپل آفس: ${schoolName}_`;
+    } else {
+      msg = `*محترم ${staff.name}*\n\nآپ کی آج بتاریخ *${selectedDate}* کی حاضری کامیابی سے درج ہو چکی ہے۔\nوقت آمد: *${timeIn}*\nوقت رخصت: *${timeOut}*\nکیفیت: *حاضر (PRESENT)*\n\n_پرنسپل آفس: ${schoolName}_`;
+    }
+
+    const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
   };
 
   // Bulk mark all visible staff with automatic shift timings
@@ -869,10 +951,50 @@ const StaffAttendanceRegister = () => {
       {/* TAB 1: DAILY ATTENDANCE REGISTER */}
       {activeTab === 'daily' && (
         <div className="space-y-4">
+          {/* Live System Clock & Status Pill Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-primary-950/40 via-dark-paper/80 to-indigo-950/30 p-3.5 sm:p-4 rounded-2xl border border-primary-500/20 shadow-md">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 rounded-xl">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="font-mono text-xs sm:text-sm font-black text-emerald-400 tracking-wide">{liveClock}</span>
+              </div>
+              <div className="text-xs text-dark-text">
+                <span className="font-bold text-dark-text">Official Shift: </span>
+                <span className="font-mono text-primary-300 font-bold">{formatTo12h(defaultShiftIn)} - {formatTo12h(defaultShiftOut)}</span>
+                <span className="text-dark-muted ml-2 font-medium hidden sm:inline">(Standard 6 Hours)</span>
+              </div>
+            </div>
+
+            {/* Quick Status Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {[
+                { id: 'All', label: 'All', count: dailyStatusCounts.all },
+                { id: 'present', label: 'Present', count: dailyStatusCounts.present },
+                { id: 'absent', label: 'Absent', count: dailyStatusCounts.absent },
+                { id: 'half', label: 'Half Day', count: dailyStatusCounts.half },
+                { id: 'leave', label: 'Leave', count: dailyStatusCounts.leave },
+              ].map(pill => (
+                <button
+                  key={pill.id}
+                  type="button"
+                  onClick={() => setDailyStatusFilter(pill.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
+                    dailyStatusFilter === pill.id
+                      ? 'bg-primary-500 text-white border-primary-400 shadow-sm'
+                      : 'bg-dark-bg/60 border-dark-border/60 text-dark-muted hover:text-dark-text'
+                  }`}
+                >
+                  <span>{pill.label}</span>
+                  <span className="ml-1 opacity-80 font-mono">({pill.count})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Quick Bulk Actions & Unsaved Banner */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-dark-bg/40 p-3.5 rounded-xl border border-dark-border/40">
             <div className="flex items-center gap-2 text-xs font-bold text-dark-muted">
-              <span>Quick Actions for visible staff ({filteredStaff.length}):</span>
+              <span>Quick Actions for visible staff ({displayedDailyStaff.length}):</span>
               {isDirty && (
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[10px] uppercase tracking-wider font-extrabold animate-pulse">
                   Unsaved Changes
@@ -906,11 +1028,11 @@ const StaffAttendanceRegister = () => {
                 <RefreshCw size={32} className="animate-spin text-primary-400" />
                 <p className="text-sm font-medium">Loading staff attendance register...</p>
               </div>
-            ) : filteredStaff.length === 0 ? (
+            ) : displayedDailyStaff.length === 0 ? (
               <div className="p-12 text-center text-dark-muted flex flex-col items-center justify-center gap-2">
                 <Users size={36} className="text-dark-muted opacity-40" />
                 <p className="font-semibold text-dark-text">No staff members found</p>
-                <p className="text-xs">Try adjusting your department or search filters.</p>
+                <p className="text-xs">Try adjusting your status, department or search filters.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -932,11 +1054,11 @@ const StaffAttendanceRegister = () => {
                       <th className="py-3.5 px-4 text-center">Duty Duration</th>
                       <th className="py-3.5 px-4 text-center">Attendance Status</th>
                       <th className="py-3.5 px-4">Notes / Remarks</th>
-                      <th className="py-3.5 px-4 text-center">Time Slip</th>
+                      <th className="py-3.5 px-4 text-center">Actions & Alerts</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-dark-border/50 text-sm">
-                    {filteredStaff.map((staff) => {
+                    {displayedDailyStaff.map((staff) => {
                       const att = getStaffAttendance(staff);
                       const currentStatus = att.status || '';
                       const { shiftIn, shiftOut } = getStaffDefaultTimings(staff);
@@ -1105,17 +1227,30 @@ const StaffAttendanceRegister = () => {
                             />
                           </td>
 
-                          {/* Time Slip ("Kub Aaya Kub Gya") */}
+                          {/* Time Slip & WhatsApp Actions */}
                           <td className="py-3.5 px-4 text-center">
-                            <button
-                              type="button"
-                              onClick={() => setTimeSlipStaff(staff)}
-                              className="px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                              title="Staff Time Slip (Kub Aaya aur Kub Gya)"
-                            >
-                              <FileText size={13} />
-                              <span>Time Slip</span>
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setTimeSlipStaff(staff)}
+                                className="px-2.5 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                                title="Staff Time Slip (Kub Aaya aur Kub Gya)"
+                              >
+                                <FileText size={13} />
+                                <span>Time Slip</span>
+                              </button>
+
+                              {staff.phone && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSendRowWhatsApp(staff, att)}
+                                  className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-all shadow-sm cursor-pointer"
+                                  title="Send WhatsApp attendance alert to this staff"
+                                >
+                                  <MessageCircle size={14} />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1243,11 +1378,21 @@ const StaffAttendanceRegister = () => {
                         Dept
                       </th>
                       {/* Day Headers 1..N */}
-                      {daysInSelectedMonth.map(day => (
-                        <th key={day} className="py-3 px-1 text-center border-r border-dark-border/40 min-w-[28px] max-w-[32px]">
-                          {day}
-                        </th>
-                      ))}
+                      {daysInSelectedMonth.map(day => {
+                        const [y, m] = selectedMonth.split('-').map(Number);
+                        const isSun = new Date(y, m - 1, day).getDay() === 0;
+                        return (
+                          <th 
+                            key={day} 
+                            className={`py-3 px-1 text-center border-r border-dark-border/40 min-w-[28px] max-w-[32px] ${
+                              isSun ? 'bg-sky-500/10 text-sky-400 font-bold' : ''
+                            }`}
+                            title={isSun ? `Day ${day} (Sunday / School Holiday)` : `Day ${day}`}
+                          >
+                            {day}
+                          </th>
+                        );
+                      })}
                       {/* Monthly Summary Totals */}
                       <th className="py-3 px-2 text-center bg-emerald-500/10 text-emerald-400 font-black border-r border-dark-border min-w-[36px]">
                         P
@@ -1307,12 +1452,16 @@ const StaffAttendanceRegister = () => {
                             {staff.department || 'General'}
                           </td>
 
-                          {/* Daily Status Cells with In/Out Tooltip */}
+                          {/* Daily Status Cells with Sunday & In/Out Tooltip */}
                           {daysInSelectedMonth.map(day => {
+                            const [y, m] = selectedMonth.split('-').map(Number);
+                            const isSun = new Date(y, m - 1, day).getDay() === 0;
                             const dayRec = staffAttMap[day];
                             const status = dayRec?.status || (typeof dayRec === 'string' ? dayRec : '');
-                            let cellContent = '-';
-                            let cellClass = 'text-dark-muted opacity-30';
+                            let cellContent = isSun ? 'S' : '-';
+                            let cellClass = isSun 
+                              ? 'bg-sky-500/10 text-sky-400/80 font-bold border border-sky-500/20' 
+                              : 'text-dark-muted opacity-30';
 
                             if (status === 'present') {
                               cellContent = 'P';
@@ -1328,12 +1477,23 @@ const StaffAttendanceRegister = () => {
                               cellClass = 'bg-purple-500/20 text-purple-400 font-bold border border-purple-500/30';
                             }
 
-                            const tooltipText = dayRec?.timeIn 
-                              ? `Day ${day}: In ${formatTo12h(dayRec.timeIn)} - Out ${formatTo12h(dayRec.timeOut)} (${dayRec.hoursWorked || 'Shift'})`
+                            const effectiveIn = dayRec?.timeIn || (status === 'present' ? defaultShiftIn : null);
+                            const effectiveOut = dayRec?.timeOut || (status === 'present' ? defaultShiftOut : null);
+                            const tooltipText = isSun 
+                              ? `Day ${day}: Sunday (School Holiday / Off)`
+                              : effectiveIn 
+                              ? `Day ${day}: In ${formatTo12h(effectiveIn)} - Out ${formatTo12h(effectiveOut)} (Status: ${status.toUpperCase()})`
                               : `Day ${day}: ${status || 'Not marked'}`;
 
                             return (
-                              <td key={day} className="py-2 px-1 text-center border-r border-dark-border/40" title={tooltipText}>
+                              <td 
+                                key={day} 
+                                className={`py-2 px-1 text-center border-r border-dark-border/40 cursor-pointer ${
+                                  isSun ? 'bg-sky-500/5' : ''
+                                }`} 
+                                title={tooltipText}
+                                onClick={() => setTimeSlipStaff(staff)}
+                              >
                                 <span className={`inline-flex items-center justify-center w-6 h-6 rounded-md text-[10px] ${cellClass}`}>
                                   {cellContent}
                                 </span>
