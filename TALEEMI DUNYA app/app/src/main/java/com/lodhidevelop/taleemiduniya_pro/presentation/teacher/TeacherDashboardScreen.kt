@@ -47,6 +47,7 @@ fun TeacherDashboardScreen(
     onNavigateToTimetable: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToStudents: () -> Unit,
+    onNavigateToMyAttendance: () -> Unit = {},
     onNavigateToReport: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -89,6 +90,7 @@ fun TeacherDashboardScreen(
                         onTimetableClick = onNavigateToTimetable, 
                         onHistoryClick = onNavigateToHistory, 
                         onStudentsClick = onNavigateToStudents,
+                        onMyAttendanceClick = onNavigateToMyAttendance,
                         onReportClick = onNavigateToReport,
                         onRefresh = { viewModel.loadTeacherData() }
                     )
@@ -117,6 +119,7 @@ fun TeacherDashboardContent(
     onTimetableClick: () -> Unit,
     onHistoryClick: () -> Unit,
     onStudentsClick: () -> Unit,
+    onMyAttendanceClick: () -> Unit = {},
     onReportClick: () -> Unit = {},
     onRefresh: () -> Unit
 ) {
@@ -271,6 +274,9 @@ fun TeacherDashboardContent(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item { 
+                QuickActionItem("My IC Card", Icons.Rounded.CreditCard, Color(0xFF0288D1), onMyAttendanceClick) 
+            }
+            item { 
                 QuickActionItem(stringResource(R.string.mark_attendance), Icons.Rounded.TaskAlt, Color(0xFFE91E63), onAttendanceClick) 
             }
             item { 
@@ -321,6 +327,13 @@ fun TeacherDashboardContent(
             modifier = Modifier.padding(horizontal = 24.dp).padding(top = 20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            TeacherActionCard(
+                title = "My IC Card Attendance",
+                subtitle = "View attendance history scanned via IC Card / Web App",
+                icon = Icons.Rounded.CreditCard,
+                color = Color(0xFF0288D1),
+                onClick = onMyAttendanceClick
+            )
             TeacherActionCard(
                 title = "Report to Principal / Admin",
                 subtitle = "Submit work progress & paper check update to Web App",

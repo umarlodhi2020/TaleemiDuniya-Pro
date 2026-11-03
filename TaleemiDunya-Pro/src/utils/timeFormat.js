@@ -55,3 +55,4 @@ export const calculateDutyHours = (timeIn, timeOut) => {
     formatted: `${hrs}h ${mins > 0 ? `${mins}m` : '0m'}`.trim() 
   };
 };
+

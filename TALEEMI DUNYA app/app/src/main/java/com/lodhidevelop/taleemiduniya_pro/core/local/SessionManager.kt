@@ -22,12 +22,20 @@ class SessionManager @Inject constructor(@ApplicationContext private val context
     private val TOKEN_KEY = stringPreferencesKey("token")
     private val USER_ID_KEY = stringPreferencesKey("user_id")
     private val SELECTED_CHILD_ID_KEY = stringPreferencesKey("selected_child_id")
+    private val LANGUAGE_KEY = stringPreferencesKey("app_language")
 
     val role: Flow<String?> = context.dataStore.data.map { it[ROLE_KEY] }
     val schoolId: Flow<String?> = context.dataStore.data.map { it[SCHOOL_ID_KEY] }
     val token: Flow<String?> = context.dataStore.data.map { it[TOKEN_KEY] }
     val userId: Flow<String?> = context.dataStore.data.map { it[USER_ID_KEY] }
     val selectedChildId: Flow<String?> = context.dataStore.data.map { it[SELECTED_CHILD_ID_KEY] }
+    val language: Flow<String> = context.dataStore.data.map { it[LANGUAGE_KEY] ?: "en" }
+
+    suspend fun setLanguage(lang: String) {
+        context.dataStore.edit { prefs ->
+            prefs[LANGUAGE_KEY] = lang
+        }
+    }
 
     suspend fun saveSession(role: String, schoolId: String, token: String, userId: String) {
         context.dataStore.edit { prefs ->

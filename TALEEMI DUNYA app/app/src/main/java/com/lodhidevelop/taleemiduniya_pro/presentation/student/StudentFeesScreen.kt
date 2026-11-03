@@ -199,11 +199,14 @@ fun FeeHistoryItem(fee: FeeRecord, profile: com.lodhidevelop.taleemiduniya_pro.d
                         Icon(Icons.Rounded.Visibility, contentDescription = "View", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { 
-                        val url = "https://umarhayat.alwaysdata.net/api/mobile/fees/voucher-pdf?studentId=${profile.id}&schoolId=${profile.schoolId}"
-                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                        context.startActivity(intent)
+                        com.lodhidevelop.taleemiduniya_pro.core.utils.ReportGenerator.generateFeeReceiptPdf(
+                            context = context,
+                            studentName = profile.name.ifEmpty { "Student" },
+                            className = "${profile.className}-${profile.section}",
+                            feeRecord = fee
+                        )
                     }) {
-                        Icon(Icons.Rounded.Download, contentDescription = "Download", tint = MaterialTheme.colorScheme.primary)
+                        Icon(Icons.Rounded.Download, contentDescription = "Download Receipt", tint = MaterialTheme.colorScheme.primary)
                     }
                     IconButton(onClick = { /* Share */ }) {
                         Icon(Icons.Rounded.Share, contentDescription = "Share", tint = MaterialTheme.colorScheme.primary)

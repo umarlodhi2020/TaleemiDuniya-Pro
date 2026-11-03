@@ -19,6 +19,8 @@ data class AttendanceRecord(
     val date: String = "",
     val status: String = "",
     val checkInTime: String? = null,
+    val checkOutTime: String? = null,
+    val scanMethod: String = "IC Card Scan",
     val studentId: String = "",
     val schoolId: String = ""
 )

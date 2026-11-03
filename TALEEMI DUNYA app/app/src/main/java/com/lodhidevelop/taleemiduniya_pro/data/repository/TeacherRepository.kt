@@ -587,4 +587,66 @@ class TeacherRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun getMyAttendance(teacherId: String, schoolId: String): Result<List<AttendanceRecord>> {
+        return try {
+            val possibleTeacherIds = listOf(teacherId, "staff_$teacherId", teacherId.removePrefix("staff_")).distinct()
+            
+            // Try staff_attendance first, fallback to teacher_attendance, then attendance
+            val collections = listOf("staff_attendance", "teacher_attendance", "staffAttendance", "attendance")
+            val records = mutableListOf<AttendanceRecord>()
+
+            for (coll in collections) {
+                val snap = try {
+                    if (schoolId.isNotEmpty()) {
+                        db.collection(coll).whereEqualTo("schoolId", schoolId).get().await()
+                    } else {
+                        db.collection(coll).get().await()
+                    }
+                } catch (e: Exception) {
+                    try { db.collection(coll).get().await() } catch (ex: Exception) { null }
+                }
+
+                snap?.documents?.forEach { doc ->
+                    val d = doc.data ?: return@forEach
+                    val docStaffId = (d["staffId"] ?: d["teacherId"] ?: d["studentId"] ?: d["userId"] ?: doc.id).toString()
+                    val match = possibleTeacherIds.any { docStaffId.equals(it, ignoreCase = true) }
+                    
+                    if (match) {
+                        val dateStr = when (val dateVal = d["date"]) {
+                            is String -> dateVal
+                            is Timestamp -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(dateVal.toDate())
+                            else -> SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                        }
+                        val status = (d["status"] ?: "Present").toString()
+                        val checkIn = (d["checkInTime"] ?: d["inTime"] ?: d["time"] ?: d["check_in"] ?: "").toString().ifEmpty { null }
+                        val checkOut = (d["checkOutTime"] ?: d["outTime"] ?: d["check_out"] ?: "").toString().ifEmpty { null }
+                        val scanMethod = (d["scanMethod"] ?: d["method"] ?: d["source"] ?: d["scanType"] ?: "IC Card Scan").toString()
+
+                        records.add(
+                            AttendanceRecord(
+                                date = dateStr,
+                                status = status,
+                                checkInTime = checkIn,
+                                checkOutTime = checkOut,
+                                scanMethod = scanMethod,
+                                studentId = teacherId,
+                                schoolId = schoolId
+                            )
+                        )
+                    }
+                }
+
+                if (records.isNotEmpty()) break
+            }
+
+            val sortedRecords = records.distinctBy { "${it.date}_${it.checkInTime}" }
+                .sortedByDescending { it.date }
+
+            Result.success(sortedRecords)
+        } catch (e: Exception) {
+            Log.e("TeacherRepo", "Error in getMyAttendance", e)
+            Result.failure(e)
+        }
+    }
 }

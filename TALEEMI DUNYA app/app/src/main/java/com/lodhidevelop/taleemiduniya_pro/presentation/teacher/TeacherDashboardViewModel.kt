@@ -58,13 +58,18 @@ class TeacherDashboardViewModel @Inject constructor(
                             val timetableDeferred = async { teacherRepository.getTeacherTimetable(teacherId, schoolId) }
                             val attendanceSummaryDeferred = async { teacherRepository.getTodayAttendanceSummary(schoolId, classes.map { it.name }) }
                             val attendanceTrendsDeferred = async { teacherRepository.getWeeklyAttendanceTrends(schoolId) }
+                            val myAttendanceDeferred = async { teacherRepository.getMyAttendance(teacherId, schoolId) }
                             
                             val announcements = runCatching { announcementsDeferred.await() }.getOrNull()?.getOrDefault(emptyList()) ?: emptyList()
                             val timetable = runCatching { timetableDeferred.await() }.getOrNull()?.getOrDefault(emptyList()) ?: emptyList()
                             val attendanceSummary = runCatching { attendanceSummaryDeferred.await() }.getOrNull()?.getOrNull()
                             val attendanceTrends = runCatching { attendanceTrendsDeferred.await() }.getOrNull()?.getOrDefault(emptyList()) ?: emptyList()
+                            val myAttendanceHistory = runCatching { myAttendanceDeferred.await() }.getOrNull()?.getOrDefault(emptyList()) ?: emptyList()
 
-                            android.util.Log.d("Dashboard", "Data results - Classes: ${classes.size}, Announcements: ${announcements.size}")
+                            val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                            val myTodayAttendance = myAttendanceHistory.firstOrNull { it.date == todayStr }
+
+                            android.util.Log.d("Dashboard", "Data results - Classes: ${classes.size}, Announcements: ${announcements.size}, My Attendance: ${myAttendanceHistory.size}")
                             
                             val errorMessage = if (classes.isEmpty() && profile.schoolId.isNotEmpty()) {
                                 classesResult.getOrNull()?.exceptionOrNull()?.message ?: "No classes found for school. Check database schoolId."
@@ -77,6 +82,8 @@ class TeacherDashboardViewModel @Inject constructor(
                                 timetable = timetable,
                                 todayAttendance = attendanceSummary,
                                 attendanceTrends = attendanceTrends,
+                                myTodayAttendance = myTodayAttendance,
+                                myAttendanceHistory = myAttendanceHistory,
                                 debugMessage = errorMessage
                             )
                         }
@@ -144,6 +151,8 @@ sealed class TeacherDashboardUiState {
         val timetable: List<TimetableRecord>,
         val todayAttendance: Pair<Int, Int>? = null,
         val attendanceTrends: List<Pair<String, Float>> = emptyList(),
+        val myTodayAttendance: AttendanceRecord? = null,
+        val myAttendanceHistory: List<AttendanceRecord> = emptyList(),
         val debugMessage: String? = null
     ) : TeacherDashboardUiState()
     data class Error(val message: String) : TeacherDashboardUiState()

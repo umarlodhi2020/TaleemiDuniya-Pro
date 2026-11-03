@@ -188,18 +188,40 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
 
       if (isSunday) {
         status = 'sunday';
+        timeIn = 'Weekend';
+        timeOut = 'Off';
+        hoursWorked = '0h';
       } else if (match) {
         status = (match.status || 'present').toLowerCase();
-        const rawIn = match.timeIn || match.time || match.timeInRaw || '-';
-        const rawOut = match.timeOut || match.timeOutRaw || '-';
-        timeIn = rawIn !== '-' ? formatTo12h(rawIn) : '-';
-        timeOut = rawOut !== '-' ? formatTo12h(rawOut) : '-';
         isLate = !!match.isLate;
         minutesLate = match.minutesLate || 0;
 
-        if (rawIn !== '-' && rawOut !== '-') {
-          const duty = calculateDutyHours(rawIn, rawOut);
-          hoursWorked = duty ? duty.formatted : '-';
+        if (status === 'present') {
+          const rawIn = match.timeIn || match.time || match.timeInRaw || '';
+          const rawOut = match.timeOut || match.timeOutRaw || '';
+          // Automatic fallback to active shift timings if scan was not performed
+          timeIn = (rawIn && rawIn !== '-') ? formatTo12h(rawIn) : shiftTimeIn;
+          timeOut = (rawOut && rawOut !== '-') ? formatTo12h(rawOut) : shiftTimeOut;
+          
+          const duty = calculateDutyHours(timeIn, timeOut);
+          hoursWorked = duty ? duty.formatted : '6h 0m';
+        } else if (status === 'leave') {
+          timeIn = 'Approved';
+          timeOut = 'Leave';
+          hoursWorked = 'Excused';
+        } else if (status === 'absent') {
+          timeIn = 'Absent';
+          timeOut = 'Absent';
+          hoursWorked = '0h 0m';
+        } else if (status === 'half') {
+          const rawIn = match.timeIn || match.time || match.timeInRaw || '';
+          timeIn = (rawIn && rawIn !== '-') ? formatTo12h(rawIn) : shiftTimeIn;
+          timeOut = 'Half Day';
+          hoursWorked = '3h 0m';
+        } else {
+          timeIn = match.timeIn ? formatTo12h(match.timeIn) : '-';
+          timeOut = match.timeOut ? formatTo12h(match.timeOut) : '-';
+          hoursWorked = '-';
         }
       }
 
@@ -230,17 +252,21 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
     let absentDays = 0;
     let halfDays = 0;
     let leaveDays = 0;
+    let schoolHolidayDays = 0;
     let notMarkedDays = 0;
     let totalLateMinutes = 0;
 
     monthDays.forEach(d => {
-      if (d.isSunday) return;
+      if (d.isSunday) {
+        schoolHolidayDays += 1;
+        return;
+      }
       if (d.isFuture) return;
 
       workingDays += 1;
 
       const st = String(d.status).toLowerCase();
-      if (st === 'present' || st === 'late' || (d.timeIn !== '-' && d.timeIn)) {
+      if (st === 'present' || st === 'late' || (d.timeIn && d.timeIn !== '-' && d.timeIn !== 'Absent' && d.timeIn !== 'Approved')) {
         presentDays += 1;
         if (d.isLate) {
           lateDays += 1;
@@ -262,6 +288,8 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
     const attendancePercentage = workingDays > 0 ? Math.round((presentDays / workingDays) * 100) : 100;
 
     return {
+      totalMonthDays: monthDays.length,
+      schoolHolidayDays,
       workingDays,
       presentDays,
       lateDays,
@@ -504,27 +532,35 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
             </div>
 
             {/* Quick Metrics KPI Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase block">Present Days</span>
-                <span className="text-xl font-black text-emerald-900">{summaryMetrics.presentDays} / {summaryMetrics.workingDays}</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
+                <span className="text-[10px] font-bold text-emerald-700 uppercase block">Present (حاضر)</span>
+                <span className="text-lg font-black text-emerald-900">{summaryMetrics.presentDays} / {summaryMetrics.workingDays}</span>
               </div>
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-center">
-                <span className="text-[10px] font-bold text-amber-700 uppercase block">Late Arrivals</span>
-                <span className="text-xl font-black text-amber-900">{summaryMetrics.lateDays}</span>
-                <span className="text-[10px] text-amber-700 block font-medium">({summaryMetrics.totalLateMinutes} mins)</span>
+              <div className="p-2.5 bg-sky-50 border border-sky-200 rounded-2xl text-center">
+                <span className="text-[10px] font-bold text-sky-700 uppercase block">School Off (اسکول چھٹی)</span>
+                <span className="text-lg font-black text-sky-900">{summaryMetrics.schoolHolidayDays}</span>
+                <span className="text-[9px] text-sky-600 block">Sundays / Holidays</span>
               </div>
-              <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-center">
-                <span className="text-[10px] font-bold text-red-700 uppercase block">Recorded Absents</span>
-                <span className="text-xl font-black text-red-900">{summaryMetrics.absentDays}</span>
+              <div className="p-2.5 bg-purple-50 border border-purple-200 rounded-2xl text-center">
+                <span className="text-[10px] font-bold text-purple-700 uppercase block">Leaves (رخصت)</span>
+                <span className="text-lg font-black text-purple-900">{summaryMetrics.leaveDays + summaryMetrics.halfDays}</span>
+                <span className="text-[9px] text-purple-600 block">Approved Leaves</span>
               </div>
-              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl text-center">
-                <span className="text-[10px] font-bold text-indigo-700 uppercase block">Half Days / Leave</span>
-                <span className="text-xl font-black text-indigo-900">{summaryMetrics.halfDays + summaryMetrics.leaveDays}</span>
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-2xl text-center">
+                <span className="text-[10px] font-bold text-rose-700 uppercase block">Absent (خود چھٹی)</span>
+                <span className="text-lg font-black text-rose-900">{summaryMetrics.absentDays}</span>
+                <span className="text-[9px] text-rose-600 block">Unexcused</span>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-center col-span-2 sm:col-span-1">
-                <span className="text-[10px] font-bold text-slate-600 uppercase block">Attendance Rate</span>
-                <span className="text-xl font-black text-slate-900">{summaryMetrics.attendancePercentage}%</span>
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-2xl text-center">
+                <span className="text-[10px] font-bold text-amber-700 uppercase block">Late (تاخیر)</span>
+                <span className="text-lg font-black text-amber-900">{summaryMetrics.lateDays}</span>
+                <span className="text-[9px] text-amber-700 block font-medium">({summaryMetrics.totalLateMinutes}m)</span>
+              </div>
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-center">
+                <span className="text-[10px] font-bold text-slate-600 uppercase block">Attendance %</span>
+                <span className="text-lg font-black text-slate-900">{summaryMetrics.attendancePercentage}%</span>
+                <span className="text-[9px] text-slate-500 block">Monthly Rate</span>
               </div>
             </div>
 
@@ -599,15 +635,23 @@ export default function StaffTimeSlipModal({ staff, onClose, initialPeriod }) {
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                             d.isLate 
                               ? 'bg-amber-100 text-amber-800 border border-amber-200' 
-                              : d.status === 'present' || d.timeIn !== '-' 
+                              : d.status === 'present' 
                               ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
                               : d.status === 'leave'
-                              ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                              ? 'bg-purple-100 text-purple-800 border border-purple-200'
                               : d.status === 'half'
                               ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
-                              : 'bg-red-50 text-red-700 border border-red-200'
+                              : 'bg-rose-100 text-rose-800 border border-rose-200'
                           }`}>
-                            {d.isLate ? `Late (${d.minutesLate}m)` : d.status === 'present' || d.timeIn !== '-' ? 'Present' : d.status === 'leave' ? 'Leave' : d.status === 'half' ? 'Half Day' : 'Absent'}
+                            {d.isLate 
+                              ? `Late (${d.minutesLate}m) تاخیر` 
+                              : d.status === 'present' 
+                              ? 'Present حاضر' 
+                              : d.status === 'leave' 
+                              ? 'Leave منظور شدہ' 
+                              : d.status === 'half' 
+                              ? 'Half Day نصف دن' 
+                              : 'Absent خود چھٹی'}
                           </span>
                         )}
                       </td>

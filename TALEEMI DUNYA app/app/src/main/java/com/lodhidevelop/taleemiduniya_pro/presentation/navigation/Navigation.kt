@@ -61,6 +61,7 @@ sealed interface NavRoute {
     @Serializable data object TeacherTimetable : NavRoute
     @Serializable data class TeacherStudents(val className: String, val section: String) : NavRoute
     @Serializable data object TeacherPrincipalReport : NavRoute
+    @Serializable data object TeacherMyAttendance : NavRoute
     
     // Admin Routes
     @Serializable data object AdminHome : NavRoute
@@ -278,6 +279,9 @@ fun AppNavigation() {
                         onNavigateToStudents = {
                             profile?.let { backStack.add(NavRoute.TeacherStudents(it.className, it.section)) }
                         },
+                        onNavigateToMyAttendance = {
+                            backStack.add(NavRoute.TeacherMyAttendance)
+                        },
                         onNavigateToReport = {
                             backStack.add(NavRoute.TeacherPrincipalReport)
                         }
@@ -380,6 +384,11 @@ fun AppNavigation() {
                         teacherName = profile?.name ?: "",
                         schoolId = schoolId ?: "",
                         viewModel = viewModel,
+                        onBack = { backStack.removeAt(backStack.size - 1) }
+                    )
+                }
+                is NavRoute.TeacherMyAttendance -> NavEntry(key) {
+                    TeacherMyAttendanceScreen(
                         onBack = { backStack.removeAt(backStack.size - 1) }
                     )
                 }

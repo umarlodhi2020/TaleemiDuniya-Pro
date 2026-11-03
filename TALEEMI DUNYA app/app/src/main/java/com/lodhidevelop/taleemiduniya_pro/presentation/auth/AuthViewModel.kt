@@ -16,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val repository: AuthRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val notificationHelper: com.lodhidevelop.taleemiduniya_pro.core.notifications.NotificationHelper
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -57,6 +58,11 @@ class AuthViewModel @Inject constructor(
                         schoolId = response.user.schoolId,
                         token = response.token ?: "",
                         userId = response.user.id
+                    )
+                    notificationHelper.registerFcmToken(
+                        userId = response.user.id,
+                        schoolId = response.user.schoolId,
+                        role = response.user.role
                     )
                     _authState.value = AuthState.Authenticated(response.user.role)
                 } else {

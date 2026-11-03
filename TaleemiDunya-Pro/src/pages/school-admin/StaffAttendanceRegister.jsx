@@ -37,6 +37,7 @@ import {
   saveStaffAttendanceBatch 
 } from '../../services/db';
 import StaffTimeSlipModal from '../../components/common/StaffTimeSlipModal';
+import MasterStaffAttendanceReportModal from '../../components/common/MasterStaffAttendanceReportModal';
 
 // ── Time Formatting & Normalization Helpers ──
 export const normalizeTo24h = (timeStr) => {
@@ -131,6 +132,9 @@ const StaffAttendanceRegister = () => {
 
   // Time Slip Modal State ("Kub Aaya Kub Gya")
   const [timeSlipStaff, setTimeSlipStaff] = useState(null);
+
+  // Master Monthly Report Modal State
+  const [showMasterReport, setShowMasterReport] = useState(false);
 
   // Toast message
   const [toast, setToast] = useState(null);
@@ -820,8 +824,8 @@ const StaffAttendanceRegister = () => {
             </div>
           </div>
 
-          {/* Action Buttons for Daily View */}
-          {activeTab === 'daily' && (
+          {/* Action Buttons */}
+          {activeTab === 'daily' ? (
             <div className="flex flex-col justify-end">
               <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 opacity-0 hidden sm:block">
                 Actions
@@ -842,6 +846,20 @@ const StaffAttendanceRegister = () => {
                     <span>Save Attendance</span>
                   </>
                 )}
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col justify-end">
+              <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 opacity-0 hidden sm:block">
+                Master Report
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowMasterReport(true)}
+                className="w-full py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
+              >
+                <Printer size={16} />
+                <span>Print Master Sheet</span>
               </button>
             </div>
           )}
@@ -1183,6 +1201,23 @@ const StaffAttendanceRegister = () => {
             </GlassCard>
           </div>
 
+          {/* Quick Print Master Sheet Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-dark-bg/40 p-3.5 rounded-xl border border-dark-border/40">
+            <div className="flex items-center gap-2 text-xs font-bold text-dark-muted">
+              <span>Monthly Overview for <strong className="text-primary-400">{filteredStaff.length}</strong> Staff Members ({selectedMonth})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowMasterReport(true)}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-indigo-500/20"
+              >
+                <Printer size={15} />
+                <span>Print Master Attendance Sheet (PDF / Excel)</span>
+              </button>
+            </div>
+          </div>
+
           {/* Matrix Table */}
           <GlassCard className="p-0 overflow-hidden">
             {loadingStaff || loadingMonthlyAtt ? (
@@ -1336,6 +1371,17 @@ const StaffAttendanceRegister = () => {
           staff={timeSlipStaff}
           initialPeriod={selectedMonth}
           onClose={() => setTimeSlipStaff(null)}
+        />
+      )}
+
+      {/* Master Staff Attendance Report Modal (PDF & Excel) */}
+      {showMasterReport && (
+        <MasterStaffAttendanceReportModal
+          isOpen={showMasterReport}
+          onClose={() => setShowMasterReport(false)}
+          staffList={filteredStaff}
+          monthlyDataByStaff={monthlyDataByStaff}
+          selectedMonth={selectedMonth}
         />
       )}
     </div>

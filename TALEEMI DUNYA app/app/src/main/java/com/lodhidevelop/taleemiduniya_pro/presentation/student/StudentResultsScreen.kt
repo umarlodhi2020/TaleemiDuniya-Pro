@@ -15,10 +15,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.lodhidevelop.taleemiduniya_pro.data.model.ResultRecord
+import com.lodhidevelop.taleemiduniya_pro.data.model.StudentProfile
 import com.lodhidevelop.taleemiduniya_pro.presentation.common.*
+import com.lodhidevelop.taleemiduniya_pro.core.utils.ReportGenerator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,14 +45,18 @@ fun StudentResultsScreen(
             is StudentDashboardUiState.Loading -> LoadingSkeleton(Modifier.padding(padding))
             is StudentDashboardUiState.Error -> ErrorState(state.message, { viewModel.loadDashboardData() }, Modifier.padding(padding))
             is StudentDashboardUiState.Success -> {
-                ResultsContent(state.results, padding)
+                ResultsContent(state.profile, state.results, padding)
             }
         }
     }
 }
 
 @Composable
-fun ResultsContent(results: List<ResultRecord>, padding: PaddingValues) {
+fun ResultsContent(
+    profile: StudentProfile,
+    results: List<ResultRecord>,
+    padding: PaddingValues
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -71,7 +76,7 @@ fun ResultsContent(results: List<ResultRecord>, padding: PaddingValues) {
             ) {
                 exams.forEach { (examName, examResults) ->
                     item {
-                        ExamResultCard(examName, examResults)
+                        ExamResultCard(profile, examName, examResults)
                     }
                 }
             }
@@ -80,11 +85,16 @@ fun ResultsContent(results: List<ResultRecord>, padding: PaddingValues) {
 }
 
 @Composable
-fun ExamResultCard(examName: String, results: List<ResultRecord>) {
+fun ExamResultCard(
+    profile: StudentProfile,
+    examName: String,
+    results: List<ResultRecord>
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val totalObtained = results.sumOf { it.obtainedMarks }
     val totalPossible = results.sumOf { it.totalMarks }
     val percentage = if (totalPossible > 0) (totalObtained * 100) / totalPossible else 0
-    
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
@@ -97,7 +107,10 @@ fun ExamResultCard(examName: String, results: List<ResultRecord>) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(examName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Column {
+                    Text(examName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("Class: ${profile.className}-${profile.section}", style = MaterialTheme.typography.bodySmall)
+                }
                 Surface(
                     color = MaterialTheme.colorScheme.primaryContainer,
                     shape = RoundedCornerShape(12.dp)
@@ -110,9 +123,9 @@ fun ExamResultCard(examName: String, results: List<ResultRecord>) {
                     )
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             results.forEach { result ->
                 ResultRow(result)
                 HorizontalDivider(
@@ -120,15 +133,36 @@ fun ExamResultCard(examName: String, results: List<ResultRecord>) {
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Total Marks", fontWeight = FontWeight.SemiBold)
-                Text("$totalObtained / $totalPossible", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Column {
+                    Text("Total Marks", fontWeight = FontWeight.SemiBold)
+                    Text("$totalObtained / $totalPossible", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        ReportGenerator.generateResultCardPdf(
+                            context = context,
+                            studentName = profile.name.ifEmpty { "Student" },
+                            className = "${profile.className}-${profile.section}",
+                            rollNo = profile.rollNumber,
+                            examName = examName,
+                            results = results
+                        )
+                    },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Rounded.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Download PDF Marksheet")
+                }
             }
         }
     }
