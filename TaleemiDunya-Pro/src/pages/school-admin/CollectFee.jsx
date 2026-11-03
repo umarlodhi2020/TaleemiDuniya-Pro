@@ -12,19 +12,60 @@ import {
 
 // ─── Helper Functions ───────────────────────────────────────────────────────
 const getFamilyKey = (student) => {
-  let key = student.familyId;
-  if (key) return key;
+  let key = student.familyId ? String(student.familyId).trim() : null;
+  if (key && key !== '-' && key !== '') return key;
   const cnicKey = student.fatherCnic ? String(student.fatherCnic).replace(/[^0-9]/g, '') : null;
   const phoneKey = String(student.parentPhone || student.fatherPhone || student.phone || '');
   const cleanPhone = String(phoneKey).replace(/[^0-9]/g, '');
   const nameKey = student.fatherName ? String(student.fatherName).trim().toLowerCase() : 'unknown_father';
   const isScientificPhone = phoneKey.toUpperCase().includes('E');
-  const isDummyPhone = cleanPhone === '00000000000' || cleanPhone === '1234567890';
+  const isDummyPhone = cleanPhone === '00000000000' || cleanPhone === '1234567890' || cleanPhone === '03000000000';
   const isValidPhone = cleanPhone.length >= 10 && !isScientificPhone && !isDummyPhone;
   if (cnicKey && cnicKey.length > 8) return `cnic_${cnicKey}`;
   if (isValidPhone && nameKey !== 'unknown_father') return `phone_${cleanPhone}_fname_${nameKey.replace(/\s+/g, '_')}`;
   if (isValidPhone) return `phone_${cleanPhone}`;
   return `student_${student.id}`;
+};
+
+const doesVoucherBelongToFamily = (v, studs) => {
+  if (!v || !studs || studs.length === 0) return false;
+  const studIds = studs.map(s => s.id).filter(Boolean);
+
+  if (v.selectionType === 'family') {
+    // 1. Direct childrenIds match (highest accuracy)
+    if (v.childrenIds && Array.isArray(v.childrenIds) && v.childrenIds.length > 0) {
+      return v.childrenIds.some(cid => studIds.includes(cid));
+    }
+
+    // 2. Explicit familyId match
+    const famId = studs[0]?.familyId ? String(studs[0].familyId).trim() : null;
+    if (v.familyId && famId && v.familyId !== '-' && v.familyId === famId) {
+      return true;
+    }
+
+    // 3. Father CNIC match (Strictly > 8 digits)
+    const vCnic = String(v.fatherCnic || '').replace(/[^0-9]/g, '');
+    const sCnic = String(studs[0]?.fatherCnic || '').replace(/[^0-9]/g, '');
+    if (vCnic && sCnic && vCnic.length > 8 && vCnic === sCnic) return true;
+
+    // 4. Father Name + Child Name match (never match solely on roll number!)
+    const vFather = String(v.fatherName || '').trim().toLowerCase();
+    const sFather = String(studs[0]?.fatherName || '').trim().toLowerCase();
+    if (vFather && sFather && vFather === sFather) {
+      if (v.childrenDetails && v.childrenDetails.length > 0) {
+        return v.childrenDetails.some(vc => {
+          const vcName = String(vc.name || vc.studentName || '').trim().toLowerCase();
+          return studs.some(s => (s.name || '').trim().toLowerCase() === vcName);
+        });
+      }
+      return true;
+    }
+
+    return false;
+  } else {
+    // Single student voucher
+    return studIds.includes(v.studentId);
+  }
 };
 
 const parseDateSafely = (val) => {
@@ -120,28 +161,7 @@ const CollectFee = () => {
     const studs = allStudents.filter(s => getFamilyKey(s) === selectedFamily.key);
     setFamilyStudents(studs);
 
-    let pending = allVouchers.filter(v => {
-      if (v.status === 'Paid') return false;
-      if (v.selectionType === 'family') {
-        if (v.childrenDetails?.length > 0) {
-          return v.childrenDetails.some(vc =>
-            studs.some(s =>
-              (s.rollNumber && String(s.rollNumber).trim() === String(vc.admNo).trim()) ||
-              (s.rollNo && String(s.rollNo).trim() === String(vc.admNo).trim()) ||
-              s.id === v.childrenIds?.[v.childrenDetails?.indexOf(vc)]
-            )
-          );
-        }
-        const vCnic = String(v.fatherCnic || '').replace(/[^0-9]/g, '');
-        const sCnic = String(studs[0]?.fatherCnic || '').replace(/[^0-9]/g, '');
-        if (vCnic && sCnic && vCnic.length > 8) return vCnic === sCnic;
-        const vFather = String(v.fatherName || '').trim().toLowerCase();
-        const sFather = String(studs[0]?.fatherName || '').trim().toLowerCase();
-        return vFather && sFather && vFather === sFather;
-      } else {
-        return studs.some(s => s.id === v.studentId);
-      }
-    });
+    let pending = allVouchers.filter(v => v.status !== 'Paid' && doesVoucherBelongToFamily(v, studs));
 
     // Only show the most recent pending voucher to avoid double payments of rolled-over arrears
     pending.sort((a, b) => {
@@ -153,19 +173,9 @@ const CollectFee = () => {
       pending = [pending[0]];
     }
 
-    const paid = allVouchers.filter(v => {
-      if (v.status !== 'Paid' && v.status !== 'Partial') return false;
-      if (v.selectionType === 'family') {
-        return v.childrenDetails?.some(vc =>
-          studs.some(s =>
-            (s.rollNumber && String(s.rollNumber).trim() === String(vc.admNo).trim()) ||
-            (s.rollNo && String(s.rollNo).trim() === String(vc.admNo).trim()) ||
-            s.id === v.childrenIds?.[v.childrenDetails?.indexOf(vc)]
-          )
-        );
-      }
-      return studs.some(s => s.id === v.studentId);
-    }).sort((a, b) => parseDateSafely(b.paidAt) - parseDateSafely(a.paidAt));
+    const paid = allVouchers
+      .filter(v => (v.status === 'Paid' || v.status === 'Partial') && doesVoucherBelongToFamily(v, studs))
+      .sort((a, b) => parseDateSafely(b.paidAt) - parseDateSafely(a.paidAt));
 
     setPendingVouchers(pending);
     setPaidVouchersForFamily(paid);

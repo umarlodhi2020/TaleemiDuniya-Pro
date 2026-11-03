@@ -120,28 +120,32 @@ const isVoucherForFamily = (v, family) => {
   const familyStudentIds = (family.children || []).map(c => c.id).filter(Boolean);
   
   if (v.selectionType === 'family') {
-    if (v.childrenDetails && v.childrenDetails.length > 0) {
-      return v.childrenDetails.some((vc, idx) => 
-        family.children.some(c => 
-          (c.rollNumber && String(c.rollNumber).trim() === String(vc.admNo).trim()) ||
-          (c.rollNo && String(c.rollNo).trim() === String(vc.admNo).trim()) ||
-          c.id === (v.childrenIds && v.childrenIds[idx])
-        )
-      );
+    // 1. Direct childrenIds match (highest accuracy)
+    if (v.childrenIds && Array.isArray(v.childrenIds) && v.childrenIds.length > 0) {
+      return v.childrenIds.some(cid => familyStudentIds.includes(cid));
     }
-    
-    // Fallbacks for legacy family vouchers without childrenDetails
-    if (v.familyId && family.id) return v.familyId === family.id;
-    
+
+    // 2. Explicit familyId match
+    if (v.familyId && family.id && v.familyId !== '-' && v.familyId === family.id) return true;
+
+    // 3. CNIC match (Strictly > 8 digits)
     const vCnic = String(v.fatherCnic || v.cnic || '').replace(/[^0-9]/g, '');
     const sCnic = String(family.cnic || family.fatherCnic || '').replace(/[^0-9]/g, '');
-    if (vCnic && sCnic && vCnic.length > 8) return vCnic === sCnic;
-    
-    const vPhone = String(v.phone || v.parentPhone || v.fatherPhone || '').replace(/[^0-9]/g, '');
-    const sPhone = String(family.phone || '').replace(/[^0-9]/g, '');
-    const isDummyPhone = (p) => p === '00000000000' || p === '1234567890' || p === '03000000000' || p === '0000000000';
-    if (vPhone && sPhone && vPhone.length >= 10 && vPhone === sPhone && !isDummyPhone(vPhone)) return true;
-    
+    if (vCnic && sCnic && vCnic.length > 8 && vCnic === sCnic) return true;
+
+    // 4. Father Name + Child Name match (never match solely on roll number!)
+    const vFather = String(v.fatherName || '').trim().toLowerCase();
+    const sFather = String(family.fatherName || '').trim().toLowerCase();
+    if (vFather && sFather && vFather === sFather) {
+      if (v.childrenDetails && v.childrenDetails.length > 0) {
+        return v.childrenDetails.some(vc => {
+          const vcName = String(vc.name || vc.studentName || '').trim().toLowerCase();
+          return family.children.some(c => (c.name || '').trim().toLowerCase() === vcName);
+        });
+      }
+      return true;
+    }
+
     return false;
   } else {
     // For student vouchers, check if the studentId belongs to this family
@@ -153,12 +157,24 @@ const isVoucherForStudent = (v, student) => {
   if (!v || !student) return false;
   if (v.studentId && v.studentId === student.id) return true;
   if (v.childrenIds && v.childrenIds.includes(student.id)) return true;
-  const stdRoll = String(student.admissionNumber || student.rollNo || student.rollNumber || student.grNo || '').trim();
-  if (v.childrenDetails && v.childrenDetails.some(cd => 
-    (cd.admNo && String(cd.admNo).trim() === stdRoll) ||
-    (cd.name && String(cd.name).trim().toLowerCase() === String(student.name).trim().toLowerCase())
-  )) return true;
-  if (v.rollNo && stdRoll && String(v.rollNo).trim() === stdRoll) return true;
+
+  // For legacy vouchers where childrenIds were not saved, match by student name + father name
+  const stdName = (student.name || '').trim().toLowerCase();
+  const stdFather = (student.fatherName || '').trim().toLowerCase();
+  const vFather = (v.fatherName || '').trim().toLowerCase();
+
+  if (v.childrenDetails && v.childrenDetails.length > 0) {
+    return v.childrenDetails.some(cd => {
+      const cdName = (cd.name || cd.studentName || '').trim().toLowerCase();
+      return cdName && cdName === stdName && (!vFather || !stdFather || vFather === stdFather);
+    });
+  }
+
+  const vStudentName = (v.studentName || '').trim().toLowerCase();
+  if (vStudentName && vStudentName === stdName && (!vFather || !stdFather || vFather === stdFather)) {
+    return true;
+  }
+
   return false;
 };
 

@@ -607,25 +607,55 @@ const SMSPanel = () => {
 
         <div className="flex items-center gap-3">
           {/* Live Server Status Badge */}
-          <div className={`px-4 py-2.5 rounded-xl border flex items-center gap-3 ${
-            isLiveServerConnected 
-              ? 'bg-green-500/10 border-green-500/40' 
-              : 'bg-white/5 border-dark-border'
+          <div className={`px-4 py-2.5 rounded-xl border flex items-center gap-3 transition-colors duration-300 ${
+            liveServerStatus === 'CHECKING'
+              ? 'bg-amber-500/10 border-amber-500/30'
+              : isLiveServerConnected 
+                ? 'bg-green-500/10 border-green-500/40' 
+                : 'bg-white/5 border-dark-border'
           }`}>
-            <div className={`w-3 h-3 rounded-full ${isLiveServerConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+            <div className={`w-3 h-3 rounded-full ${
+              liveServerStatus === 'CHECKING'
+                ? 'bg-amber-400 animate-pulse'
+                : isLiveServerConnected 
+                  ? 'bg-green-500 animate-pulse' 
+                  : 'bg-red-500'
+            }`} />
             <div className="text-left">
               <div className="text-[10px] font-bold text-dark-muted uppercase tracking-wider">Baileys Server</div>
-              <div className={`text-xs font-black ${isLiveServerConnected ? 'text-green-400' : 'text-red-400'}`}>
-                {isLiveServerConnected ? `🟢 LIVE (Port 4000)` : '🔴 Offline'}
+              <div className={`text-xs font-black ${
+                liveServerStatus === 'CHECKING'
+                  ? 'text-amber-300'
+                  : isLiveServerConnected 
+                    ? 'text-green-400' 
+                    : 'text-red-400'
+              }`}>
+                {liveServerStatus === 'CHECKING' 
+                  ? '🟡 Connecting...' 
+                  : isLiveServerConnected 
+                    ? `🟢 LIVE (Cloud Active)` 
+                    : '🔴 Offline'}
               </div>
             </div>
           </div>
 
-          <div className="px-4 py-2.5 rounded-xl bg-white/5 border border-dark-border flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${isQrLinked ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`} />
+          <div className="px-4 py-2.5 rounded-xl bg-white/5 border border-dark-border flex items-center gap-3 transition-colors duration-300">
+            <div className={`w-3 h-3 rounded-full ${
+              liveServerStatus === 'CHECKING'
+                ? 'bg-amber-400 animate-pulse'
+                : isQrLinked 
+                  ? 'bg-green-500 animate-pulse' 
+                  : 'bg-yellow-500'
+            }`} />
             <div className="text-left">
               <div className="text-[10px] font-bold text-dark-muted uppercase tracking-wider">Device Session</div>
-              <div className="text-xs font-black text-white">{isQrLinked ? '🟢 Linked & Active' : '🟡 Unlinked (Scan QR)'}</div>
+              <div className="text-xs font-black text-white">
+                {liveServerStatus === 'CHECKING'
+                  ? '🟡 Verifying Link...'
+                  : isQrLinked 
+                    ? '🟢 Linked & Active' 
+                    : '🟡 Unlinked (Scan QR)'}
+              </div>
             </div>
           </div>
         </div>
