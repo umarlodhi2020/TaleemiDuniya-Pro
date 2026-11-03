@@ -28,7 +28,8 @@ import {
   Printer,
   MessageCircle,
   Scan,
-  QrCode
+  QrCode,
+  UserCheck
 } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -797,7 +798,7 @@ const StaffAttendanceRegister = () => {
         </div>
 
         {/* Tab Navigation Switches */}
-        <div className="flex items-center p-1.5 rounded-xl bg-dark-bg/60 border border-dark-border/50 shrink-0">
+        <div className="flex items-center p-1.5 rounded-xl bg-dark-bg/60 border border-dark-border/50 shrink-0 flex-wrap gap-1">
           <button
             onClick={() => setActiveTab('daily')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
@@ -819,6 +820,16 @@ const StaffAttendanceRegister = () => {
           >
             <Grid size={16} />
             <span>Monthly Matrix</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setTimeSlipStaff(timeSlipStaff || filteredStaff[0] || staffList[0])}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs sm:text-sm font-bold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 border border-indigo-500/30 transition-all shadow-sm"
+            title="Monthly Single Staff Attendance & Payroll Sheet (انفرادی ماہانہ شیٹ)"
+          >
+            <UserCheck size={16} className="text-indigo-400" />
+            <span className="hidden sm:inline">Single Staff Sheet</span>
+            <span className="sm:hidden">Staff Sheet</span>
           </button>
           <NavLink
             to="/school-admin/qr-scanner"
@@ -1025,16 +1036,28 @@ const StaffAttendanceRegister = () => {
           ) : (
             <div className="flex flex-col justify-end">
               <label className="block text-xs font-bold text-dark-muted uppercase tracking-wider mb-1.5 opacity-0 hidden sm:block">
-                Master Report
+                Monthly Reports
               </label>
-              <button
-                type="button"
-                onClick={() => setShowMasterReport(true)}
-                className="w-full py-2 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center gap-2 text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
-              >
-                <Printer size={16} />
-                <span>Print Master Sheet</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTimeSlipStaff(timeSlipStaff || filteredStaff[0] || staffList[0])}
+                  className="w-1/2 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
+                  title="Single Staff Monthly Attendance Sheet & Punch Log"
+                >
+                  <UserCheck size={15} />
+                  <span>Single Sheet</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMasterReport(true)}
+                  className="w-1/2 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+                  title="Print Master Attendance Sheet for all staff"
+                >
+                  <Printer size={15} />
+                  <span>Master Sheet</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1452,14 +1475,23 @@ const StaffAttendanceRegister = () => {
             <div className="flex items-center gap-2 text-xs font-bold text-dark-muted">
               <span>Monthly Overview for <strong className="text-primary-400">{filteredStaff.length}</strong> Staff Members ({selectedMonth})</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setTimeSlipStaff(timeSlipStaff || filteredStaff[0] || staffList[0])}
+                className="px-3.5 py-2 text-xs font-bold rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+                title="Single Staff Monthly Attendance Sheet & Punch Log"
+              >
+                <UserCheck size={15} className="text-indigo-400" />
+                <span>Single Staff Monthly Sheet</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setShowMasterReport(true)}
                 className="px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-indigo-500/20"
               >
                 <Printer size={15} />
-                <span>Print Master Attendance Sheet (PDF / Excel)</span>
+                <span>Print Master Sheet (PDF / Excel)</span>
               </button>
             </div>
           </div>
@@ -1636,10 +1668,12 @@ const StaffAttendanceRegister = () => {
         </div>
       )}
 
-      {/* Staff Time Slip Modal ("Kub Aaya Kub Gya") */}
+      {/* Monthly Single Staff Attendance & Payroll Sheet Modal */}
       {timeSlipStaff && (
         <StaffTimeSlipModal
           staff={timeSlipStaff}
+          staffList={filteredStaff.length > 0 ? filteredStaff : staffList}
+          onSelectStaff={(s) => setTimeSlipStaff(s)}
           initialPeriod={selectedMonth}
           onClose={() => setTimeSlipStaff(null)}
         />
