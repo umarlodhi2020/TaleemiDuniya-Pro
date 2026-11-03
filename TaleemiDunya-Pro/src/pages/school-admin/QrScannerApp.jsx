@@ -532,6 +532,7 @@ export default function QrScannerApp() {
           date: todayStr,
           type: 'staff',
           schoolId: activeSchoolId,
+          scannedVia: 'qr_barcode_card',
           updatedAt: serverTimestamp()
         };
 
@@ -540,11 +541,13 @@ export default function QrScannerApp() {
 
         if (existingDoc.exists() && existingDoc.data().timeIn) {
           payload.timeOut = nowTime;
+          payload.actionType = 'EXIT';
           staffStatus = 'Checked Out (Time Out)';
           isStaffOut = true;
         } else {
           payload.timeIn = nowTime;
           payload.time = nowTime;
+          payload.actionType = 'ENTRY';
           payload.status = isLateStatus ? 'late' : 'present';
           payload.isLate = isLateStatus;
         }

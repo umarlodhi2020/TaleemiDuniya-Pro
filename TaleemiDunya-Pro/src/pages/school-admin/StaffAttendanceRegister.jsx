@@ -26,8 +26,12 @@ import {
   LogOut,
   Timer,
   Printer,
-  MessageCircle
+  MessageCircle,
+  Scan,
+  QrCode
 } from 'lucide-react';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
@@ -215,10 +219,69 @@ const StaffAttendanceRegister = () => {
     }
   };
 
-  // 2. Fetch Daily Attendance when date or schoolId changes
+  // 2. Real-Time Daily Attendance Sync via Firestore onSnapshot
+  // Jab bhi koi staff ID Card scan karega, yeh table bina refresh kiye foran update ho jayegi!
   useEffect(() => {
     if (!schoolId || !selectedDate || activeTab !== 'daily') return;
-    fetchDailyAttendance();
+    setLoadingDailyAtt(true);
+
+    const q = query(
+      collection(db, 'attendance'),
+      where('schoolId', '==', schoolId),
+      where('date', '==', selectedDate)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const records = snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(rec => rec.staffId || rec.type === 'staff');
+
+      const map = {};
+      records.forEach(r => {
+        const rawIn = r.timeIn || r.time || r.checkIn || '';
+        const rawOut = r.timeOut || r.checkOut || '';
+        const normalizedIn = normalizeTo24h(rawIn);
+        const normalizedOut = normalizeTo24h(rawOut);
+        const isCardScan = r.actionType === 'ENTRY' || r.actionType === 'EXIT' || r.scannedVia === 'qr_barcode_card' || !!r.punchSource || (rawIn && rawIn.split(':').length === 3);
+
+        const recordData = {
+          status: (r.status || 'present').toLowerCase(),
+          notes: r.notes || '',
+          timeIn: normalizedIn || rawIn,
+          timeOut: normalizedOut || rawOut,
+          timeInRaw: rawIn,
+          timeOutRaw: rawOut,
+          isLate: !!r.isLate,
+          minutesLate: r.minutesLate || 0,
+          isCardScan: !!isCardScan,
+          existingDocId: r.id
+        };
+
+        const keys = [
+          r.staffId,
+          r.employeeId,
+          r.userId,
+          r.id && r.id.includes('_') ? r.id.split('_')[0] : r.id
+        ].filter(Boolean);
+
+        keys.forEach(k => {
+          map[k] = recordData;
+        });
+
+        if (r.staffName) {
+          map[`name_${String(r.staffName).toLowerCase().trim()}`] = recordData;
+        }
+      });
+
+      setDailyAttendanceMap(map);
+      setSavedDailyAttendanceMap(map);
+      setLoadingDailyAtt(false);
+    }, (error) => {
+      console.warn("Real-time staff attendance listener error, falling back:", error);
+      fetchDailyAttendance();
+    });
+
+    return () => unsubscribe();
   }, [schoolId, selectedDate, activeTab]);
 
   const fetchDailyAttendance = async () => {
@@ -231,6 +294,7 @@ const StaffAttendanceRegister = () => {
         const rawOut = r.timeOut || r.checkOut || '';
         const normalizedIn = normalizeTo24h(rawIn);
         const normalizedOut = normalizeTo24h(rawOut);
+        const isCardScan = r.actionType === 'ENTRY' || r.actionType === 'EXIT' || r.scannedVia === 'qr_barcode_card' || !!r.punchSource || (rawIn && rawIn.split(':').length === 3);
 
         const recordData = {
           status: (r.status || 'present').toLowerCase(),
@@ -241,6 +305,7 @@ const StaffAttendanceRegister = () => {
           timeOutRaw: rawOut,
           isLate: !!r.isLate,
           minutesLate: r.minutesLate || 0,
+          isCardScan: !!isCardScan,
           existingDocId: r.id
         };
 
@@ -748,6 +813,15 @@ const StaffAttendanceRegister = () => {
             <Grid size={16} />
             <span>Monthly Matrix</span>
           </button>
+          <NavLink
+            to="/school-admin/qr-scanner"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs sm:text-sm font-bold text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 border border-cyan-500/30 transition-all shadow-sm"
+            title="ID Card Barcode & QR Scanner Machine kholiye"
+          >
+            <Scan size={16} className="text-cyan-400 animate-pulse" />
+            <span className="hidden sm:inline">2D QR Machine Scanner</span>
+            <span className="sm:hidden">Scanner</span>
+          </NavLink>
         </div>
       </div>
 
@@ -1141,6 +1215,11 @@ const StaffAttendanceRegister = () => {
                                   ) : (
                                     <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-bold">
                                       On Time
+                                    </span>
+                                  )}
+                                  {att.isCardScan && (
+                                    <span className="px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] font-bold flex items-center gap-1 shadow-sm">
+                                      <Scan size={9} /> Card Scan
                                     </span>
                                   )}
                                 </div>
