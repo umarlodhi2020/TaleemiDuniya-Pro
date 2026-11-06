@@ -889,11 +889,7 @@ const CollectFee = () => {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 bg-slate-50/50 dark:bg-dark-bg/50">
               {(() => {
-                const familyVouchers = allVouchers.filter(v => 
-                  v.fatherName === selectedFamily.fatherName || 
-                  familyStudents.some(s => s.id === v.studentId || v.childrenIds?.includes(s.id)) ||
-                  (v.selectionType === 'family' && v.childrenDetails?.some(c => familyStudents.some(s => String(s.rollNumber || s.rollNo) === String(c.admNo))))
-                );
+                const familyVouchers = allVouchers.filter(v => doesVoucherBelongToFamily(v, familyStudents));
                 const lifetimeBilled = familyVouchers.reduce((sum, v) => sum + (Number(v.totalAmount) || 0), 0);
                 const lifetimePaid = familyVouchers.reduce((sum, v) => sum + (Number(v.paidAmount) || 0) + (Number(v.discountAmount) || 0), 0);
                 const arrears = Math.max(0, lifetimeBilled - lifetimePaid);

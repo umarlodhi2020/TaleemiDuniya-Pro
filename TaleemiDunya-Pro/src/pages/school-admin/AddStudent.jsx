@@ -40,6 +40,7 @@ const AddStudent = () => {
   const isEditMode = !!studentId;
   const schoolId = userData?.schoolId || 'default-school';
   const [fetching, setFetching] = useState(isEditMode);
+  const [fetchError, setFetchError] = useState('');
   const [classFees, setClassFees] = useState({});
   const [loading, setLoading] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
@@ -98,6 +99,7 @@ const AddStudent = () => {
     }
 
     if (!userData?.schoolId) {
+      setFetchError('School account information is unavailable. Please reload and try again.');
       setFetching(false);
       return;
     }
@@ -105,9 +107,16 @@ const AddStudent = () => {
     if (isEditMode) {
       const fetchStudent = async () => {
         setFetching(true);
+        setFetchError('');
         try {
           const detail = await getSingleRecord('students', studentId);
           if (detail && detail.schoolId === schoolId) {
+            const existingCnic = [
+              detail.cnic,
+              detail.fatherCnic,
+              detail.fatherCNIC,
+              detail.cnicNumber,
+            ].find(value => String(value || '').trim()) || '';
             setFormData({
               name: detail.name || '',
               fatherName: detail.fatherName || '',
@@ -124,7 +133,7 @@ const AddStudent = () => {
               photoUrl: detail.photoUrl || '',
               familyId: detail.familyId || '',
               photoPublicId: detail.photoPublicId || '',
-              fatherCnic: detail.fatherCnic || '',
+              fatherCnic: String(existingCnic).trim(),
               email: detail.email || '',
               grNumber: detail.grNumber || detail.grNo || '',
               monthlyFee: detail.monthlyFee || detail.tuitionFee || '',
@@ -138,11 +147,11 @@ const AddStudent = () => {
               setPhotoPreview(detail.photoUrl);
             }
           } else {
-            alert("Requested student record was not found.");
-            navigate('/school-admin/students');
+            setFetchError('Student record could not be found for this school. No changes were made.');
           }
         } catch (e) {
           console.error("Error loading student details:", e);
+          setFetchError(`Could not load student details: ${e.message || 'Please try again.'}`);
         } finally {
           setFetching(false);
         }
@@ -307,6 +316,10 @@ const AddStudent = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isEditMode && (fetching || fetchError || !studentId)) {
+      return;
+    }
+
     setLoading(true);
     try {
       if (!isEditMode) {
@@ -375,6 +388,8 @@ const AddStudent = () => {
       };
       const finalData = {
         ...formData,
+        cnic: formData.fatherCnic,
+        fatherCnic: formData.fatherCnic,
         ...photoData,
         schoolId,
         name: toTitleCase(formData.name),
@@ -499,6 +514,23 @@ const AddStudent = () => {
     );
   }
 
+  if (isEditMode && fetchError) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="max-w-lg text-center space-y-4">
+          <p className="text-red-400 font-semibold">{fetchError}</p>
+          <button
+            type="button"
+            onClick={() => navigate('/school-admin/students')}
+            className="premium-button-primary px-5 py-2"
+          >
+            Back to Students
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <div className="flex items-center gap-4">
@@ -576,15 +608,14 @@ const AddStudent = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Father CNIC</label>
+                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">Father CNIC (Optional)</label>
                 <div className="relative">
                   <Hash className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-muted" size={18} />
                   <input
                     type="text"
                     name="fatherCnic"
-                    required
                     value={formData.fatherCnic}
-                    placeholder="e.g. 12345-1234567-1"
+                    placeholder="e.g. 12345-1234567-1 (Optional)"
                     className="w-full premium-input pl-12"
                     onChange={handleChange}
                   />

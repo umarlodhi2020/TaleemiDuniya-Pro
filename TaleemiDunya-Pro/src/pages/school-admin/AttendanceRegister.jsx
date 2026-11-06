@@ -183,10 +183,9 @@ const AttendanceRegister = () => {
           if (dayNum !== null && !isNaN(dayNum) && dayNum >= 1 && dayNum <= daysInMonth) {
             const st = (data.status || 'present').toLowerCase().trim();
             let statusChar = '-';
-            if (st === 'present' || st === 'p') statusChar = 'P';
+            if (st === 'present' || st === 'p' || st === 'late' || st === 'l') statusChar = 'P';
             else if (st === 'absent' || st === 'a') statusChar = 'A';
-            else if (st === 'late' || st === 'l') statusChar = 'L';
-            else if (st === 'leave') statusChar = 'L';
+            else if (st === 'leave') statusChar = 'A';
             
             newAtt[sid][dayNum] = statusChar;
           } else {
@@ -217,8 +216,7 @@ const AttendanceRegister = () => {
       const current = prev[studentId]?.[day] || 'P';
       let next = 'P';
       if (current === 'P') next = 'A';
-      else if (current === 'A') next = 'L';
-      else if (current === 'L') next = '-';
+      else if (current === 'A') next = '-';
       else next = 'P';
 
       return {
@@ -240,17 +238,15 @@ const AttendanceRegister = () => {
     const days = attendanceData[studentId] || {};
     let present = 0;
     let absent = 0;
-    let late = 0;
     let totalMarked = 0;
 
     Object.values(days).forEach(status => {
       if (status === 'P') { present++; totalMarked++; }
       if (status === 'A') { absent++; totalMarked++; }
-      if (status === 'L') { late++; totalMarked++; }
     });
 
-    const percentage = totalMarked > 0 ? Math.round(((present + late * 0.5) / totalMarked) * 100) : 100;
-    return { present, absent, late, percentage };
+    const percentage = totalMarked > 0 ? Math.round((present / totalMarked) * 100) : 100;
+    return { present, absent, percentage };
   };
 
   return (
@@ -363,7 +359,7 @@ const AttendanceRegister = () => {
                 Class {selectedClass} — Monthly Register ({monthsList.find(m => m.val === selectedMonth)?.label || selectedMonth})
               </h2>
               <p className="text-xs text-dark-muted mt-0.5">
-                Click on any day status cell (P / A / L) to update attendance instantly.
+                Click on any day status cell (P / A) to update attendance instantly.
               </p>
             </div>
             <div className="flex items-center gap-3">

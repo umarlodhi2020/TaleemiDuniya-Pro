@@ -237,14 +237,13 @@ const ParentsDirectory = () => {
  </div>
 
  <div>
- <label className="block text-xs font-bold text-dark-muted uppercase mb-1">CNIC Number</label>
+ <label className="block text-xs font-bold text-dark-muted uppercase mb-1">CNIC Number (Optional)</label>
  <input 
  type="text" 
  className="w-full premium-input"
  value={editingParent.fatherCnic}
  onChange={(e) => setEditingParent({...editingParent, fatherCnic: e.target.value})}
- placeholder="e.g. 42101-1234567-1"
- required
+ placeholder="e.g. 42101-1234567-1 (Optional)"
  />
  </div>
 

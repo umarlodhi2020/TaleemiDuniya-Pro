@@ -13,6 +13,15 @@ window.addEventListener('vite:preloadError', (event) => {
 // Initialize offline sync service
 initOfflineSync()
 
+const normalizedPath = window.location.pathname.replace(/\/+$/, '');
+if (normalizedPath && normalizedPath !== '/' && !window.location.hash) {
+  window.history.replaceState(
+    window.history.state,
+    '',
+    `${normalizedPath}${window.location.search}#${normalizedPath}`,
+  );
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

@@ -100,6 +100,55 @@ export const calculateDutyHours = (timeIn, timeOut) => {
   };
 };
 
+const createAttendanceMap = (records, selectedDate) => {
+  const map = {};
+
+  records.forEach(record => {
+    const rawIn = record.timeIn || record.time || record.checkIn || '';
+    const rawOut = record.timeOut || record.checkOut || '';
+    const normalizedIn = normalizeTo24h(rawIn);
+    const normalizedOut = normalizeTo24h(rawOut);
+    const isCardScan = record.actionType === 'ENTRY' ||
+      record.actionType === 'EXIT' ||
+      record.scannedVia === 'qr_barcode_card' ||
+      !!record.punchSource ||
+      (rawIn && rawIn.split(':').length === 3);
+
+    const recordData = {
+      status: (record.status || 'present').toLowerCase(),
+      notes: record.notes || '',
+      timeIn: normalizedIn || rawIn,
+      timeOut: normalizedOut || rawOut,
+      timeInRaw: rawIn,
+      timeOutRaw: rawOut,
+      isLate: !!record.isLate,
+      minutesLate: record.minutesLate || 0,
+      isCardScan: !!isCardScan,
+      existingDocId: record.id
+    };
+    const idWithoutDate = record.id?.endsWith(`_${selectedDate}`)
+      ? record.id.slice(0, -(selectedDate.length + 1))
+      : null;
+    const keys = [
+      record.staffId,
+      record.employeeId,
+      record.userId,
+      idWithoutDate,
+      record.id
+    ].filter(Boolean);
+
+    keys.forEach(key => {
+      map[key] = recordData;
+    });
+
+    if (record.staffName) {
+      map[`name_${String(record.staffName).toLowerCase().trim()}`] = recordData;
+    }
+  });
+
+  return map;
+};
+
 const ATTENDANCE_STATUSES = [
   { id: 'present', label: 'Present', short: 'P', color: 'emerald', bgClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20' },
   { id: 'absent', label: 'Absent', short: 'A', color: 'red', bgClass: 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20' },
@@ -113,7 +162,7 @@ const StaffAttendanceRegister = () => {
   const schoolId = userData?.schoolId || schoolData?.id;
 
   // Active School Settings Staff Shift Timings
-  const defaultShiftIn = normalizeTo24h(schoolData?.staffTimings?.shiftStartTime || schoolData?.shiftStartTime || '08:00') || '08:00';
+  const defaultShiftIn = normalizeTo24h(schoolData?.staffTimings?.shiftStartTime || schoolData?.shiftStartTime || '07:55') || '07:55';
   const defaultShiftOut = normalizeTo24h(schoolData?.staffTimings?.shiftEndTime || schoolData?.shiftEndTime || '14:00') || '14:00';
 
   // Tabs: 'daily' | 'monthly'
@@ -192,9 +241,14 @@ const StaffAttendanceRegister = () => {
 
   // Get specific staff's default shift (checks individual staff timing first, falls back to School Settings)
   const getStaffDefaultTimings = (staff) => {
-    const customIn = staff?.timingIn || staff?.shiftStartTime || staff?.expectedTimeIn;
+    const customIn = staff?.timingIn || staff?.expectedTimeIn;
+    // Prefer School Settings shiftIn unless staff has an explicit distinct custom shift
+    const rawStaffIn = staff?.shiftStartTime;
+    const resolvedIn = (rawStaffIn && rawStaffIn !== '08:00' && rawStaffIn !== defaultShiftIn)
+      ? rawStaffIn
+      : (customIn || defaultShiftIn);
     const customOut = staff?.timingOut || staff?.shiftEndTime || staff?.expectedTimeOut;
-    const shiftIn = normalizeTo24h(customIn) || defaultShiftIn;
+    const shiftIn = normalizeTo24h(resolvedIn) || defaultShiftIn;
     const shiftOut = normalizeTo24h(customOut) || defaultShiftOut;
     return {
       shiftIn,
@@ -241,43 +295,7 @@ const StaffAttendanceRegister = () => {
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(rec => rec.staffId || rec.type === 'staff');
 
-      const map = {};
-      records.forEach(r => {
-        const rawIn = r.timeIn || r.time || r.checkIn || '';
-        const rawOut = r.timeOut || r.checkOut || '';
-        const normalizedIn = normalizeTo24h(rawIn);
-        const normalizedOut = normalizeTo24h(rawOut);
-        const isCardScan = r.actionType === 'ENTRY' || r.actionType === 'EXIT' || r.scannedVia === 'qr_barcode_card' || !!r.punchSource || (rawIn && rawIn.split(':').length === 3);
-
-        const recordData = {
-          status: (r.status || 'present').toLowerCase(),
-          notes: r.notes || '',
-          timeIn: normalizedIn || rawIn,
-          timeOut: normalizedOut || rawOut,
-          timeInRaw: rawIn,
-          timeOutRaw: rawOut,
-          isLate: !!r.isLate,
-          minutesLate: r.minutesLate || 0,
-          isCardScan: !!isCardScan,
-          existingDocId: r.id
-        };
-
-        const keys = [
-          r.staffId,
-          r.employeeId,
-          r.userId,
-          r.id && r.id.includes('_') ? r.id.split('_')[0] : r.id
-        ].filter(Boolean);
-
-        keys.forEach(k => {
-          map[k] = recordData;
-        });
-
-        if (r.staffName) {
-          map[`name_${String(r.staffName).toLowerCase().trim()}`] = recordData;
-        }
-      });
-
+      const map = createAttendanceMap(records, selectedDate);
       setDailyAttendanceMap(map);
       setSavedDailyAttendanceMap(map);
       setLoadingDailyAtt(false);
@@ -293,43 +311,7 @@ const StaffAttendanceRegister = () => {
     setLoadingDailyAtt(true);
     try {
       const records = await getStaffAttendanceByDate(schoolId, selectedDate);
-      const map = {};
-      records.forEach(r => {
-        const rawIn = r.timeIn || r.time || r.checkIn || '';
-        const rawOut = r.timeOut || r.checkOut || '';
-        const normalizedIn = normalizeTo24h(rawIn);
-        const normalizedOut = normalizeTo24h(rawOut);
-        const isCardScan = r.actionType === 'ENTRY' || r.actionType === 'EXIT' || r.scannedVia === 'qr_barcode_card' || !!r.punchSource || (rawIn && rawIn.split(':').length === 3);
-
-        const recordData = {
-          status: (r.status || 'present').toLowerCase(),
-          notes: r.notes || '',
-          timeIn: normalizedIn || rawIn,
-          timeOut: normalizedOut || rawOut,
-          timeInRaw: rawIn,
-          timeOutRaw: rawOut,
-          isLate: !!r.isLate,
-          minutesLate: r.minutesLate || 0,
-          isCardScan: !!isCardScan,
-          existingDocId: r.id
-        };
-
-        const keys = [
-          r.staffId,
-          r.employeeId,
-          r.userId,
-          r.id && r.id.includes('_') ? r.id.split('_')[0] : r.id
-        ].filter(Boolean);
-
-        keys.forEach(k => {
-          map[k] = recordData;
-        });
-
-        if (r.staffName) {
-          map[`name_${String(r.staffName).toLowerCase().trim()}`] = recordData;
-        }
-      });
-
+      const map = createAttendanceMap(records, selectedDate);
       setDailyAttendanceMap(map);
       setSavedDailyAttendanceMap(map);
     } catch (error) {
@@ -644,18 +626,20 @@ const StaffAttendanceRegister = () => {
         const finalTimeOut = att.timeOut || '';
         const duty = (finalTimeIn && finalTimeOut) ? calculateDutyHours(finalTimeIn, finalTimeOut) : null;
 
-        // Calculate late arrival
+        // Calculate late arrival: Any arrival after shiftIn is Late (diff > 0)
         let isLate = false;
         let minutesLate = 0;
         if (finalTimeIn && shiftIn) {
           const [inH, inM] = normalizeTo24h(finalTimeIn).split(':').map(Number);
           const [sH, sM] = normalizeTo24h(shiftIn).split(':').map(Number);
           const diff = (inH * 60 + inM) - (sH * 60 + sM);
-          if (diff > 5) {
+          if (diff > 0) {
             isLate = true;
             minutesLate = diff;
           }
         }
+
+        const effectiveStatus = (finalStatus === 'present' && isLate) ? 'late' : finalStatus;
 
         return {
           staffId: staff.id,
@@ -666,7 +650,7 @@ const StaffAttendanceRegister = () => {
           department: staff.department || 'General',
           designation: staff.designation || staff.role || '',
           date: selectedDate,
-          status: finalStatus,
+          status: effectiveStatus,
           notes: att.notes || '',
           timeIn: finalTimeIn || '',
           timeInFormatted: finalTimeIn ? formatTo12h(finalTimeIn) : '',
@@ -1192,14 +1176,14 @@ const StaffAttendanceRegister = () => {
                       const displayTimeOut = att.timeOut || '';
                       const duty = (displayTimeIn && displayTimeOut) ? calculateDutyHours(displayTimeIn, displayTimeOut) : null;
 
-                      // Check punctuality against shift start time
-                      let isLate = false;
-                      let minutesLate = 0;
+                      // Check punctuality against shift start time (diff > 0 is Late)
+                      let isLate = !!att.isLate;
+                      let minutesLate = att.minutesLate || 0;
                       if (displayTimeIn && shiftIn) {
                         const [inH, inM] = normalizeTo24h(displayTimeIn).split(':').map(Number);
                         const [sH, sM] = normalizeTo24h(shiftIn).split(':').map(Number);
                         const diff = (inH * 60 + inM) - (sH * 60 + sM);
-                        if (diff > 5) {
+                        if (diff > 0) {
                           isLate = true;
                           minutesLate = diff;
                         }

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 import {
   verifyLicense,
   verifyWebDomainLock,
@@ -60,17 +61,20 @@ export const LicenseProvider = ({ children }) => {
 
     try {
       const { desktopDetected, detectedHwid } = await detectPlatform();
+      const isNativeAndroid = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 
       // --- WEB MODE CHECKS ---
       if (!desktopDetected) {
-        // Run anti-piracy domain lock
-        const domainCheck = verifyWebDomainLock();
-        if (!domainCheck.valid) {
-          setIsLicensed(false);
-          setLicenseError(domainCheck.code);
-          setErrorMessage(domainCheck.message);
-          setIsChecking(false);
-          return;
+        if (!isNativeAndroid) {
+          // Run anti-piracy domain lock for browser deployments.
+          const domainCheck = verifyWebDomainLock();
+          if (!domainCheck.valid) {
+            setIsLicensed(false);
+            setLicenseError(domainCheck.code);
+            setErrorMessage(domainCheck.message);
+            setIsChecking(false);
+            return;
+          }
         }
 
         // On Web, school subscription is handled primarily through school tenant accounts

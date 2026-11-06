@@ -24,6 +24,11 @@ import {
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
+const authEmulatorHost = import.meta.env.VITE_AUTH_EMULATOR_HOST || 'localhost';
+const authEmulatorPort = Number(import.meta.env.VITE_AUTH_EMULATOR_PORT || 9099);
+const firestoreEmulatorHost = import.meta.env.VITE_FIRESTORE_EMULATOR_HOST || 'localhost';
+const firestoreEmulatorPort = Number(import.meta.env.VITE_FIRESTORE_EMULATOR_PORT || 8080);
+
 // ===== CONFIGURATION =====
 
 const firebaseConfig = {
@@ -92,9 +97,9 @@ export const goOnline = () => enableNetwork(db);
 // ===== EMULATOR SUPPORT (development only) =====
 
 if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === 'true') {
-  connectFirestoreEmulator(db, 'localhost', 8080);
-  connectAuthEmulator(auth, 'http://localhost:9099');
-  console.log('[Firebase] Connected to local emulators');
+  connectFirestoreEmulator(db, firestoreEmulatorHost, firestoreEmulatorPort);
+  connectAuthEmulator(auth, `http://${authEmulatorHost}:${authEmulatorPort}`);
+  console.log(`[Firebase] Connected to local emulators at ${firestoreEmulatorHost}:${firestoreEmulatorPort} and ${authEmulatorHost}:${authEmulatorPort}`);
 }
 
 export default app;

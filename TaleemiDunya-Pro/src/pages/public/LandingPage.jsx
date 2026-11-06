@@ -220,13 +220,13 @@ const LandingPage = () => {
               <button onClick={() => scrollToSection('demo')} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Demo</button>
               <button onClick={() => scrollToSection('pricing')} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Pricing</button>
               <button onClick={() => scrollToSection('downloads')} className="text-gray-600 hover:text-indigo-600 font-medium transition-colors">Downloads</button>
-              <a href="https://taleemidunya-pro-ed44e.web.app/#/login" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+              <a href="#/login" className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
                 Login
               </a>
             </div>
             {/* Mobile Nav Login Button */}
             <div className="md:hidden">
-              <a href="https://taleemidunya-pro-ed44e.web.app/#/login" className="bg-indigo-600 text-white px-4 py-2 rounded-full font-medium text-sm">
+              <a href="#/login" className="bg-indigo-600 text-white px-4 py-2 rounded-full font-medium text-sm">
                 Login
               </a>
             </div>
@@ -608,7 +608,7 @@ const LandingPage = () => {
                   </a>
                 </li>
                 <li><Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link to="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</Link></li>
+                <li><a href="/terms-of-service" className="hover:text-white transition-colors">Terms of Service</a></li>
               </ul>
             </div>
           </div>

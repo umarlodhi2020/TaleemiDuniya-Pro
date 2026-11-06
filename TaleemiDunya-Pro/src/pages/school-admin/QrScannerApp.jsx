@@ -37,7 +37,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, getDoc, addDoc, setDoc, doc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, setDoc, doc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
@@ -83,6 +83,7 @@ export default function QrScannerApp() {
   // Initial authentication from existing login or saved session
   const [activeSchoolId, setActiveSchoolId] = useState(() => {
     if (userData?.schoolId) return userData.schoolId;
+    if (schoolData?.id) return schoolData.id;
     try {
       const saved = localStorage.getItem('qr_scan_session');
       return saved ? JSON.parse(saved).schoolId : null;
@@ -92,7 +93,7 @@ export default function QrScannerApp() {
   });
 
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    if (userData?.schoolId) return true;
+    if (userData?.schoolId || schoolData?.id) return true;
     try {
       const saved = localStorage.getItem('qr_scan_session');
       return !!saved;
@@ -101,32 +102,80 @@ export default function QrScannerApp() {
     }
   });
 
+  // Sync activeSchoolId whenever user or school data finishes loading
+  useEffect(() => {
+    const sId = userData?.schoolId || schoolData?.id;
+    if (sId) {
+      setActiveSchoolId(sId);
+      setIsLoggedIn(true);
+    }
+  }, [userData, schoolData]);
+
   const [loginForm, setLoginForm] = useState({ idNumber: '', password: '' });
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
   // Advanced Configurations
   const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [voiceLanguage, setVoiceLanguage] = useState('ur'); // 'ur' (Urdu) | 'en' (English)
-  const [soundEffectType, setSoundEffectType] = useState('chime'); // 'chime' | 'retail' | 'mute'
+  const [voiceLanguage, setVoiceLanguage] = useState(() => localStorage.getItem('qr_voice_language') || 'ur'); // 'ur' (Urdu) | 'en' (English)
+  const [soundEffectType, setSoundEffectType] = useState(() => localStorage.getItem('qr_sound_effect_type') || 'chime'); // 'chime' | 'retail' | 'mute'
   const [whatsappAlertsEnabled, setWhatsappAlertsEnabled] = useState(true);
-  const [schoolStartTime, setSchoolStartTime] = useState(() => schoolData?.staffTimings?.shiftStartTime || '08:00'); // 24-hr format for Late detection
-  const [schoolEndTime, setSchoolEndTime] = useState(() => schoolData?.staffTimings?.shiftEndTime || '14:00'); // 24-hr format for Early Departure alert
+  const [schoolStartTime, setSchoolStartTime] = useState(() => {
+    return localStorage.getItem('qr_school_start_time') || 
+           schoolData?.staffTimings?.shiftStartTime || 
+           schoolData?.shiftStartTime || 
+           '07:55';
+  });
+  const [schoolEndTime, setSchoolEndTime] = useState(() => {
+    return localStorage.getItem('qr_school_end_time') || 
+           schoolData?.staffTimings?.shiftEndTime || 
+           schoolData?.shiftEndTime || 
+           '14:00';
+  });
   
   useEffect(() => {
     if (schoolData?.staffTimings?.shiftStartTime) {
       setSchoolStartTime(schoolData.staffTimings.shiftStartTime);
+      localStorage.setItem('qr_school_start_time', schoolData.staffTimings.shiftStartTime);
     }
     if (schoolData?.staffTimings?.shiftEndTime) {
       setSchoolEndTime(schoolData.staffTimings.shiftEndTime);
+      localStorage.setItem('qr_school_end_time', schoolData.staffTimings.shiftEndTime);
     }
   }, [schoolData]);
-  const [doubleScanCooldownSec, setDoubleScanCooldownSec] = useState(20); // 20 seconds anti-duplicate
+  const [doubleScanCooldownSec, setDoubleScanCooldownSec] = useState(() => {
+    const s = localStorage.getItem('qr_double_scan_cooldown');
+    return s ? Number(s) : 20;
+  });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showClassModal, setShowClassModal] = useState(false);
 
+  const handleSaveSettings = async () => {
+    try {
+      localStorage.setItem('qr_school_start_time', schoolStartTime);
+      localStorage.setItem('qr_school_end_time', schoolEndTime);
+      localStorage.setItem('qr_double_scan_cooldown', String(doubleScanCooldownSec));
+      localStorage.setItem('qr_sound_effect_type', soundEffectType);
+      localStorage.setItem('qr_voice_language', voiceLanguage);
+      localStorage.setItem('qr_theme_mode', themeMode);
+
+      if (activeSchoolId && navigator.onLine) {
+        await updateDoc(doc(db, 'schools', activeSchoolId), {
+          'staffTimings.shiftStartTime': schoolStartTime,
+          'staffTimings.shiftEndTime': schoolEndTime,
+          updatedAt: serverTimestamp()
+        });
+      }
+    } catch (err) {
+      console.warn('Could not sync school timings to remote school doc:', err);
+    } finally {
+      setShowSettingsModal(false);
+    }
+  };
+
   // Anti-Duplicate scan throttle reference map
   const lastScannedMemberMap = useRef({});
+  const pendingScansRef = useRef(new Set());
 
   // Student / Staff cached data
   const [allStudents, setAllStudents] = useState([]);
@@ -182,6 +231,7 @@ export default function QrScannerApp() {
   // Camera Refs
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
+  const cameraStartIdRef = useRef(0);
   const [cameraMode, setCameraMode] = useState('environment');
 
   // Barcode Input Ref for physical gun
@@ -347,35 +397,37 @@ export default function QrScannerApp() {
 
   // Attendance Marking with Anti-Duplicate, Late calculation & Offline resilience
   const markAttendance = useCallback(async (member) => {
+    const memberId = String(member.id);
+    const nowTs = Date.now();
+    const lastScanTs = lastScannedMemberMap.current[memberId];
+
+    if (lastScanTs && (nowTs - lastScanTs) < (doubleScanCooldownSec * 1000)) {
+      const secondsAgo = Math.max(1, Math.round((nowTs - lastScanTs) / 1000));
+      playErrorSound();
+      setScanResult({
+        id: member.id,
+        name: member.name || 'Member',
+        class: getMemberClassOrDept(member),
+        rollNo: getMemberRollOrId(member),
+        fatherName: member.fatherName || member.designation || '-',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        status: 'Already Scanned',
+        message: `Duplicate scan ignored (${secondsAgo} seconds after the last scan). Please wait before scanning again.`,
+        photo: member.photoUrl || member.profilePhoto || null,
+        isWarning: true
+      });
+      setIsScanning(false);
+      setTimeout(() => setScanResult(null), 3000);
+      return;
+    }
+
+    if (pendingScansRef.current.has(memberId)) return;
+    pendingScansRef.current.add(memberId);
+
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const { isLate: isLateStatus, minutesLate, isEarlyDeparture } = getPunctualityInfo();
-
-      // Anti-Double Scan Throttle
-      const nowTs = Date.now();
-      const lastScanTs = lastScannedMemberMap.current[member.id];
-      if (lastScanTs && (nowTs - lastScanTs) < (doubleScanCooldownSec * 1000)) {
-        const secondsAgo = Math.max(1, Math.round((nowTs - lastScanTs) / 1000));
-        playErrorSound();
-        setScanResult({
-          id: member.id,
-          name: member.name || 'Member',
-          class: getMemberClassOrDept(member),
-          rollNo: getMemberRollOrId(member),
-          fatherName: member.fatherName || member.designation || '-',
-          time: nowTime,
-          status: 'Already Scanned',
-          message: `Yeh card abhi ${secondsAgo} seconds pehle scan ho chuka hai.`,
-          photo: member.photoUrl || member.profilePhoto || null,
-          isWarning: true
-        });
-        speakAnnouncement(member.name, 'پہلے سے درج ہے', 'Already scanned');
-        setIsScanning(false);
-        setTimeout(() => setScanResult(null), 3000);
-        return;
-      }
-      lastScannedMemberMap.current[member.id] = nowTs;
 
       if (member.memberType === 'student') {
         const q = query(
@@ -411,6 +463,7 @@ export default function QrScannerApp() {
               setOfflineQueue(updatedQ);
               localStorage.setItem('qr_offline_scans_queue', JSON.stringify(updatedQ));
             }
+            lastScannedMemberMap.current[memberId] = Date.now();
 
             const resultObj = {
               id: member.id,
@@ -448,6 +501,7 @@ export default function QrScannerApp() {
             return;
           } else {
             // Already marked Entry and Exit
+            lastScannedMemberMap.current[memberId] = Date.now();
             const resultObj = {
               id: member.id,
               member: member,
@@ -496,6 +550,7 @@ export default function QrScannerApp() {
           setOfflineQueue(updatedQ);
           localStorage.setItem('qr_offline_scans_queue', JSON.stringify(updatedQ));
         }
+        lastScannedMemberMap.current[memberId] = Date.now();
         
         const resultObj = {
           id: member.id,
@@ -538,14 +593,33 @@ export default function QrScannerApp() {
       } else {
         // Staff Attendance
         const docId = `${member.id}_${todayStr}`;
-        const docRef = doc(db, 'attendance', docId);
-        let existingDoc = { exists: () => false };
+        let existingAttendanceDoc = null;
         if (navigator.onLine) {
-          existingDoc = await getDoc(docRef);
+          const dailyAttendanceQuery = query(
+            collection(db, 'attendance'),
+            where('schoolId', '==', activeSchoolId),
+            where('date', '==', todayStr)
+          );
+          const dailyAttendanceSnapshot = await getDocs(dailyAttendanceQuery);
+          const memberIds = [member.id, member.employeeId, member.staffId]
+            .filter(Boolean)
+            .map(String);
+
+          existingAttendanceDoc = dailyAttendanceSnapshot.docs.find(attDoc => attDoc.id === docId) ||
+            dailyAttendanceSnapshot.docs.find(attDoc => {
+              const record = attDoc.data();
+              const recordIds = [record.staffId, record.employeeId, record.userId]
+                .filter(Boolean)
+                .map(String);
+              return recordIds.some(id => memberIds.includes(id));
+            }) ||
+            null;
         }
+        const docRef = doc(db, 'attendance', existingAttendanceDoc?.id || docId);
+        const existingData = existingAttendanceDoc?.data();
         
         let payload = {
-          id: docId,
+          id: docRef.id,
           staffId: member.id,
           employeeId: member.employeeId || member.id,
           staffName: member.name || 'Staff',
@@ -561,9 +635,12 @@ export default function QrScannerApp() {
         let staffStatus = 'Present (Time In)';
         let isStaffOut = false;
 
-        if (existingDoc.exists() && existingDoc.data().timeIn) {
+        const isExitAction = gateMode === 'EXIT' || (gateMode === 'AUTO' && existingData?.timeIn && !existingData?.timeOut);
+
+        if (isExitAction) {
           payload.timeOut = nowTime;
           payload.actionType = 'EXIT';
+          payload.status = existingData?.status || 'present';
           staffStatus = 'Checked Out (Time Out)';
           isStaffOut = true;
         } else {
@@ -572,31 +649,36 @@ export default function QrScannerApp() {
           payload.actionType = 'ENTRY';
           payload.status = isLateStatus ? 'late' : 'present';
           payload.isLate = isLateStatus;
+          payload.minutesLate = minutesLate;
+          staffStatus = isLateStatus ? 'Late (Time In)' : 'Present (Time In)';
         }
 
-        playSuccessSound();
+        playSuccessSound(isLateStatus);
         if (navigator.onLine) {
           await setDoc(docRef, payload, { merge: true });
         } else {
-          const qItem = { type: 'update_attendance', docId: docId, data: payload };
+          const qItem = { type: 'update_attendance', docId: docRef.id, data: payload };
           const updatedQ = [...offlineQueue, qItem];
           setOfflineQueue(updatedQ);
           localStorage.setItem('qr_offline_scans_queue', JSON.stringify(updatedQ));
         }
+        lastScannedMemberMap.current[memberId] = Date.now();
         
         const resultObj = {
           id: member.id,
           member: member,
           name: member.name || 'Staff',
-          class: getMemberClassOrDept(member),
-          rollNo: getMemberRollOrId(member),
+          class: getMemberClassOrDept(member) || member.department || 'Staff',
+          rollNo: getMemberRollOrId(member) || member.employeeId || member.staffId || member.id,
           fatherName: member.designation || member.role || '-',
           time: nowTime,
-          timeIn: payload.timeIn || nowTime,
+          timeIn: payload.timeIn || existingData?.timeIn || nowTime,
           timeOut: payload.timeOut || null,
           status: staffStatus,
           actionType: isStaffOut ? 'EXIT' : 'ENTRY',
           isStaff: true,
+          isLate: isStaffOut ? !!existingData?.isLate : isLateStatus,
+          minutesLate: isStaffOut ? (existingData?.minutesLate || 0) : minutesLate,
           photo: member.photoUrl || member.profilePhoto || null,
           whatsappNotified: whatsappAlertsEnabled
         };
@@ -613,14 +695,33 @@ export default function QrScannerApp() {
         }
         setScanResult(resultObj);
         setRecentScans(prev => [resultObj, ...prev.slice(0, 59)]);
-        speakAnnouncement(member.name, isStaffOut ? 'رخصت' : 'حاضر', isStaffOut ? 'Clocked out' : 'Clocked in');
+        speakAnnouncement(
+          member.name, 
+          isStaffOut ? 'رخصت' : (isLateStatus ? `لیٹ حاضر، ${minutesLate} منٹ تاخیر` : 'حاضر'), 
+          isStaffOut ? 'Clocked out' : (isLateStatus ? `Late by ${minutesLate} minutes` : 'Clocked in')
+        );
         setIsScanning(false);
         setTimeout(() => setScanResult(null), 3500);
       }
     } catch (err) { 
       console.error('Failed to save attendance', err); 
       playErrorSound();
+      setScanResult({
+        id: member.id,
+        name: member.name || 'Member',
+        class: getMemberClassOrDept(member),
+        rollNo: getMemberRollOrId(member),
+        fatherName: member.fatherName || member.designation || '-',
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        status: 'Attendance Not Saved',
+        message: err?.message || 'Could not save this attendance. Check the connection and try again.',
+        photo: member.photoUrl || member.profilePhoto || null,
+        isWarning: true
+      });
       setIsScanning(false);
+      setTimeout(() => setScanResult(null), 5000);
+    } finally {
+      pendingScansRef.current.delete(memberId);
     }
   }, [
     activeSchoolId, 
@@ -682,8 +783,8 @@ export default function QrScannerApp() {
     
     let foundMember = null;
 
-    // 1. If scanned value indicates staff (starts with stf, emp, staff, or matches staff employeeId/staffId)
-    const isStaffFormat = val.startsWith('stf') || val.startsWith('emp') || val.startsWith('staff');
+    // 1. If scanned value indicates staff (starts with stf, emp, staff, tea, tch)
+    const isStaffFormat = val.startsWith('stf') || val.startsWith('emp') || val.startsWith('staff') || val.startsWith('tea') || val.startsWith('tch');
     if (isStaffFormat) {
       foundMember = allStaffRef.current.find(s => 
         (s.id && s.id.toLowerCase() === val) ||
@@ -694,7 +795,16 @@ export default function QrScannerApp() {
       );
     }
 
-    // 2. Search Students if not already found
+    // 2. Direct exact match for Staff ID or Staff EmployeeId first
+    if (!foundMember) {
+      foundMember = allStaffRef.current.find(s => 
+        (s.id && s.id.toLowerCase() === val) ||
+        (s.employeeId && String(s.employeeId).trim().toLowerCase() === val) ||
+        (s.staffId && String(s.staffId).trim().toLowerCase() === val)
+      );
+    }
+
+    // 3. Search Students if not already found
     if (!foundMember) {
       foundMember = allStudentsRef.current.find(s =>
         (s.id && s.id.toLowerCase() === val) ||
@@ -707,12 +817,9 @@ export default function QrScannerApp() {
       );
     }
     
-    // 3. Search Staff if still not found
+    // 4. Broader search Staff if still not found
     if (!foundMember) {
       foundMember = allStaffRef.current.find(s => 
-        (s.id && s.id.toLowerCase() === val) ||
-        (s.employeeId && String(s.employeeId).trim().toLowerCase() === val) ||
-        (s.staffId && String(s.staffId).trim().toLowerCase() === val) ||
         (s.registrationNo && String(s.registrationNo).trim().toLowerCase() === val) ||
         (s.name && String(s.name).trim().toLowerCase() === val) ||
         (s.cnic && String(s.cnic).trim().replace(/[- ]/g, '').toLowerCase() === val.replace(/[- ]/g, ''))
@@ -967,14 +1074,25 @@ export default function QrScannerApp() {
   const handleSwitchToCamera = async () => {
     setCameraError('');
     setActiveMode('camera');
+    const startId = ++cameraStartIdRef.current;
+
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    if (startId !== cameraStartIdRef.current) return;
+
     try {
+      if (!scannerRef.current) {
+        throw new Error('Camera preview is not ready. Please tap Camera QR again.');
+      }
+
       if (!html5QrCodeRef.current) {
-        html5QrCodeRef.current = new Html5Qrcode("qr-reader");
+        html5QrCodeRef.current = new Html5Qrcode(scannerRef.current.id);
       }
       if (html5QrCodeRef.current.isScanning) {
         await html5QrCodeRef.current.stop();
       }
-      
+
+      if (startId !== cameraStartIdRef.current) return;
+
       await html5QrCodeRef.current.start(
         { facingMode: cameraMode },
         {
@@ -986,14 +1104,29 @@ export default function QrScannerApp() {
         },
         () => {}
       );
+      if (startId !== cameraStartIdRef.current) {
+        await stopCameraScanner();
+      }
     } catch (err) {
       console.warn("Camera failed to start:", err);
-      setCameraError('Camera access not detected or permission denied. Automatically switched to 2D QR & Barcode Machine Mode.');
-      setActiveMode('barcode');
+      if (startId !== cameraStartIdRef.current) return;
+
+      if (!window.isSecureContext) {
+        setCameraError('Camera access requires a secure HTTPS connection. Open this site using its HTTPS address.');
+      } else if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        setCameraError('Camera permission is blocked. Allow Camera for this website in your browser site settings, reload, then tap Camera QR again. No barcode gun is required.');
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        setCameraError('No camera was found on this device. Check that the phone camera is available, then retry Camera QR.');
+      } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+        setCameraError('The camera is busy in another app or tab. Close other camera apps/tabs, then retry Camera QR.');
+      } else {
+        setCameraError(`Camera could not start: ${err?.message || 'check browser camera permission and retry.'}`);
+      }
     }
   };
 
   const handleSwitchToBarcode = async () => {
+    cameraStartIdRef.current += 1;
     setActiveMode('barcode');
     setCameraError('');
     await stopCameraScanner();
@@ -1001,6 +1134,7 @@ export default function QrScannerApp() {
 
   useEffect(() => {
     return () => {
+      cameraStartIdRef.current += 1;
       stopCameraScanner();
     };
   }, [stopCameraScanner]);
@@ -1429,6 +1563,15 @@ export default function QrScannerApp() {
           <button onClick={() => setCameraError('')} className="text-amber-700 hover:text-amber-900 text-xs underline">
             Dismiss
           </button>
+          {activeMode === 'camera' && (
+            <button
+              type="button"
+              onClick={handleSwitchToCamera}
+              className="ml-3 text-amber-900 font-black text-xs underline"
+            >
+              Retry Camera
+            </button>
+          )}
         </div>
       )}
 
@@ -2004,7 +2147,7 @@ export default function QrScannerApp() {
             </div>
 
             <button
-              onClick={() => setShowSettingsModal(false)}
+              onClick={handleSaveSettings}
               className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider shadow-md transition-all"
             >
               Save & Apply Settings

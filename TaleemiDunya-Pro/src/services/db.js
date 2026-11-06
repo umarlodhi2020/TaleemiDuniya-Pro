@@ -711,16 +711,18 @@ export const getAttendanceSummary = async (schoolId, date) => {
  */
 export const saveStaffAttendanceBatch = async (attendanceRecords = [], schoolId) => {
   try {
-    const batch = writeBatch(db);
+    if (!schoolId) {
+      throw new Error("School ID is required to save staff attendance.");
+    }
 
-    attendanceRecords.forEach((record) => {
+    const recordsToSave = attendanceRecords.map((record) => {
       const staffId = record.staffId || record.id;
       const date = record.date;
-      if (!staffId || !date) return;
+      if (!staffId || !date) {
+        throw new Error("Each staff attendance record must include a staff ID and date.");
+      }
 
       const docId = `${staffId}_${date}`;
-      const docRef = doc(db, "attendance", docId);
-
       const payload = {
         ...record,
         id: docId,
@@ -735,11 +737,18 @@ export const saveStaffAttendanceBatch = async (attendanceRecords = [], schoolId)
         payload.createdAt = serverTimestamp();
       }
 
-      batch.set(docRef, payload, { merge: true });
+      return { docId, payload };
     });
 
-    await batch.commit();
-    return { success: true, count: attendanceRecords.length };
+    for (let offset = 0; offset < recordsToSave.length; offset += 450) {
+      const batch = writeBatch(db);
+      recordsToSave.slice(offset, offset + 450).forEach(({ docId, payload }) => {
+        batch.set(doc(db, "attendance", docId), payload, { merge: true });
+      });
+      await batch.commit();
+    }
+
+    return { success: true, count: recordsToSave.length };
   } catch (error) {
     console.error("Error saving staff attendance batch:", error);
     return { success: false, error };
@@ -772,7 +781,8 @@ export const getStaffAttendanceByDate = async (schoolId, date) => {
         .map((d) => ({ id: d.id, ...d.data() }))
         .filter((rec) => (rec.staffId || rec.type === "staff") && rec.date === date);
     } catch (err2) {
-      return [];
+      console.error("Fallback fetch failed for staff attendance by date:", err2);
+      throw err2;
     }
   }
 };
@@ -808,7 +818,8 @@ export const getStaffAttendanceByMonth = async (schoolId, period) => {
         .map((d) => ({ id: d.id, ...d.data() }))
         .filter((rec) => (rec.staffId || rec.type === "staff") && rec.date?.startsWith(period));
     } catch (err2) {
-      return [];
+      console.error("Fallback fetch failed for staff attendance by month:", err2);
+      throw err2;
     }
   }
 };
@@ -1157,5 +1168,4 @@ export const deleteRecorderRecord = async (id) => {
 export const saveCctvCamerasBatch = async (camerasArray, schoolId) => {
   return batchWrite("cctv_cameras", camerasArray, schoolId);
 };
-
 

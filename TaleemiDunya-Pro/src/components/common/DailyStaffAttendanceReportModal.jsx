@@ -141,7 +141,7 @@ export default function DailyStaffAttendanceReportModal({
           const [inH, inM] = normalizeTo24h(displayTimeIn).split(':').map(Number);
           const [sH, sM] = normalizeTo24h(assignedShiftIn).split(':').map(Number);
           const diff = (inH * 60 + inM) - (sH * 60 + sM);
-          if (diff > 5) {
+          if (diff > 0) {
             isLate = true;
             minutesLate = diff;
           }
