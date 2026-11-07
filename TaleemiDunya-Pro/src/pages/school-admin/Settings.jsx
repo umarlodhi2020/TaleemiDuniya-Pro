@@ -50,6 +50,11 @@ const SchoolSettings = () => {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
 
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3500);
+  };
+
   useEffect(() => {
     if (tabFromUrl) {
       setActiveTab(tabFromUrl);
@@ -260,11 +265,6 @@ const SchoolSettings = () => {
   const [classList, setClassList] = useState([]);
 
   const ruleSignatureInputRef = useRef(null);
-
-  const showToast = (type, message) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 3500);
-  };
 
   const handleRuleSignatureUpload = async (e) => {
     const file = e.target.files?.[0];

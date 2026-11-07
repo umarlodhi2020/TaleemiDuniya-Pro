@@ -53,38 +53,6 @@ const AttendanceRegister = () => {
   });
   const [savingHoliday, setSavingHoliday] = useState(false);
 
-  const handleSaveDeclaredHoliday = async (e) => {
-    if (e) e.preventDefault();
-    if (!holidayModalForm.title || !holidayModalForm.start) return;
-    try {
-      setSavingHoliday(true);
-      const newH = {
-        id: `h-${Date.now()}`,
-        title: holidayModalForm.title.trim(),
-        start: holidayModalForm.start,
-        end: holidayModalForm.end || holidayModalForm.start,
-        type: holidayModalForm.type || 'Government',
-        declaredAt: new Date().toISOString()
-      };
-      const existingHolidays = Array.isArray(schoolData?.holidays) ? schoolData.holidays : [];
-      const updatedHolidays = [newH, ...existingHolidays];
-
-      if (userData?.schoolId) {
-        await updateDoc(doc(firestore, 'schools', userData.schoolId), {
-          holidays: updatedHolidays,
-          updatedAt: serverTimestamp()
-        });
-      }
-      localStorage.setItem('school_holidays_list', JSON.stringify(updatedHolidays));
-      setShowHolidayModal(false);
-      // Re-generate sheet to reflect holiday
-      handleGenerateSheet();
-    } catch (err) {
-      console.error('Error saving holiday:', err);
-    } finally {
-      setSavingHoliday(false);
-    }
-  };
 
   useEffect(() => {
     const fetchAvailableClasses = async () => {
@@ -258,6 +226,39 @@ const AttendanceRegister = () => {
       console.error('Error generating register:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveDeclaredHoliday = async (e) => {
+    if (e) e.preventDefault();
+    if (!holidayModalForm.title || !holidayModalForm.start) return;
+    try {
+      setSavingHoliday(true);
+      const newH = {
+        id: `h-${Date.now()}`,
+        title: holidayModalForm.title.trim(),
+        start: holidayModalForm.start,
+        end: holidayModalForm.end || holidayModalForm.start,
+        type: holidayModalForm.type || 'Government',
+        declaredAt: new Date().toISOString()
+      };
+      const existingHolidays = Array.isArray(schoolData?.holidays) ? schoolData.holidays : [];
+      const updatedHolidays = [newH, ...existingHolidays];
+
+      if (userData?.schoolId) {
+        await updateDoc(doc(firestore, 'schools', userData.schoolId), {
+          holidays: updatedHolidays,
+          updatedAt: serverTimestamp()
+        });
+      }
+      localStorage.setItem('school_holidays_list', JSON.stringify(updatedHolidays));
+      setShowHolidayModal(false);
+      // Re-generate sheet to reflect holiday
+      handleGenerateSheet();
+    } catch (err) {
+      console.error('Error saving holiday:', err);
+    } finally {
+      setSavingHoliday(false);
     }
   };
 

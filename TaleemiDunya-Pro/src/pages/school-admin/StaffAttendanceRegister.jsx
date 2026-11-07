@@ -162,6 +162,67 @@ const StaffAttendanceRegister = () => {
   const { schoolData } = useSchool();
   const schoolId = userData?.schoolId || schoolData?.id;
 
+  // Tabs: 'daily' | 'monthly'
+  const [activeTab, setActiveTab] = useState('daily');
+
+  // Common filters
+  const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Daily Register state
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [staffList, setStaffList] = useState([]);
+  const [loadingStaff, setLoadingStaff] = useState(true);
+  const [dailyAttendanceMap, setDailyAttendanceMap] = useState({});
+  const [savedDailyAttendanceMap, setSavedDailyAttendanceMap] = useState({});
+  const [loadingDailyAtt, setLoadingDailyAtt] = useState(false);
+  const [savingDaily, setSavingDaily] = useState(false);
+
+  // Monthly Matrix state
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7)); // "YYYY-MM"
+  const [monthlyAttendanceList, setMonthlyAttendanceList] = useState([]);
+  const [loadingMonthlyAtt, setLoadingMonthlyAtt] = useState(false);
+
+  // Time Slip Modal State ("Kub Aaya Kub Gya")
+  const [timeSlipStaff, setTimeSlipStaff] = useState(null);
+
+  // Master Monthly Report Modal State
+  const [showMasterReport, setShowMasterReport] = useState(false);
+
+  // Daily Single-Day Report Modal State ("Rozana Attendance & In/Out Sheet")
+  const [showDailyReport, setShowDailyReport] = useState(false);
+
+  // Quick Daily Status Filter: 'All' | 'present' | 'absent' | 'half' | 'leave'
+  const [dailyStatusFilter, setDailyStatusFilter] = useState('All');
+
+  // Live System Clock
+  const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveClock(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Toast message
+  const [toast, setToast] = useState(null);
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // Declare Holiday Modal State
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [holidayModalForm, setHolidayModalForm] = useState({
+    title: '',
+    start: '',
+    end: '',
+    type: 'Government'
+  });
+  const [savingHoliday, setSavingHoliday] = useState(false);
+
   // Active School Settings Staff Shift Timings for Selected Date (Day-wise support e.g. Saturday)
   const selectedDateTiming = useMemo(() => {
     return getShiftTimingForDate(selectedDate, schoolData?.staffTimings);
@@ -174,16 +235,6 @@ const StaffAttendanceRegister = () => {
   const selectedDateHoliday = useMemo(() => {
     return checkDateHoliday(selectedDate, schoolData?.holidays, schoolData?.staffTimings);
   }, [selectedDate, schoolData?.holidays, schoolData?.staffTimings]);
-
-  // Declare Holiday Modal State
-  const [showHolidayModal, setShowHolidayModal] = useState(false);
-  const [holidayModalForm, setHolidayModalForm] = useState({
-    title: '',
-    start: '',
-    end: '',
-    type: 'Government'
-  });
-  const [savingHoliday, setSavingHoliday] = useState(false);
 
   // Quick action: Save declared holiday from modal
   const handleSaveDeclaredHoliday = async (e) => {
@@ -234,57 +285,6 @@ const StaffAttendanceRegister = () => {
     });
     setDailyAttendanceMap(updated);
     showToast('info', `Marked all staff as Holiday for ${selectedDate}. Click Save to confirm.`);
-  };
-
-  // Tabs: 'daily' | 'monthly'
-  const [activeTab, setActiveTab] = useState('daily');
-
-  // Common filters
-  const [departmentFilter, setDepartmentFilter] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
-
-  // Daily Register state
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [staffList, setStaffList] = useState([]);
-  const [loadingStaff, setLoadingStaff] = useState(true);
-  const [dailyAttendanceMap, setDailyAttendanceMap] = useState({});
-  const [savedDailyAttendanceMap, setSavedDailyAttendanceMap] = useState({});
-  const [loadingDailyAtt, setLoadingDailyAtt] = useState(false);
-  const [savingDaily, setSavingDaily] = useState(false);
-
-  // Monthly Matrix state
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7)); // "YYYY-MM"
-  const [monthlyAttendanceList, setMonthlyAttendanceList] = useState([]);
-  const [loadingMonthlyAtt, setLoadingMonthlyAtt] = useState(false);
-
-  // Time Slip Modal State ("Kub Aaya Kub Gya")
-  const [timeSlipStaff, setTimeSlipStaff] = useState(null);
-
-  // Master Monthly Report Modal State
-  const [showMasterReport, setShowMasterReport] = useState(false);
-
-  // Daily Single-Day Report Modal State ("Rozana Attendance & In/Out Sheet")
-  const [showDailyReport, setShowDailyReport] = useState(false);
-
-  // Quick Daily Status Filter: 'All' | 'present' | 'absent' | 'half' | 'leave'
-  const [dailyStatusFilter, setDailyStatusFilter] = useState('All');
-
-  // Live System Clock
-  const [liveClock, setLiveClock] = useState(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setLiveClock(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Toast message
-  const [toast, setToast] = useState(null);
-
-  const showToast = (type, message) => {
-    setToast({ type, message });
-    setTimeout(() => setToast(null), 4000);
   };
 
   // Date navigation helper
