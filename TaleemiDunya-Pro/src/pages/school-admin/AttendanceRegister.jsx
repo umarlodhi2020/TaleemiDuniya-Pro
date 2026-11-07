@@ -21,9 +21,10 @@ import { useNavigate } from 'react-router-dom';
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
-import { collection, query, where, getDocs, setDoc, doc } from 'firebase/firestore';
+import { collection, query, where, getDocs, setDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db as firestore } from '../../services/firebase';
 import { useSchool } from '../../context/SchoolContext';
+import { checkDateHoliday, getShiftTimingForDate } from '../../utils/timeFormat';
 
 const AttendanceRegister = () => {
   const { userData } = useAuth();
@@ -41,6 +42,49 @@ const AttendanceRegister = () => {
   const [showGrid, setShowGrid] = useState(false);
   const [saving, setSaving] = useState(false);
   const [debugLogs, setDebugLogs] = useState([]);
+
+  // Holiday modal state
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [holidayModalForm, setHolidayModalForm] = useState({
+    title: '',
+    start: '',
+    end: '',
+    type: 'Government'
+  });
+  const [savingHoliday, setSavingHoliday] = useState(false);
+
+  const handleSaveDeclaredHoliday = async (e) => {
+    if (e) e.preventDefault();
+    if (!holidayModalForm.title || !holidayModalForm.start) return;
+    try {
+      setSavingHoliday(true);
+      const newH = {
+        id: `h-${Date.now()}`,
+        title: holidayModalForm.title.trim(),
+        start: holidayModalForm.start,
+        end: holidayModalForm.end || holidayModalForm.start,
+        type: holidayModalForm.type || 'Government',
+        declaredAt: new Date().toISOString()
+      };
+      const existingHolidays = Array.isArray(schoolData?.holidays) ? schoolData.holidays : [];
+      const updatedHolidays = [newH, ...existingHolidays];
+
+      if (userData?.schoolId) {
+        await updateDoc(doc(firestore, 'schools', userData.schoolId), {
+          holidays: updatedHolidays,
+          updatedAt: serverTimestamp()
+        });
+      }
+      localStorage.setItem('school_holidays_list', JSON.stringify(updatedHolidays));
+      setShowHolidayModal(false);
+      // Re-generate sheet to reflect holiday
+      handleGenerateSheet();
+    } catch (err) {
+      console.error('Error saving holiday:', err);
+    } finally {
+      setSavingHoliday(false);
+    }
+  };
 
   useEffect(() => {
     const fetchAvailableClasses = async () => {
@@ -111,17 +155,16 @@ const AttendanceRegister = () => {
         for (let d = 1; d <= daysInMonth; d++) {
           const dayStr = String(d).padStart(2, '0');
           const fullDate = `${prefix}${dayStr}`;
-          const recordId = `${st.id}_${fullDate}`;
           
-          // Check if today/past vs future
+          // Check if today/past vs future and holidays
           const checkDate = new Date(fullDate);
           const isFuture = checkDate > new Date();
-          const isSunday = checkDate.getDay() === 0;
+          const holidayInfo = checkDateHoliday(fullDate, schoolData?.holidays, schoolData?.staffTimings);
 
           if (isFuture) {
             newAtt[st.id][d] = '-';
-          } else if (isSunday) {
-            newAtt[st.id][d] = 'S'; // Sunday / Holiday
+          } else if (holidayInfo.isHoliday) {
+            newAtt[st.id][d] = holidayInfo.type === 'Sunday' ? 'S' : 'H';
           } else {
             newAtt[st.id][d] = '-'; // Not marked yet
           }
@@ -181,11 +224,18 @@ const AttendanceRegister = () => {
           }
 
           if (dayNum !== null && !isNaN(dayNum) && dayNum >= 1 && dayNum <= daysInMonth) {
+            const dateStr = `${prefix}${String(dayNum).padStart(2, '0')}`;
+            const holidayInfo = checkDateHoliday(dateStr, schoolData?.holidays, schoolData?.staffTimings);
+
             const st = (data.status || 'present').toLowerCase().trim();
             let statusChar = '-';
-            if (st === 'present' || st === 'p' || st === 'late' || st === 'l') statusChar = 'P';
-            else if (st === 'absent' || st === 'a') statusChar = 'A';
-            else if (st === 'leave') statusChar = 'A';
+            if (st === 'present' || st === 'p' || st === 'late' || st === 'l') {
+              statusChar = 'P';
+            } else if (holidayInfo.isHoliday) {
+              statusChar = holidayInfo.type === 'Sunday' ? 'S' : 'H';
+            } else if (st === 'absent' || st === 'a' || st === 'leave') {
+              statusChar = 'A';
+            }
             
             newAtt[sid][dayNum] = statusChar;
           } else {
@@ -216,7 +266,8 @@ const AttendanceRegister = () => {
       const current = prev[studentId]?.[day] || 'P';
       let next = 'P';
       if (current === 'P') next = 'A';
-      else if (current === 'A') next = '-';
+      else if (current === 'A') next = 'H';
+      else if (current === 'H') next = '-';
       else next = 'P';
 
       return {
@@ -364,6 +415,16 @@ const AttendanceRegister = () => {
             </div>
             <div className="flex items-center gap-3">
               <button 
+                type="button"
+                onClick={() => {
+                  setHolidayModalForm({ title: '', start: `${selectedMonth}-01`, end: `${selectedMonth}-01`, type: 'Government' });
+                  setShowHolidayModal(true);
+                }}
+                className="px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 font-bold text-xs uppercase tracking-wider rounded-xl border border-purple-500/30 transition-all shadow-md flex items-center gap-2 cursor-pointer"
+              >
+                <Calendar size={15} className="text-purple-400" /> Declare Holiday
+              </button>
+              <button 
                 onClick={handlePrintPDF}
                 className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-green-600/20 flex items-center gap-2"
               >
@@ -393,11 +454,24 @@ const AttendanceRegister = () => {
                     <tr className="bg-dark-bg/80 text-[10px] text-dark-muted font-black uppercase tracking-wider border-b border-dark-border">
                       <th className="py-3.5 px-3 border-r border-dark-border w-16 text-center sticky left-0 bg-dark-bg z-10">Roll #</th>
                       <th className="py-3.5 px-4 border-r border-dark-border min-w-[180px] sticky left-16 bg-dark-bg z-10">Student Name</th>
-                      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                        <th key={day} className="py-3.5 px-1.5 border-r border-dark-border/50 text-center w-8 text-[11px]">
-                          {day}
-                        </th>
-                      ))}
+                      {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                        const dayStr = String(day).padStart(2, '0');
+                        const fullDate = `${selectedMonth}-${dayStr}`;
+                        const hol = checkDateHoliday(fullDate, schoolData?.holidays, schoolData?.staffTimings);
+                        const isSun = hol.type === 'Sunday';
+                        const isHol = hol.isHoliday && !isSun;
+                        return (
+                          <th 
+                            key={day} 
+                            className={`py-3.5 px-1.5 border-r border-dark-border/50 text-center w-8 text-[11px] ${
+                              isSun ? 'bg-sky-500/10 text-sky-400 font-bold' : isHol ? 'bg-purple-500/20 text-purple-300 font-bold' : ''
+                            }`}
+                            title={isSun ? `Day ${day}: Sunday` : isHol ? `Day ${day}: ${hol.title} (${hol.type})` : `Day ${day}`}
+                          >
+                            {day}
+                          </th>
+                        );
+                      })}
                       <th className="py-3.5 px-3 border-r border-dark-border text-center text-green-400">P</th>
                       <th className="py-3.5 px-3 border-r border-dark-border text-center text-red-400">A</th>
                       <th className="py-3.5 px-3 text-center text-primary-400">%</th>
@@ -429,8 +503,11 @@ const AttendanceRegister = () => {
                                 {status === 'A' && (
                                   <span className="w-5 h-5 mx-auto rounded bg-red-500/20 text-red-400 font-bold flex items-center justify-center text-[10px] border border-red-500/30">A</span>
                                 )}
+                                {status === 'H' && (
+                                  <span className="w-5 h-5 mx-auto rounded bg-purple-500/20 text-purple-300 font-bold flex items-center justify-center text-[9px] border border-purple-500/30" title="Holiday / چھٹی">H</span>
+                                )}
                                 {status === 'L' && (
-                                  <span className="w-5 h-5 mx-auto rounded bg-orange-500/20 text-orange-400 font-bold flex items-center justify-center text-[10px] border border-orange-500/30">L</span>
+                                  <span className="w-5 h-5 mx-auto rounded bg-green-500/20 text-green-400 font-bold flex items-center justify-center text-[10px] border border-green-500/30">P</span>
                                 )}
                                 {status === 'S' && (
                                   <span className="w-5 h-5 mx-auto rounded bg-blue-500/10 text-blue-300/60 font-bold flex items-center justify-center text-[9px]">S</span>
@@ -539,6 +616,108 @@ const AttendanceRegister = () => {
           </div>
         </div>
       </div>
+
+      {/* QUICK DECLARE HOLIDAY MODAL */}
+      {showHolidayModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in print:hidden">
+          <div className="bg-dark-paper border border-purple-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500" />
+            
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Declare Holiday / چھٹی</h3>
+                  <p className="text-[11px] text-dark-muted">اسکول یا حکومتی چھٹی کا اندراج کریں</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowHolidayModal(false)}
+                className="w-8 h-8 rounded-full bg-dark-hover hover:bg-dark-border text-dark-muted hover:text-white flex items-center justify-center transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDeclaredHoliday} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-dark-muted uppercase">Holiday Title / عنوان *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Government Holiday / Rain Day / کشمیر ڈے"
+                  value={holidayModalForm.title}
+                  onChange={e => setHolidayModalForm({ ...holidayModalForm, title: e.target.value })}
+                  className="w-full premium-input text-xs font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-dark-muted uppercase">Holiday Type / قسم</label>
+                <select
+                  value={holidayModalForm.type}
+                  onChange={e => setHolidayModalForm({ ...holidayModalForm, type: e.target.value })}
+                  className="w-full premium-input text-xs font-semibold bg-dark-bg"
+                >
+                  <option value="Government">🏛️ Government Holiday (حکومتی تعطیل)</option>
+                  <option value="School">🏫 School Holiday (اسکول کی چھٹی)</option>
+                  <option value="Weather">🌧️ Rain / Weather (بارش / خراب موسم)</option>
+                  <option value="Religious">🌙 Religious Festival (مذہبی تہوار)</option>
+                  <option value="National">🇵🇰 National Day (قومی تعطیل)</option>
+                  <option value="Vacation">🏖️ Vacation / Break (تعطیلات)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-dark-muted uppercase">Start Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={holidayModalForm.start}
+                    onChange={e => setHolidayModalForm({ ...holidayModalForm, start: e.target.value })}
+                    className="w-full premium-input font-mono text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-dark-muted uppercase">End Date</label>
+                  <input
+                    type="date"
+                    value={holidayModalForm.end}
+                    onChange={e => setHolidayModalForm({ ...holidayModalForm, end: e.target.value })}
+                    className="w-full premium-input font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-300">
+                💡 چھٹی داخل کرنے کے بعد اس دن کے خانے میں خودکار طور پر 'H' لگ جائے گا اور یہ دن غیر حاضری شمار نہیں ہوگا۔
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowHolidayModal(false)}
+                  className="w-1/2 py-2.5 rounded-xl bg-dark-hover hover:bg-dark-border text-dark-muted hover:text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingHoliday}
+                  className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-purple-500/20 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {savingHoliday ? <Clock size={14} className="animate-spin" /> : <Check size={14} />}
+                  <span>Save Holiday</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

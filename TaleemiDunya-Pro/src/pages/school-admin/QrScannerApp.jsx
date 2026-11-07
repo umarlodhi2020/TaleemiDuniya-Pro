@@ -43,6 +43,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { Html5Qrcode } from 'html5-qrcode';
 import { dispatchAttendanceAlert } from '../../utils/notificationService';
+import { getShiftTimingForDate, checkDateHoliday, formatTo12h } from '../../utils/timeFormat';
 
 export default function QrScannerApp() {
   const { userData } = useAuth();
@@ -338,15 +339,20 @@ export default function QrScannerApp() {
     }
   }, [voiceEnabled, voiceLanguage]);
 
-  // Check if current time is after school start time (Late detection & exact minutes)
+  // Check if current time is after school start time (Day-wise late detection & exact minutes)
   const getPunctualityInfo = useCallback(() => {
     try {
       const now = new Date();
-      const [startHour, startMin] = schoolStartTime.split(':').map(Number);
+      // Check day-specific shift timings (e.g. Saturday custom start or day off)
+      const todayTiming = getShiftTimingForDate(now, schoolData?.staffTimings);
+      const effectiveStartTime = todayTiming?.shiftIn || schoolStartTime || '07:55';
+      const effectiveEndTime = todayTiming?.shiftOut || schoolEndTime || '14:00';
+
+      const [startHour, startMin] = effectiveStartTime.split(':').map(Number);
       const startTimeToday = new Date();
       startTimeToday.setHours(startHour, startMin, 0, 0);
 
-      const [endHour, endMin] = schoolEndTime.split(':').map(Number);
+      const [endHour, endMin] = effectiveEndTime.split(':').map(Number);
       const endTimeToday = new Date();
       endTimeToday.setHours(endHour, endMin, 0, 0);
 
@@ -354,11 +360,16 @@ export default function QrScannerApp() {
       const minutesLate = isLate ? Math.max(1, Math.round((now - startTimeToday) / 60000)) : 0;
       const isEarlyDeparture = now < endTimeToday;
 
-      return { isLate, minutesLate, isEarlyDeparture };
+      return { isLate, minutesLate, isEarlyDeparture, effectiveStartTime, effectiveEndTime, todayTiming };
     } catch {
       return { isLate: false, minutesLate: 0, isEarlyDeparture: false };
     }
-  }, [schoolStartTime, schoolEndTime]);
+  }, [schoolStartTime, schoolEndTime, schoolData?.staffTimings]);
+
+  // Check if today is a declared holiday or weekly off
+  const todayHolidayInfo = useMemo(() => {
+    return checkDateHoliday(new Date(), schoolData?.holidays, schoolData?.staffTimings);
+  }, [schoolData?.holidays, schoolData?.staffTimings]);
 
   // Sync offline queue when online
   const syncOfflineQueue = useCallback(async () => {
@@ -1406,6 +1417,21 @@ export default function QrScannerApp() {
           </button>
         </div>
       </div>
+
+      {/* TODAY HOLIDAY / OFF ALERT BANNER */}
+      {todayHolidayInfo.isHoliday && (
+        <div className="bg-gradient-to-r from-purple-700 via-indigo-700 to-pink-700 text-white px-4 py-2 text-xs font-bold flex items-center justify-between shadow-md shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🎉</span>
+            <span>
+              <strong>Today is School Off / Holiday:</strong> {todayHolidayInfo.title} ({todayHolidayInfo.type})
+            </span>
+          </div>
+          <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] uppercase tracking-wider font-black">
+            Holiday Mode Active
+          </span>
+        </div>
+      )}
 
       {/* SECONDARY RESPONSIVE CONTROL BAR (MODE & HARDWARE SELECTOR) */}
       <div className={`px-3 sm:px-5 py-2 border-b flex flex-wrap items-center justify-between gap-2 shrink-0 ${themeMode === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900/60 border-white/5'}`}>

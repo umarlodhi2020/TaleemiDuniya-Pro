@@ -1,6 +1,7 @@
 /**
- * Time Formatting & Normalization Utilities
- * Supports 24-hr (HH:mm), 12-hr with AM/PM, and duty duration calculations
+ * Time Formatting, Holiday & Day-Wise Timings Utilities
+ * Supports 24-hr (HH:mm), 12-hr with AM/PM, duty duration calculations,
+ * Day-wise shifts (e.g. Saturday custom start time / Saturday off), and School/Govt holidays.
  */
 
 export const normalizeTo24h = (timeStr) => {
@@ -56,3 +57,114 @@ export const calculateDutyHours = (timeIn, timeOut) => {
   };
 };
 
+export const DAY_KEYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+export const DAY_LABELS = {
+  monday: { en: 'Monday', ur: 'پیر' },
+  tuesday: { en: 'Tuesday', ur: 'منگل' },
+  wednesday: { en: 'Wednesday', ur: 'بدھ' },
+  thursday: { en: 'Thursday', ur: 'جمعرات' },
+  friday: { en: 'Friday', ur: 'جمعہ' },
+  saturday: { en: 'Saturday', ur: 'ہفتہ' },
+  sunday: { en: 'Sunday', ur: 'اتوار' }
+};
+
+export const defaultDayTimings = {
+  monday: { isOff: false, startTime: '07:55', endTime: '14:00' },
+  tuesday: { isOff: false, startTime: '07:55', endTime: '14:00' },
+  wednesday: { isOff: false, startTime: '07:55', endTime: '14:00' },
+  thursday: { isOff: false, startTime: '07:55', endTime: '14:00' },
+  friday: { isOff: false, startTime: '07:55', endTime: '12:30' },
+  saturday: { isOff: false, startTime: '07:55', endTime: '13:00' },
+  sunday: { isOff: true, startTime: '08:00', endTime: '14:00' }
+};
+
+export const getDayKey = (dateInput) => {
+  if (!dateInput) return 'monday';
+  const d = typeof dateInput === 'string' ? new Date(dateInput.replace(/-/g, '/')) : new Date(dateInput);
+  if (isNaN(d.getTime())) return 'monday';
+  return DAY_KEYS[d.getDay()];
+};
+
+export const formatDateKey = (dateInput) => {
+  if (!dateInput) return '';
+  if (typeof dateInput === 'string') return dateInput.split('T')[0];
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+/**
+ * Get shift timing for a given date, supporting day-specific overrides (e.g. Saturday custom late cutoff or day off)
+ */
+export const getShiftTimingForDate = (dateInput, staffTimings = {}) => {
+  const dayKey = getDayKey(dateInput);
+  const defaultIn = normalizeTo24h(staffTimings?.shiftStartTime) || '07:55';
+  const defaultOut = normalizeTo24h(staffTimings?.shiftEndTime) || '14:00';
+
+  const dayConfig = staffTimings?.dayTimings?.[dayKey];
+  
+  // Sunday is off by default
+  const isDefaultSundayOff = (dayKey === 'sunday');
+  const isOff = dayConfig ? Boolean(dayConfig.isOff) : isDefaultSundayOff;
+
+  const shiftIn = normalizeTo24h(dayConfig?.startTime) || defaultIn;
+  const shiftOut = normalizeTo24h(dayConfig?.endTime) || defaultOut;
+
+  return {
+    dayKey,
+    dayLabel: DAY_LABELS[dayKey] || { en: dayKey, ur: dayKey },
+    isOff,
+    shiftIn,
+    shiftOut,
+    shiftInFormatted: formatTo12h(shiftIn),
+    shiftOutFormatted: formatTo12h(shiftOut),
+    hasCustomTiming: Boolean(dayConfig?.startTime || dayConfig?.endTime || dayConfig?.isOff !== undefined)
+  };
+};
+
+/**
+ * Check if a date is a school holiday, government holiday, or day off
+ */
+export const checkDateHoliday = (dateInput, holidaysList = [], staffTimings = {}) => {
+  if (!dateInput) return { isHoliday: false };
+  const dateStr = formatDateKey(dateInput);
+
+  // 1. Check declared holidays list (Govt, National, School, Weather holidays)
+  if (dateStr && Array.isArray(holidaysList) && holidaysList.length > 0) {
+    const matched = holidaysList.find(h => {
+      if (!h || !h.start) return false;
+      const s = String(h.start).split('T')[0];
+      const e = String(h.end || h.start).split('T')[0];
+      return dateStr >= s && dateStr <= e;
+    });
+
+    if (matched) {
+      return {
+        isHoliday: true,
+        type: matched.type || 'Government',
+        title: matched.title || 'Official Holiday',
+        isWeeklyOff: false,
+        holiday: matched
+      };
+    }
+  }
+
+  // 2. Check weekly day off in staff timings (e.g. Sunday or Saturday off)
+  const timing = getShiftTimingForDate(dateInput, staffTimings);
+  if (timing.isOff) {
+    const dayNameEn = timing.dayKey.charAt(0).toUpperCase() + timing.dayKey.slice(1);
+    const dayNameUr = timing.dayLabel?.ur || dayNameEn;
+    return {
+      isHoliday: true,
+      type: timing.dayKey === 'sunday' ? 'Sunday' : 'Weekly Off',
+      title: timing.dayKey === 'sunday' ? 'Sunday (School Holiday / اتوار کی چھٹی)' : `${dayNameEn} (${dayNameUr} - ہفتہ وار چھٹی)`,
+      isWeeklyOff: true
+    };
+  }
+
+  return { isHoliday: false };
+};

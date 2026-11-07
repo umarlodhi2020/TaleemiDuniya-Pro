@@ -36,6 +36,7 @@ import { useAuth } from '../../context/AuthContext';
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, updateRecord, deleteRecord } from '../../services/db';
 import { uploadSchoolLogo, uploadToCloudinary } from '../../services/cloudinary';
+import { DAY_KEYS, DAY_LABELS, defaultDayTimings, formatTo12h } from '../../utils/timeFormat';
 
 const SchoolSettings = () => {
   const location = useLocation();
@@ -117,21 +118,46 @@ const SchoolSettings = () => {
     }
   };
 
-  const handleAddHoliday = (e) => {
+  const handleAddHoliday = async (e) => {
     e.preventDefault();
     if (!holidayForm.title || !holidayForm.start) return;
-    const newH = { id: `h-${Date.now()}`, ...holidayForm, end: holidayForm.end || holidayForm.start };
+    const newH = { 
+      id: `h-${Date.now()}`, 
+      ...holidayForm, 
+      end: holidayForm.end || holidayForm.start,
+      createdAt: new Date().toISOString()
+    };
     const updated = [newH, ...holidaysList];
     setHolidaysList(updated);
     localStorage.setItem('school_holidays_list', JSON.stringify(updated));
-    setHolidayForm({ title: '', start: '', end: '', type: 'National' });
+    if (userData?.schoolId) {
+      try {
+        await updateDoc(doc(db, 'schools', userData.schoolId), {
+          holidays: updated,
+          updatedAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.error('Error syncing holiday to Firestore:', err);
+      }
+    }
+    setHolidayForm({ title: '', start: '', end: '', type: 'Government' });
     showToast('success', `✅ Holiday "${newH.title}" added to school calendar!`);
   };
 
-  const handleDeleteHoliday = (id, title) => {
+  const handleDeleteHoliday = async (id, title) => {
     const updated = holidaysList.filter(h => h.id !== id);
     setHolidaysList(updated);
     localStorage.setItem('school_holidays_list', JSON.stringify(updated));
+    if (userData?.schoolId) {
+      try {
+        await updateDoc(doc(db, 'schools', userData.schoolId), {
+          holidays: updated,
+          updatedAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.error('Error syncing deleted holiday to Firestore:', err);
+      }
+    }
     showToast('success', `✅ Holiday "${title}" removed from calendar.`);
   };
 
@@ -179,10 +205,11 @@ const SchoolSettings = () => {
     password: '',
   });
 
-  // Staff Timings State
+  // Staff Timings State (Includes Day-Wise Schedule e.g. Saturday Off or Custom Timings)
   const [staffTimings, setStaffTimings] = useState({
-    shiftStartTime: '08:00',
+    shiftStartTime: '07:55',
     shiftEndTime: '14:00',
+    dayTimings: defaultDayTimings
   });
 
   // Custom Domain state
@@ -337,7 +364,20 @@ const SchoolSettings = () => {
             setSecurity(data.securitySettings);
           }
           if (data.faceScan) setFaceScan(data.faceScan);
-          if (data.staffTimings) setStaffTimings(data.staffTimings);
+          if (data.staffTimings) {
+            setStaffTimings({
+              shiftStartTime: data.staffTimings.shiftStartTime || '07:55',
+              shiftEndTime: data.staffTimings.shiftEndTime || '14:00',
+              dayTimings: {
+                ...defaultDayTimings,
+                ...(data.staffTimings.dayTimings || {})
+              }
+            });
+          }
+          if (Array.isArray(data.holidays) && data.holidays.length > 0) {
+            setHolidaysList(data.holidays);
+            localStorage.setItem('school_holidays_list', JSON.stringify(data.holidays));
+          }
           if (data.signatureSettings) {
             // Check if it's the old format, migrate it softly
             if (data.signatureSettings.principalSignatureUrl && !data.signatureSettings.rules) {
@@ -426,6 +466,7 @@ const SchoolSettings = () => {
         signatureSettings: signatureSettings,
         password: faceScan.password, // Update Face Scan Password
         staffTimings: staffTimings,
+        holidays: holidaysList,
         updatedAt: serverTimestamp(),
       });
       
@@ -1250,17 +1291,32 @@ const SchoolSettings = () => {
                   Declare national holidays, religious festivals, and term vacations. These dates will automatically highlight across attendance & parent portals.
                 </p>
 
-                <form onSubmit={handleAddHoliday} className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8 bg-dark-hover/50 p-4 rounded-2xl border border-dark-border">
-                  <div className="sm:col-span-1 space-y-1">
+                <form onSubmit={handleAddHoliday} className="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-8 bg-dark-hover/50 p-4 rounded-2xl border border-dark-border">
+                  <div className="space-y-1 sm:col-span-1">
                     <label className="text-[10px] font-black text-dark-muted uppercase">Holiday Title *</label>
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Eid-ul-Adha Break"
+                      placeholder="e.g. Government Holiday / Rain Day"
                       value={holidayForm.title}
                       onChange={e => setHolidayForm({ ...holidayForm, title: e.target.value })}
-                      className="w-full premium-input text-xs"
+                      className="w-full premium-input text-xs font-semibold"
                     />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-dark-muted uppercase">Holiday Type / قسم</label>
+                    <select
+                      value={holidayForm.type || 'Government'}
+                      onChange={e => setHolidayForm({ ...holidayForm, type: e.target.value })}
+                      className="w-full premium-input text-xs font-semibold bg-dark-bg"
+                    >
+                      <option value="Government">🏛️ Government Holiday (حکومتی چھٹی)</option>
+                      <option value="School">🏫 School Holiday (اسکول کی چھٹی)</option>
+                      <option value="Weather">🌧️ Rain / Weather (بارش / موسم)</option>
+                      <option value="Religious">🌙 Religious (مذہبی تہوار)</option>
+                      <option value="National">🇵🇰 National Holiday (قومی تعطیل)</option>
+                      <option value="Vacation">🏖️ Vacation Break (تعطیلات)</option>
+                    </select>
                   </div>
                   <div className="space-y-1">
                     <label className="text-[10px] font-black text-dark-muted uppercase">Start Date *</label>
@@ -1282,7 +1338,7 @@ const SchoolSettings = () => {
                     />
                   </div>
                   <div className="flex items-end">
-                    <button type="submit" className="w-full premium-button-primary py-2.5 text-xs flex items-center justify-center gap-1.5 font-bold">
+                    <button type="submit" className="w-full premium-button-primary py-2.5 text-xs flex items-center justify-center gap-1.5 font-bold shadow-md cursor-pointer">
                       <Plus size={16} /> Add Holiday
                     </button>
                   </div>
@@ -1429,39 +1485,244 @@ const SchoolSettings = () => {
             </div>
           )}
 
-          {/* TAB 9: STAFF TIMINGS (`staff-timings`) */}
+          {/* TAB 9: STAFF TIMINGS & DAY-WISE SCHEDULE (`staff-timings`) */}
           {activeTab === 'staff-timings' && (
             <div className="space-y-6">
               <GlassCard className="p-8 border-t-4 border-t-purple-500">
-                <h3 className="text-xl font-bold flex items-center gap-2 mb-2 text-purple-400">
-                  <CalendarDays size={22} className="text-purple-500" />
-                  Staff Shift Timings Configuration
-                </h3>
-                <p className="text-xs text-dark-muted mb-6">
-                  Set default Time In and Time Out for teachers and staff. This is used for attendance and payroll deduction logic.
-                </p>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold flex items-center gap-2 text-purple-400">
+                      <CalendarDays size={22} className="text-purple-500" />
+                      Staff Shift Timings & Day-Wise Schedule
+                    </h3>
+                    <p className="text-xs text-dark-muted mt-1">
+                      روزانہ اور دن کے حساب سے اسکول کے اوقات سیٹ کریں۔ ہفتہ (Saturday) کی چھٹی یا مختلف ٹائمنگ اور لیٹ آنے کی کٹ آف یہاں سے سیٹ کریں۔
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const curSaturdayOff = staffTimings.dayTimings?.saturday?.isOff;
+                        setStaffTimings(prev => ({
+                          ...prev,
+                          dayTimings: {
+                            ...(prev.dayTimings || defaultDayTimings),
+                            saturday: {
+                              ...(prev.dayTimings?.saturday || defaultDayTimings.saturday),
+                              isOff: !curSaturdayOff
+                            }
+                          }
+                        }));
+                        showToast('info', !curSaturdayOff ? 'Saturday set to Day Off!' : 'Saturday set to Working Day!');
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      {staffTimings.dayTimings?.saturday?.isOff ? '✅ Saturday Off Enabled' : 'Toggle Saturday Off'}
+                    </button>
+                  </div>
+                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-dark-hover/50 p-6 rounded-2xl border border-dark-border">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-dark-muted uppercase">Default Shift Start Time</label>
-                    <input
-                      type="time"
-                      required
-                      value={staffTimings.shiftStartTime}
-                      onChange={e => setStaffTimings({ ...staffTimings, shiftStartTime: e.target.value })}
-                      className="w-full premium-input font-mono text-lg font-bold"
-                    />
+                {/* Default Master Shift Timings */}
+                <div className="bg-dark-paper/80 p-5 rounded-2xl border border-dark-border mb-8">
+                  <div className="text-xs font-black text-purple-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                    Default School Working Timings (عام دنوں کے بنیادی اوقات)
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black text-dark-muted uppercase">Default Shift End Time</label>
-                    <input
-                      type="time"
-                      required
-                      value={staffTimings.shiftEndTime}
-                      onChange={e => setStaffTimings({ ...staffTimings, shiftEndTime: e.target.value })}
-                      className="w-full premium-input font-mono text-lg font-bold"
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-dark-muted uppercase">Default Shift Start Time (Late Cutoff)</label>
+                      <input
+                        type="time"
+                        required
+                        value={staffTimings.shiftStartTime || '07:55'}
+                        onChange={e => setStaffTimings({ ...staffTimings, shiftStartTime: e.target.value })}
+                        className="w-full premium-input font-mono text-base font-bold"
+                      />
+                      <p className="text-[10px] text-dark-muted">اس وقت کے بعد تشریف لانے والے اساتذہ خودکار طور پر Late شمار ہوں گے۔</p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-dark-muted uppercase">Default Shift End Time (Closing Time)</label>
+                      <input
+                        type="time"
+                        required
+                        value={staffTimings.shiftEndTime || '14:00'}
+                        onChange={e => setStaffTimings({ ...staffTimings, shiftEndTime: e.target.value })}
+                        className="w-full premium-input font-mono text-base font-bold"
+                      />
+                      <p className="text-[10px] text-dark-muted">چھٹی کا مقررہ وقت جس کے بعد ڈیوٹی مکمل شمار ہوتی ہے۔</p>
+                    </div>
                   </div>
+                </div>
+
+                {/* Day-Wise Timings Matrix */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-black uppercase tracking-wider text-dark-text flex items-center gap-2">
+                      <Calendar size={16} className="text-purple-400" />
+                      Day-Specific Timings & Off Days (ہفتے کے دنوں کا الگ الگ شیڈول)
+                    </h4>
+                    <span className="text-[11px] text-dark-muted">سیٹ نہ ہونے کی صورت میں اوپر والے بنیادی اوقات لاگو ہوں گے</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(dayKey => {
+                      const dayConfig = staffTimings.dayTimings?.[dayKey] || defaultDayTimings[dayKey] || {
+                        isOff: dayKey === 'sunday',
+                        startTime: staffTimings.shiftStartTime || '07:55',
+                        endTime: staffTimings.shiftEndTime || '14:00'
+                      };
+                      const dayLabel = DAY_LABELS[dayKey] || { en: dayKey, ur: dayKey };
+                      const isOff = Boolean(dayConfig.isOff);
+                      const startTime = dayConfig.startTime || staffTimings.shiftStartTime || '07:55';
+                      const endTime = dayConfig.endTime || staffTimings.shiftEndTime || '14:00';
+
+                      return (
+                        <div 
+                          key={dayKey}
+                          className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                            isOff 
+                              ? 'bg-purple-950/20 border-purple-800/40 opacity-90' 
+                              : dayKey === 'saturday' 
+                              ? 'bg-amber-500/5 border-amber-500/30'
+                              : 'bg-dark-hover/40 border-dark-border'
+                          }`}
+                        >
+                          {/* Day Info */}
+                          <div className="flex items-center gap-3 min-w-[200px]">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm border ${
+                              isOff 
+                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' 
+                                : dayKey === 'friday' 
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                                : 'bg-primary-500/10 text-primary-400 border-primary-500/30'
+                            }`}>
+                              {dayLabel.en.slice(0, 3)}
+                            </div>
+                            <div>
+                              <div className="font-bold text-dark-text text-sm flex items-center gap-2">
+                                {dayLabel.en}
+                                <span className="text-xs text-dark-muted font-normal">({dayLabel.ur})</span>
+                              </div>
+                              <div className="text-[11px] font-semibold mt-0.5">
+                                {isOff ? (
+                                  <span className="text-purple-400">🌴 School Off / ہفتہ وار چھٹی</span>
+                                ) : (
+                                  <span className="text-emerald-400 font-mono">
+                                    {formatTo12h(startTime)} — {formatTo12h(endTime)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Day Off Switch */}
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={isOff}
+                                onChange={e => {
+                                  const checked = e.target.checked;
+                                  setStaffTimings(prev => ({
+                                    ...prev,
+                                    dayTimings: {
+                                      ...(prev.dayTimings || defaultDayTimings),
+                                      [dayKey]: {
+                                        ...dayConfig,
+                                        isOff: checked
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-dark-bg border-dark-border cursor-pointer"
+                              />
+                              <span className={`text-xs font-bold ${isOff ? 'text-purple-300' : 'text-dark-muted'}`}>
+                                {isOff ? 'School Off (چھٹی)' : 'Working Day (اوپن)'}
+                              </span>
+                            </label>
+                          </div>
+
+                          {/* Timing Inputs (Enabled only if working day) */}
+                          <div className={`flex items-center gap-3 transition-opacity ${isOff ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black text-dark-muted uppercase block">Start / Late Time</label>
+                              <input
+                                type="time"
+                                disabled={isOff}
+                                value={startTime}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setStaffTimings(prev => ({
+                                    ...prev,
+                                    dayTimings: {
+                                      ...(prev.dayTimings || defaultDayTimings),
+                                      [dayKey]: {
+                                        ...dayConfig,
+                                        startTime: val
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="premium-input font-mono text-xs py-1.5 px-3 font-bold w-28"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black text-dark-muted uppercase block">Closing Time</label>
+                              <input
+                                type="time"
+                                disabled={isOff}
+                                value={endTime}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setStaffTimings(prev => ({
+                                    ...prev,
+                                    dayTimings: {
+                                      ...(prev.dayTimings || defaultDayTimings),
+                                      [dayKey]: {
+                                        ...dayConfig,
+                                        endTime: val
+                                      }
+                                    }
+                                  }));
+                                }}
+                                className="premium-input font-mono text-xs py-1.5 px-3 font-bold w-28"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        setSaving(true);
+                        if (userData?.schoolId) {
+                          await updateDoc(doc(db, 'schools', userData.schoolId), {
+                            staffTimings: staffTimings,
+                            updatedAt: serverTimestamp()
+                          });
+                        }
+                        showToast('success', '✅ Staff day-wise shift timings successfully saved to school database!');
+                      } catch (err) {
+                        console.error(err);
+                        showToast('error', 'Failed to save staff timings.');
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    disabled={saving}
+                    className="premium-button-primary py-2.5 px-6 text-xs font-bold flex items-center gap-2 shadow-lg cursor-pointer"
+                  >
+                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Save Shift Timings
+                  </button>
                 </div>
               </GlassCard>
             </div>

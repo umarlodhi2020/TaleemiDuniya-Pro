@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useSchool } from '../../context/SchoolContext';
-import { formatTo12h, calculateDutyHours } from '../../utils/timeFormat';
+import { formatTo12h, calculateDutyHours, getShiftTimingForDate } from '../../utils/timeFormat';
 import { normalizeTo24h } from '../../pages/school-admin/StaffAttendanceRegister';
 
 /**
@@ -50,13 +50,13 @@ export default function DailyStaffAttendanceReportModal({
     }
   };
 
-  // Active School Settings Shift Timings
-  const defaultShiftIn = schoolData?.staffTimings?.shiftStartTime 
-    ? formatTo12h(schoolData.staffTimings.shiftStartTime) 
-    : '08:00 AM';
-  const defaultShiftOut = schoolData?.staffTimings?.shiftEndTime 
-    ? formatTo12h(schoolData.staffTimings.shiftEndTime) 
-    : '02:00 PM';
+  // Active School Settings Shift Timings for the active date (Day-specific e.g. Saturday)
+  const dayTiming = useMemo(() => {
+    return getShiftTimingForDate(activeDate, schoolData?.staffTimings);
+  }, [activeDate, schoolData?.staffTimings]);
+
+  const defaultShiftIn = dayTiming.shiftInFormatted || '07:55 AM';
+  const defaultShiftOut = dayTiming.shiftOutFormatted || '02:00 PM';
 
   // Format date labels
   const { formattedDateEng, formattedDayName, formattedDateUrdu } = useMemo(() => {

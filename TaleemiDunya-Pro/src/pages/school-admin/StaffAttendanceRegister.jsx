@@ -31,7 +31,7 @@ import {
   QrCode,
   UserCheck
 } from 'lucide-react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
@@ -45,6 +45,7 @@ import {
 import StaffTimeSlipModal from '../../components/common/StaffTimeSlipModal';
 import MasterStaffAttendanceReportModal from '../../components/common/MasterStaffAttendanceReportModal';
 import DailyStaffAttendanceReportModal from '../../components/common/DailyStaffAttendanceReportModal';
+import { getShiftTimingForDate, checkDateHoliday, DAY_LABELS, formatDateKey } from '../../utils/timeFormat';
 
 // ── Time Formatting & Normalization Helpers ──
 export const normalizeTo24h = (timeStr) => {
@@ -161,9 +162,79 @@ const StaffAttendanceRegister = () => {
   const { schoolData } = useSchool();
   const schoolId = userData?.schoolId || schoolData?.id;
 
-  // Active School Settings Staff Shift Timings
-  const defaultShiftIn = normalizeTo24h(schoolData?.staffTimings?.shiftStartTime || schoolData?.shiftStartTime || '07:55') || '07:55';
-  const defaultShiftOut = normalizeTo24h(schoolData?.staffTimings?.shiftEndTime || schoolData?.shiftEndTime || '14:00') || '14:00';
+  // Active School Settings Staff Shift Timings for Selected Date (Day-wise support e.g. Saturday)
+  const selectedDateTiming = useMemo(() => {
+    return getShiftTimingForDate(selectedDate, schoolData?.staffTimings);
+  }, [selectedDate, schoolData?.staffTimings]);
+
+  const defaultShiftIn = selectedDateTiming.shiftIn;
+  const defaultShiftOut = selectedDateTiming.shiftOut;
+
+  // Check if selectedDate is a school holiday, government holiday, or day off
+  const selectedDateHoliday = useMemo(() => {
+    return checkDateHoliday(selectedDate, schoolData?.holidays, schoolData?.staffTimings);
+  }, [selectedDate, schoolData?.holidays, schoolData?.staffTimings]);
+
+  // Declare Holiday Modal State
+  const [showHolidayModal, setShowHolidayModal] = useState(false);
+  const [holidayModalForm, setHolidayModalForm] = useState({
+    title: '',
+    start: '',
+    end: '',
+    type: 'Government'
+  });
+  const [savingHoliday, setSavingHoliday] = useState(false);
+
+  // Quick action: Save declared holiday from modal
+  const handleSaveDeclaredHoliday = async (e) => {
+    if (e) e.preventDefault();
+    if (!holidayModalForm.title || !holidayModalForm.start) {
+      showToast('error', 'Please provide a holiday title and start date.');
+      return;
+    }
+    try {
+      setSavingHoliday(true);
+      const newH = {
+        id: `h-${Date.now()}`,
+        title: holidayModalForm.title.trim(),
+        start: holidayModalForm.start,
+        end: holidayModalForm.end || holidayModalForm.start,
+        type: holidayModalForm.type || 'Government',
+        declaredAt: new Date().toISOString()
+      };
+      const existingHolidays = Array.isArray(schoolData?.holidays) ? schoolData.holidays : [];
+      const updatedHolidays = [newH, ...existingHolidays];
+
+      if (schoolId) {
+        await updateDoc(doc(db, 'schools', schoolId), {
+          holidays: updatedHolidays,
+          updatedAt: serverTimestamp()
+        });
+      }
+      localStorage.setItem('school_holidays_list', JSON.stringify(updatedHolidays));
+      showToast('success', `✅ Holiday "${newH.title}" declared successfully!`);
+      setShowHolidayModal(false);
+    } catch (err) {
+      console.error('Error saving holiday:', err);
+      showToast('error', 'Failed to declare holiday. Please try again.');
+    } finally {
+      setSavingHoliday(false);
+    }
+  };
+
+  // Quick action: Mark all staff as Holiday
+  const handleMarkAllHoliday = () => {
+    const updated = { ...dailyAttendanceMap };
+    staffList.forEach(staff => {
+      updated[staff.id] = {
+        ...(updated[staff.id] || {}),
+        status: 'leave', // Leave/Holiday
+        notes: `Holiday: ${selectedDateHoliday.title || 'Official Holiday'}`
+      };
+    });
+    setDailyAttendanceMap(updated);
+    showToast('info', `Marked all staff as Holiday for ${selectedDate}. Click Save to confirm.`);
+  };
 
   // Tabs: 'daily' | 'monthly'
   const [activeTab, setActiveTab] = useState('daily');
@@ -991,17 +1062,29 @@ const StaffAttendanceRegister = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => {
+                    setHolidayModalForm({ title: '', start: selectedDate, end: selectedDate, type: 'Government' });
+                    setShowHolidayModal(true);
+                  }}
+                  className="py-2 px-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer"
+                  title="Declare School or Government Holiday / چھٹی کا اندراج"
+                >
+                  <Calendar size={14} className="text-purple-400" />
+                  <span>Holiday</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setShowDailyReport(true)}
-                  className="w-1/2 py-2 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
+                  className="py-2 px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
                   title="Print Single-Day Staff Attendance & Punch Sheet (PDF)"
                 >
                   <Printer size={15} />
-                  <span>Print Sheet</span>
+                  <span>Print</span>
                 </button>
                 <button
                   onClick={handleSaveAttendance}
                   disabled={savingDaily || loadingStaff}
-                  className="w-1/2 premium-button-primary py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-500/20"
+                  className="premium-button-primary py-2 px-3.5 rounded-xl flex items-center justify-center gap-1.5 text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary-500/20"
                 >
                   {savingDaily ? (
                     <>
@@ -1025,21 +1108,33 @@ const StaffAttendanceRegister = () => {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => {
+                    setHolidayModalForm({ title: '', start: `${selectedMonth}-01`, end: `${selectedMonth}-01`, type: 'Government' });
+                    setShowHolidayModal(true);
+                  }}
+                  className="py-2 px-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 flex items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer"
+                  title="Declare School or Government Holiday"
+                >
+                  <Calendar size={14} className="text-purple-400" />
+                  <span>Holiday</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setTimeSlipStaff(timeSlipStaff || filteredStaff[0] || staffList[0])}
-                  className="w-1/2 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
+                  className="py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
                   title="Single Staff Monthly Attendance Sheet & Punch Log"
                 >
                   <UserCheck size={15} />
-                  <span>Single Sheet</span>
+                  <span>Single</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowMasterReport(true)}
-                  className="w-1/2 py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
+                  className="py-2 px-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-lg shadow-purple-500/20 transition-all cursor-pointer"
                   title="Print Master Attendance Sheet for all staff"
                 >
                   <Printer size={15} />
-                  <span>Master Sheet</span>
+                  <span>Master</span>
                 </button>
               </div>
             </div>
@@ -1058,9 +1153,15 @@ const StaffAttendanceRegister = () => {
                 <span className="font-mono text-xs sm:text-sm font-black text-emerald-400 tracking-wide">{liveClock}</span>
               </div>
               <div className="text-xs text-dark-text">
-                <span className="font-bold text-dark-text">Official Shift: </span>
+                <span className="font-bold text-dark-text">Official Shift ({selectedDateTiming.dayLabel?.en || 'Day'}): </span>
                 <span className="font-mono text-primary-300 font-bold">{formatTo12h(defaultShiftIn)} - {formatTo12h(defaultShiftOut)}</span>
-                <span className="text-dark-muted ml-2 font-medium hidden sm:inline">(Standard 6 Hours)</span>
+                {selectedDateTiming.isOff ? (
+                  <span className="text-purple-400 ml-2 font-bold bg-purple-500/15 px-2 py-0.5 rounded-full border border-purple-500/30">
+                    Day Off / ہفتہ وار چھٹی
+                  </span>
+                ) : (
+                  <span className="text-dark-muted ml-2 font-medium hidden sm:inline">(Late after {formatTo12h(defaultShiftIn)})</span>
+                )}
               </div>
             </div>
 
@@ -1089,6 +1190,33 @@ const StaffAttendanceRegister = () => {
               ))}
             </div>
           </div>
+
+          {/* Holiday Alert Banner (School Holiday / Government Holiday / Day Off) */}
+          {selectedDateHoliday.isHoliday && (
+            <div className="bg-gradient-to-r from-purple-900/40 via-indigo-900/30 to-pink-900/20 border border-purple-500/40 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-purple-200 shadow-md">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🎉</span>
+                <div>
+                  <h4 className="text-sm font-black text-white flex items-center gap-2">
+                    {selectedDateHoliday.title}
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/30 text-purple-200 border border-purple-400/40 uppercase font-bold">
+                      {selectedDateHoliday.type} {selectedDateHoliday.isWeeklyOff ? 'Off' : 'Holiday'}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-purple-300/80 mt-0.5">
+                    آج اسکول کا دن چھٹی / تعطیل ہے۔ عملے کو غیر حاضر (Absent) شمار نہیں کیا جائے گا۔
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleMarkAllHoliday}
+                className="px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shrink-0 flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                🌴 Mark All as Holiday
+              </button>
+            </div>
+          )}
 
           {/* Quick Bulk Actions & Unsaved Banner */}
           <div className="flex flex-wrap items-center justify-between gap-3 bg-dark-bg/40 p-3.5 rounded-xl border border-dark-border/40">
@@ -1506,15 +1634,22 @@ const StaffAttendanceRegister = () => {
                       </th>
                       {/* Day Headers 1..N */}
                       {daysInSelectedMonth.map(day => {
+                        const dateStr = `${selectedMonth}-${String(day).padStart(2, '0')}`;
+                        const dayHoliday = checkDateHoliday(dateStr, schoolData?.holidays, schoolData?.staffTimings);
                         const [y, m] = selectedMonth.split('-').map(Number);
-                        const isSun = new Date(y, m - 1, day).getDay() === 0;
+                        const isSun = dayHoliday.type === 'Sunday' || new Date(y, m - 1, day).getDay() === 0;
+                        const isHol = dayHoliday.isHoliday && !isSun;
                         return (
                           <th 
                             key={day} 
                             className={`py-3 px-1 text-center border-r border-dark-border/40 min-w-[28px] max-w-[32px] ${
-                              isSun ? 'bg-sky-500/10 text-sky-400 font-bold' : ''
+                              isSun 
+                                ? 'bg-sky-500/10 text-sky-400 font-bold' 
+                                : isHol 
+                                ? 'bg-purple-500/15 text-purple-300 font-bold border-purple-500/30' 
+                                : ''
                             }`}
-                            title={isSun ? `Day ${day} (Sunday / School Holiday)` : `Day ${day}`}
+                            title={isSun ? `Day ${day}: Sunday (School Holiday)` : isHol ? `Day ${day}: ${dayHoliday.title} (${dayHoliday.type})` : `Day ${day}`}
                           >
                             {day}
                           </th>
@@ -1579,15 +1714,21 @@ const StaffAttendanceRegister = () => {
                             {staff.department || 'General'}
                           </td>
 
-                          {/* Daily Status Cells with Sunday & In/Out Tooltip */}
+                          {/* Daily Status Cells with Sunday & Holiday Tooltip */}
                           {daysInSelectedMonth.map(day => {
+                            const dateStr = `${selectedMonth}-${String(day).padStart(2, '0')}`;
+                            const dayHoliday = checkDateHoliday(dateStr, schoolData?.holidays, schoolData?.staffTimings);
                             const [y, m] = selectedMonth.split('-').map(Number);
-                            const isSun = new Date(y, m - 1, day).getDay() === 0;
+                            const isSun = dayHoliday.type === 'Sunday' || new Date(y, m - 1, day).getDay() === 0;
+                            const isHol = dayHoliday.isHoliday && !isSun;
+
                             const dayRec = staffAttMap[day];
                             const status = dayRec?.status || (typeof dayRec === 'string' ? dayRec : '');
-                            let cellContent = isSun ? 'S' : '-';
+                            let cellContent = isSun ? 'S' : isHol ? 'H' : '-';
                             let cellClass = isSun 
                               ? 'bg-sky-500/10 text-sky-400/80 font-bold border border-sky-500/20' 
+                              : isHol 
+                              ? 'bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30'
                               : 'text-dark-muted opacity-30';
 
                             if (status === 'present') {
@@ -1608,6 +1749,8 @@ const StaffAttendanceRegister = () => {
                             const effectiveOut = dayRec?.timeOut ? formatTo12h(dayRec.timeOut) : (status === 'present' ? 'On Duty' : null);
                             const tooltipText = isSun 
                               ? `Day ${day}: Sunday (School Holiday / Off)`
+                              : isHol 
+                              ? `Day ${day}: ${dayHoliday.title} (${dayHoliday.type} Holiday)`
                               : effectiveIn 
                               ? `Day ${day}: In: ${effectiveIn} • Out: ${effectiveOut} (${status.toUpperCase()})`
                               : `Day ${day}: ${status || 'Not marked'}`;
@@ -1616,7 +1759,7 @@ const StaffAttendanceRegister = () => {
                               <td 
                                 key={day} 
                                 className={`py-2 px-1 text-center border-r border-dark-border/40 cursor-pointer ${
-                                  isSun ? 'bg-sky-500/5' : ''
+                                  isSun ? 'bg-sky-500/5' : isHol ? 'bg-purple-500/5' : ''
                                 }`} 
                                 title={tooltipText}
                                 onClick={() => setTimeSlipStaff(staff)}
@@ -1684,6 +1827,108 @@ const StaffAttendanceRegister = () => {
           dailyAttendanceMap={dailyAttendanceMap}
           onDateChange={(newDate) => setSelectedDate(newDate)}
         />
+      )}
+
+      {/* QUICK DECLARE HOLIDAY MODAL */}
+      {showHolidayModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-dark-paper border border-purple-500/30 rounded-3xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-500 via-indigo-500 to-pink-500" />
+            
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Declare Holiday / چھٹی</h3>
+                  <p className="text-[11px] text-dark-muted">اسکول یا حکومتی چھٹی کا اعلان کریں</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowHolidayModal(false)}
+                className="w-8 h-8 rounded-full bg-dark-hover hover:bg-dark-border text-dark-muted hover:text-white flex items-center justify-center transition-all cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDeclaredHoliday} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-dark-muted uppercase">Holiday Title / عنوان *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Government Holiday / Rain Day / کشمیر ڈے"
+                  value={holidayModalForm.title}
+                  onChange={e => setHolidayModalForm({ ...holidayModalForm, title: e.target.value })}
+                  className="w-full premium-input text-xs font-bold"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-dark-muted uppercase">Holiday Type / قسم</label>
+                <select
+                  value={holidayModalForm.type}
+                  onChange={e => setHolidayModalForm({ ...holidayModalForm, type: e.target.value })}
+                  className="w-full premium-input text-xs font-semibold bg-dark-bg"
+                >
+                  <option value="Government">🏛️ Government Holiday (حکومتی تعطیل)</option>
+                  <option value="School">🏫 School Holiday (اسکول کی چھٹی)</option>
+                  <option value="Weather">🌧️ Rain / Weather (بارش / خراب موسم)</option>
+                  <option value="Religious">🌙 Religious Festival (مذہبی تہوار)</option>
+                  <option value="National">🇵🇰 National Day (قومی تعطیل)</option>
+                  <option value="Vacation">🏖️ Vacation / Break (تعطیلات)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-dark-muted uppercase">Start Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={holidayModalForm.start}
+                    onChange={e => setHolidayModalForm({ ...holidayModalForm, start: e.target.value })}
+                    className="w-full premium-input font-mono text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-dark-muted uppercase">End Date</label>
+                  <input
+                    type="date"
+                    value={holidayModalForm.end}
+                    onChange={e => setHolidayModalForm({ ...holidayModalForm, end: e.target.value })}
+                    className="w-full premium-input font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-300">
+                💡 چھٹی شامل کرنے کے بعد تمام اساتذہ اور طلبہ کے رجسٹر میں یہ دن چھٹی شمار ہوگا اور کوئی بھی غیر حاضر نہیں ہوگا۔
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowHolidayModal(false)}
+                  className="w-1/2 py-2.5 rounded-xl bg-dark-hover hover:bg-dark-border text-dark-muted hover:text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingHoliday}
+                  className="w-1/2 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-purple-500/20 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {savingHoliday ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                  <span>Save Holiday</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
