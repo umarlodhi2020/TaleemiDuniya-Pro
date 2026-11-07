@@ -1289,9 +1289,18 @@ async function handleAIBotReply(schoolId, senderInfo, queryText, originalJid, so
 
     const senderKey = normalizedSender || originalJid || 'unknown';
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+    // 2. If sender is unregistered and this is casual / personal chat (not asking for menu/admissions/contact/bot),
+    // STAY SILENT! Never interrupt personal conversations with admin by sending robot warnings!
+    const isExplicitBotCall = /^(#bot|\/bot|bot|menu|help|info|salam|aoa|assalam|hi|hello)/i.test(lower);
+    if (intent === 'GENERAL' && !isExplicitBotCall) {
+      console.log(`🤐 [SILENT CASUAL CHAT] Sender ${maskIdentifier(senderKey)} is unregistered and sent general casual text ("${queryText.slice(0, 30)}"). Staying silent to avoid interrupting personal chat with admin.`);
+      return null;
+    }
+
     const lastWarningTime = unregisteredNoticeCooldowns.get(senderKey);
 
-    // 2. Cooldown check: Only send this warning ONCE every 24 hours per unregistered sender!
+    // 3. Cooldown check: Only send this warning ONCE every 24 hours per unregistered sender!
     // If the sender already received the warning in the last 24 hours, STAY SILENT so personal conversation with admin is uninterrupted!
     if (lastWarningTime && (Date.now() - lastWarningTime < TWENTY_FOUR_HOURS)) {
       console.log(`⏳ [COOLDOWN ACTIVE] Sender ${maskIdentifier(senderKey)} already received privacy warning within last 24h. Remaining silent.`);
