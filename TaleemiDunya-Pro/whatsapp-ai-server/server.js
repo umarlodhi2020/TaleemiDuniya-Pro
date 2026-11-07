@@ -913,7 +913,20 @@ async function startWhatsAppSession(schoolId = 'NNRuCtHxQNjISc9EPgMs') {
       if (type !== 'notify') return;
 
       for (const msg of messages) {
-        if (!msg.message || msg.key.fromMe) continue;
+        if (!msg.message) continue;
+
+        // When human admin sends a message from WhatsApp phone:
+        if (msg.key.fromMe) {
+          const targetJid = String(msg.key.remoteJid || '').trim();
+          if (targetJid && !targetJid.endsWith('@g.us') && !targetJid.endsWith('@broadcast') && !targetJid.endsWith('@newsletter')) {
+            const now = Date.now();
+            adminManualChats.set(targetJid, now);
+            const phoneOnly = targetJid.split('@')[0];
+            adminManualChats.set(phoneOnly, now);
+            console.log(`👤 [ADMIN HUMAN CHAT] Admin sent a manual message to ${maskIdentifier(targetJid)}. Bot silenced for this conversation for 24 hours.`);
+          }
+          continue;
+        }
 
         const msgId = msg.key.id;
         if (isMessageProcessed(msgId)) {
@@ -958,6 +971,18 @@ async function startWhatsAppSession(schoolId = 'NNRuCtHxQNjISc9EPgMs') {
         if (!incomingText) continue;
 
         console.log(`\n💬 [MSG RECEIVED:${senderIdentity.correlationId}] From: ${maskIdentifier(senderJid)} (Type: ${senderIdentity.isLid ? 'LID' : 'PHONE_JID'} | Phone: ${senderIdentity.resolvedPhone ? maskIdentifier(senderIdentity.resolvedPhone) : '[UNRESOLVED]'}) | Text: "${incomingText}"`);
+
+        // Check if admin is currently having a manual personal conversation with this sender
+        const lastAdminTime = adminManualChats.get(senderJid) || 
+                              (senderIdentity.resolvedPhone ? adminManualChats.get(senderIdentity.resolvedPhone) : null);
+        const lowerIncoming = incomingText.toLowerCase().trim();
+        const isExplicitBotCall = ['#bot', 'bot', 'menu', '0'].includes(lowerIncoming);
+
+        // If admin sent a message in the last 24 hours, do not auto-respond unless user specifically types #bot or menu
+        if (lastAdminTime && (Date.now() - lastAdminTime < 24 * 60 * 60 * 1000) && !isExplicitBotCall) {
+          console.log(`🤐 [BOT SILENCED: ADMIN ACTIVE] Admin recently messaged ${maskIdentifier(senderJid)}. Suppressing automated response so human personal conversation is uninterrupted.`);
+          continue;
+        }
 
         try {
           const aiResponse = await handleAIBotReply(schoolId, senderIdentity, incomingText, senderJid, sock);
@@ -1022,6 +1047,8 @@ async function startWhatsAppSession(schoolId = 'NNRuCtHxQNjISc9EPgMs') {
 const verifiedFamilies = new Map(); // cleanPhone -> { schoolId, students: [], parentName, verifiedAt }
 const schoolNamesCache = new Map();
 const schoolDetailsCache = new Map();
+const unregisteredNoticeCooldowns = new Map(); // senderKey -> timestamp (rate-limits warning to max 1 per 24 hours)
+const adminManualChats = new Map();            // jid/phone -> timestamp (silences bot when admin chats manually)
 
 async function getSchoolDetails(schoolId) {
   if (schoolDetailsCache.has(schoolId)) {
@@ -1252,9 +1279,29 @@ async function handleAIBotReply(schoolId, senderInfo, queryText, originalJid, so
     const reason = !normalizedSender ? (isLid ? 'UNRESOLVED_LID' : 'INVALID_PHONE') : 'UNREGISTERED_PHONE';
     console.log(`🛡️ [ACCESS DENIED:${correlationId || 'N/A'}] Reason: ${reason} | Sender: ${maskIdentifier(normalizedSender || originalJid)}`);
 
-    const numberDisplay = normalizedSender ? ` (+${normalizedSender})` : '';
-
     const unregCfg = school.unregisteredConfig || {};
+
+    // 1. If school disabled the unregistered warning entirely in settings
+    if (unregCfg.enabled === false || unregCfg.disableWarning === true) {
+      console.log(`🔇 [UNREGISTERED NOTICE DISABLED] Warning is disabled in school settings. Staying silent.`);
+      return null;
+    }
+
+    const senderKey = normalizedSender || originalJid || 'unknown';
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    const lastWarningTime = unregisteredNoticeCooldowns.get(senderKey);
+
+    // 2. Cooldown check: Only send this warning ONCE every 24 hours per unregistered sender!
+    // If the sender already received the warning in the last 24 hours, STAY SILENT so personal conversation with admin is uninterrupted!
+    if (lastWarningTime && (Date.now() - lastWarningTime < TWENTY_FOUR_HOURS)) {
+      console.log(`⏳ [COOLDOWN ACTIVE] Sender ${maskIdentifier(senderKey)} already received privacy warning within last 24h. Remaining silent.`);
+      return null;
+    }
+
+    // Record timestamp so warning is not repeated for next 24 hours
+    unregisteredNoticeCooldowns.set(senderKey, Date.now());
+
+    const numberDisplay = normalizedSender ? ` (+${normalizedSender})` : '';
     const helplinePhone = unregCfg.helpline || school.phone || '0300-1234567';
     const campusAddress = unregCfg.campus || school.address || 'Main Campus';
     const customNote = unregCfg.customNote;
@@ -1280,7 +1327,8 @@ async function handleAIBotReply(schoolId, senderInfo, queryText, originalJid, so
            `📍 *Campus:* ${campusAddress}\n\n` +
            `💡 *Available Public Options:*\n` +
            `6️⃣ New Admission Inquiry\n` +
-           `7️⃣ Contact Administration`;
+           `7️⃣ Contact Administration\n\n` +
+           `_(نوٹ: یہ معلوماتی میسج 24 گھنٹے میں صرف ایک بار بھیجا جاتا ہے تاکہ ایڈمن سے ذاتی گفتگو میں خلل نہ پڑے)_`;
   }
 
   // -------------------------------------------------------------------------

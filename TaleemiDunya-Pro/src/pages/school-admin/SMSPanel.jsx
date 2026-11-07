@@ -124,6 +124,7 @@ const SMSPanel = () => {
 
     // Custom Unregistered Notice / Warning Message State
   const defaultNoticeNote = 'Bacho ki confidential information (Fees, Attendance, Results) ki hifazat ke liye TaleemiDunya AI Assistant sirf verified parent contacts ko direct access deta hai.';
+  const [warningNoticeEnabled, setWarningNoticeEnabled] = useState(true);
   const [warningHelpline, setWarningHelpline] = useState('');
   const [warningCampus, setWarningCampus] = useState('');
   const [warningCustomNote, setWarningCustomNote] = useState(defaultNoticeNote);
@@ -136,6 +137,7 @@ const SMSPanel = () => {
   useEffect(() => {
     const unreg = schoolData?.eServices?.whatsApp?.unregisteredNotice;
     if (unreg) {
+      if (unreg.enabled !== undefined) setWarningNoticeEnabled(Boolean(unreg.enabled));
       if (unreg.helpline) setWarningHelpline(unreg.helpline);
       if (unreg.campus) setWarningCampus(unreg.campus);
       if (unreg.customNote) setWarningCustomNote(unreg.customNote);
@@ -157,6 +159,7 @@ const SMSPanel = () => {
 
     const schoolId = schoolData?.id || userData?.schoolId || 'NNRuCtHxQNjISc9EPgMs';
     const noticeData = {
+      enabled: warningNoticeEnabled,
       helpline: warningHelpline || schoolData?.phone || '0300-1234567',
       campus: warningCampus || schoolData?.address || 'Main Campus',
       customNote: warningCustomNote || defaultNoticeNote,
@@ -186,7 +189,7 @@ const SMSPanel = () => {
 
       setWarningSavedSuccess(true);
       setTimeout(() => setWarningSavedSuccess(false), 4000);
-      alert('✅ Unregistered warning message and contact details saved successfully! WhatsApp Bot is updated.');
+      alert('✅ Unregistered warning settings saved successfully! WhatsApp Bot is updated.');
     } catch (err) {
       console.error('Error saving warning settings:', err);
       alert('Error saving settings: ' + err.message);
@@ -986,6 +989,32 @@ const SMSPanel = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               {/* Form Controls */}
               <form onSubmit={handleSaveWarningSettings} className="lg:col-span-7 space-y-4">
+                {/* Enable / Disable Switch & Personal Chat Protection Info */}
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-white">Security Notice Status:</span>
+                      <span className={`text-[11px] font-black px-2 py-0.5 rounded-full ${warningNoticeEnabled ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                        {warningNoticeEnabled ? 'ACTIVE (Enabled)' : 'MUTED (Disabled)'}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-dark-muted mt-1 leading-relaxed">
+                      💡 <b>Smart Personal Chat Protection:</b> Yeh warning 24 ghante mein sirf 1 baar bheji jayegi. Jab admin khud kisi se WhatsApp par baat kare ga, bot khudkar tor par khamosh rahe ga taake personal chat mein koi khalal na pare.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setWarningNoticeEnabled(!warningNoticeEnabled)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm shrink-0 flex items-center justify-center gap-1.5 ${
+                      warningNoticeEnabled
+                        ? 'bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/30'
+                        : 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30'
+                    }`}
+                  >
+                    {warningNoticeEnabled ? 'Mute Warning Notice' : 'Enable Warning Notice'}
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
