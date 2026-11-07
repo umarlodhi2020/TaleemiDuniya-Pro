@@ -1,10 +1,12 @@
-import React from 'react';
-import { Landmark, Printer, X, Download, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { Landmark, Printer, X, Download, FileText, Send } from 'lucide-react';
 import { formatPeriod } from '../../utils/payrollUtils';
 import { useSchool } from '../../context/SchoolContext';
+import BulkPayslipWhatsAppModal from './BulkPayslipWhatsAppModal';
 
 const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: propsUserData, onClose }) => {
   const { schoolData: contextSchoolData } = useSchool();
+  const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   if (!batchData || batchData.length === 0) return null;
 
   const finalSchoolData = contextSchoolData || propsSchoolData || {};
@@ -130,6 +132,13 @@ const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: p
           </h3>
           <div className="flex items-center gap-2">
             <button 
+              onClick={() => setShowBulkWhatsApp(true)} 
+              className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5 shadow-sm" 
+              title="Bulk WhatsApp all salary slips directly to staff"
+            >
+              <Send size={14} /> WhatsApp All Slips ({batchData.length})
+            </button>
+            <button 
               onClick={handlePrint} 
               className="px-3 py-1.5 bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5" 
               title="Print All"
@@ -145,6 +154,17 @@ const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: p
             </button>
           </div>
         </div>
+
+        {/* Bulk WhatsApp Modal */}
+        {showBulkWhatsApp && (
+          <BulkPayslipWhatsAppModal
+            isOpen={showBulkWhatsApp}
+            onClose={() => setShowBulkWhatsApp(false)}
+            batchData={batchData}
+            schoolData={finalSchoolData}
+            userData={finalUserData}
+          />
+        )}
 
         {/* Batch Print Area */}
         <div id="batch-payslip-printable-area" className="print:p-0 bg-gray-100 print:bg-white overflow-auto max-h-[80vh] print:max-h-none">

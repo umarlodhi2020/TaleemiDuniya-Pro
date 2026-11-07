@@ -1,7 +1,9 @@
-import React from 'react';
-import { Landmark, Printer, X, FileText, CheckCircle2, ShieldCheck, AlertCircle, Download } from 'lucide-react';
+import React, { useState } from 'react';
+import { Landmark, Printer, X, FileText, CheckCircle2, ShieldCheck, AlertCircle, Download, Send, CheckCheck, Loader2, ExternalLink } from 'lucide-react';
 import { formatPeriod, exportPayslipToCSV } from '../../utils/payrollUtils';
 import { useSchool } from '../../context/SchoolContext';
+import { sendWhatsAppApiMessage, formatPhoneNumber } from '../../utils/notificationService';
+import { buildPayslipWhatsAppText } from './BulkPayslipWhatsAppModal';
 
 /**
  * Reusable A4-Printable Payslip Modal
@@ -9,6 +11,8 @@ import { useSchool } from '../../context/SchoolContext';
  */
 const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: propsUserData, onClose }) => {
   const { schoolData: contextSchoolData } = useSchool();
+  const [isSendingWA, setIsSendingWA] = useState(false);
+  const [waNotice, setWaNotice] = useState(null); // { type: 'success' | 'error', message: '', waUrl?: string }
   if (!payslipData) return null;
 
   const isProcessed = payslipData.status === 'Processed' || payslipData.status === 'processed';
@@ -102,7 +106,7 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
     }, 600);
   };
 
-  const handleShareWhatsApp = () => {
+  const handleShareWhatsApp = async (forceManual = false) => {
     let phone = payslipData.staffPhone || payslipData.phone || payslipData.mobile || payslipData.contact || payslipData.whatsapp || '';
 
     if (!phone) {
@@ -113,39 +117,49 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
       phone = enteredPhone.trim();
     }
 
-    let cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.startsWith('03')) {
-      cleanPhone = '92' + cleanPhone.slice(1);
-    } else if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
-      cleanPhone = '92' + cleanPhone;
+    const cleanPhone = formatPhoneNumber(phone);
+    if (!cleanPhone || cleanPhone.length < 10) {
+      alert('Ghalat phone number. Barah-e-karam durust Pakistani mobile number darj karein.');
+      return;
     }
 
-    const netSalaryFormatted = Number(payslipData.netSalary || 0).toLocaleString();
-    const periodDisplay = formatPeriod(payslipData.period || payslipData.month);
-
-    const text = 
-      `*🏛️ ${schoolName.toUpperCase()}*\n` +
-      `*📄 Official Salary Slip - ${periodDisplay}*\n` +
-      `----------------------------------------\n` +
-      `👤 *Staff Name:* ${payslipData.staffName}\n` +
-      `🆔 *Employee ID:* ${payslipData.staffIdCode || payslipData.staffId || 'N/A'}\n` +
-      `💼 *Designation:* ${payslipData.staffRole || 'Staff'}\n` +
-      `🏢 *Department:* ${payslipData.staffDepartment || 'Academic'}\n` +
-      `----------------------------------------\n` +
-      `📅 *Working Days:* ${payslipData.totalWorkingDays ?? 26}\n` +
-      `✅ *Present:* ${payslipData.presentDays ?? 0} | ❌ *Absent:* ${payslipData.absentDays ?? 0} | 🏖️ *Leaves:* ${payslipData.leaveDays ?? 0}\n` +
-      `----------------------------------------\n` +
-      `💵 *Basic Salary:* Rs. ${Number(payslipData.basicSalary || 0).toLocaleString()}\n` +
-      `➕ *Allowances:* Rs. ${Number(payslipData.totalAllowances || 0).toLocaleString()}\n` +
-      `➖ *Deductions:* Rs. ${Number(payslipData.totalDeductions || 0).toLocaleString()}\n` +
-      `----------------------------------------\n` +
-      `💰 *NET SALARY:* Rs. ${netSalaryFormatted}\n` +
-      `📊 *Status:* ${payslipData.status || 'PROCESSED'}\n` +
-      `----------------------------------------\n` +
-      `_TaleemiDunya Pro AI HR & Payroll System_`;
-
+    const schoolId = finalSchoolData?.id || finalUserData?.schoolId || 'NNRuCtHxQNjISc9EPgMs';
+    const text = buildPayslipWhatsAppText(payslipData, schoolName);
     const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
-    window.open(waUrl, '_blank');
+
+    if (forceManual) {
+      window.open(waUrl, '_blank');
+      return;
+    }
+
+    // Direct automated dispatch via Alwaysdata WhatsApp Bot
+    setIsSendingWA(true);
+    setWaNotice(null);
+
+    try {
+      const res = await sendWhatsAppApiMessage(schoolId, cleanPhone, text);
+      if (res && res.success) {
+        setWaNotice({
+          type: 'success',
+          message: `✅ Payslip direct WhatsApp par deliver ho gayi (+${cleanPhone})!`
+        });
+      } else {
+        // Fallback to manual WhatsApp Web
+        setWaNotice({
+          type: 'error',
+          message: `Direct bot send nahi ho saka (${res?.error || 'Offline'}). Barah-e-karam WhatsApp Web se open karein.`,
+          waUrl
+        });
+      }
+    } catch (err) {
+      setWaNotice({
+        type: 'error',
+        message: `Network error. WhatsApp Web se open karein.`,
+        waUrl
+      });
+    } finally {
+      setIsSendingWA(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -166,11 +180,20 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
             {isProcessed && (
               <>
                 <button 
-                  onClick={handleShareWhatsApp}
-                  className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5" 
-                  title="Share to WhatsApp"
+                  onClick={() => handleShareWhatsApp(false)}
+                  disabled={isSendingWA}
+                  className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5 disabled:opacity-50" 
+                  title="Direct WhatsApp to Staff"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle"><path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z"/></svg> WhatsApp
+                  {isSendingWA ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" /> Bhej raha hai...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={14} /> Send WhatsApp
+                    </>
+                  )}
                 </button>
                 <button 
                   onClick={handleExportCSV} 
@@ -197,6 +220,36 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
             </button>
           </div>
         </div>
+
+        {/* Live WhatsApp Delivery Status Banner */}
+        {waNotice && (
+          <div className={`px-4 py-2 text-xs flex items-center justify-between gap-2 border-b print:hidden animate-fade-in ${
+            waNotice.type === 'success' 
+              ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' 
+              : 'bg-red-500/10 text-red-300 border-red-500/20'
+          }`}>
+            <div className="flex items-center gap-2">
+              {waNotice.type === 'success' ? <CheckCheck size={16} className="text-emerald-400" /> : <AlertCircle size={16} className="text-red-400" />}
+              <span>{waNotice.message}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {waNotice.waUrl && (
+                <button 
+                  onClick={() => window.open(waNotice.waUrl, '_blank')}
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <ExternalLink size={12} /> WhatsApp Web se Bhejein
+                </button>
+              )}
+              <button 
+                onClick={() => setWaNotice(null)} 
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Content Body */}
         {!isProcessed ? (

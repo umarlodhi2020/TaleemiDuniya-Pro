@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import GlassCard from '../../components/common/GlassCard';
 import PayslipModal from '../../components/common/PayslipModal';
 import BatchPayslipModal from '../../components/common/BatchPayslipModal';
+import BulkPayslipWhatsAppModal from '../../components/common/BulkPayslipWhatsAppModal';
 import StaffPayrollHistoryModal from '../../components/common/StaffPayrollHistoryModal';
 import { 
   Calculator, FileText, Printer, CheckCircle2, AlertCircle, X, 
   CheckSquare, Search, Landmark, Clock, UserCheck, Users, 
-  TrendingUp, TrendingDown, DollarSign, Filter, RefreshCw, Layers, Calendar, ShieldAlert, History, Download, Lock, ShieldCheck 
+  TrendingUp, TrendingDown, DollarSign, Filter, RefreshCw, Layers, Calendar, ShieldAlert, History, Download, Lock, ShieldCheck, Send
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getRecords, addRecord, subscribeToCollection } from '../../services/db';
@@ -50,6 +51,7 @@ const PayrollManager = () => {
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [showBatchPayslipModal, setShowBatchPayslipModal] = useState(false);
+  const [showBulkWhatsAppModal, setShowBulkWhatsAppModal] = useState(false);
   const [auditLogs, setAuditLogs] = useState([]);
 
   // Administrative Authorization Flag
@@ -623,13 +625,22 @@ const PayrollManager = () => {
           </button>
 
           {processedPeriodRecords.length > 0 && (
-            <button
-              onClick={() => setShowBatchPayslipModal(true)}
-              title="Print All Salary Slips for Period"
-              className="px-4 py-2.5 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600 hover:text-white font-bold transition-all flex items-center gap-2 cursor-pointer text-sm"
-            >
-              <Printer size={18} /> Batch Salary Slips ({processedPeriodRecords.length})
-            </button>
+            <>
+              <button
+                onClick={() => setShowBulkWhatsAppModal(true)}
+                title="Send Salary Slips via WhatsApp to All Staff"
+                className="px-4 py-2.5 rounded-xl bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white font-bold transition-all flex items-center gap-2 cursor-pointer text-sm shadow-sm"
+              >
+                <Send size={18} /> WhatsApp All ({processedPeriodRecords.length})
+              </button>
+              <button
+                onClick={() => setShowBatchPayslipModal(true)}
+                title="Print All Salary Slips for Period"
+                className="px-4 py-2.5 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600 hover:text-white font-bold transition-all flex items-center gap-2 cursor-pointer text-sm"
+              >
+                <Printer size={18} /> Batch Salary Slips ({processedPeriodRecords.length})
+              </button>
+            </>
           )}
 
           {!isPeriodLocked && periodMonthStatus === 'Processed' && (
@@ -1094,6 +1105,16 @@ const PayrollManager = () => {
           batchData={processedPeriodRecords}
           userData={userData}
           onClose={() => setShowBatchPayslipModal(false)}
+        />
+      )}
+
+      {/* Bulk WhatsApp Payslips Modal */}
+      {showBulkWhatsAppModal && (
+        <BulkPayslipWhatsAppModal
+          isOpen={showBulkWhatsAppModal}
+          batchData={processedPeriodRecords}
+          userData={userData}
+          onClose={() => setShowBulkWhatsAppModal(false)}
         />
       )}
 
