@@ -24,51 +24,70 @@ const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: p
     const printContent = document.getElementById('batch-payslip-printable-area');
     if (!printContent) return;
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Please allow popups to print.");
-      return;
-    }
+    // Remove any existing print iframe
+    const oldFrame = document.getElementById('batch-payslip-print-iframe');
+    if (oldFrame) oldFrame.remove();
 
+    const iframe = document.createElement('iframe');
+    iframe.id = 'batch-payslip-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+
+    // Gather styles with absolute URLs so about:blank never fails loading styles
     const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(el => el.outerHTML)
-      .join('');
+      .map(el => {
+        if (el.tagName.toLowerCase() === 'link' && el.href) {
+          return `<link rel="stylesheet" href="${el.href}">`;
+        }
+        return el.outerHTML;
+      })
+      .join('\n');
 
-    printWindow.document.write(`
+    doc.open();
+    doc.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Batch Salary Slips</title>
+          <base href="${window.location.origin}/">
+          <title>Batch Salary Slips - TaleemiDunya</title>
           ${styles}
           <style>
-            @page { size: auto; margin: 0mm; }
-            body { 
-              margin: 0; 
-              -webkit-print-color-adjust: exact; 
-              print-color-adjust: exact; 
-              background-color: white; 
+            @page { 
+              size: A4 portrait; 
+              margin: 0mm; 
+            }
+            html, body { 
+              margin: 0 !important; 
+              padding: 0 !important;
+              background-color: white !important;
+              color: black !important;
+              -webkit-print-color-adjust: exact !important; 
+              print-color-adjust: exact !important; 
             }
             .page-break {
-              page-break-after: always;
-              break-after: page;
-              margin: 0 !important;
+              page-break-after: always !important;
+              break-after: page !important;
+              margin: 0 auto !important;
               box-shadow: none !important;
+              width: 210mm !important;
+              height: 297mm !important;
+              box-sizing: border-box !important;
+              padding: 10mm !important;
             }
-            @media print {
-              * {
-                color: black !important;
-                background-color: white !important;
-                background: white !important;
-                box-shadow: none !important;
-              }
-              .border, .border-2, .border-b, .border-t {
-                border-color: black !important;
-              }
-              .bg-indigo-950 {
-                border: 2px solid black !important;
-                background-color: white !important;
-                color: black !important;
-              }
+            .payslip-card {
+              break-inside: avoid !important;
+              page-break-inside: avoid !important;
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
           </style>
         </head>
@@ -76,17 +95,21 @@ const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: p
           <div id="batch-payslip-printable-area" class="bg-white text-black">
             ${printContent.innerHTML}
           </div>
-          <script>
-            window.onload = function() {
-              window.focus();
-              window.print();
-              window.close();
-            };
-          </script>
         </body>
       </html>
     `);
-    printWindow.document.close();
+    doc.close();
+
+    // Give iframe time to layout CSS and images before triggering print
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (err) {
+        console.error("Print iframe error, fallback to window.print():", err);
+        window.print();
+      }
+    }, 700);
   };
 
   // Split into chunks of 4 for pagination
@@ -236,7 +259,30 @@ const BatchPayslipModal = ({ batchData, schoolData: propsSchoolData, userData: p
         </div>
       </div>
 
-      {/* Removed problematic global print CSS that caused blank page */}
+      {/* In-window Print Support for Ctrl+P */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #batch-payslip-printable-area, #batch-payslip-printable-area * {
+            visibility: visible;
+          }
+          #batch-payslip-printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background: white !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 };

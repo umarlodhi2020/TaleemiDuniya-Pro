@@ -217,12 +217,21 @@ const PayrollManager = () => {
   }, [payrollData, selectedPeriod, userData]);
 
   const processedPeriodRecords = useMemo(() => {
-    return payrollData.filter(p => 
-      (p.period === selectedPeriod || p.month === selectedPeriod) && 
-      (p.schoolId === userData?.schoolId || !p.schoolId) &&
-      (p.status === 'Processed' || p.status === 'processed' || p.status === 'Locked' || p.status === 'Finalized' || p.status === 'locked')
-    );
-  }, [payrollData, selectedPeriod, userData]);
+    return payrollData
+      .filter(p => 
+        (p.period === selectedPeriod || p.month === selectedPeriod) && 
+        (p.schoolId === userData?.schoolId || !p.schoolId) &&
+        (p.status === 'Processed' || p.status === 'processed' || p.status === 'Locked' || p.status === 'Finalized' || p.status === 'locked')
+      )
+      .map(p => {
+        const staff = staffData.find(s => s.id === p.staffId);
+        return {
+          ...p,
+          staffPhone: staff?.phone || staff?.mobile || staff?.contact || staff?.whatsapp || p.staffPhone || p.phone || '',
+          phone: staff?.phone || staff?.mobile || staff?.contact || staff?.whatsapp || p.phone || p.staffPhone || ''
+        };
+      });
+  }, [payrollData, staffData, selectedPeriod, userData]);
 
   const isPeriodLocked = periodMonthStatus === 'Locked';
 
@@ -420,6 +429,8 @@ const PayrollManager = () => {
     const slip = {
       staffId: staff.id,
       staffName: staff.name,
+      staffPhone: staff.phone || staff.mobile || staff.contact || staff.whatsapp || '',
+      phone: staff.phone || staff.mobile || staff.contact || staff.whatsapp || '',
       staffRole: staff.role || 'Staff',
       staffDepartment: staff.department || 'N/A',
       staffIdCode: staff.staffId || `EMP-${staff.id.slice(0, 4)}`,
@@ -1061,7 +1072,17 @@ const PayrollManager = () => {
       {/* Reusable Printable Payslip Modal */}
       {selectedPayslip && (
         <PayslipModal 
-          payslipData={selectedPayslip.payrollData || selectedPayslip}
+          payslipData={{
+            ...(selectedPayslip.payrollData || {}),
+            ...selectedPayslip,
+            staffPhone: selectedPayslip.phone || selectedPayslip.mobile || selectedPayslip.contact || selectedPayslip.whatsapp || selectedPayslip.payrollData?.staffPhone || selectedPayslip.payrollData?.phone || '',
+            phone: selectedPayslip.phone || selectedPayslip.mobile || selectedPayslip.contact || selectedPayslip.whatsapp || selectedPayslip.payrollData?.phone || selectedPayslip.payrollData?.staffPhone || '',
+            staffName: selectedPayslip.payrollData?.staffName || selectedPayslip.name,
+            staffRole: selectedPayslip.payrollData?.staffRole || selectedPayslip.role,
+            staffDepartment: selectedPayslip.payrollData?.staffDepartment || selectedPayslip.department,
+            staffIdCode: selectedPayslip.payrollData?.staffIdCode || selectedPayslip.staffId || `STF-${selectedPayslip.id?.slice(0, 4)}`,
+            netSalary: selectedPayslip.payrollData?.netSalary ?? selectedPayslip.netSalary
+          }}
           userData={userData}
           onClose={() => setSelectedPayslip(null)}
         />

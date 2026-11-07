@@ -30,47 +30,55 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
     const printContent = document.getElementById('payslip-printable-area');
     if (!printContent) return;
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Please allow popups to print.");
-      return;
-    }
+    // Remove old print frame if exists
+    const oldFrame = document.getElementById('payslip-print-iframe');
+    if (oldFrame) oldFrame.remove();
+
+    const iframe = document.createElement('iframe');
+    iframe.id = 'payslip-print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
 
     const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(el => el.outerHTML)
-      .join('');
+      .map(el => {
+        if (el.tagName.toLowerCase() === 'link' && el.href) {
+          return `<link rel="stylesheet" href="${el.href}">`;
+        }
+        return el.outerHTML;
+      })
+      .join('\n');
 
-    printWindow.document.write(`
+    doc.open();
+    doc.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Salary Slip</title>
+          <base href="${window.location.origin}/">
+          <title>Salary Slip - ${payslipData.staffName || ''}</title>
           ${styles}
           <style>
-            @page { size: auto; margin: 0mm; }
-            body { 
-              margin: 1.5cm; 
-              -webkit-print-color-adjust: exact; 
-              print-color-adjust: exact; 
-              background-color: white; 
+            @page { 
+              size: A4 portrait; 
+              margin: 10mm; 
             }
-            @media print {
-              * {
-                color: black !important;
-                background-color: white !important;
-                background: white !important;
-                box-shadow: none !important;
-              }
-              /* Keep borders black */
-              .border, .border-b-2, .border-t, .border-2, .border-r, .border-l {
-                border-color: black !important;
-              }
-              /* Make Net Pay block stand out with border instead of bg */
-              .bg-indigo-950 {
-                border: 2px solid black !important;
-                background-color: white !important;
-                color: black !important;
-              }
+            html, body { 
+              margin: 0 !important; 
+              padding: 0 !important;
+              background-color: white !important;
+              color: black !important;
+              -webkit-print-color-adjust: exact !important; 
+              print-color-adjust: exact !important; 
+            }
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
           </style>
         </head>
@@ -78,17 +86,66 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
           <div id="payslip-printable-area" class="bg-white text-black p-0 m-0 w-full h-full">
             ${printContent.innerHTML}
           </div>
-          <script>
-            window.onload = function() {
-              window.focus();
-              window.print();
-              window.close();
-            };
-          </script>
         </body>
       </html>
     `);
-    printWindow.document.close();
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (err) {
+        console.error("Print iframe error, fallback to window.print():", err);
+        window.print();
+      }
+    }, 600);
+  };
+
+  const handleShareWhatsApp = () => {
+    let phone = payslipData.staffPhone || payslipData.phone || payslipData.mobile || payslipData.contact || payslipData.whatsapp || '';
+
+    if (!phone) {
+      const enteredPhone = prompt(
+        `Staff "${payslipData.staffName || 'Teacher'}" ka phone number record mein nahi mila.\n\nBarah-e-karam WhatsApp number enter karein (e.g. 03001234567):`
+      );
+      if (!enteredPhone || !enteredPhone.trim()) return;
+      phone = enteredPhone.trim();
+    }
+
+    let cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.startsWith('03')) {
+      cleanPhone = '92' + cleanPhone.slice(1);
+    } else if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+      cleanPhone = '92' + cleanPhone;
+    }
+
+    const netSalaryFormatted = Number(payslipData.netSalary || 0).toLocaleString();
+    const periodDisplay = formatPeriod(payslipData.period || payslipData.month);
+
+    const text = 
+      `*🏛️ ${schoolName.toUpperCase()}*\n` +
+      `*📄 Official Salary Slip - ${periodDisplay}*\n` +
+      `----------------------------------------\n` +
+      `👤 *Staff Name:* ${payslipData.staffName}\n` +
+      `🆔 *Employee ID:* ${payslipData.staffIdCode || payslipData.staffId || 'N/A'}\n` +
+      `💼 *Designation:* ${payslipData.staffRole || 'Staff'}\n` +
+      `🏢 *Department:* ${payslipData.staffDepartment || 'Academic'}\n` +
+      `----------------------------------------\n` +
+      `📅 *Working Days:* ${payslipData.totalWorkingDays ?? 26}\n` +
+      `✅ *Present:* ${payslipData.presentDays ?? 0} | ❌ *Absent:* ${payslipData.absentDays ?? 0} | 🏖️ *Leaves:* ${payslipData.leaveDays ?? 0}\n` +
+      `----------------------------------------\n` +
+      `💵 *Basic Salary:* Rs. ${Number(payslipData.basicSalary || 0).toLocaleString()}\n` +
+      `➕ *Allowances:* Rs. ${Number(payslipData.totalAllowances || 0).toLocaleString()}\n` +
+      `➖ *Deductions:* Rs. ${Number(payslipData.totalDeductions || 0).toLocaleString()}\n` +
+      `----------------------------------------\n` +
+      `💰 *NET SALARY:* Rs. ${netSalaryFormatted}\n` +
+      `📊 *Status:* ${payslipData.status || 'PROCESSED'}\n` +
+      `----------------------------------------\n` +
+      `_TaleemiDunya Pro AI HR & Payroll System_`;
+
+    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+    window.open(waUrl, '_blank');
   };
 
   const handleExportCSV = () => {
@@ -109,16 +166,7 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
             {isProcessed && (
               <>
                 <button 
-                  onClick={() => {
-                    const phone = payslipData.staffPhone || payslipData.phone || '';
-                    if (!phone) {
-                      alert('No phone number found for this staff member.');
-                      return;
-                    }
-                    const text = `*Payslip for ${formatPeriod(payslipData.period || payslipData.month)}*\n\nName: ${payslipData.staffName}\nRole: ${payslipData.staffRole}\nTotal Present: ${payslipData.presentDays ?? 0}\nTotal Leave: ${payslipData.leaveDays ?? 0}\n\n*Net Salary: Rs. ${payslipData.netSalary?.toLocaleString() ?? 0}*\n\nStatus: ${payslipData.status || 'PROCESSED'}`;
-                    const waUrl = `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`;
-                    window.open(waUrl, '_blank');
-                  }}
+                  onClick={handleShareWhatsApp}
                   className="px-3 py-1.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold flex items-center gap-1.5" 
                   title="Share to WhatsApp"
                 >
@@ -386,7 +434,30 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
         )}
       </div>
 
-      {/* Removed problematic global print CSS that caused blank page */}
+      {/* In-window Print Support for Ctrl+P */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #payslip-printable-area, #payslip-printable-area * {
+            visibility: visible;
+          }
+          #payslip-printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 10mm;
+            background: white !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 };
