@@ -11,6 +11,35 @@ const hexToRgb = (hex) => {
   return result ? `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}` : '14 165 233'; // default sky-500
 };
 
+export const DEFAULT_SUSPENSION_BLOCKED_FEATURES = [
+  '/school-admin/attendance',
+  '/school-admin/attendance-register',
+  '/school-admin/qr-scanner',
+  '/school-admin/staff-attendance',
+  '/school-admin/students/add',
+  '/school-admin/inquiry-student',
+  '/school-admin/inquiries',
+  '/school-admin/admissions/crm',
+  '/school-admin/collection',
+  '/school-admin/fees/collect',
+  '/school-admin/fees/generate',
+  '/school-admin/class-fees',
+  '/school-admin/exams',
+  '/school-admin/period-bell',
+  '/school-admin/sms-panel',
+  '/school-admin/staff/salary-setup',
+  '/school-admin/franchise-manager',
+  'student-attendance',
+  'gate-scanner',
+  'inquiry-student',
+  'admission-crm',
+  'fee-collection',
+  'challan-manager',
+  'period-bell',
+  'online-quiz',
+  'franchise-manager'
+];
+
 const SchoolContext = createContext();
 
 export const useSchool = () => useContext(SchoolContext);
@@ -171,11 +200,29 @@ export const SchoolProvider = ({ children }) => {
     const isOverdue = days <= 0;
     const daysOverdue = isOverdue ? Math.abs(days) : 0;
     const isExpiring = days > 0 && days <= 5;
-    const isOverdueMoreThan7Days = isOverdue && daysOverdue > 7;
-    return { daysLeft: days, daysOverdue, isOverdue, isExpiring, isOverdueMoreThan7Days, isDeactivated: false };
+    return { daysLeft: days, daysOverdue, isOverdue, isExpiring, isDeactivated: false };
   };
 
   const expiryMetrics = getExpiryDiff();
+
+  // Suspension Policy Configuration (Grace period & feature auto-block)
+  const suspensionPolicy = schoolData?.suspensionPolicy || globalSettings?.defaultSuspensionPolicy || null;
+  const policyGraceDays = suspensionPolicy && suspensionPolicy.gracePeriodDays !== undefined
+    ? Number(suspensionPolicy.gracePeriodDays)
+    : (schoolData?.gracePeriodDays !== undefined ? Number(schoolData.gracePeriodDays) : 7);
+
+  // If school is overdue and overdue days >= configured grace period, trigger suspension
+  const isSuspendedDueToExpiry = Boolean(
+    (userData?.role === 'school-admin' || userData?.role === 'teacher') &&
+    (
+      (suspensionPolicy?.enabled !== false && expiryMetrics.isOverdue && expiryMetrics.daysOverdue >= policyGraceDays) ||
+      expiryMetrics.isDeactivated
+    )
+  );
+
+  const blockedSuspensionFeatures = (suspensionPolicy && Array.isArray(suspensionPolicy.blockedFeatures))
+    ? suspensionPolicy.blockedFeatures
+    : DEFAULT_SUSPENSION_BLOCKED_FEATURES;
 
   // Compute exact allowed features map for this school
   const allowedFeaturesMap = useMemo(() => {
@@ -203,35 +250,22 @@ export const SchoolProvider = ({ children }) => {
     ) {
       return true;
     }
-
-    // If School Admin is more than 7 days overdue, lock important operational features
-    if (userData?.role === 'school-admin' && expiryMetrics.isOverdueMoreThan7Days) {
-      const lockedWhen7DaysOverdue = [
-        '/school-admin/attendance',
-        '/school-admin/qr-scanner',
-        '/school-admin/staff-attendance',
-        '/school-admin/students/add',
-        '/school-admin/inquiry-student',
-        '/school-admin/admissions/crm',
-        '/school-admin/collection',
-        '/school-admin/fees/generate',
-        '/school-admin/class-fees',
-        '/school-admin/exams',
-        '/school-admin/period-bell',
-        '/school-admin/sms-panel',
-        '/school-admin/staff/salary-setup',
-        'student-attendance',
-        'gate-scanner',
-        'inquiry-student',
-        'admission-crm',
-        'fee-collection',
-        'challan-manager',
-        'period-bell',
-        'online-quiz'
-      ];
-      if (lockedWhen7DaysOverdue.some(p => keyOrPath === p || (typeof keyOrPath === 'string' && keyOrPath.includes(p)))) {
-        return false;
-      }
+    const matchesBlock = (inp, entry) => {
+      if (!entry || !inp) return false;
+      if (inp === entry) return true;
+      if (inp.includes(entry) || entry.includes(inp)) return true;
+      const cat = SAAS_FEATURE_CATALOG.find(f => f.key === entry || f.path === entry);
+      if (cat) { if (cat.key === inp || cat.path === inp || (cat.path && inp.startsWith(cat.path))) return true; }
+      const rcat = SAAS_FEATURE_CATALOG.find(f => f.key === inp || f.path === inp);
+      if (rcat && (rcat.key === entry || rcat.path === entry)) return true;
+      return false;
+    };
+    const manuallyBlocked = schoolData && schoolData.manuallyBlockedFeatures;
+    if (Array.isArray(manuallyBlocked) && manuallyBlocked.length > 0) {
+      if (manuallyBlocked.some(p => matchesBlock(keyOrPath, p))) return false;
+    }
+    if (isSuspendedDueToExpiry) {
+      if (blockedSuspensionFeatures.some(p => matchesBlock(keyOrPath, p))) return false;
     }
     
     return isFeatureAllowedByMap(keyOrPath, allowedFeaturesMap);
@@ -239,6 +273,20 @@ export const SchoolProvider = ({ children }) => {
 
   const getFeatureInfo = (keyOrPath) => {
     return getFeatureCatalogItem(keyOrPath);
+  };
+
+  // Helper to update school suspension policy directly
+  const updateSchoolSuspensionPolicy = async (policyUpdate) => {
+    const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
+    const newPolicy = { ...(schoolData?.suspensionPolicy || {}), ...policyUpdate };
+    setSchoolData(prev => prev ? { ...prev, suspensionPolicy: newPolicy } : { id: schoolId, suspensionPolicy: newPolicy });
+    if (schoolRefOrIdExists(schoolId)) {
+      try {
+        await updateDoc(doc(db, 'schools', schoolId), { suspensionPolicy: newPolicy });
+      } catch (e) {
+        console.warn("Failed to update suspension policy in Firestore:", e);
+      }
+    }
   };
 
   // Helper for instant local demo or super-admin updates
@@ -272,7 +320,12 @@ export const SchoolProvider = ({ children }) => {
     isExpiring: expiryMetrics.isExpiring,
     daysLeft: expiryMetrics.daysLeft,
     daysOverdue: expiryMetrics.daysOverdue,
-    isOverdueMoreThan7Days: expiryMetrics.isOverdueMoreThan7Days,
+    isOverdueMoreThan7Days: isSuspendedDueToExpiry,
+    isSuspendedDueToExpiry,
+    suspensionGraceDays: policyGraceDays,
+    suspensionPolicy,
+    blockedSuspensionFeatures,
+    updateSchoolSuspensionPolicy,
     allowedFeaturesMap,
     isFeatureAllowed,
     getFeatureInfo,

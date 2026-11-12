@@ -60,8 +60,8 @@ const BulkPayslipWhatsAppModal = ({
   const isRunningRef = useRef(false);
   const isPausedRef = useRef(false);
 
-  const schoolName = schoolData?.name || userData?.schoolName || 'Smart Angels Grammar School';
-  const schoolId = schoolData?.id || userData?.schoolId || 'NNRuCtHxQNjISc9EPgMs';
+  const schoolName = schoolData?.name || userData?.schoolName || 'School Name';
+  const schoolId = schoolData?.id || userData?.schoolId || null;
 
   // Initialize items whenever batchData changes
   useEffect(() => {

@@ -14,6 +14,15 @@
     <title>TaleemiDunya Pro — School Management SaaS</title>
     <script>
       (function() {
+        // Auto-redirect deep paths into HashRouter to prevent blank page when entered without #
+        try {
+          var p = window.location.pathname;
+          if (p && p !== '/' && p !== '/index.html' && !window.location.hash) {
+            window.location.replace('/#' + p + window.location.search);
+            return;
+          }
+        } catch (e) {}
+
         try {
           var saved = localStorage.getItem('taleemi_theme');
           var theme = (saved === 'light' || saved === 'dark') ? saved : 'dark';

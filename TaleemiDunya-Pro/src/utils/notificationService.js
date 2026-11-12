@@ -70,7 +70,7 @@ export const sendWhatsAppApiMessage = async (schoolId, phone, message) => {
  */
 export const dispatchAttendanceAlert = async ({
   schoolId,
-  schoolName = 'Smart Angels Grammar School',
+  schoolName = 'School Name',
   type = 'student', // 'student' | 'staff'
   member,
   action = 'ENTRY', // 'ENTRY' | 'EXIT' | 'LATE' | 'ABSENT'
@@ -166,3 +166,58 @@ export const dispatchAttendanceAlert = async ({
   return null;
 };
 
+
+/**
+ * Dispatch Automated WhatsApp Alert for School Plan Expiry & Feature Lock
+ */
+export const dispatchSuspensionWhatsAppAlert = async ({
+  schoolId,
+  schoolName = 'School Admin',
+  phone = '',
+  blockedCount = 0,
+  expiryDateStr = '',
+  graceDays = 1,
+  type = 'LOCK' // 'WARNING' | 'LOCK' | 'IMMEDIATE'
+}) => {
+  const cleanPhone = formatPhoneNumber(phone);
+  if (!cleanPhone) return null;
+
+  let msg = '';
+  if (type === 'IMMEDIATE') {
+    msg = `*🛑 ALERT: TALEEMIDUNYA PRO - FEATURES SUSPENDED*\n` +
+      `----------------------------------------\n` +
+      `محترم ایڈمنسٹریٹر! *${schoolName}*\n\n` +
+      `سافٹ ویئر کے سروس واجبات ادا نہ ہونے کی وجہ سے آپ کے اسکول کے *${blockedCount} ماڈیولز* فوری طور پر معطل (Lock) کر دیے گئے ہیں۔\n\n` +
+      `⚠️ *حالت:* سروس معطل (Features Blocked)\n` +
+      `💳 سروس فوری بحال کروانے کے لیے اپنے ایڈمن پینل سے آن لائن ادائیگی کریں یا مینیجر سے رابطہ فرمائیں۔\n\n` +
+      `🌐 *پورٹل لنک:* https://taleemidunya-pro-ed44e.web.app/#/school-admin/subscription\n` +
+      `📞 ہیلپ لائن: TaleemiDunya SaaS Head Office\n` +
+      `----------------------------------------`;
+  } else if (type === 'WARNING') {
+    msg = `*⚠️ REMINDER: TALEEMIDUNYA PRO SUBSCRIPTION EXPIRING*\n` +
+      `----------------------------------------\n` +
+      `محترم ایڈمنسٹریٹر! *${schoolName}*\n\n` +
+      `آپ کے اسکول کا سبسکرپشن پلان جلد ختم ہونے والا ہے۔\n` +
+      `📅 *آخری تاریخ:* ${expiryDateStr || 'جلد'}\n` +
+      `⏰ *گریس پیریڈ:* ${graceDays} دن\n\n` +
+      `سافٹ ویئر میں کسی بھی تعطل اور فیچرز بلاک ہونے سے بچنے کے لیے وقت پر فیس ادا فرمائیں۔\n\n` +
+      `🌐 *آن لائن رینیول:* https://taleemidunya-pro-ed44e.web.app/#/school-admin/subscription\n` +
+      `----------------------------------------`;
+  } else {
+    msg = `*🛑 NOTICE: SUBSCRIPTION EXPIRED & AUTO-LOCK ACTIVE*\n` +
+      `----------------------------------------\n` +
+      `محترم ایڈمنسٹریٹر! *${schoolName}*\n\n` +
+      `آپ کے اسکول کی سبسکرپشن مدت ختم ہوئے ${graceDays} دن ہو چکے ہیں۔ طے شدہ پالیسی کے تحت *${blockedCount} آپریشنل فیچرز* معطل کر دیے گئے ہیں۔\n\n` +
+      `برائے مہربانی فوری رینیول فیس ادا کر کے سروس بغیر کسی تعطل کے بحال کروائیں۔\n\n` +
+      `🌐 *رینیول لنک:* https://taleemidunya-pro-ed44e.web.app/#/school-admin/subscription\n` +
+      `----------------------------------------`;
+  }
+
+  try {
+    await sendWhatsAppApiMessage(schoolId, cleanPhone, msg);
+    return { success: true, phone: cleanPhone, message: msg };
+  } catch (err) {
+    console.warn('Suspension WhatsApp send error:', err);
+    return { success: false, error: err.message };
+  }
+};

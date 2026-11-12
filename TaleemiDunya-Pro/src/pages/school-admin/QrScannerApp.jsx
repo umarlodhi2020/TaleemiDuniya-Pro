@@ -956,54 +956,137 @@ export default function QrScannerApp() {
 
   // Real-time synchronization of today's scans from Firestore (Guarantees Stream & Counters are never 0)
   useEffect(() => {
-    if (!isLoggedIn || !activeSchoolId) return;
+    const sId = activeSchoolId || schoolData?.id || userData?.schoolId;
+    if (!isLoggedIn || !sId) return;
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    // Generate all standard date formats for today (ISO, Locale, DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY)
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+
+    const isoDate = `${yyyy}-${mm}-${dd}`;
+    const dmySlash = `${dd}/${mm}/${yyyy}`;
+    const dmyDash = `${dd}-${mm}-${yyyy}`;
+    const mdySlash = `${mm}/${dd}/${yyyy}`;
+    const ymdSlash = `${yyyy}/${mm}/${dd}`;
+    const localDate = now.toLocaleDateString();
+
+    const dateMatches = Array.from(new Set([
+      isoDate, 
+      dmySlash, 
+      dmyDash, 
+      mdySlash, 
+      ymdSlash, 
+      localDate
+    ].filter(Boolean)));
+
+    const parseDocToScan = (d) => {
+      const item = typeof d.data === 'function' ? d.data() : d;
+      const docId = d.id || `${item.studentId || item.staffId || 'scan'}_${isoDate}`;
+      const memberId = item.studentId || item.staffId || (docId.includes('_') ? docId.split('_')[0] : docId);
+      
+      // Find member from allStudents or allStaff
+      const foundStudent = allStudentsRef.current.find(s => 
+        (memberId && s.id === memberId) || 
+        (item.rollNumber && (s.rollNumber === item.rollNumber || s.rollNo === item.rollNumber))
+      );
+      const foundStaff = allStaffRef.current.find(s => 
+        (memberId && s.id === memberId) || 
+        (item.employeeId && (s.employeeId === item.employeeId || s.staffId === item.employeeId))
+      );
+      const member = foundStudent || foundStaff || item;
+
+      const isStaff = item.type === 'staff' || member?.memberType === 'staff' || (!item.studentId && !!item.staffId) || item.class === 'Staff';
+      const isLateBool = !!item.isLate || String(item.status || '').toLowerCase() === 'late';
+
+      return {
+        id: memberId,
+        docId: docId,
+        member: member,
+        isStaff: isStaff,
+        name: item.studentName || item.staffName || member?.name || 'Member',
+        class: getMemberClassOrDept(member) || item.class || item.department || (isStaff ? 'Staff' : 'Student'),
+        rollNo: getMemberRollOrId(member) || item.rollNumber || item.employeeId || '-',
+        fatherName: member?.fatherName || member?.designation || item.fatherName || '-',
+        fatherPhone: member?.fatherPhone || member?.phone || null,
+        time: item.time || item.timeIn || '08:00 AM',
+        timeIn: item.timeIn || item.time || '08:00 AM',
+        timeOut: item.timeOut || null,
+        status: item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : 'Present',
+        isLate: isLateBool,
+        minutesLate: item.minutesLate || 0,
+        actionType: item.actionType || (item.timeOut ? 'EXIT' : 'ENTRY'),
+        photo: member?.photoUrl || member?.profilePhoto || null,
+        timestamp: item.createdAt?.toMillis ? item.createdAt.toMillis() : (item.createdAt ? new Date(item.createdAt).getTime() : Date.now())
+      };
+    };
+
+    // Primary real-time listener matching any of today's date formats
     const qAtt = query(
       collection(db, 'attendance'),
-      where('schoolId', '==', activeSchoolId),
-      where('date', '==', todayStr)
+      where('schoolId', '==', sId),
+      where('date', 'in', dateMatches)
     );
 
-    const unsubscribe = onSnapshot(qAtt, (snapshot) => {
-      const scans = [];
-      const scanMap = {};
+    const unsubscribe = onSnapshot(qAtt, async (snapshot) => {
+      const scansMap = new Map();
 
       snapshot.docs.forEach((d) => {
-        const item = d.data();
-        const memberId = item.studentId || item.staffId || (d.id.includes('_') ? d.id.split('_')[0] : d.id);
-        
-        // Find member from allStudents or allStaff
-        const foundStudent = allStudentsRef.current.find(s => s.id === memberId || (item.rollNumber && s.rollNumber === item.rollNumber));
-        const foundStaff = allStaffRef.current.find(s => s.id === memberId || (item.employeeId && s.employeeId === item.employeeId));
-        const member = foundStudent || foundStaff || item;
-
-        const isStaff = item.type === 'staff' || member?.memberType === 'staff' || (!item.studentId && !!item.staffId);
-
-        scans.push({
-          id: memberId,
-          docId: d.id,
-          member: member,
-          isStaff: isStaff,
-          name: item.studentName || item.staffName || member?.name || 'Member',
-          class: getMemberClassOrDept(member) || item.class || item.department || (isStaff ? 'Staff' : 'Student'),
-          rollNo: getMemberRollOrId(member) || item.rollNumber || item.employeeId || '-',
-          fatherName: member?.fatherName || member?.designation || item.fatherName || '-',
-          fatherPhone: member?.fatherPhone || member?.phone || null,
-          time: item.time || item.timeIn || '08:00 AM',
-          timeIn: item.timeIn || item.time || '08:00 AM',
-          timeOut: item.timeOut || null,
-          status: item.status ? (item.status.charAt(0).toUpperCase() + item.status.slice(1)) : 'Present',
-          isLate: !!item.isLate,
-          minutesLate: item.minutesLate || 0,
-          actionType: item.actionType || (item.timeOut ? 'EXIT' : 'ENTRY'),
-          photo: member?.photoUrl || member?.profilePhoto || null,
-          timestamp: item.createdAt?.toMillis ? item.createdAt.toMillis() : Date.now()
-        });
-
-        // Don't poison lastScannedMemberMap on snapshot load
+        const scan = parseDocToScan(d);
+        scansMap.set(d.id, scan);
       });
 
+      // Fallback 1: If primary query is empty, query all recent attendance for this school (or default-school)
+      if (scansMap.size === 0) {
+        try {
+          const candidateSchools = Array.from(new Set([sId, userData?.schoolId, 'default-school'].filter(Boolean)));
+          for (const candSchoolId of candidateSchools) {
+            if (scansMap.size > 0) break;
+            const fallbackQ = query(
+              collection(db, 'attendance'),
+              where('schoolId', '==', candSchoolId)
+            );
+            const fbSnap = await getDocs(fallbackQ);
+            fbSnap.docs.forEach((d) => {
+              const data = d.data();
+              const dVal = data.date || data.createdAt || data.timestamp;
+              let dStr = '';
+              if (typeof dVal?.toDate === 'function') {
+                const dt = dVal.toDate();
+                dStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+              } else if (dVal?.seconds) {
+                const dt = new Date(dVal.seconds * 1000);
+                dStr = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+              } else if (typeof dVal === 'string') {
+                dStr = dVal.trim();
+              }
+
+              if (dateMatches.includes(dStr) || dStr.startsWith(isoDate)) {
+                scansMap.set(d.id, parseDocToScan(d));
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('Attendance fallback sync notice:', e);
+        }
+      }
+
+      // Fallback 2: Check any offline queue items stored in localStorage
+      try {
+        const localQueue = JSON.parse(localStorage.getItem('qr_offline_scans_queue') || '[]');
+        localQueue.forEach((qItem, idx) => {
+          if (qItem?.data) {
+            const fakeDoc = {
+              id: qItem.docId || `offline_${idx}`,
+              data: () => qItem.data
+            };
+            scansMap.set(fakeDoc.id, parseDocToScan(fakeDoc));
+          }
+        });
+      } catch (e) {}
+
+      const scans = Array.from(scansMap.values());
       // Sort with newest scans on top
       scans.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
@@ -1013,7 +1096,7 @@ export default function QrScannerApp() {
     });
 
     return () => unsubscribe();
-  }, [isLoggedIn, activeSchoolId, allStudents.length, allStaff.length]);
+  }, [isLoggedIn, activeSchoolId, schoolData?.id, userData?.schoolId, allStudents.length, allStaff.length]);
 
   // Global Hardware Keyboard Listener for 2D/1D Barcode Scanner Gun
   useEffect(() => {
@@ -1232,11 +1315,33 @@ export default function QrScannerApp() {
     return true;
   });
 
-  // Today's summary metrics
+  // Today's summary metrics - Accurate Unique Count (prevents multiple scans / duplicates from inflating count)
+  const presentStudentIds = useMemo(() => {
+    const ids = new Set();
+    recentScans.forEach(s => {
+      if (!isItemStaff(s) && String(s.status || '').toLowerCase() !== 'absent') {
+        const idKey = s.id || s.rollNo || s.name;
+        if (idKey) ids.add(idKey);
+      }
+    });
+    return ids;
+  }, [recentScans]);
+
+  const presentStaffIds = useMemo(() => {
+    const ids = new Set();
+    recentScans.forEach(s => {
+      if (isItemStaff(s) && String(s.status || '').toLowerCase() !== 'absent') {
+        const idKey = s.id || s.rollNo || s.name;
+        if (idKey) ids.add(idKey);
+      }
+    });
+    return ids;
+  }, [recentScans]);
+
   const totalScansCount = recentScans.length;
   const lateScansCount = recentScans.filter(s => s.isLate).length;
-  const staffScansCount = recentScans.filter(s => isItemStaff(s)).length;
-  const studentScansCount = recentScans.filter(s => !isItemStaff(s)).length;
+  const staffScansCount = presentStaffIds.size;
+  const studentScansCount = presentStudentIds.size;
   const totalStudentsCount = allStudents.length;
   const totalStaffCount = allStaff.length;
   const studentPresentPercent = totalStudentsCount > 0 ? Math.round((studentScansCount / totalStudentsCount) * 100) : 0;

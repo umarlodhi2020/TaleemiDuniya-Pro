@@ -29,6 +29,7 @@ import { checkDateHoliday, getShiftTimingForDate } from '../../utils/timeFormat'
 const AttendanceRegister = () => {
   const { userData } = useAuth();
   const { schoolClasses, schoolData } = useSchool();
+  const activeSchoolId = schoolData?.id || userData?.schoolId || 'default-school';
   const navigate = useNavigate();
   const [selectedClass, setSelectedClass] = useState('10');
   const [availableClasses, setAvailableClasses] = useState([]);
@@ -57,7 +58,7 @@ const AttendanceRegister = () => {
   useEffect(() => {
     const fetchAvailableClasses = async () => {
       try {
-        const studs = await getRecords('students', userData?.schoolId || 'default-school');
+        const studs = await getRecords('students', activeSchoolId);
         const stClasses = (studs || []).map(s => s.class || s.className).filter(Boolean);
         const contextClasses = (schoolClasses || []).map(c => c.name || c.className).filter(Boolean);
         
@@ -107,7 +108,7 @@ const AttendanceRegister = () => {
     setShowGrid(true);
     try {
       // 1. Fetch students for this class
-      const stList = await getRecords('students', userData?.schoolId || 'default-school', [
+      const stList = await getRecords('students', activeSchoolId, [
         { field: 'class', operator: '==', value: selectedClass }
       ]);
       setStudents(stList);
@@ -141,7 +142,7 @@ const AttendanceRegister = () => {
 
       // Try fetching actual saved attendance records from firestore if they exist
       try {
-        const attSnap = await getRecords('attendance', userData?.schoolId || 'default-school');
+        const attSnap = await getRecords('attendance', activeSchoolId);
         
         const unparsed = [];
         (attSnap || []).forEach(data => {

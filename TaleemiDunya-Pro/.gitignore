@@ -51,3 +51,6 @@ release-build/
 master-license-keys/
 *.pem
 *.tdlic
+
+tmp-jdk/
+

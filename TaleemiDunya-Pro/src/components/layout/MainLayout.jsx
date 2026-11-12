@@ -21,7 +21,9 @@ const MainLayout = () => {
     isExpiring,
     daysLeft,
     daysOverdue,
-    isOverdueMoreThan7Days
+    isOverdueMoreThan7Days,
+    suspensionGraceDays,
+    suspensionPolicy
   } = useSchool();
   const location = useLocation();
   const navigate = useNavigate();
@@ -243,7 +245,7 @@ const MainLayout = () => {
                         </div>
                         <div>
                           <span className="px-3.5 py-1 rounded-full bg-red-500/20 text-red-300 text-[10px] font-black uppercase tracking-widest border border-red-500/30">
-                            🚨 7 Days Grace Period Expired
+                            🚨 {suspensionGraceDays === 0 ? 'Immediate Expiry Lock' : `${suspensionGraceDays} Day${suspensionGraceDays > 1 ? 's' : ''} Cutoff / Grace Period Reached`}
                           </span>
                           <h2 className="text-2xl md:text-3xl font-black text-white mt-3">
                             Feature Suspended (سروس معطل ہے)
@@ -257,11 +259,23 @@ const MainLayout = () => {
                         <div className="p-4 rounded-2xl bg-black/40 border border-red-500/30 text-left space-y-3 text-xs text-gray-200 max-w-lg mx-auto">
                           <div>
                             <span className="text-[10px] font-black uppercase tracking-wider text-red-400 block mb-0.5">📢 Roman Urdu:</span>
-                            <p className="leading-relaxed">Aap ke school ki subscription date ko guzray <strong>{daysOverdue} din</strong> ho chukay hain (7 din ki grace period khatam ho chuki hai). Fess ada na honay ki wajah se yeh feature temporary tor par muattal (disabled) kar diya gaya hai. Foran online payment kar ke account reactivate karein.</p>
+                            <p className="leading-relaxed">
+                              {suspensionPolicy?.messageRoman ? (
+                                suspensionPolicy.messageRoman.replace('{days}', daysOverdue).replace('{graceDays}', suspensionGraceDays)
+                              ) : (
+                                <>Aap ke school ki subscription date ko guzray <strong>{daysOverdue} din</strong> ho chukay hain ({suspensionGraceDays} din ki grace / reminder period khatam ho chuki hai). Fees ada na honay ki wajah se yeh feature temporary tor par muattal (disabled) kar diya gaya hai. Foran online payment kar ke account reactivate karein.</>
+                              )}
+                            </p>
                           </div>
                           <div className="pt-2 border-t border-white/10 text-right" dir="rtl">
                             <span className="text-[10px] font-black uppercase tracking-wider text-red-400 block mb-0.5 text-right">🇵🇰 اردو پیغام:</span>
-                            <p className="leading-relaxed">آپ کے اسکول کی سافٹ ویئر فیس کی مقررہ تاریخ کو گزرے ہوئے 7 دن سے زائد ہو چکے ہیں۔ فیس ادا نہ ہونے کی وجہ سے یہ سروس عارضی طور پر بند کر دی گئی ہے۔ تمام فیچرز فوری بحال کرنے کے لیے ابھی آن لائن ادائیگی کریں۔</p>
+                            <p className="leading-relaxed">
+                              {suspensionPolicy?.messageUrdu ? (
+                                suspensionPolicy.messageUrdu.replace('{days}', daysOverdue).replace('{graceDays}', suspensionGraceDays)
+                              ) : (
+                                <>آپ کے اسکول کی سافٹ ویئر فیس کی مقررہ تاریخ کو گزرے ہوئے {daysOverdue} دن ہو چکے ہیں۔ فیس ادا نہ ہونے کی وجہ سے یہ سروس عارضی طور پر بند کر دی گئی ہے۔ تمام فیچرز فوری بحال کرنے کے لیے ابھی آن لائن ادائیگی کریں۔</>
+                              )}
+                            </p>
                           </div>
                         </div>
 

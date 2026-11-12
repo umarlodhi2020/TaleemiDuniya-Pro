@@ -99,6 +99,7 @@ const AddSchool = () => {
         role: 'school-admin',
         name: `${formData.name.trim()} Admin`,
         schoolId: docRef.id,
+        schoolName: formData.name.trim(),
         idNumber: idNumber,
       });
 

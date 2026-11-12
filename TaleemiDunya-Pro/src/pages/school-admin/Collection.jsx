@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 const Collection = () => {
   const navigate = useNavigate();
   useEffect(() => {
-    navigate('/school-admin/fees/collect', { replace: true });
+    navigate('/school-admin/fees/collect?tab=sheet', { replace: true });
   }, [navigate]);
   return null;
 };

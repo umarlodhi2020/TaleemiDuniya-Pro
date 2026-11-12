@@ -320,7 +320,7 @@ export default function LicenseManager() {
             <h1 className="text-2xl sm:text-3xl font-black text-white mt-1">
               Hardware License & DRM Manager
             </h1>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-200 font-medium">
               Lock software installations to specific client PCs. Prevent source code theft & piracy.
             </p>
           </div>

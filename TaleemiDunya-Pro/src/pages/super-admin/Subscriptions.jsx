@@ -9,6 +9,8 @@ import {
 import { collection, getDocs, doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { SAAS_FEATURE_CATALOG, getAllowedFeaturesForPlan } from '../../config/saasFeaturesConfig';
+import { DEFAULT_SUSPENSION_BLOCKED_FEATURES } from '../../context/SchoolContext';
+import { dispatchSuspensionWhatsAppAlert } from '../../utils/notificationService';
 
 const defaultPlans = [
   {
@@ -102,6 +104,17 @@ const Subscriptions = () => {
   const [matrixSearch, setMatrixSearch] = useState('');
   const [matrixCategoryFilter, setMatrixCategoryFilter] = useState('ALL');
   const [matrixStatusFilter, setMatrixStatusFilter] = useState('ALL');
+
+  // Auto-Lock & Suspension Policy states
+  const [suspensionTargetSchoolId, setSuspensionTargetSchoolId] = useState('GLOBAL');
+  const [globalSuspensionPolicy, setGlobalSuspensionPolicy] = useState(null);
+  const [suspensionGraceDays, setSuspensionGraceDays] = useState(1);
+  const [suspensionBlockedFeatures, setSuspensionBlockedFeatures] = useState(DEFAULT_SUSPENSION_BLOCKED_FEATURES);
+  const [suspensionMsgRoman, setSuspensionMsgRoman] = useState('');
+  const [suspensionMsgUrdu, setSuspensionMsgUrdu] = useState('');
+  const [suspensionSearch, setSuspensionSearch] = useState('');
+  const [suspensionCategory, setSuspensionCategory] = useState('ALL');
+  const [savingSuspension, setSavingSuspension] = useState(false);
 
   // Payment Gateways Setup states
   const [gatewaysConfig, setGatewaysConfig] = useState({
@@ -199,10 +212,17 @@ const Subscriptions = () => {
       if (gwSnap.exists()) {
         setGatewaysConfig(prev => ({ ...prev, ...gwSnap.data() }));
       }
+
+      const settingsSnap = await getDoc(doc(db, 'system', 'settings'));
+      if (settingsSnap.exists()) {
+        const setts = settingsSnap.data();
+        if (setts.defaultSuspensionPolicy) {
+          setGlobalSuspensionPolicy(setts.defaultSuspensionPolicy);
+        }
+      }
     } catch (err) { console.error('Fetch error:', err); }
     finally { setLoading(false); }
   };
-
   const handleSaveGateways = async () => {
     setSavingGateways(true);
     try {
@@ -223,6 +243,100 @@ const Subscriptions = () => {
     await new Promise(r => setTimeout(r, 1400));
     setTestingGateway(null);
     alert(`✅ ${title.toUpperCase()} CONNECTION SUCCESSFUL!\n\nSSL Handshake: Verified (TLS 1.3)\nAPI Authentication: Passed\nMerchant Status: Active & Ready for Online Rent & Add-on Processing.`);
+  };
+
+  useEffect(() => {
+    if (!suspensionTargetSchoolId) return;
+    if (suspensionTargetSchoolId === 'GLOBAL') {
+      const policy = globalSuspensionPolicy || {};
+      setSuspensionGraceDays(policy.gracePeriodDays !== undefined ? policy.gracePeriodDays : 1);
+      setSuspensionBlockedFeatures(Array.isArray(policy.blockedFeatures) ? policy.blockedFeatures : DEFAULT_SUSPENSION_BLOCKED_FEATURES);
+      setSuspensionMsgRoman(policy.messageRoman || '');
+      setSuspensionMsgUrdu(policy.messageUrdu || '');
+    } else {
+      const target = schools.find(s => s.id === suspensionTargetSchoolId);
+      if (target) {
+        const policy = target.suspensionPolicy || {};
+        setSuspensionGraceDays(policy.gracePeriodDays !== undefined ? policy.gracePeriodDays : (globalSuspensionPolicy?.gracePeriodDays ?? 1));
+        setSuspensionBlockedFeatures(Array.isArray(policy.blockedFeatures) ? policy.blockedFeatures : (Array.isArray(globalSuspensionPolicy?.blockedFeatures) ? globalSuspensionPolicy.blockedFeatures : DEFAULT_SUSPENSION_BLOCKED_FEATURES));
+        setSuspensionMsgRoman(policy.messageRoman || '');
+        setSuspensionMsgUrdu(policy.messageUrdu || '');
+      }
+    }
+  }, [suspensionTargetSchoolId, schools, globalSuspensionPolicy]);
+
+  const handleSaveSuspensionPolicy = async () => {
+    setSavingSuspension(true);
+    try {
+      const policyPayload = {
+        enabled: true,
+        gracePeriodDays: Number(suspensionGraceDays),
+        blockedFeatures: suspensionBlockedFeatures,
+        messageRoman: suspensionMsgRoman,
+        messageUrdu: suspensionMsgUrdu,
+        updatedAt: new Date().toISOString(),
+        updatedBy: 'SaaS Super Admin'
+      };
+
+      if (suspensionTargetSchoolId === 'GLOBAL') {
+        await setDoc(doc(db, 'system', 'settings'), {
+          defaultSuspensionPolicy: policyPayload
+        }, { merge: true });
+        setGlobalSuspensionPolicy(policyPayload);
+        alert("✅ GLOBAL AUTO-LOCK POLICY SAVED!\n\nAll tenant schools without a custom override will now follow this rule:\nAfter " + suspensionGraceDays + " day(s) from expiry, " + suspensionBlockedFeatures.length + " features will be automatically blocked.");
+      } else {
+        await updateDoc(doc(db, 'schools', suspensionTargetSchoolId), {
+          suspensionPolicy: policyPayload,
+          updatedAt: serverTimestamp()
+        });
+        setSchools(prev => prev.map(s => s.id === suspensionTargetSchoolId ? { ...s, suspensionPolicy: policyPayload } : s));
+        const target = schools.find(s => s.id === suspensionTargetSchoolId);
+        alert("✅ AUTO-LOCK POLICY SAVED FOR " + (target?.name || target?.schoolName || "SCHOOL") + "!\n\nRule: When plan expires, after " + suspensionGraceDays + " day(s), " + suspensionBlockedFeatures.length + " selected features will automatically be suspended.");
+      }
+    } catch (err) {
+      console.error('Error saving suspension policy:', err);
+      alert('❌ Error saving auto-lock policy: ' + err.message);
+    } finally {
+      setSavingSuspension(false);
+    }
+  };
+
+  // IMMEDIATE BLOCK function
+  const handleImmediateBlock = async () => {
+    if (suspensionTargetSchoolId === 'GLOBAL') { alert('Specific school select karein.'); return; }
+    if (suspensionBlockedFeatures.length === 0) { alert('Pehle features select karein.'); return; }
+    const target = schools.find(s => s.id === suspensionTargetSchoolId);
+    if (!window.confirm('IMMEDIATE BLOCK: ' + (target?.name || 'School') + ' ke ' + suspensionBlockedFeatures.length + ' features ABHI block ho jayenge. Confirm?')) return;
+    setSavingSuspension(true);
+    try {
+      await updateDoc(doc(db, 'schools', suspensionTargetSchoolId), { manuallyBlockedFeatures: suspensionBlockedFeatures, manualBlockedAt: new Date().toISOString(), manualBlockedBy: 'SaaS Super Admin', updatedAt: serverTimestamp() });
+      setSchools(prev => prev.map(s => s.id === suspensionTargetSchoolId ? { ...s, manuallyBlockedFeatures: suspensionBlockedFeatures } : s));
+      // Auto-trigger WhatsApp notice to School Admin if phone exists
+      const schoolPhone = target?.phone || target?.contactPhone || target?.adminPhone || target?.mobile || '';
+      if (schoolPhone) {
+        dispatchSuspensionWhatsAppAlert({
+          schoolId: suspensionTargetSchoolId,
+          schoolName: target?.name || target?.schoolName || 'School',
+          phone: schoolPhone,
+          blockedCount: suspensionBlockedFeatures.length,
+          type: 'IMMEDIATE'
+        }).catch(() => {});
+      }
+      alert('✅ ' + suspensionBlockedFeatures.length + ' Features FORAN BLOCK ho gaye!' + (schoolPhone ? '\n📱 WhatsApp Alert dispatched to: ' + schoolPhone : ''));
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { setSavingSuspension(false); }
+  };
+
+  const handleRemoveImmediateBlock = async () => {
+    if (suspensionTargetSchoolId === 'GLOBAL') return;
+    const target = schools.find(s => s.id === suspensionTargetSchoolId);
+    setSavingSuspension(true);
+    try {
+      await updateDoc(doc(db, 'schools', suspensionTargetSchoolId), { manuallyBlockedFeatures: [], manualBlockedAt: null, updatedAt: serverTimestamp() });
+      setSchools(prev => prev.map(s => s.id === suspensionTargetSchoolId ? { ...s, manuallyBlockedFeatures: [] } : s));
+      alert('Manual block hata diya!');
+    } catch (err) { alert('Error: ' + err.message); }
+    finally { setSavingSuspension(false); }
   };
 
   const toggleSecretVisibility = (fieldKey) => {
@@ -527,13 +641,14 @@ const Subscriptions = () => {
       </div>
 
       {/* Sleek Segmented Pill Navigation Bar (Zero overflow or text cutoff!) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-[#111522] p-2 rounded-3xl border border-white/10 shadow-xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 bg-dark-card border border-dark-border p-2 rounded-3xl shadow-xl">
         {[
-          { id: 'plans', label: '📋 Manage Pricing Plans', desc: 'SaaS tiers & pricing rules' },
-          { id: 'schools', label: '🏫 Tenant Assignments', desc: 'Assign tiers to schools' },
-          { id: 'matrix', label: '⚡ Feature Access Matrix', desc: 'Granular school overrides' },
-          { id: 'requests', label: `💳 Payment & TID Proofs (${rechargeRequests.filter(r => r.status === 'pending_verification').length})`, desc: 'Online checkout receipts' },
-          { id: 'gateways', label: '🔐 Payment Gateways Setup', desc: 'Stripe, JazzCash, Bank QR' }
+          { id: 'plans', label: '📋 Pricing Plans', desc: 'SaaS tiers & pricing rules' },
+          { id: 'schools', label: '🏫 School Tenants', desc: 'Assign tiers to schools' },
+          { id: 'matrix', label: '⚡ Feature Matrix', desc: 'Granular school overrides' },
+          { id: 'suspension', label: '🛑 Expiry Auto-Lock', desc: 'Reminder date feature block' },
+          { id: 'requests', label: `💳 Payments (${rechargeRequests.filter(r => r.status === 'pending_verification').length})`, desc: 'Online checkout receipts' },
+          { id: 'gateways', label: '🔐 Gateways Setup', desc: 'Stripe, JazzCash, QR' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -544,7 +659,7 @@ const Subscriptions = () => {
                 : 'bg-transparent text-dark-muted hover:text-white hover:bg-white/5 border-transparent'
             }`}
           >
-            <span className="text-xs md:text-sm font-black uppercase tracking-wider block text-white truncate">{tab.label}</span>
+            <span className="text-xs md:text-sm font-black uppercase tracking-wider block text-gray-900 dark:text-white truncate">{tab.label}</span>
             <span className="text-[10px] md:text-[11px] text-dark-muted block font-medium truncate">{tab.desc}</span>
           </button>
         ))}
@@ -576,8 +691,8 @@ const Subscriptions = () => {
 
               return (
                 <div key={plan.id}
-                  className={`relative rounded-3xl border-2 overflow-hidden transition-all ${plan.enabled ? style.border : 'border-dark-border opacity-60'} ${plan.recommended ? 'shadow-xl shadow-purple-500/10' : ''}`}
-                  style={{ background: 'rgba(15,15,30,0.85)' }}>
+                  className={`relative rounded-3xl border-2 overflow-hidden transition-all bg-dark-card ${plan.enabled ? style.border : 'border-dark-border opacity-60'} ${plan.recommended ? 'shadow-xl shadow-purple-500/10' : ''}`}>
+
                   {plan.recommended && (
                     <div className="absolute top-0 right-0 bg-purple-500 text-white text-[9px] font-black px-3 py-1 rounded-bl-xl uppercase tracking-widest">⭐ Most Popular</div>
                   )}
@@ -749,7 +864,7 @@ const Subscriptions = () => {
               </div>
 
               {/* School Tenant Dropdown Box */}
-              <div className="min-w-[280px] shrink-0 bg-black/40 p-4 rounded-2xl border border-white/10 shadow-inner">
+              <div className="min-w-[280px] shrink-0 bg-dark-card/50 p-4 rounded-2xl border border-dark-border shadow-inner">
                 <label className="block text-[10px] font-black uppercase tracking-wider text-purple-300 mb-1.5 flex items-center justify-between">
                   <span>Select Target School Tenant</span>
                   <span className="text-white bg-purple-500/30 px-2 py-0.5 rounded text-[9px]">Live Control</span>
@@ -769,13 +884,13 @@ const Subscriptions = () => {
             </div>
 
             {selectedMatrixSchool && (
-              <div className="p-5 rounded-2xl bg-[#111522] border border-white/10 flex items-center justify-between flex-wrap gap-6 text-xs">
+              <div className="p-5 rounded-2xl bg-dark-card border border-dark-border flex items-center justify-between flex-wrap gap-6 text-xs">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center font-black text-purple-400 text-lg shadow-inner">
                     {(selectedMatrixSchool.name || '?').charAt(0)}
                   </div>
                   <div>
-                    <h4 className="font-black text-white text-base">{selectedMatrixSchool.name}</h4>
+                    <h4 className="font-black text-gray-900 dark:text-white text-base">{selectedMatrixSchool.name}</h4>
                     <p className="text-[11px] text-dark-muted font-mono mt-0.5">ID: {selectedMatrixSchool.id}</p>
                   </div>
                 </div>
@@ -975,6 +1090,393 @@ const Subscriptions = () => {
           </GlassCard>
         </div>
       )}
+
+      {/* ============================================================== */}
+      {/* TAB: SAAS EXPIRY AUTO-LOCK & REMINDER SUSPENSION POLICY */}
+      {/* ============================================================== */}
+      {activeTab === 'suspension' && (() => {
+        const targetSchool = schools.find(s => s.id === suspensionTargetSchoolId);
+        const targetExpiry = targetSchool?.expiryDate || targetSchool?.expiry;
+        const targetExpiryFormatted = targetExpiry 
+          ? (typeof targetExpiry.toDate === 'function' ? targetExpiry.toDate().toLocaleDateString() : new Date(targetExpiry).toLocaleDateString())
+          : 'No Expiry Set';
+
+        return (
+          <div className="space-y-6 animate-fade-in">
+            {/* Header Card */}
+            <GlassCard className="p-6 md:p-8 bg-gradient-to-r from-red-950/40 via-purple-950/30 to-slate-900 border border-red-500/30 shadow-2xl space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div>
+                  <span className="px-3 py-1 rounded-full bg-red-500/20 text-red-300 text-[10px] font-black uppercase tracking-widest border border-red-500/30">
+                    🛑 Automated SaaS Compliance & Revenue Protection
+                  </span>
+                  <h2 className="text-2xl md:text-3xl font-black text-white mt-2 flex items-center gap-3">
+                    <Lock className="text-red-400" size={28} /> Expiry Reminder & Auto-Lock Policy
+                  </h2>
+                  <p className="text-xs md:text-sm text-gray-300 mt-1 max-w-2xl leading-relaxed">
+                    Configure karein ke plan expire hone ke kitne din baad (reminder date) kis school me kon kon se specific features automatic block ho jayenge.
+                  </p>
+                </div>
+
+                {/* School Tenant Dropdown */}
+                <div className="min-w-[300px] shrink-0 bg-dark-card/50 p-4 rounded-2xl border border-dark-border shadow-inner">
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-red-300 mb-1.5 flex items-center justify-between">
+                    <span>Target School Tenant</span>
+                    <span className="text-white bg-red-500/30 px-2 py-0.5 rounded text-[9px]">Policy Target</span>
+                  </label>
+                  <select
+                    value={suspensionTargetSchoolId}
+                    onChange={(e) => setSuspensionTargetSchoolId(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-[#1a1f33] border border-red-500/50 text-white font-bold text-xs focus:outline-none focus:border-red-400 shadow-lg cursor-pointer"
+                  >
+                    <option value="GLOBAL">🌐 ALL SCHOOLS (Global Default Policy)</option>
+                    {schools.map(s => (
+                      <option key={s.id} value={s.id}>
+                        🏫 {s.name || s.schoolName || s.id} ({s.plan || 'premium'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Selected Target Status Ribbon */}
+              <div className="p-5 rounded-2xl bg-dark-card border border-dark-border flex items-center justify-between flex-wrap gap-4 text-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/40 flex items-center justify-center font-black text-red-400 text-lg">
+                    {suspensionTargetSchoolId === 'GLOBAL' ? '🌐' : (targetSchool?.name || targetSchool?.schoolName || '?').charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="font-black text-gray-900 dark:text-white text-base">
+                      {suspensionTargetSchoolId === 'GLOBAL' ? 'Global Default Rule for All Schools' : (targetSchool?.name || targetSchool?.schoolName)}
+                    </h4>
+                    <p className="text-[11px] text-dark-muted font-mono mt-0.5">
+                      {suspensionTargetSchoolId === 'GLOBAL' 
+                        ? 'Applies to any tenant without custom policy' 
+                        : `Plan: ${targetSchool?.plan || 'premium'} • Expiry: ${targetExpiryFormatted} • Status: ${targetSchool?.status || 'active'}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                    <span className="text-[10px] font-bold text-dark-muted uppercase block">Auto-Block Timing:</span>
+                    <span className="text-sm font-black text-amber-400 mt-0.5 block">
+                      {suspensionGraceDays === 0 ? 'Same Day (Immediate)' : `${suspensionGraceDays} Day${suspensionGraceDays > 1 ? 's' : ''} after expiry`}
+                    </span>
+                  </div>
+                  <div className="bg-white/5 px-4 py-2 rounded-xl border border-white/5">
+                    <span className="text-[10px] font-bold text-dark-muted uppercase block">Features to Suspend:</span>
+                    <span className="text-sm font-black text-red-400 mt-0.5 block flex items-center gap-1.5">
+                      <Lock size={14} /> {suspensionBlockedFeatures.length} Modules
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveSuspensionPolicy}
+                    disabled={savingSuspension}
+                    className="px-5 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-red-500/20 transition-all cursor-pointer"
+                  >
+                    {savingSuspension ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
+                    <span>Save Policy</span>
+                  </button>
+                </div>
+              </div>
+            </GlassCard>
+
+            {/* Section 1: Cutoff Timing / Grace Period Days */}
+            <GlassCard className="p-6 md:p-8 space-y-4">
+              <div>
+                <h3 className="font-black text-base text-white flex items-center gap-2">
+                  <Clock className="text-amber-400" size={18} />
+                  Kab Block Karna Hai? (Cutoff / Grace Period Days After Expiry)
+                </h3>
+                <p className="text-xs text-dark-muted mt-1">
+                  Plan expire hone ke kitne din baad selected features par lock lagana hai.
+                </p>
+              </div>
+
+              {/* Quick Timing Pills */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                {[
+                  { days: 0, label: '0 Days (Immediate)', sub: 'Expire hotay hi aglay lamhay block' },
+                  { days: 1, label: '1 Day (Next Day)', sub: 'e.g. 1st expire -> 2nd ko block', recommended: true },
+                  { days: 2, label: '2 Days', sub: '2 din ki mohlat ke baad block' },
+                  { days: 3, label: '3 Days', sub: '3 din ki grace period ke baad' },
+                  { days: 7, label: '7 Days', sub: 'Ek hafte baad block' },
+                ].map(opt => (
+                  <button
+                    key={opt.days}
+                    type="button"
+                    onClick={() => setSuspensionGraceDays(opt.days)}
+                    className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative ${
+                      Number(suspensionGraceDays) === opt.days
+                        ? 'bg-gradient-to-b from-red-600/30 to-red-900/40 border-red-500 text-white shadow-lg shadow-red-500/20'
+                        : 'bg-dark-card border-dark-border text-dark-muted hover:border-white/20'
+                    }`}
+                  >
+                    {opt.recommended && (
+                      <span className="absolute -top-2 right-2 bg-emerald-500 text-black text-[9px] font-black px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                        Recommended
+                      </span>
+                    )}
+                    <span className="font-black text-xs block text-white">{opt.label}</span>
+                    <span className="text-[10px] text-dark-muted block mt-1">{opt.sub}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom Days Input */}
+              <div className="flex items-center gap-3 pt-2">
+                <span className="text-xs font-bold text-dark-muted">Or enter custom days:</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="90"
+                  value={suspensionGraceDays}
+                  onChange={(e) => setSuspensionGraceDays(Math.max(0, parseInt(e.target.value) || 0))}
+                  className="w-20 p-2 text-center rounded-xl bg-dark-card border border-dark-border text-white font-black text-sm focus:outline-none focus:border-red-400"
+                />
+                <span className="text-xs text-dark-muted">din baad block hoga.</span>
+              </div>
+
+              {/* Example Banner */}
+              <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 flex items-start gap-2.5">
+                <span className="text-base">💡</span>
+                <div className="leading-relaxed">
+                  <strong>Real Example:</strong> Agar school ka plan <strong>1st</strong> ko expire hota hai aur Grace Period <strong>{suspensionGraceDays} Day(s)</strong> set hai, to <strong>{suspensionGraceDays === 0 ? '1st' : `${1 + Number(suspensionGraceDays)}th`}</strong> date ko (overdue hote hi) neeche select kiye gaye features automatic <strong>Feature Suspended</strong> screen ke sath block ho jayenge.
+                </div>
+              </div>
+            </GlassCard>
+
+            {/* Section 2: Selective Feature Blocking Matrix */}
+            <GlassCard className="p-6 md:p-8 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-black text-base text-white flex items-center gap-2">
+                    <ShieldCheck className="text-red-400" size={18} />
+                    Kon Kon Se Features Block Karne Hain? ({suspensionBlockedFeatures.length} Selected)
+                  </h3>
+                  <p className="text-xs text-dark-muted mt-1">
+                    Jin modules ko aap block karna chahte hain unke card par click karein. Jo un-ticked honge wo expiry par bhi chalte rahenge.
+                  </p>
+                </div>
+
+                {/* Bulk Quick Action Presets */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const corePaths = [
+                        '/school-admin/attendance',
+                        '/school-admin/attendance-register',
+                        '/school-admin/qr-scanner',
+                        '/school-admin/staff-attendance',
+                        '/school-admin/students/add',
+                        '/school-admin/inquiry-student',
+                        '/school-admin/inquiries',
+                        '/school-admin/admissions/crm',
+                        '/school-admin/collection',
+                        '/school-admin/fees/collect',
+                        '/school-admin/fees/generate',
+                        '/school-admin/class-fees',
+                        '/school-admin/exams',
+                        '/school-admin/period-bell',
+                        '/school-admin/sms-panel',
+                        '/school-admin/staff/salary-setup',
+                        '/school-admin/franchise-manager',
+                        'student-attendance',
+                        'gate-scanner',
+                        'inquiry-student',
+                        'admission-crm',
+                        'fee-collection',
+                        'challan-manager',
+                        'period-bell',
+                        'online-quiz',
+                        'franchise-manager'
+                      ];
+                      setSuspensionBlockedFeatures(corePaths);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/30 font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    ⚡ Select Core Operational Features
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const allPaths = SAAS_FEATURE_CATALOG
+                        .map(f => f.path)
+                        .filter(p => !p.includes('/billing') && !p.includes('/subscription') && !p.includes('/dashboard'));
+                      const allKeys = SAAS_FEATURE_CATALOG.map(f => f.key);
+                      setSuspensionBlockedFeatures([...new Set([...allPaths, ...allKeys])]);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    🔒 Block All (Full Lockdown)
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSuspensionBlockedFeatures([])}
+                    className="px-3 py-1.5 rounded-xl bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 border border-slate-500/30 font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                  >
+                    🔓 Clear All (Allow All)
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Pills & Search */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto pb-1">
+                  {['ALL', 'crm', 'finance', 'security', 'academic', 'core', 'automation'].map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setSuspensionCategory(cat)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap cursor-pointer ${
+                        suspensionCategory === cat
+                          ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                          : 'bg-dark-card text-dark-muted hover:text-white border border-dark-border'
+                      }`}
+                    >
+                      {cat === 'ALL' ? 'All Modules' : cat.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative w-full sm:w-64">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-muted" />
+                  <input
+                    type="text"
+                    value={suspensionSearch}
+                    onChange={(e) => setSuspensionSearch(e.target.value)}
+                    placeholder="Search feature to block..."
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-dark-card border border-dark-border rounded-xl text-white font-bold focus:outline-none focus:border-red-400"
+                  />
+                </div>
+              </div>
+
+              {/* Grid of Features with Checkbox */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {SAAS_FEATURE_CATALOG
+                  .filter(f => !f.path.includes('/billing') && !f.path.includes('/dashboard'))
+                  .filter(f => {
+                    const matchSearch = !suspensionSearch || f.title.toLowerCase().includes(suspensionSearch.toLowerCase()) || f.description.toLowerCase().includes(suspensionSearch.toLowerCase()) || f.path.toLowerCase().includes(suspensionSearch.toLowerCase());
+                    const matchCat = suspensionCategory === 'ALL' || f.module === suspensionCategory;
+                    return matchSearch && matchCat;
+                  })
+                  .map(feat => {
+                    const isBlocked = suspensionBlockedFeatures.includes(feat.path) || suspensionBlockedFeatures.includes(feat.key);
+                    return (
+                      <div
+                        key={feat.key}
+                        onClick={() => {
+                          setSuspensionBlockedFeatures(prev => {
+                            const hasIt = prev.includes(feat.path) || prev.includes(feat.key);
+                            if (hasIt) {
+                              return prev.filter(p => p !== feat.path && p !== feat.key);
+                            } else {
+                              return [...prev, feat.path, feat.key];
+                            }
+                          });
+                        }}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
+                          isBlocked
+                            ? 'bg-red-500/10 border-red-500/50 shadow-sm'
+                            : 'bg-dark-card/60 border-dark-border hover:border-white/20 opacity-80'
+                        }`}
+                      >
+                        <div className="pt-0.5">
+                          {isBlocked ? (
+                            <div className="w-5 h-5 rounded-lg bg-red-600 text-white flex items-center justify-center">
+                              <Lock size={12} />
+                            </div>
+                          ) : (
+                            <div className="w-5 h-5 rounded-lg border border-dark-border bg-dark-hover flex items-center justify-center text-transparent">
+                              <Check size={12} />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <p className={`font-black text-xs truncate ${isBlocked ? 'text-red-300' : 'text-white'}`}>
+                              {feat.title}
+                            </p>
+                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                              isBlocked ? 'bg-red-500/20 text-red-300' : 'bg-white/5 text-dark-muted'
+                            }`}>
+                              {isBlocked ? 'BLOCKED' : 'ALLOWED'}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-dark-muted font-mono mt-0.5 truncate">{feat.path}</p>
+                          <p className="text-[10px] text-dark-muted line-clamp-2 mt-1">{feat.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </GlassCard>
+
+            {/* Section 3: Custom Messages & Save Footer */}
+            <GlassCard className="p-6 md:p-8 space-y-4">
+              <div>
+                <h3 className="font-black text-base text-white flex items-center gap-2">
+                  <AlertCircle className="text-purple-400" size={18} />
+                  Suspension Warning Screen Messages (Optional Customization)
+                </h3>
+                <p className="text-xs text-dark-muted mt-1">
+                  Jab school admin blocked feature par click karega to yeh message display hoga. Empty chhorne par standard official message chalega.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-dark-muted mb-1.5">
+                    Roman Urdu Warning Message:
+                  </label>
+                  <textarea
+                    rows="3"
+                    value={suspensionMsgRoman}
+                    onChange={(e) => setSuspensionMsgRoman(e.target.value)}
+                    placeholder="e.g. Aap ke school ki subscription date ko guzray {days} din ho chukay hain. Fess ada na honay ki wajah se yeh feature temporary tor par muattal (disabled) kar diya gaya hai..."
+                    className="w-full p-3 text-xs bg-dark-card border border-dark-border rounded-xl text-white font-medium focus:outline-none focus:border-red-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-dark-muted mb-1.5 text-right" dir="rtl">
+                    اردو پیغام (Urdu Notice):
+                  </label>
+                  <textarea
+                    rows="3"
+                    dir="rtl"
+                    value={suspensionMsgUrdu}
+                    onChange={(e) => setSuspensionMsgUrdu(e.target.value)}
+                    placeholder="آپ کے اسکول کی سافٹ ویئر فیس کی مقررہ تاریخ ختم ہو چکی ہے۔ فیس ادا نہ ہونے کی وجہ سے یہ سروس عارضی طور پر بند کر دی گئی ہے..."
+                    className="w-full p-3 text-xs bg-dark-card border border-dark-border rounded-xl text-white font-medium focus:outline-none focus:border-red-400 text-right"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/10 flex items-center justify-between flex-wrap gap-4">
+                <span className="text-xs text-dark-muted font-bold">
+                  Settings are synced in real-time to all school instances upon saving.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSaveSuspensionPolicy}
+                  disabled={savingSuspension}
+                  className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-pink-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-xl shadow-red-500/20 transition-all cursor-pointer active:scale-98"
+                >
+                  {savingSuspension ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
+                  <span>Save Expiry & Auto-Lock Policy</span>
+                </button>
+              </div>
+            </GlassCard>
+          </div>
+        );
+      })()}
 
       {/* ============================================================== */}
       {/* TAB 4: RECHARGE REQUESTS & ONLINE PAYMENT VERIFICATION */}

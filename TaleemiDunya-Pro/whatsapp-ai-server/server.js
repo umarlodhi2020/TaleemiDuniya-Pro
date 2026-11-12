@@ -169,11 +169,21 @@ function isValidCnic(input = '') {
 const messageStore = new Map(); // msgId -> proto.IMessage
 function saveMessageToStore(id, message) {
   if (!id || !message) return;
-  if (messageStore.size > 1500) {
+  if (messageStore.size > 2500) {
     const firstKey = messageStore.keys().next().value;
     messageStore.delete(firstKey);
   }
   messageStore.set(id, message);
+}
+
+// Universal Safe Send Message Helper: ensures all sent messages are saved to store for Baileys retry receipt handling
+async function safeSendMessage(sock, jid, content) {
+  if (!sock) throw new Error('WhatsApp session not connected');
+  const sent = await sock.sendMessage(jid, content);
+  if (sent && sent.key && sent.key.id && sent.message) {
+    saveMessageToStore(sent.key.id, sent.message);
+  }
+  return sent;
 }
 
 // Deduplication store for processed incoming messages
@@ -1944,7 +1954,7 @@ app.post('/api/message/send', async (req, res) => {
     try {
       const cleanPhone = normalizePhone(target);
       const jid = `${cleanPhone}@s.whatsapp.net`;
-      await sock.sendMessage(jid, { text: message });
+      await safeSendMessage(sock, jid, { text: message });
       results.push({ phone: target, jid, status: 'sent' });
     } catch (err) {
       results.push({ phone: target, status: 'failed', error: err.message });
@@ -2026,7 +2036,7 @@ app.post('/api/cron/trigger', async (req, res) => {
         
         try {
           const jid = cleanPhone.startsWith('92') ? cleanPhone + '@s.whatsapp.net' : '92' + cleanPhone.replace(/^0/, '') + '@s.whatsapp.net';
-          await sock.sendMessage(jid, { text: msg });
+          await safeSendMessage(sock, jid, { text: msg });
           sent++;
         } catch { failed++; }
         await new Promise(r => setTimeout(r, 500));
@@ -2052,7 +2062,7 @@ app.post('/api/cron/trigger', async (req, res) => {
         const msg = '⚠️ *Attendance Alert*\n\nStudent *' + (a.studentName || '') + '* (Class: ' + (a.class || '') + ') aaj ABSENT hai.\n\nTaleemiDunya Pro 🏫';
         try {
           const jid = cleanPhone.startsWith('92') ? cleanPhone + '@s.whatsapp.net' : '92' + cleanPhone.replace(/^0/, '') + '@s.whatsapp.net';
-          await sock.sendMessage(jid, { text: msg });
+          await safeSendMessage(sock, jid, { text: msg });
           sent++;
         } catch { failed++; }
         await new Promise(r => setTimeout(r, 400));
@@ -2079,7 +2089,7 @@ app.post('/api/cron/trigger', async (req, res) => {
         const msg = '🎂 *Happy Birthday!*\n\n*' + (s.name || 'Student') + '* ko aaj birthday mubarak ho! 🎉\n\nTaleemiDunya Pro ki taraf se dua hai ke aap ki zindagi khushiyon se bhari rahe. 🌟';
         try {
           const jid = cleanPhone.startsWith('92') ? cleanPhone + '@s.whatsapp.net' : '92' + cleanPhone.replace(/^0/, '') + '@s.whatsapp.net';
-          await sock.sendMessage(jid, { text: msg });
+          await safeSendMessage(sock, jid, { text: msg });
           sent++;
         } catch { failed++; }
         await new Promise(r => setTimeout(r, 400));
@@ -2206,7 +2216,7 @@ app.post('/api/attendance/rfid', async (req, res) => {
       const sock = sessions.get(schoolId);
       if (sock) {
         const msgText = `🏫 *SMART BIOMETRIC ATTENDANCE ALERT*\n\nAssalam-o-Alaikum! Student *${student.name}* (Class: ${student.class || 'N/A'}) has arrived at school gate and checked in today at *${checkInTime}*.\n\nStatus: *PRESENT ✅*`;
-        sock.sendMessage(`${parentPhone}@s.whatsapp.net`, { text: msgText }).catch(() => {});
+        safeSendMessage(sock, `${parentPhone}@s.whatsapp.net`, { text: msgText }).catch(() => {});
         waSent = true;
       }
     }
@@ -2259,7 +2269,7 @@ app.post('/api/billing/generate-monthly-challans', async (req, res) => {
         const pPhone = normalizePhone(st.parentPhone || st.phone);
         if (pPhone) {
           const challanMsg = `📢 *OFFICIAL FEE CHALLAN NOTIFICATION*\n\nAssalam-o-Alaikum! Current month (${monthYear}) tuition fee for *${st.name}* (Grade: ${st.class || 'N/A'}) has been generated.\n\n💰 *Amount:* Rs. ${baseFee.toLocaleString()}/-\n📅 *Due Date:* ${dueDate}\n\nRegards,\nSchool Accounts Office`;
-          sock.sendMessage(`${pPhone}@s.whatsapp.net`, { text: challanMsg }).catch(() => {});
+          safeSendMessage(sock, `${pPhone}@s.whatsapp.net`, { text: challanMsg }).catch(() => {});
           waAlertCount++;
         }
       }
@@ -2374,7 +2384,7 @@ app.post('/api/mobile/auth/request-otp', async (req, res) => {
     if (userPhone) {
       const sock = sessions.get(schoolId) || sessions.get('NNRuCtHxQNjISc9EPgMs');
       if (sock) {
-        sock.sendMessage(`${userPhone}@s.whatsapp.net`, {
+        safeSendMessage(sock, `${userPhone}@s.whatsapp.net`, {
           text: `🏫 *TaleemiDunya School System*\n\nAssalam-o-Alaikum ${displayName}!\nYour verification code is: *${otp}*`
         }).catch(() => {});
       }
@@ -2509,7 +2519,7 @@ app.post('/api/mobile/teacher/homework', async (req, res) => {
         if (s.section === section) {
           const pPhone = normalizePhone(s.parentPhone || s.phone);
           if (pPhone) {
-            sock.sendMessage(`${pPhone}@s.whatsapp.net`, {
+            safeSendMessage(sock, `${pPhone}@s.whatsapp.net`, {
               text: `*NEW HOMEWORK ALERT*\n\nClass: ${className}-${section}\nSubject: ${subject}\nTitle: ${title}`
             }).catch(() => {});
           }

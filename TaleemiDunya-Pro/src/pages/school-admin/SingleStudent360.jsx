@@ -9,10 +9,12 @@ import {
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, addRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import { useNavigate as useNav } from 'react-router-dom';
 
 const SingleStudent360 = () => {
   const { userData } = useAuth();
+  const { schoolData } = useSchool();
   const navigate = useNavigate();
   const { id } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -35,7 +37,7 @@ const SingleStudent360 = () => {
       return;
     }
 
-    const schoolName = userData?.schoolName || 'Smart Angels Grammar School';
+    const schoolName = schoolData?.name || userData?.schoolName || 'School Name';
     const defaultText = `Assalam-o-Alaikum Respected Parent of *${selectedStudent.name}* (Roll: ${selectedStudent.rollNumber || 'N/A'}, Class: ${selectedStudent.class || 'N/A'}).\n\nThis is an official communication from *${schoolName}*. Please check your Parent Portal for recent attendance logs, examination reports, and fee challans.\n\nThank you for your cooperation!\n*Administration - ${schoolName}*`;
     const messageToSend = overrideText || customMsg || defaultText;
 
@@ -45,7 +47,7 @@ const SingleStudent360 = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          schoolId: userData?.schoolId || 'NNRuCtHxQNjISc9EPgMs',
+          schoolId: userData?.schoolId || schoolData?.id || null,
           phone: cleanPhone,
           message: messageToSend
         })

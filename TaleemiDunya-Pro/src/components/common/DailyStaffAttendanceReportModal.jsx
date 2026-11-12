@@ -402,7 +402,7 @@ export default function DailyStaffAttendanceReportModal({
                 )}
                 <div>
                   <h1 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight">
-                    {schoolData?.name || 'Smart Angels Grammar School'}
+                    {schoolData?.name || userData?.schoolName || 'School Name'}
                   </h1>
                   <p className="text-xs text-slate-600 mt-0.5 font-medium">{schoolData?.address || 'Campus Address, Pakistan'}</p>
                   <p className="text-xs text-slate-500">Phone: {schoolData?.phone || '0331-2202569'} &nbsp;•&nbsp; Email: {schoolData?.email || 'school@taleemidunya.com'}</p>

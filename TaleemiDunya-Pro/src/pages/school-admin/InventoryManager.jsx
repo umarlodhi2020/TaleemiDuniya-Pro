@@ -47,6 +47,7 @@ import {
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords, addRecord, updateRecord, deleteRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import QRCode from 'react-qr-code';
 import { Html5Qrcode } from 'html5-qrcode';
 
@@ -97,8 +98,9 @@ const DEFAULT_CATEGORIES = [
 const InventoryManager = () => {
   const navigate = useNavigate();
   const { userData } = useAuth();
-  const schoolId = userData?.schoolId || 'default-school';
-  const schoolName = userData?.schoolName || 'Taleemi Dunya Model Academy';
+  const { schoolData } = useSchool();
+  const schoolId = schoolData?.id || userData?.schoolId || 'default-school';
+  const schoolName = schoolData?.name || schoolData?.schoolName || userData?.schoolName || 'School Name';
 
   // Active Main Tab: 'pos' (Sale/Issue POS) | 'items' (Catalog) | 'sales_ledger' (History) | 'purchases' (Restock)
   const [activeTab, setActiveTab] = useState('pos');
@@ -122,6 +124,11 @@ const InventoryManager = () => {
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [ledgerTypeFilter, setLedgerTypeFilter] = useState('all'); // 'all' | 'student' | 'staff' | 'sale' | 'issue' | 'fee_challan'
   const [ledgerStatusFilter, setLedgerStatusFilter] = useState('all'); // 'all' | 'pending_return' | 'returned' | 'completed'
+
+  // Issued Register State
+  const [issuedSearch, setIssuedSearch] = useState('');
+  const [issuedStatusFilter, setIssuedStatusFilter] = useState('all'); // 'all' | 'active' | 'returned'
+  const [issuedSubTab, setIssuedSubTab] = useState('students'); // 'students' | 'staff'
 
   // ══════════════════════════════════════════════════════════════
   // POINT OF SALE & ISSUANCE (POS) STATE
@@ -232,145 +239,39 @@ const InventoryManager = () => {
         getRecords('vouchers', schoolId)
       ]);
 
-      // Items Catalog with Fallbacks
+      // Items Catalog (Real DB only)
       if (itemsData && itemsData.length > 0) {
         setItems(itemsData);
       } else {
-        setItems([
-          { id: 'inv-101', name: 'Oxford Progressive English & Science (Grade 9-10)', category: 'Books & Curriculum', quantity: 45, unit: 'sets', price: 3400, costPrice: 2600, room: 'Book Depot Shelf A', minStockAlert: 10, status: 'available' },
-          { id: 'inv-102', name: 'School Official Navy Blue Blazer & Uniform Kit', category: 'Uniforms & Apparel', quantity: 28, unit: 'sets', price: 4800, costPrice: 3600, room: 'Uniform Depot', minStockAlert: 5, status: 'available' },
-          { id: 'inv-103', name: 'A4 Premium Paper Ream (500 Sheets 80gsm)', category: 'Stationery & Supplies', quantity: 6, unit: 'reams', price: 2100, costPrice: 1750, room: 'Admin Stationery Store', minStockAlert: 10, status: 'low_stock' },
-          { id: 'inv-104', name: 'HP LaserJet Pro M28w Wireless Printer', category: 'Electronics & IT', quantity: 5, unit: 'pcs', price: 68000, costPrice: 58000, room: 'Admin Office', minStockAlert: 2, status: 'available' },
-          { id: 'inv-105', name: 'High-Precision Binocular Optical Microscope', category: 'Lab Equipment', quantity: 12, unit: 'sets', price: 42000, costPrice: 34000, room: 'Biology Lab Cabinet 2', minStockAlert: 4, status: 'available' },
-          { id: 'inv-106', name: 'Molten Match Football FIFA Approved Size 5', category: 'Sports & Athletics', quantity: 18, unit: 'pcs', price: 4500, costPrice: 3200, room: 'Sports Complex', minStockAlert: 5, status: 'available' },
-          { id: 'inv-107', name: 'Magnetic Classroom Whiteboard (4x6 ft Aluminum Frame)', category: 'Furniture & Fixtures', quantity: 22, unit: 'pcs', price: 8500, costPrice: 6500, room: 'Store Room B', minStockAlert: 5, status: 'available' },
-          { id: 'inv-108', name: 'Student Geometry & Mathematical Drawing Set', category: 'Stationery & Supplies', quantity: 0, unit: 'boxes', price: 450, costPrice: 300, room: 'Stationery Store', minStockAlert: 15, status: 'out_of_stock' }
-        ]);
+        setItems([]);
       }
 
-      // Sales & Issuances with Fallbacks
+      // Sales & Issuances (Real DB only)
       if (salesData && salesData.length > 0) {
         setSales(salesData);
       } else {
-        setSales([
-          {
-            id: 'sale-1001',
-            invoiceNo: 'INV-2026-0891',
-            type: 'sale',
-            recipientType: 'student',
-            recipientName: 'Ahmed Raza',
-            recipientDetail: 'Class 10-A (Roll # 101)',
-            recipientPhone: '03001234567',
-            itemId: 'inv-101',
-            itemName: 'Oxford Progressive English & Science (Grade 9-10)',
-            category: 'Books & Curriculum',
-            quantity: 1,
-            unit: 'sets',
-            unitPrice: 3400,
-            totalAmount: 3400,
-            paymentMethod: 'cash',
-            paymentStatus: 'paid',
-            status: 'completed',
-            remarks: 'Term 1 Course syllabus purchase',
-            date: '2026-10-26 10:45 AM',
-            createdAt: '2026-10-26T10:45:00.000Z'
-          },
-          {
-            id: 'sale-1002',
-            invoiceNo: 'ISS-2026-0312',
-            type: 'issue',
-            recipientType: 'staff',
-            recipientName: 'Sir Usman Farooq',
-            recipientDetail: 'Head of Physics Dept (Senior Faculty)',
-            recipientPhone: '03011122334',
-            itemId: 'inv-105',
-            itemName: 'High-Precision Binocular Optical Microscope',
-            category: 'Lab Equipment',
-            quantity: 2,
-            unit: 'sets',
-            unitPrice: 42000,
-            totalAmount: 84000,
-            paymentMethod: 'free_issue',
-            paymentStatus: 'free_assigned',
-            status: 'issued',
-            returnDate: '2026-11-15',
-            remarks: 'Issued for Grade 10 Board Practical Examinations',
-            date: '2026-10-25 09:30 AM',
-            createdAt: '2026-10-25T09:30:00.000Z',
-            returned: false
-          },
-          {
-            id: 'sale-1003',
-            invoiceNo: 'INV-2026-0892',
-            type: 'sale',
-            recipientType: 'student',
-            recipientName: 'Fatima Noor',
-            recipientDetail: 'Class 9-B (Roll # 104)',
-            recipientPhone: '03129876543',
-            itemId: 'inv-102',
-            itemName: 'School Official Navy Blue Blazer & Uniform Kit',
-            category: 'Uniforms & Apparel',
-            quantity: 1,
-            unit: 'sets',
-            unitPrice: 4800,
-            totalAmount: 4800,
-            paymentMethod: 'fee_challan',
-            paymentStatus: 'challan_added',
-            addedToFeeRecord: true,
-            status: 'completed',
-            remarks: 'Added to October fee voucher / ledger',
-            date: '2026-10-24 02:15 PM',
-            createdAt: '2026-10-24T14:15:00.000Z'
-          }
-        ]);
+        setSales([]);
       }
 
-      // Purchases with Fallbacks
+      // Purchases (Real DB only)
       if (purchasesData && purchasesData.length > 0) {
         setPurchases(purchasesData);
       } else {
-        setPurchases([
-          {
-            id: 'pur-101',
-            itemId: 'inv-101',
-            itemName: 'Oxford Progressive English & Science (Grade 9-10)',
-            quantityAdded: 50,
-            unit: 'sets',
-            costPrice: 2600,
-            totalCost: 130000,
-            supplierName: 'Oxford Regional Book Distributors',
-            invoiceNo: 'OUP-9921',
-            date: '2026-10-15',
-            notes: 'Bulk purchase for Academic Year 2026-27'
-          }
-        ]);
+        setPurchases([]);
       }
 
       // Students for Autocomplete & Fee Balance
       if (studentsData && studentsData.length > 0) {
         setStudents(studentsData);
       } else {
-        setStudents([
-          { id: 'std-1', name: 'Ahmed Raza', rollNumber: '101', class: 'Class 10-A', fatherName: 'Muhammad Raza', phone: '03001234567', balance: 0 },
-          { id: 'std-2', name: 'Fatima Noor', rollNumber: '104', class: 'Class 9-B', fatherName: 'Noor Muhammad', phone: '03129876543', balance: 4800 },
-          { id: 'std-3', name: 'Zain Ali', rollNumber: '112', class: 'Class 8-Green', fatherName: 'Tariq Ali', phone: '03215554433', balance: 500 },
-          { id: 'std-4', name: 'Ayesha Khan', rollNumber: '108', class: 'Class 10-A', fatherName: 'Imran Khan', phone: '03337778899', balance: 0 },
-          { id: 'std-5', name: 'Bilal Hassan', rollNumber: '119', class: 'Class 7-Blue', fatherName: 'Hassan Mehmood', phone: '03456667788', balance: 1200 },
-          { id: 'std-6', name: 'Hamza Tariq', rollNumber: '105', class: 'Class 6-Rose', fatherName: 'Tariq Mehmood', phone: '03112233445', balance: 0 }
-        ]);
+        setStudents([]);
       }
 
       // Staff for Autocomplete
       if (staffData && staffData.length > 0) {
         setStaffList(staffData);
       } else {
-        setStaffList([
-          { id: 'stf-1', name: 'Sir Usman Farooq', designation: 'Head of Physics Dept', department: 'Science Faculty', phone: '03011122334' },
-          { id: 'stf-2', name: 'Maam Samina Bibi', designation: 'Senior English Teacher', department: 'Languages', phone: '03134455667' },
-          { id: 'stf-3', name: 'Sir Kamran Akram', designation: 'Sports & Athletics Director', department: 'Sports', phone: '03228899001' },
-          { id: 'stf-4', name: 'Mr. Asif Javed', designation: 'IT & Lab Network Incharge', department: 'Computer Science', phone: '03342233445' },
-          { id: 'stf-5', name: 'Qari Abdul Rehman', designation: 'Senior Arabic & Islamic Studies', department: 'Islamic Studies', phone: '03457788990' }
-        ]);
+        setStaffList([]);
       }
 
       if (vouchersData && vouchersData.length > 0) {
@@ -507,6 +408,18 @@ const InventoryManager = () => {
     return sales.filter(s => s.type === 'issue' && !s.returned).reduce((sum, s) => sum + (Number(s.quantity) || 1), 0);
   }, [sales]);
 
+  const studentIssuedCount = useMemo(() => {
+    return sales.filter(s => s.recipientType === 'student' && s.type === 'issue' && !s.returned).length;
+  }, [sales]);
+
+  const staffIssuedCount = useMemo(() => {
+    return sales.filter(s => s.recipientType === 'staff' && s.type === 'issue' && !s.returned).length;
+  }, [sales]);
+
+  const totalReturnedCount = useMemo(() => {
+    return sales.filter(s => s.returned).length;
+  }, [sales]);
+
   // ══════════════════════════════════════════════════════════════
   // POS ACTIONS (SELECT ITEM, SELECT RECIPIENT, COMPLETE TRANSACTION)
   // ══════════════════════════════════════════════════════════════
@@ -523,22 +436,26 @@ const InventoryManager = () => {
     setSelectedRecipient(recipient);
     if (recipientType === 'student') {
       const name = recipient.name || recipient.studentName || 'Student';
+      const fatherName = recipient.fatherName || recipient.guardianName || 'Parent';
       const detail = `${recipient.class || 'Class N/A'} (Roll # ${recipient.rollNumber || recipient.rollNo || '-'})`;
       setRecipientSearchInput(name);
       setSelectedRecipient({
         id: recipient.id,
         name,
+        fatherName,
         detail,
         phone: recipient.phone || recipient.parentPhone || '',
         balance: recipient.balance || recipient.arrears || 0
       });
     } else if (recipientType === 'staff') {
       const name = recipient.name || 'Staff';
+      const fatherName = recipient.fatherName || recipient.guardianName || '-';
       const detail = `${recipient.designation || 'Staff'} - ${recipient.department || ''}`;
       setRecipientSearchInput(name);
       setSelectedRecipient({
         id: recipient.id,
         name,
+        fatherName,
         detail,
         phone: recipient.phone || ''
       });
@@ -568,19 +485,28 @@ const InventoryManager = () => {
 
     // Determine recipient details
     let finalRecipientName = '';
+    let finalRecipientFatherName = '';
     let finalRecipientDetail = '';
     let finalRecipientPhone = '';
 
     if (selectedRecipient) {
       finalRecipientName = selectedRecipient.name;
+      finalRecipientFatherName = selectedRecipient.fatherName || '';
       finalRecipientDetail = selectedRecipient.detail;
       finalRecipientPhone = selectedRecipient.phone || '';
     } else if (recipientSearchInput.trim()) {
       finalRecipientName = recipientSearchInput.trim();
+      finalRecipientFatherName = '';
       finalRecipientDetail = recipientType === 'student' ? 'Student (Manual Entry)' : (recipientType === 'staff' ? 'Staff (Manual Entry)' : 'Walk-in Customer');
     } else {
       alert('Please specify the recipient (Student, Staff, or Customer name).');
       return;
+    }
+
+    // Try fallback fatherName lookup from students array if missing
+    if (recipientType === 'student' && !finalRecipientFatherName && selectedRecipient?.id) {
+      const sObj = students.find(s => s.id === selectedRecipient.id);
+      if (sObj?.fatherName) finalRecipientFatherName = sObj.fatherName;
     }
 
     const isSale = posMode === 'sale';
@@ -596,6 +522,7 @@ const InventoryManager = () => {
       recipientType,
       recipientId: selectedRecipient?.id || 'manual',
       recipientName: finalRecipientName,
+      recipientFatherName: finalRecipientFatherName,
       recipientDetail: finalRecipientDetail,
       recipientPhone: finalRecipientPhone,
       itemId: selectedPosItem.id,
@@ -618,12 +545,13 @@ const InventoryManager = () => {
     // ══════════════════════════════════════════════════════════════
     // FEE RECORD INTEGRATION (ADD PRODUCT CHARGES TO STUDENT FEE RECORD / VOUCHER)
     // ══════════════════════════════════════════════════════════════
-    if (isSale && recipientType === 'student' && selectedRecipient?.id && posPaymentMethod === 'fee_challan') {
+    if (isSale && recipientType === 'student' && selectedRecipient?.id && (posPaymentMethod === 'fee_challan' || posPaymentMethod === 'direct_fee_record')) {
       try {
         const studentDoc = students.find(s => s.id === selectedRecipient.id);
         const currentBal = Number(studentDoc?.balance !== undefined ? studentDoc.balance : (studentDoc?.arrears || 0)) || 0;
         const newBal = currentBal + totalAmount;
 
+        const isDirectFee = posPaymentMethod === 'direct_fee_record';
         const productChargeItem = {
           id: 'prod-' + Date.now(),
           invoiceNo,
@@ -634,7 +562,8 @@ const InventoryManager = () => {
           unitPrice: Number(posUnitPrice),
           totalAmount,
           date: new Date().toISOString().split('T')[0],
-          status: 'unbilled'
+          status: isDirectFee ? 'direct_collected' : 'unbilled',
+          addedDirectly: isDirectFee
         };
 
         const existingPending = Array.isArray(studentDoc?.pendingProductCharges) ? studentDoc.pendingProductCharges : [];
@@ -649,47 +578,84 @@ const InventoryManager = () => {
           });
         }
 
-        // 2. Check if an active Unpaid voucher exists for this student
-        const studentVouchers = vouchers.filter(v =>
-          (v.studentId === selectedRecipient.id || v.studentName === finalRecipientName) &&
-          v.status === 'Unpaid'
-        );
+        // 2. Check if an active Unpaid voucher exists for this student or their family
+        const studentId = selectedRecipient.id;
+        const studentName = finalRecipientName;
+        const studentVouchers = isDirectFee ? [] : vouchers.filter(v => {
+          if (v.status === 'Paid') return false;
+          // Direct student voucher match
+          if (v.studentId === studentId || v.studentName === studentName) return true;
+          // Family voucher that includes this student
+          if (v.selectionType === 'family') {
+            if (v.childrenIds && v.childrenIds.includes(studentId)) return true;
+            if (v.childrenDetails && v.childrenDetails.some(c =>
+              (c.name || '').trim().toLowerCase() === studentName.trim().toLowerCase()
+            )) return true;
+          }
+          return false;
+        });
 
         let linkedVoucherNo = null;
         if (studentVouchers.length > 0) {
+          // Sort by most recent (highest voucherNo)
+          studentVouchers.sort((a, b) => Number(b.voucherNo || 0) - Number(a.voucherNo || 0));
           const latestUnpaidVoucher = studentVouchers[0];
           const currentItems = Array.isArray(latestUnpaidVoucher.feeItems) ? [...latestUnpaidVoucher.feeItems] : [];
-          currentItems.push({
-            name: `${selectedPosItem.category || 'Store Item'}: ${selectedPosItem.name} (${posQuantity}x)`,
-            amount: totalAmount,
-            isProductCharge: true,
-            productInvoiceNo: invoiceNo
-          });
 
-          const updatedVoucherTotal = Number(latestUnpaidVoucher.totalAmount || 0) + totalAmount;
+          // Avoid adding duplicate product charge (same invoiceNo)
+          const alreadyAdded = currentItems.some(fi => fi.productInvoiceNo === invoiceNo);
+          if (!alreadyAdded) {
+            currentItems.push({
+              name: `${selectedPosItem.category || 'Store Item'}: ${selectedPosItem.name} (${posQuantity}x)`,
+              amount: totalAmount,
+              isProductCharge: true,
+              productInvoiceNo: invoiceNo
+            });
 
-          if (!latestUnpaidVoucher.id.startsWith('vouch-')) {
-            await updateRecord('vouchers', latestUnpaidVoucher.id, {
+            const updatedVoucherTotal = Number(latestUnpaidVoucher.totalAmount || 0) + totalAmount;
+
+            if (!latestUnpaidVoucher.id.startsWith('vouch-')) {
+              await updateRecord('vouchers', latestUnpaidVoucher.id, {
+                feeItems: currentItems,
+                totalAmount: updatedVoucherTotal
+              });
+            }
+
+            linkedVoucherNo = latestUnpaidVoucher.voucherNo || latestUnpaidVoucher.id;
+            setVouchers(vouchers.map(v => v.id === latestUnpaidVoucher.id ? {
+              ...v,
               feeItems: currentItems,
               totalAmount: updatedVoucherTotal
-            });
+            } : v));
+
+            // Mark this product charge as 'billed' in pendingProductCharges so it doesn't get added again
+            const billedPending = updatedPending.map(p =>
+              p.invoiceNo === invoiceNo ? { ...p, status: 'billed', linkedVoucherNo: latestUnpaidVoucher.voucherNo } : p
+            );
+            if (!selectedRecipient.id.startsWith('std-')) {
+              await updateRecord('students', selectedRecipient.id, {
+                pendingProductCharges: billedPending
+              });
+            }
+            // Update local state with billed status
+            setStudents(students.map(s => s.id === studentId ? {
+              ...s,
+              balance: newBal,
+              arrears: newBal,
+              pendingProductCharges: billedPending
+            } : s));
+          } else {
+            linkedVoucherNo = latestUnpaidVoucher.voucherNo || latestUnpaidVoucher.id;
           }
-
-          linkedVoucherNo = latestUnpaidVoucher.voucherNo || latestUnpaidVoucher.id;
-          setVouchers(vouchers.map(v => v.id === latestUnpaidVoucher.id ? {
-            ...v,
-            feeItems: currentItems,
-            totalAmount: updatedVoucherTotal
-          } : v));
+        } else {
+          // No unpaid voucher — update local student state only (charge will appear on next voucher)
+          setStudents(students.map(s => s.id === studentId ? {
+            ...s,
+            balance: newBal,
+            arrears: newBal,
+            pendingProductCharges: updatedPending
+          } : s));
         }
-
-        // Update local student state so autocomplete reflects new balance immediately
-        setStudents(students.map(s => s.id === selectedRecipient.id ? {
-          ...s,
-          balance: newBal,
-          arrears: newBal,
-          pendingProductCharges: updatedPending
-        } : s));
 
         newSaleRecord.addedToFeeRecord = true;
         newSaleRecord.linkedVoucher = linkedVoucherNo ? `Voucher #${linkedVoucherNo}` : 'Next Monthly Fee Voucher';
@@ -726,8 +692,12 @@ const InventoryManager = () => {
 
     playBeep('success');
 
-    if (posPaymentMethod === 'fee_challan' && isSale) {
-      showToast(`💳 PKR ${totalAmount.toLocaleString()} of "${selectedPosItem.name}" added to ${finalRecipientName}'s Fee Record & Voucher!`);
+    if ((posPaymentMethod === 'fee_challan' || posPaymentMethod === 'direct_fee_record') && isSale) {
+      if (posPaymentMethod === 'direct_fee_record') {
+        showToast(`💰 PKR ${totalAmount.toLocaleString()} of "${selectedPosItem.name}" directly added to ${finalRecipientName}'s Fee Record (No Voucher needed)!`);
+      } else {
+        showToast(`💳 PKR ${totalAmount.toLocaleString()} of "${selectedPosItem.name}" added to ${finalRecipientName}'s Fee Record & Voucher!`);
+      }
     } else {
       showToast(`✅ ${isSale ? 'Store Sale' : 'Asset Issuance'} of ${posQuantity} ${selectedPosItem.unit} recorded successfully!`);
     }
@@ -746,6 +716,277 @@ const InventoryManager = () => {
   };
 
   // ══════════════════════════════════════════════════════════════
+
+  // ─── PRINT HANDLERS FOR INVENTORY RECEIPTS & ASSET TAGS ─────────────────────
+  const handlePrintStoreReceipt = (receipt) => {
+    if (!receipt) return;
+    const isFeeChallan = receipt.paymentMethod === 'fee_challan' || receipt.paymentMethod === 'direct_fee_record';
+    const subTitle = receipt.type === 'sale'
+      ? (isFeeChallan ? 'STORE PRODUCT FEE RECEIPT (ADDED TO MONTHLY VOUCHER)' : 'OFFICIAL STORE SALE SLIP')
+      : 'OFFICIAL ASSET ISSUANCE VOUCHER';
+
+    const paymentLabel = receipt.type === 'sale'
+      ? (receipt.paymentMethod === 'fee_challan'
+          ? 'INCLUDED IN STUDENT MONTHLY FEE VOUCHER'
+          : receipt.paymentMethod === 'direct_fee_record'
+            ? 'DIRECT FEE RECORD (NO VOUCHER REQUIRED)'
+            : (receipt.paymentMethod || 'cash').toUpperCase().replace('_', ' '))
+      : 'OFFICIAL SCHOOL ASSIGNMENT';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Store Receipt - #${receipt.invoiceNo || 'INV'}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size:12px; }
+  body { background:#f3f4f6; padding:25px; display:flex; flex-direction:column; align-items:center; }
+  .no-print { text-align:center; margin-bottom: 20px; }
+  .print-btn { padding:10px 24px; background:#4f46e5; color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:14px; box-shadow:0 4px 6px rgba(0,0,0,0.1); margin:0 5px; }
+  .receipt-card { width:150mm; background:#fff; padding:28px; border:1px solid #cbd5e1; border-radius:12px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); }
+  .header { text-align:center; border-bottom:2px solid #0f172a; padding-bottom:12px; margin-bottom:14px; }
+  .school-title { font-size:20px; font-weight:900; color:#0f172a; text-transform:uppercase; letter-spacing:0.5px; }
+  .receipt-subtitle { font-size:11px; font-weight:700; color:#64748b; margin-top:3px; letter-spacing:1px; }
+  .meta-row { display:flex; justify-content:space-between; margin-top:10px; font-family:monospace; font-size:11px; color:#475569; }
+  .recipient-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:14px; }
+  .info-title { font-size:9px; font-weight:800; color:#94a3b8; text-transform:uppercase; letter-spacing:0.5px; }
+  .name { font-size:14px; font-weight:800; color:#0f172a; margin-top:2px; }
+  .detail { font-size:11px; color:#475569; margin-top:2px; }
+  .items-table { width:100%; border-collapse:collapse; margin-top:10px; }
+  .items-table th { background:#f1f5f9; color:#475569; font-size:10px; font-weight:800; text-transform:uppercase; padding:8px; border-bottom:1px solid #cbd5e1; text-align:left; }
+  .items-table td { padding:10px 8px; border-bottom:1px solid #e2e8f0; font-size:12px; }
+  .total-row { display:flex; justify-content:space-between; align-items:center; border-top:2px solid #0f172a; padding-top:12px; margin-top:10px; }
+  .total-amt { font-size:20px; font-weight:900; color:#0f172a; }
+  .fee-notice { background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:10px; margin-top:14px; font-size:10px; color:#5b21b6; }
+  .issue-notice { background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px; margin-top:14px; font-size:10px; color:#92400e; }
+  .signatures { display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:40px; text-align:center; font-size:10px; color:#64748b; }
+  .sig-line { border-top:1px solid #cbd5e1; padding-top:4px; font-weight:700; }
+  @media print {
+    body { background:#fff; padding:0; }
+    .no-print { display:none !important; }
+    .receipt-card { width:100%; border:none; box-shadow:none; padding:15px; }
+  }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <button class="print-btn" onclick="window.print()">🖨️ Print Receipt</button>
+  </div>
+  <div class="receipt-card">
+    <div class="header">
+      <div class="school-title">${schoolName}</div>
+      <div class="receipt-subtitle">${subTitle}</div>
+      <div class="meta-row">
+        <span>INVOICE / VOUCHER #: <strong>${receipt.invoiceNo || 'N/A'}</strong></span>
+        <span>DATE: <strong>${receipt.date || new Date().toISOString().split('T')[0]}</strong></span>
+      </div>
+    </div>
+
+    <div class="recipient-box">
+      <div style="display:flex; justify-content:space-between;">
+        <span class="info-title">ISSUED / SOLD TO:</span>
+        <span style="font-weight:800; font-size:10px; text-transform:uppercase; color:#4f46e5;">${receipt.recipientType || 'Student'}</span>
+      </div>
+      <div class="name">${receipt.recipientName || 'Walk-in Customer'}</div>
+      <div class="detail">${receipt.recipientDetail || ''} ${receipt.recipientFatherName ? `• S/O ${receipt.recipientFatherName}` : ''}</div>
+      ${receipt.recipientPhone ? `<div class="detail" style="font-size:10px; color:#64748b;">Contact: ${receipt.recipientPhone}</div>` : ''}
+    </div>
+
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Item Description</th>
+          <th style="text-align:center;">Qty</th>
+          <th style="text-align:right;">Unit Price</th>
+          <th style="text-align:right;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <strong>${receipt.itemName || 'Store Product'}</strong>
+            <div style="font-size:10px; color:#64748b;">${receipt.category || 'Store Item'}</div>
+          </td>
+          <td style="text-align:center; font-weight:700;">${receipt.quantity || 1} ${receipt.unit || 'pcs'}</td>
+          <td style="text-align:right; color:#475569;">PKR ${Number(receipt.unitPrice || 0).toLocaleString()}</td>
+          <td style="text-align:right; font-weight:900; color:#0f172a;">PKR ${Number(receipt.totalAmount || 0).toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="total-row">
+      <div>
+        <span class="info-title">PAYMENT METHOD</span>
+        <div style="font-size:11px; font-weight:800; color:#334155;">${paymentLabel}</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="info-title">TOTAL AMOUNT</span>
+        <div class="total-amt">PKR ${Number(receipt.totalAmount || 0).toLocaleString()}</div>
+      </div>
+    </div>
+
+    ${isFeeChallan ? `
+      <div class="fee-notice">
+        <strong>💳 Fee Record Linked:</strong> This charge has been recorded to student's fee ledger balance.
+        ${receipt.paymentMethod === 'fee_challan' ? 'It will be itemized on the student monthly fee voucher.' : 'It is directly recorded into student accounts without voucher.'}
+      </div>
+    ` : ''}
+
+    ${receipt.type === 'issue' ? `
+      <div class="issue-notice">
+        ⚠️ <strong>Note:</strong> This item is official school property lent for academic use. Expected Return Date: <strong>${receipt.returnDate || 'End of Term'}</strong>.
+      </div>
+    ` : ''}
+
+    <div class="signatures">
+      <div class="sig-line">Store Incharge Signature</div>
+      <div class="sig-line">Receiver Signature</div>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 250);
+    };
+  </script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=750');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
+  const handlePrintThermalStoreReceipt = (receipt) => {
+    if (!receipt) return;
+    const isFeeChallan = receipt.paymentMethod === 'fee_challan' || receipt.paymentMethod === 'direct_fee_record';
+    const subTitle = receipt.type === 'sale'
+      ? (isFeeChallan ? 'STORE PRODUCT CHARGE' : 'STORE SALE SLIP')
+      : 'ASSET ISSUANCE VOUCHER';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Thermal Receipt - ${receipt.invoiceNo || 'INV'}</title>
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Courier New', Courier, monospace; font-size:12px; color:#000; }
+  body { width:74mm; margin:0 auto; padding:8px 4px; background:#fff; }
+  .center { text-align:center; }
+  .bold { font-weight:bold; }
+  .school-title { font-size:14px; font-weight:900; margin-bottom:2px; }
+  .school-sub { font-size:9px; margin-bottom:3px; }
+  .divider { border-top:1px dashed #000; margin:6px 0; }
+  .row { display:flex; justify-content:space-between; margin-bottom:3px; font-size:11px; }
+  .total-box { background:#f0f0f0; padding:5px; margin:6px 0; }
+  .no-print { text-align:center; margin-bottom:10px; }
+  .btn { padding:6px 14px; background:#000; color:#fff; border:none; font-weight:bold; cursor:pointer; border-radius:4px; }
+  @media print { .no-print { display:none !important; } }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <button class="btn" onclick="window.print()">Print Thermal Slip</button>
+  </div>
+  <div class="center">
+    <div class="school-title">${schoolName}</div>
+    <div class="school-sub">${subTitle}</div>
+    <div class="divider"></div>
+  </div>
+  <div class="row"><span>Inv #:</span><span class="bold">${receipt.invoiceNo || 'N/A'}</span></div>
+  <div class="row"><span>Date:</span><span>${receipt.date || ''}</span></div>
+  <div class="row"><span>To:</span><span class="bold">${receipt.recipientName || 'Walk-in'}</span></div>
+  ${receipt.recipientDetail ? `<div class="row"><span>Detail:</span><span>${receipt.recipientDetail}</span></div>` : ''}
+  <div class="divider"></div>
+  <div class="row bold"><span>Item</span><span>Total</span></div>
+  <div class="row">
+    <span>${receipt.itemName} x ${receipt.quantity}</span>
+    <span class="bold">PKR ${Number(receipt.totalAmount || 0).toLocaleString()}</span>
+  </div>
+  <div class="divider"></div>
+  <div class="total-box">
+    <div class="row bold" style="font-size:13px;">
+      <span>TOTAL:</span>
+      <span>PKR ${Number(receipt.totalAmount || 0).toLocaleString()}</span>
+    </div>
+  </div>
+  <div class="row" style="font-size:10px;">
+    <span>Method:</span>
+    <span class="bold">${receipt.paymentMethod || 'Cash'}</span>
+  </div>
+  <div class="divider"></div>
+  <div class="center" style="font-size:10px; margin-top:8px;">
+    Thank You!<br>Powered by TaleemiDunya Pro
+  </div>
+  <script>
+    window.onload = function() { setTimeout(function() { window.print(); }, 250); };
+  </script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=450,height=600');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
+  const handlePrintQrSticker = (item) => {
+    if (!item) return;
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Asset Sticker - ${item.id}</title>
+<style>
+  @page { size: auto; margin: 5mm; }
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
+  body { background:#f3f4f6; display:flex; flex-direction:column; align-items:center; padding:15px; }
+  .no-print { margin-bottom:12px; }
+  .btn { padding:8px 18px; background:#0891b2; color:#fff; border:none; font-weight:bold; cursor:pointer; border-radius:6px; font-size:12px; }
+  .sticker-box { width:65mm; background:#fff; padding:12px; border:2px solid #000; border-radius:8px; text-align:center; }
+  .school-tag { font-size:9px; font-weight:900; text-transform:uppercase; border-bottom:1px solid #cbd5e1; padding-bottom:4px; margin-bottom:6px; letter-spacing:0.5px; }
+  .item-title { font-size:13px; font-weight:900; margin-top:6px; line-height:1.2; }
+  .item-cat { font-size:10px; color:#475569; font-weight:600; }
+  .item-meta { display:flex; justify-content:space-between; font-family:monospace; font-size:10px; margin-top:6px; border-top:1px dashed #94a3b8; padding-top:4px; font-weight:700; }
+  @media print {
+    body { background:#fff; padding:0; }
+    .no-print { display:none !important; }
+    .sticker-box { box-shadow:none; border:2px solid #000; }
+  }
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <button class="btn" onclick="window.print()">🖨️ Print Sticker Label</button>
+  </div>
+  <div class="sticker-box">
+    <div class="school-tag">${schoolName}</div>
+    <div style="display:flex; justify-content:center; padding:4px 0;">
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${encodeURIComponent(item.id)}" width="115" height="115" alt="QR" />
+    </div>
+    <div class="item-title">${item.name}</div>
+    <div class="item-cat">${item.category || 'Store Item'}</div>
+    <div class="item-meta">
+      <span>ID: ${item.id}</span>
+      <span>PKR ${Number(item.price || 0).toLocaleString()}</span>
+    </div>
+  </div>
+  <script>
+    window.onload = function() { setTimeout(function() { window.print(); }, 350); };
+  </script>
+</body>
+</html>`;
+    const win = window.open('', '_blank', 'width=420,height=520');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
+  };
+
   // RETURN ITEM TO STOCK (FOR ISSUED ASSETS)
   // ══════════════════════════════════════════════════════════════
   const handleReturnItemToStock = async (saleRecord) => {
@@ -779,6 +1020,33 @@ const InventoryManager = () => {
           status: restoredStatus
         });
       }
+
+      // If this was charged to a student, remove from pendingProductCharges & reverse student balance
+      if (saleRecord.recipientType === 'student' && saleRecord.recipientId) {
+        const studentObj = students.find(s => s.id === saleRecord.recipientId);
+        if (studentObj) {
+          const invNo = saleRecord.invoiceNo;
+          const currentPending = Array.isArray(studentObj.pendingProductCharges) ? studentObj.pendingProductCharges : [];
+          const updatedPending = currentPending.filter(p => p.invoiceNo !== invNo);
+          const currentBal = Number(studentObj.balance !== undefined ? studentObj.balance : (studentObj.arrears || 0)) || 0;
+          const newBal = Math.max(0, currentBal - Number(saleRecord.totalAmount || 0));
+
+          if (!studentObj.id.startsWith('std-')) {
+            await updateRecord('students', studentObj.id, {
+              balance: newBal,
+              arrears: newBal,
+              pendingProductCharges: updatedPending
+            });
+          }
+
+          setStudents(students.map(s => s.id === studentObj.id ? {
+            ...s,
+            balance: newBal,
+            arrears: newBal,
+            pendingProductCharges: updatedPending
+          } : s));
+        }
+      }
     } catch (err) {
       console.warn('Local update fallback', err);
     }
@@ -789,7 +1057,7 @@ const InventoryManager = () => {
     }
 
     playBeep('success');
-    showToast(`🔄 Asset "${saleRecord.itemName}" returned to stock! Available units updated to ${restoredQty}.`);
+    showToast(`🔄 Item "${saleRecord.itemName}" returned to stock! Available units updated to ${restoredQty}.`);
   };
 
   // ══════════════════════════════════════════════════════════════
@@ -1105,7 +1373,7 @@ const InventoryManager = () => {
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Quick Navigate to Generate Voucher */}
           <button
-            onClick={() => navigate('/school-admin/generate-voucher')}
+            onClick={() => navigate('/school-admin/fees/generate-voucher')}
             className="px-3.5 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-black flex items-center gap-1.5 cursor-pointer transition-all"
             title="Go to Fee Voucher Generator"
           >
@@ -1253,6 +1521,18 @@ const InventoryManager = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('issued_register')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'issued_register'
+              ? 'bg-emerald-500 text-black font-black shadow-lg shadow-emerald-500/20'
+              : 'text-emerald-400 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30'
+          }`}
+        >
+          <UserCheck size={15} />
+          <span>4. 📋 Issued Items Register ({sales.length})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('purchases')}
           className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'purchases'
@@ -1261,7 +1541,7 @@ const InventoryManager = () => {
           }`}
         >
           <History size={15} />
-          <span>4. Restock & Purchases Log ({purchases.length})</span>
+          <span>5. Restock & Purchases Log ({purchases.length})</span>
         </button>
       </div>
 
@@ -1655,16 +1935,23 @@ const InventoryManager = () => {
 
               {/* Quantity Selector */}
               <div className="space-y-1.5">
-                <label className="text-xs font-black uppercase tracking-wider text-dark-muted block">
-                  Quantity to Issue / Sell *
-                </label>
+                <div className="flex items-center justify-between mb-0.5">
+                  <label className="text-xs font-black uppercase tracking-wider text-dark-muted">
+                    Quantity to Issue / Sell *
+                  </label>
+                  {/* Month Badge */}
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    {new Date().toLocaleString('en-PK', { month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setPosQuantity(Math.max(1, posQuantity - 1))}
-                    className="w-11 h-11 rounded-xl bg-dark-hover border border-dark-border text-white font-bold text-lg hover:bg-dark-card flex items-center justify-center cursor-pointer transition-colors"
+                    className="w-11 h-11 rounded-xl bg-rose-600 hover:bg-rose-700 border border-rose-500/60 text-white font-black text-xl flex items-center justify-center cursor-pointer transition-all shadow-md shadow-rose-500/20 active:scale-95"
                   >
-                    -
+                    −
                   </button>
                   <input
                     type="number"
@@ -1672,7 +1959,7 @@ const InventoryManager = () => {
                     max={selectedPosItem ? selectedPosItem.quantity : 999}
                     value={posQuantity}
                     onChange={(e) => setPosQuantity(Math.max(1, Number(e.target.value)))}
-                    className="flex-1 bg-dark-hover border border-dark-border rounded-xl p-3 text-center text-lg font-black text-white focus:border-primary-500 outline-none"
+                    className="flex-1 bg-dark-hover border-2 border-primary-500/50 rounded-xl p-3 text-center text-xl font-black text-white focus:border-primary-400 outline-none tracking-widest"
                   />
                   <button
                     type="button"
@@ -1680,11 +1967,16 @@ const InventoryManager = () => {
                       const maxQ = selectedPosItem ? selectedPosItem.quantity : 999;
                       setPosQuantity(Math.min(maxQ, posQuantity + 1));
                     }}
-                    className="w-11 h-11 rounded-xl bg-dark-hover border border-dark-border text-white font-bold text-lg hover:bg-dark-card flex items-center justify-center cursor-pointer transition-colors"
+                    className="w-11 h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 border border-emerald-500/60 text-white font-black text-xl flex items-center justify-center cursor-pointer transition-all shadow-md shadow-emerald-500/20 active:scale-95"
                   >
                     +
                   </button>
                 </div>
+                {selectedPosItem && (
+                  <p className="text-[10px] text-dark-muted text-right font-mono">
+                    Stock: <span className="text-amber-400 font-black">{selectedPosItem.quantity}</span> available
+                  </p>
+                )}
               </div>
 
               {/* Sale Price or Return Date depending on mode */}
@@ -1713,7 +2005,8 @@ const InventoryManager = () => {
                         onChange={(e) => setPosPaymentMethod(e.target.value)}
                         className="w-full bg-dark-hover border border-dark-border rounded-xl p-2.5 text-sm text-white focus:border-primary-500 outline-none font-bold"
                       >
-                        <option value="fee_challan">💳 Add to Fee Voucher (طالب علم کے فیس میں)</option>
+                        <option value="fee_challan">💳 Add to Fee Voucher (واؤچر میں شامل کریں)</option>
+                        <option value="direct_fee_record">💰 Add to Fee Collection (بغیر واؤچر کے فیس ریکارڈ میں شامل کریں)</option>
                         <option value="cash">💵 Cash (Counter Payment)</option>
                         <option value="online">🏦 Online / Bank Transfer</option>
                       </select>
@@ -1721,11 +2014,12 @@ const InventoryManager = () => {
                   </div>
 
                   {/* FEE RECORD INTEGRATION PROMINENT CALLOUT */}
-                  {recipientType === 'student' && posPaymentMethod === 'fee_challan' && (
+                  {recipientType === 'student' && (posPaymentMethod === 'fee_challan' || posPaymentMethod === 'direct_fee_record') && (
                     <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/30 space-y-2 animate-fade-in">
                       <div className="flex items-center justify-between text-xs font-black text-purple-400">
                         <span className="flex items-center gap-1.5">
-                          <Receipt size={15} /> Student Fee Voucher Integration Active
+                          {posPaymentMethod === 'direct_fee_record' ? <Wallet size={15} /> : <Receipt size={15} />}
+                          {posPaymentMethod === 'direct_fee_record' ? 'Direct Fee Collection Linked (No Voucher)' : 'Student Fee Voucher Integration Active'}
                         </span>
                         <span className="text-[10px] bg-purple-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider">
                           Auto-Linked
@@ -1817,6 +2111,10 @@ const InventoryManager = () => {
                   posPaymentMethod === 'fee_challan' ? (
                     <>
                       <Receipt size={17} /> Add Product Fee to Student Voucher
+                    </>
+                  ) : posPaymentMethod === 'direct_fee_record' ? (
+                    <>
+                      <Wallet size={17} /> Add Product Fee to Fee Collection (No Voucher)
                     </>
                   ) : (
                     <>
@@ -2073,7 +2371,7 @@ const InventoryManager = () => {
             <div className="flex items-center gap-2.5 flex-wrap">
               <button
                 type="button"
-                onClick={() => navigate('/school-admin/generate-voucher')}
+                onClick={() => navigate('/school-admin/fees/generate-voucher')}
                 className="p-2.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 rounded-xl transition-all border border-purple-500/30 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
               >
                 <Receipt size={15} /> Open Fee Vouchers
@@ -2183,7 +2481,10 @@ const InventoryManager = () => {
                           </div>
                           <div>
                             <span className="font-bold text-white block">{record.recipientName}</span>
-                            <span className="text-[11px] text-dark-muted">{record.recipientDetail}</span>
+                            {record.recipientFatherName ? (
+                              <span className="text-[11px] text-primary-400 font-semibold block">S/O {record.recipientFatherName}</span>
+                            ) : null}
+                            <span className="text-[10px] text-dark-muted">{record.recipientDetail}</span>
                           </div>
                         </div>
                       </td>
@@ -2291,7 +2592,248 @@ const InventoryManager = () => {
         </GlassCard>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════
+            {/* ══════════════════════════════════════════════════════════════
+          TAB: ISSUED ITEMS REGISTER (STUDENT & STAFF REGISTERS WITH RETURNS)
+      ══════════════════════════════════════════════════════════════ */}
+      {activeTab === 'issued_register' && (
+        <GlassCard className="p-6 space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-wrap pb-4 border-b border-dark-border">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-xl font-black text-white flex items-center gap-2">
+                  <UserCheck className="text-emerald-400" size={24} />
+                  Issued Items & Assets Return Register
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  Live Stock Sync
+                </span>
+              </div>
+              <p className="text-xs text-dark-muted mt-1">
+                Kis student ya staff ne kon si cheez li hai, Student Name, Father Name, Product Name, Total Amount aur Return Status foran update karein.
+              </p>
+            </div>
+
+            {/* Quick Stat Badges */}
+            <div className="flex items-center gap-2 flex-wrap text-xs font-bold">
+              <span className="px-3 py-1.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center gap-1.5">
+                <GraduationCap size={15} /> Students In Possession: {studentIssuedCount}
+              </span>
+              <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center gap-1.5">
+                <Briefcase size={15} /> Staff In Possession: {staffIssuedCount}
+              </span>
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+                <CheckCircle size={15} /> Returned Back: {totalReturnedCount}
+              </span>
+            </div>
+          </div>
+
+          {/* Sub-Tabs: Students vs Staff & Filters */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIssuedSubTab('students')}
+                className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer transition-all ${
+                  issuedSubTab === 'students'
+                    ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20'
+                    : 'bg-dark-hover text-dark-muted hover:text-white border border-dark-border'
+                }`}
+              >
+                <GraduationCap size={16} />
+                <span>👨‍🎓 Students Register ({sales.filter(s => s.recipientType === 'student').length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIssuedSubTab('staff')}
+                className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 cursor-pointer transition-all ${
+                  issuedSubTab === 'staff'
+                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20'
+                    : 'bg-dark-hover text-dark-muted hover:text-white border border-dark-border'
+                }`}
+              >
+                <Briefcase size={16} />
+                <span>👩‍🏫 Staff Register ({sales.filter(s => s.recipientType === 'staff').length})</span>
+              </button>
+            </div>
+
+            {/* Search and Return Status Filter */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dark-muted" size={15} />
+                <input
+                  type="text"
+                  placeholder="Search name, father, product..."
+                  value={issuedSearch}
+                  onChange={(e) => setIssuedSearch(e.target.value)}
+                  className="w-full bg-dark-hover border border-dark-border rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:border-emerald-500 outline-none"
+                />
+              </div>
+
+              <select
+                value={issuedStatusFilter}
+                onChange={(e) => setIssuedStatusFilter(e.target.value)}
+                className="bg-dark-hover border border-dark-border rounded-xl px-3 py-2 text-xs font-bold text-white focus:border-emerald-500 outline-none"
+              >
+                <option value="all">All Return Statuses</option>
+                <option value="active">⚠️ In Possession (Not Returned Yet)</option>
+                <option value="returned">✅ Returned to Stock</option>
+              </select>
+            </div>
+          </div>
+
+          {/* TABLE DISPLAY */}
+          {(() => {
+            const list = sales.filter(s => {
+              const isMatchTab = s.recipientType === (issuedSubTab === 'students' ? 'student' : 'staff');
+              if (!isMatchTab) return false;
+
+              if (issuedStatusFilter === 'active' && s.returned) return false;
+              if (issuedStatusFilter === 'returned' && !s.returned) return false;
+
+              if (issuedSearch.trim()) {
+                const q = issuedSearch.toLowerCase().trim();
+                const matchName = (s.recipientName || '').toLowerCase().includes(q);
+                const matchFather = (s.recipientFatherName || '').toLowerCase().includes(q);
+                const matchItem = (s.itemName || '').toLowerCase().includes(q);
+                const matchInv = (s.invoiceNo || '').toLowerCase().includes(q);
+                if (!matchName && !matchFather && !matchItem && !matchInv) return false;
+              }
+              return true;
+            });
+
+            if (list.length === 0) {
+              return (
+                <div className="py-14 text-center text-dark-muted space-y-2 border border-dashed border-dark-border rounded-2xl">
+                  <p className="font-bold text-sm">
+                    No issued items found for {issuedSubTab === 'students' ? 'students' : 'staff'} matching criteria.
+                  </p>
+                  <p className="text-xs">
+                    Issue an asset or product to a {issuedSubTab === 'students' ? 'student' : 'staff'} from POS tab to track here.
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-dark-border text-dark-muted text-[10px] uppercase tracking-[0.2em] font-black bg-dark-hover/40">
+                      <th className="py-3.5 px-4">{issuedSubTab === 'students' ? 'Student & Father Name' : 'Staff Member & Dept'}</th>
+                      <th className="py-3.5 px-4">Product Name & Category</th>
+                      <th className="py-3.5 px-4 text-center">Quantity</th>
+                      <th className="py-3.5 px-4">Total Amount (Value)</th>
+                      <th className="py-3.5 px-4">Issued On / Due Date</th>
+                      <th className="py-3.5 px-4">Current Status</th>
+                      <th className="py-3.5 px-4 text-right">Return / Stock Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-dark-border/50 text-sm">
+                    {list.map((rec) => (
+                      <tr key={rec.id} className="hover:bg-dark-hover/30 transition-colors">
+                        {/* Name & Father Name */}
+                        <td className="py-4 px-4 font-bold text-white">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                              issuedSubTab === 'students'
+                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                                : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                            }`}>
+                              {issuedSubTab === 'students' ? 'ST' : 'SF'}
+                            </div>
+                            <div>
+                              <span className="block text-white leading-tight">{rec.recipientName}</span>
+                              {rec.recipientFatherName ? (
+                                <span className="text-xs text-primary-400 font-semibold block">
+                                  {issuedSubTab === 'students' ? `S/O ${rec.recipientFatherName}` : rec.recipientFatherName}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-dark-muted block">
+                                  {rec.recipientDetail || 'No Detail'}
+                                </span>
+                              )}
+                              <span className="text-[10px] text-dark-muted font-mono">{rec.invoiceNo}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Product Name */}
+                        <td className="py-4 px-4">
+                          <span className="font-bold text-white block">{rec.itemName}</span>
+                          <span className="text-[10px] text-dark-muted">{rec.category || 'General'}</span>
+                        </td>
+
+                        {/* Quantity */}
+                        <td className="py-4 px-4 text-center">
+                          <span className="px-2.5 py-1 rounded-lg bg-dark-hover border border-dark-border font-black text-xs text-white">
+                            {rec.quantity} {rec.unit || 'pcs'}
+                          </span>
+                        </td>
+
+                        {/* Total Amount */}
+                        <td className="py-4 px-4 font-black text-emerald-400">
+                          PKR {Number(rec.totalAmount || (rec.quantity * rec.unitPrice) || 0).toLocaleString()}
+                        </td>
+
+                        {/* Dates */}
+                        <td className="py-4 px-4 text-xs">
+                          <span className="text-white block font-semibold">{rec.date || 'N/A'}</span>
+                          {rec.returnDate && !rec.returned && (
+                            <span className="text-[10px] text-amber-400 block mt-0.5">
+                              Due: {rec.returnDate}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Return Status */}
+                        <td className="py-4 px-4">
+                          {rec.returned ? (
+                            <div>
+                              <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1">
+                                <CheckCircle size={11} /> Returned
+                              </span>
+                              {rec.returnedAt && (
+                                <span className="text-[10px] text-dark-muted block mt-0.5">
+                                  {rec.returnedAt}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 inline-block animate-pulse">
+                              ⏳ In Possession
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Action: Return Button */}
+                        <td className="py-4 px-4 text-right">
+                          {rec.returned ? (
+                            <span className="text-xs font-bold text-emerald-400 flex items-center justify-end gap-1">
+                              <CheckCircle size={14} /> Stock Restored
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleReturnItemToStock(rec)}
+                              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-black font-black text-xs cursor-pointer shadow-md shadow-emerald-500/20 flex items-center gap-1.5 ml-auto transition-transform hover:scale-105"
+                            >
+                              <ArrowDownLeft size={14} />
+                              <span>Return to Stock</span>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </GlassCard>
+      )}
+
+{/* ══════════════════════════════════════════════════════════════
           TAB 4: PURCHASES & RESTOCK LOG
       ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'purchases' && (
@@ -2319,6 +2861,11 @@ const InventoryManager = () => {
                     notes: ''
                   });
                   setIsRestockModalOpen(true);
+                } else {
+                  // If catalog is empty, prompt user to add an item first
+                  if (window.confirm("Catalog mein abhi koi item nahi hai. Stock restock karne se pehle kya aap naya item shamil karna chahte hain?")) {
+                    setIsAddModalOpen(true);
+                  }
                 }
               }}
               className="premium-button-primary py-2.5 px-4 text-xs font-black flex items-center gap-2 cursor-pointer shadow-lg shadow-primary-500/20"
@@ -2548,7 +3095,7 @@ const InventoryManager = () => {
             <div className="flex items-center gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => handlePrintQrSticker(qrLabelItem)}
                 className="flex-1 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-black font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-cyan-500/20"
               >
                 <Printer size={15} /> Print Asset Sticker
@@ -2683,7 +3230,7 @@ const InventoryManager = () => {
                   type="button"
                   onClick={() => {
                     setIsReceiptModalOpen(false);
-                    navigate('/school-admin/generate-voucher');
+                    navigate('/school-admin/fees/generate-voucher');
                   }}
                   className="px-4 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                 >
@@ -2704,7 +3251,15 @@ const InventoryManager = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.print()}
+                  onClick={() => handlePrintThermalStoreReceipt(receiptRecord)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-xs flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Print 80mm / 58mm Thermal POS Slip"
+                >
+                  <Receipt size={14} className="text-emerald-400" /> Thermal Slip
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrintStoreReceipt(receiptRecord)}
                   className="px-6 py-2.5 rounded-xl bg-primary-500 hover:bg-primary-600 text-white font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-primary-500/20"
                 >
                   <Printer size={15} /> Print Receipt
@@ -2734,8 +3289,33 @@ const InventoryManager = () => {
             <h3 className="text-xl font-black text-white flex items-center gap-2">
               <Plus className="text-emerald-400" size={22} /> Restock Inventory
             </h3>
+
+            {/* Select Target Item Dropdown */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-dark-muted block mb-1">
+                Select Item to Restock *
+              </label>
+              <select
+                value={restockTargetItem?.id || ''}
+                onChange={(e) => {
+                  const itm = items.find(i => i.id === e.target.value);
+                  if (itm) {
+                    setRestockTargetItem(itm);
+                    setRestockForm(prev => ({ ...prev, costPrice: itm.costPrice || prev.costPrice }));
+                  }
+                }}
+                className="w-full bg-dark-hover border border-dark-border rounded-xl p-3 text-sm font-bold text-white focus:border-emerald-500 outline-none"
+              >
+                {items.map(i => (
+                  <option key={i.id} value={i.id}>
+                    {i.name} — (In Stock: {i.quantity} {i.unit || 'pcs'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <p className="text-xs text-dark-muted">
-              Add new stock for <strong className="text-white">"{restockTargetItem.name}"</strong> (Currently {restockTargetItem.quantity} {restockTargetItem.unit} in store).
+              Adding new inward shipment for <strong className="text-emerald-400">"{restockTargetItem.name}"</strong> (Currently {restockTargetItem.quantity} {restockTargetItem.unit} in store).
             </p>
 
             <form onSubmit={handleRestockSubmit} className="space-y-4">

@@ -329,6 +329,7 @@ const AppRoutes = () => {
         <Route path="fees" element={<FeeManager />} />
         <Route path="fees/generate" element={<GenerateVoucher />} />
         <Route path="fees/generate-voucher" element={<GenerateVoucher />} />
+        <Route path="generate-voucher" element={<GenerateVoucher />} />
         <Route path="fees/print/:type/:id" element={<PrintFee />} />
         <Route path="fees/defaulters" element={<FeeDefaulters />} />
         <Route path="academics" element={<Academics />} />
@@ -435,7 +436,8 @@ const AppRoutes = () => {
         <Route path="social" element={<Social />} />
         <Route path="ai-agent" element={<AiAgent />} />
         <Route path="import" element={<DataImport />} />
-        <Route path="demo-data" element={<DemoDataInjector />} />
+        {/* Demo-data route disabled for production tenant safety */}
+        {/* <Route path="demo-data" element={<DemoDataInjector />} /> */}
         <Route path="cloud-backup" element={<GoogleDriveBackupVault />} />
         <Route path="whatsapp-automation" element={<WhatsAppCronAutomation />} />
         <Route path="pwa-offline" element={<MobileAppPwaOffline />} />

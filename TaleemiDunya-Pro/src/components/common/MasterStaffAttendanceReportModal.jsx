@@ -443,7 +443,7 @@ export default function MasterStaffAttendanceReportModal({
                 )}
                 <div>
                   <h1 className="text-xl sm:text-2xl font-black text-slate-900 uppercase tracking-tight">
-                    {schoolData?.name || 'Smart Angels Grammar School'}
+                    {schoolData?.name || userData?.schoolName || 'School Name'}
                   </h1>
                   <p className="text-xs text-slate-600">{schoolData?.address || 'Campus Address, Pakistan'}</p>
                   <p className="text-xs text-slate-500 font-sans">Phone: {schoolData?.phone || 'N/A'} • Email: {schoolData?.email || 'N/A'}</p>

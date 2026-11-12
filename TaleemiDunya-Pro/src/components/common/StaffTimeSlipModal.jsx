@@ -581,7 +581,7 @@ export default function StaffTimeSlipModal({
     XLSX.utils.book_append_sheet(wb, ws, "Monthly Attendance");
     
     const summaryData = [
-      { "Metric": "School Name", "Value": schoolData?.name || 'Smart Angels Grammar School' },
+      { "Metric": "School Name", "Value": schoolData?.name || userData?.schoolName || 'School Name' },
       { "Metric": "Staff Name", "Value": currentStaff?.name || '' },
       { "Metric": "Employee ID", "Value": cleanEmpId },
       { "Metric": "Designation", "Value": currentStaff?.designation || currentStaff?.role || 'Staff' },
@@ -630,7 +630,7 @@ export default function StaffTimeSlipModal({
       `💵 خالص تنخواہ (Net Payout): Rs. ${payrollCalculations.netPayout.toLocaleString()}\n` +
       `📊 مجموعی حاضری شرح: ${summaryMetrics.attendancePercentage}%\n\n` +
       `_نوٹ: اسکول کی طرف سے کی گئی تمام تعطیلات کی کوئی تنخواہ نہیں کٹی۔_\n` +
-      `ادارہ: *${schoolData?.name || 'Smart Angels Grammar School'}*`;
+      `ادارہ: *${schoolData?.name || userData?.schoolName || 'School Name'}*`;
 
     sendWhatsAppApiMessage(activeSchoolId, cleanPhone, msg);
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -809,7 +809,7 @@ export default function StaffTimeSlipModal({
                 )}
                 <div>
                   <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight">
-                    {schoolData?.name || 'Smart Angels Grammar School'}
+                    {schoolData?.name || userData?.schoolName || 'School Name'}
                   </h1>
                   <p className="text-xs text-slate-600 mt-0.5">{schoolData?.address || 'Campus Address, Pakistan'}</p>
                   <p className="text-[11px] text-slate-500 font-sans">Phone: {schoolData?.phone || '0331-2202569'} • Email: {schoolData?.email || 'school@domain.com'}</p>

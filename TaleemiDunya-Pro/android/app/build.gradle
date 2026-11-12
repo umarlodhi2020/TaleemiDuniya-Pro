@@ -1,5 +1,33 @@
 apply plugin: 'com.android.application'
 
+def firebaseEnvFile = new File(rootProject.projectDir.parentFile, ".env.local")
+def readFirebaseEnv = { String key ->
+    if (!firebaseEnvFile.isFile()) {
+        throw new GradleException("Missing .env.local; native Android Firebase configuration is required.")
+    }
+
+    def keyPattern = java.util.regex.Pattern.quote(key)
+    def value = firebaseEnvFile.readLines().findResult { line ->
+        def result = line =~ /^\s*(?:export\s+)?${keyPattern}\s*=\s*(.*?)\s*$/
+        result.find() ? result.group(1).trim() : null
+    }
+    if (value == null || value.isEmpty()) {
+        throw new GradleException("Missing ${key} in .env.local; native Android Firebase configuration is required.")
+    }
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.substring(1, value.length() - 1)
+    }
+    value
+}
+def firebaseBuildConfig = [
+    FIREBASE_API_KEY: readFirebaseEnv('VITE_FIREBASE_API_KEY'),
+    FIREBASE_APP_ID: readFirebaseEnv('VITE_FIREBASE_APP_ID'),
+    FIREBASE_PROJECT_ID: readFirebaseEnv('VITE_FIREBASE_PROJECT_ID'),
+    FIREBASE_SENDER_ID: readFirebaseEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+    FIREBASE_STORAGE_BUCKET: readFirebaseEnv('VITE_FIREBASE_STORAGE_BUCKET')
+]
+
 android {
     namespace = "com.taleemidunya.pro"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,14 +35,25 @@ android {
         applicationId "com.taleemidunya.pro"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 273
+        versionName "2.7.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        firebaseBuildConfig.each { key, value ->
+            def escapedValue = value.replace("\\", "\\\\").replace("\"", "\\\"")
+            buildConfigField "String", key, "\"${escapedValue}\""
+        }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~:!public:!capacitor.config.json:!capacitor.plugins.json'
         }
+    }
+    buildFeatures {
+        buildConfig true
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     buildTypes {
         release {
@@ -33,22 +72,11 @@ repositories {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
-    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
-    implementation project(':capacitor-android')
+    implementation platform('com.google.firebase:firebase-bom:34.2.0')
+    implementation 'com.google.firebase:firebase-auth'
+    implementation 'com.google.firebase:firebase-firestore'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
-    implementation project(':capacitor-cordova-android-plugins')
-}
-
-apply from: 'capacitor.build.gradle'
-
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
 }

@@ -16,25 +16,30 @@ import {
 import GlassCard from '../../components/common/GlassCard';
 import { getRecords } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
-import { setDoc, doc } from 'firebase/firestore';
+import { useSchool } from '../../context/SchoolContext';
+import { setDoc, doc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db as firestore } from '../../services/firebase';
 
 const AttendanceManager = () => {
   const navigate = useNavigate();
   const { userData } = useAuth();
+  const { schoolData } = useSchool();
+  const activeSchoolId = schoolData?.id || userData?.schoolId || 'default-school';
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedClass, setSelectedClass] = useState('');
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [alreadyMarkedCount, setAlreadyMarkedCount] = useState(0);
   const [syncMode, setSyncMode] = useState('manual');
   const [lastScanned] = useState(null);
 
   const fetchClasses = useCallback(async () => {
-    if (!userData?.schoolId) return;
+    if (!activeSchoolId) return;
     try {
-      const classList = await getRecords('classes', userData.schoolId);
+      const classList = await getRecords('classes', activeSchoolId);
       const sortedClasses = classList.sort((a, b) => Number(a.order) - Number(b.order));
       setClasses(sortedClasses);
       if (sortedClasses.length > 0 && !selectedClass) {
@@ -43,21 +48,54 @@ const AttendanceManager = () => {
     } catch (err) {
       console.error('Error fetching classes:', err);
     }
-  }, [userData?.schoolId, selectedClass]);
+  }, [activeSchoolId, selectedClass]);
 
   const fetchStudents = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getRecords('students', userData?.schoolId || 'default-school', [
+      const data = await getRecords('students', activeSchoolId, [
         { field: 'class', operator: '==', value: selectedClass }
       ]);
-      setStudents(data.map(s => ({ ...s, status: 'present', time: '08:00 AM' })));
+
+      // Check existing attendance for this class and date
+      let existingAttMap = {};
+      try {
+        const qExisting = query(
+          collection(firestore, 'attendance'),
+          where('schoolId', '==', activeSchoolId),
+          where('date', '==', selectedDate),
+          where('class', '==', selectedClass)
+        );
+        const snap = await getDocs(qExisting);
+        snap.docs.forEach(docSnap => {
+          const rec = docSnap.data();
+          const sid = rec.studentId || (docSnap.id.includes('_') ? docSnap.id.split('_')[0] : docSnap.id);
+          existingAttMap[sid] = rec;
+        });
+      } catch (attErr) {
+        console.warn('Could not query existing attendance:', attErr);
+      }
+
+      let markedCount = 0;
+      const mappedStudents = data.map(s => {
+        const existing = existingAttMap[s.id];
+        if (existing) markedCount++;
+        return {
+          ...s,
+          status: existing?.status ? existing.status.toLowerCase() : 'present',
+          time: existing?.time || existing?.timeIn || '08:00 AM',
+          isAlreadySaved: !!existing
+        };
+      });
+
+      setStudents(mappedStudents);
+      setAlreadyMarkedCount(markedCount);
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
     }
-  }, [userData?.schoolId, selectedClass]);
+  }, [activeSchoolId, selectedClass, selectedDate]);
 
   useEffect(() => {
     fetchClasses();
@@ -67,7 +105,7 @@ const AttendanceManager = () => {
     if (selectedClass) {
       fetchStudents();
     }
-  }, [selectedClass, fetchStudents]);
+  }, [selectedClass, selectedDate, fetchStudents]);
 
   const updateStatus = (id, status) => {
     setStudents(students.map(s => s.id === id ? { ...s, status } : s));
@@ -76,23 +114,30 @@ const AttendanceManager = () => {
   const handleSaveAttendance = async () => {
     setSaving(true);
     try {
-      // Save each attendance record to a 'attendance' collection
+      const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // Save each attendance record to 'attendance' collection
       const promises = students.map(s => {
         const attendanceId = `${s.id}_${selectedDate}`;
         return setDoc(doc(firestore, 'attendance', attendanceId), {
           studentId: s.id,
-          studentName: s.name,
-          rollNumber: s.rollNumber,
+          studentName: s.name || '',
+          rollNumber: s.rollNumber || s.rollNo || '',
           class: selectedClass,
           date: selectedDate,
-          status: s.status,
+          time: s.time || nowTime,
+          timeIn: s.time || nowTime,
+          status: (s.status || 'present').toLowerCase(),
           markedBy: userData?.name || 'Admin',
-          schoolId: userData?.schoolId || 'default-school',
-          createdAt: new Date()
-        });
+          schoolId: activeSchoolId,
+          type: 'student',
+          actionType: 'ENTRY',
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp()
+        }, { merge: true });
       });
       await Promise.all(promises);
-      alert('Attendance saved successfully for ' + students.length + ' students.');
+      setAlreadyMarkedCount(students.length);
+      alert(`Attendance saved successfully for ${students.length} students.`);
     } catch (error) {
       console.error(error);
       alert('Error saving attendance');
@@ -187,6 +232,12 @@ const AttendanceManager = () => {
               <button className="p-2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg text-dark-muted">
                 <ChevronRight size={20} />
               </button>
+              {alreadyMarkedCount > 0 && (
+                <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 text-xs font-bold flex items-center gap-1.5 animate-fade-in">
+                  <CheckCircle2 size={13} />
+                  <span>Already Marked ({alreadyMarkedCount}/{students.length})</span>
+                </span>
+              )}
             </div>
             
             <div className="flex gap-2">

@@ -466,7 +466,7 @@ const SchoolAdminDashboard = () => {
                       className="w-full premium-input bg-dark-bg text-dark-text" 
                       value={setupForm.name} 
                       onChange={e => setSetupForm({...setupForm, name: e.target.value})}
-                      placeholder="e.g. Smart Angels School" 
+                      placeholder="e.g. The City School" 
                     />
                   </div>
                   <div>

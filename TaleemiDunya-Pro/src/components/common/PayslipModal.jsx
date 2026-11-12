@@ -123,7 +123,7 @@ const PayslipModal = ({ payslipData, schoolData: propsSchoolData, userData: prop
       return;
     }
 
-    const schoolId = finalSchoolData?.id || finalUserData?.schoolId || 'NNRuCtHxQNjISc9EPgMs';
+    const schoolId = finalSchoolData?.id || finalUserData?.schoolId || null;
     const text = buildPayslipWhatsAppText(payslipData, schoolName);
     const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
 

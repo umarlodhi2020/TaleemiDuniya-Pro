@@ -6,10 +6,13 @@ import {
 } from 'lucide-react';
 import { getRecords, updateRecord, addRecord, deleteRecord } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
+import { useSchool } from '../../context/SchoolContext';
 import { useNavigate } from 'react-router-dom';
 
 const FamilyTree = () => {
   const { userData } = useAuth();
+  const { schoolData } = useSchool();
+  const activeSchoolId = schoolData?.id || userData?.schoolId;
   const navigate = useNavigate();
   
   const [students, setStudents] = useState([]);
@@ -157,13 +160,13 @@ const FamilyTree = () => {
 
   useEffect(() => {
     fetchStudents();
-  }, [userData]);
+  }, [userData, schoolData?.id]);
 
   const fetchStudents = async () => {
-    if (!userData?.schoolId) return;
+    if (!activeSchoolId) return;
     setLoading(true);
     try {
-      const list = await getRecords('students', userData.schoolId);
+      const list = await getRecords('students', activeSchoolId);
       setStudents(list);
     } catch (err) {
       console.error('Error fetching students:', err);

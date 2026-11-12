@@ -12,7 +12,7 @@ export default defineConfig({
       entry: 'electron/main.js',
     })] : [])
   ],
-  base: './',
+  base: process.env.ELECTRON === 'true' ? './' : '/',
   server: {
     watch: {
       ignored: ['**/TaleemiDunya-Android-App/**', '**/whatsapp-ai-server/**', '**/dist/**', '**/node_modules/**'],

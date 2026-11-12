@@ -22,6 +22,7 @@ const EditSchool = () => {
   const [fetching, setFetching] = useState(true);
   const [loading, setLoading] = useState(false);
   const [availablePlans, setAvailablePlans] = useState([]);
+  const [rawSchoolData, setRawSchoolData] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     adminEmail: '',
@@ -31,7 +32,8 @@ const EditSchool = () => {
     status: 'active',
     expiryDate: '',
     revenue: 0,
-    website: ''
+    website: '',
+    gracePeriodDays: 1
   });
 
   useEffect(() => {
@@ -47,6 +49,7 @@ const EditSchool = () => {
         }
 
         if (data) {
+          setRawSchoolData(data);
           setFormData({
             name: data.name || '',
             adminEmail: data.adminEmail || '',
@@ -56,7 +59,10 @@ const EditSchool = () => {
             status: data.status || 'active',
             expiryDate: data.expiryDate || data.expiry || '',
             revenue: data.revenue || 0,
-            website: data.website || ''
+            website: data.website || '',
+            gracePeriodDays: data.suspensionPolicy?.gracePeriodDays !== undefined 
+              ? data.suspensionPolicy.gracePeriodDays 
+              : (data.gracePeriodDays ?? 1)
           });
         } else {
           alert('School not found!');
@@ -75,10 +81,17 @@ const EditSchool = () => {
     e.preventDefault();
     setLoading(true);
     try {
+      const existingPolicy = rawSchoolData?.suspensionPolicy || {};
       const result = await updateRecord('schools', schoolId, {
         ...formData,
         subscriptionPlan: formData.plan,
-        expiry: formData.expiryDate
+        expiry: formData.expiryDate,
+        gracePeriodDays: Number(formData.gracePeriodDays ?? 1),
+        suspensionPolicy: {
+          ...existingPolicy,
+          enabled: true,
+          gracePeriodDays: Number(formData.gracePeriodDays ?? 1)
+        }
       });
       if (result.success) {
         alert('School details updated successfully!');
@@ -242,6 +255,29 @@ const EditSchool = () => {
                   onChange={handleChange}
                   className="w-full premium-input" 
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-black text-dark-muted uppercase tracking-widest px-1">
+                  🛑 Auto-Lock Reminder (Days After Expiry)
+                </label>
+                <select
+                  name="gracePeriodDays"
+                  value={formData.gracePeriodDays}
+                  onChange={handleChange}
+                  className="w-full premium-input bg-dark-card"
+                >
+                  <option value={0}>0 Days — Expire hote hi block (Immediate)</option>
+                  <option value={1}>1 Day — Aglay din block (Recommended)</option>
+                  <option value={2}>2 Days — 2 din baad block</option>
+                  <option value={3}>3 Days — 3 din baad block</option>
+                  <option value={7}>7 Days — 1 hafte baad block</option>
+                  <option value={14}>14 Days — 2 hafte baad block</option>
+                  <option value={30}>30 Days — 1 maheene baad block</option>
+                </select>
+                <p className="text-[10px] text-amber-400 font-bold px-1 mt-1">
+                  💡 e.g. Plan 1st ko expire ho aur Grace = 1 day, to 2nd date ko features automatically block ho jayenge.
+                </p>
               </div>
 
               <div className="space-y-2">

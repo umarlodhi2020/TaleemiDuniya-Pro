@@ -32,12 +32,12 @@ const firestoreEmulatorPort = Number(import.meta.env.VITE_FIRESTORE_EMULATOR_POR
 // ===== CONFIGURATION =====
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || ""
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDDVwn-o7X_R4JmJs8a8wE7QjFOrc21jOQ",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "taleemidunya-pro-ed44e.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "taleemidunya-pro-ed44e",
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "taleemidunya-pro-ed44e.firebasestorage.app",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "909284889749",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:909284889749:web:c73f707ba6756c1823779c"
 };
 
 // Validate that configuration is loaded from environment

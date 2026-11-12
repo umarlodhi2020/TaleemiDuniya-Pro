@@ -157,7 +157,7 @@ const SMSPanel = () => {
     setSavingWarning(true);
     setWarningSavedSuccess(false);
 
-    const schoolId = schoolData?.id || userData?.schoolId || 'NNRuCtHxQNjISc9EPgMs';
+    const schoolId = schoolData?.id || userData?.schoolId || null;
     const noticeData = {
       enabled: warningNoticeEnabled,
       helpline: warningHelpline || schoolData?.phone || '0300-1234567',
@@ -202,7 +202,7 @@ const SMSPanel = () => {
   const previewNumber = '+92 326 8973045';
   const previewHelpline = warningHelpline || schoolData?.phone || '0300-1234567';
   const previewCampus = warningCampus || schoolData?.address || 'Main Campus, Lahore, Pakistan';
-  const previewSchool = schoolData?.name || 'Smart Angels Grammar School';
+  const previewSchool = schoolData?.name || userData?.schoolName || 'School Name';
   const previewNote = warningCustomNote || defaultNoticeNote;
 
   let renderedWarningPreview = '';

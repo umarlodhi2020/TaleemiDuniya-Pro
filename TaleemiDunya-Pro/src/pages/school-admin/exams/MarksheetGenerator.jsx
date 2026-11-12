@@ -1850,7 +1850,7 @@ const MarksheetGenerator = () => {
               </div>
             </div>
 
-            {/* 🏫 SMART ANGELS GRAMMAR SCHOOL OFFICIAL MARKSHEET DESIGN */}
+            {/* 🏫 OFFICIAL SCHOOL MARKSHEET DESIGN */}
             <div ref={printableAreaRef} className="printable-report-area">
             {generatedMarksheets.map((currentPreviewMarksheet, mapIndex) => {
               const cellPad = marksheetVersion === 'v2' ? 'p-3 md:p-5' : 'p-2';

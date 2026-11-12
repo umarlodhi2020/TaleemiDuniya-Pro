@@ -419,21 +419,32 @@ const GenerateVoucher = () => {
       setSelectedFamilyGroup(item);
       setSearchQuery(`${item.fatherName} ${item.cnic ? `(${item.cnic})` : ''}`);
 
-      // Check if Annual Fund already charged this year for any child
-      const currentYear = feeMonth ? feeMonth.split('-')[0] : String(new Date().getFullYear());
-
       item.children.forEach(child => {
         const rawClass = child.class || child.standard;
         const feeInfo = getClassFeeInfo(rawClass, classFees);
         const feeAmount = getStudentMonthly(child, feeInfo);
-        
-        autoFeeItems.push({
-          name: `Tuition Fee - ${child.name} (${rawClass || 'N/A'})`,
-          amount: feeAmount || 0
+
+        // === FIX: Check if school fee voucher already exists for the selected month ===
+        const currentMonth = feeMonth || new Date().toISOString().slice(0, 7);
+        const schoolFeeAlreadyVouchered = allVouchers.some(v => {
+          if (v.month !== currentMonth) return false;
+          if (v.selectionType === 'family') {
+            return (v.childrenIds && v.childrenIds.includes(child.id)) ||
+              (v.fatherName || '').trim().toLowerCase() === (item.fatherName || '').trim().toLowerCase();
+          }
+          return v.studentId === child.id;
         });
 
-        // Auto-include pending product charges (Uniform, Books, Syllabus copies, ID Card)
-        const childProducts = child.pendingProductCharges || [];
+        // Only add tuition fee if no school fee voucher already exists for this month
+        if (!schoolFeeAlreadyVouchered) {
+          autoFeeItems.push({
+            name: `Tuition Fee - ${child.name} (${rawClass || 'N/A'})`,
+            amount: feeAmount || 0
+          });
+        }
+
+        // Always include unbilled pending product charges (Uniform, Books, ID Card etc.)
+        const childProducts = (child.pendingProductCharges || []).filter(p => (p.status === 'unbilled' || !p.status) && !p.addedDirectly);
         childProducts.forEach(prod => {
           autoFeeItems.push({
             name: `${prod.category || 'Store Item'} - ${child.name}: ${prod.itemName || prod.name} (${prod.quantity || 1}x)`,
@@ -443,7 +454,7 @@ const GenerateVoucher = () => {
           });
         });
       });
-      
+
       const dynamicArrears = calculateFamilyArrears(allVouchers, item);
       if (dynamicArrears > 0) {
         autoFeeItems.push({ name: 'Previous Balance (Arrears)', amount: dynamicArrears });
@@ -453,18 +464,32 @@ const GenerateVoucher = () => {
     } else {
       setSelectedStudent(item);
       setSearchQuery(`${item.name} (${item.rollNo || item.rollNumber || item.grNo || item.id})`);
-      
+
       const rawClass = item.class || item.standard;
       const feeInfo = getClassFeeInfo(rawClass, classFees);
       const feeAmount = getStudentMonthly(item, feeInfo);
-      
-      let items = [{
-        name: `Tuition Fee - ${item.name} (${rawClass || 'N/A'})`,
-        amount: feeAmount || 0
-      }];
 
-      // Auto-include pending product charges (Uniform, Books, Syllabus copies, ID Card)
-      const studentProducts = item.pendingProductCharges || [];
+      let items = [];
+
+      // === FIX: Check if school fee voucher already exists for the selected month ===
+      const currentMonth = feeMonth || new Date().toISOString().slice(0, 7);
+      const schoolFeeAlreadyVouchered = allVouchers.some(v => {
+        if (v.month !== currentMonth) return false;
+        return v.studentId === item.id ||
+          (v.childrenIds && v.childrenIds.includes(item.id)) ||
+          (v.studentName || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase();
+      });
+
+      // Only add tuition fee if no school fee voucher exists for this month
+      if (!schoolFeeAlreadyVouchered) {
+        items.push({
+          name: `Tuition Fee - ${item.name} (${rawClass || 'N/A'})`,
+          amount: feeAmount || 0
+        });
+      }
+
+      // Always include unbilled pending product charges (Uniform, Books, ID Card etc.)
+      const studentProducts = (item.pendingProductCharges || []).filter(p => (p.status === 'unbilled' || !p.status) && !p.addedDirectly);
       studentProducts.forEach(prod => {
         items.push({
           name: `${prod.category || 'Store Item'}: ${prod.itemName || prod.name} (${prod.quantity || 1}x)`,
@@ -715,7 +740,7 @@ const GenerateVoucher = () => {
           });
 
           // Auto-include pending product charges for child (Uniform, Books, etc.)
-          const childProducts = child.pendingProductCharges || [];
+          const childProducts = (child.pendingProductCharges || []).filter(p => (p.status === 'unbilled' || !p.status) && !p.addedDirectly);
           childProducts.forEach(prod => {
             items.push({
               name: `${prod.category || 'Store Item'} - ${child.name}: ${prod.itemName || prod.name} (${prod.quantity || 1}x)`,

@@ -582,7 +582,7 @@ const StaffAttendanceRegister = () => {
       ? cleanPhone 
       : '92' + cleanPhone;
 
-    const schoolName = schoolData?.name || 'Smart Angels Grammar School';
+    const schoolName = schoolData?.name || userData?.schoolName || 'School Name';
     const status = att?.status || 'present';
     const timeIn = att?.timeIn ? formatTo12h(att.timeIn) : '08:00 AM';
     const timeOut = att?.timeOut ? formatTo12h(att.timeOut) : '02:00 PM';
