@@ -723,14 +723,20 @@ const SchoolAdminDashboard = () => {
 
             return (
               <>
-                {/* Welcome Back Principal Pill — Bigger, Bold */}
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/25 backdrop-blur-md text-white text-sm md:text-base lg:text-lg font-black border border-white/40 shadow-md mb-2.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
-                  <span>Welcome Back</span>
-                  <span className="text-sky-200 font-black">{displayTitle} {displayName}</span>
-                  <span className="text-lg md:text-xl">👋</span>
+                {/* 1. Welcome Back! Pill - Bold & Clear (Without Person Name) */}
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 backdrop-blur-md text-white text-xs md:text-sm font-black border border-white/35 shadow-md mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
+                  <span>Welcome Back!</span>
+                  <span className="text-base">👋</span>
                 </div>
 
-                {/* 2. Principal Name (Large Bold Title underneath) */}
+                {/* 2. Principal text in normal size (Below Welcome, Above Name) */}
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-xs md:text-sm font-bold tracking-widest text-sky-200 uppercase drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                    Principal
+                  </span>
+                </div>
+
+                {/* 3. Principal Name (Large Bold Title) */}
                 <h1 
                   className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight drop-shadow-[0_2px_5px_rgba(0,0,0,0.85)] flex items-center gap-2 mb-1.5"
                   style={{ color: '#ffffff' }}

@@ -1050,6 +1050,7 @@ const SchoolSettings = () => {
                     <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/20 to-transparent flex items-center p-5">
                       <div className="text-white">
                         <span className="text-[11px] font-bold text-sky-200">Welcome Back! 👋</span>
+                        <div className="text-[10px] font-bold text-sky-300 uppercase tracking-widest mt-0.5">Principal</div>
                         <h4 className="text-lg font-black text-white">{profile.principalTitle || 'Mr.'} {profile.principalName || 'Principal Name'}</h4>
                         <p className="text-[10px] text-white/80">{profile.name || 'School Name'}</p>
                       </div>
