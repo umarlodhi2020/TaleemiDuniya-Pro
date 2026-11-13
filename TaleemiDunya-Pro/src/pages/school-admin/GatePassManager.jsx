@@ -33,7 +33,7 @@ const GatePassManager = () => {
   const { classesList } = useSchool();
   const navigate = useNavigate();
   const schoolId = userData?.schoolId || 'default-school';
-  const schoolName = userData?.schoolName || 'Lodhi School System';
+  const schoolName = userData?.schoolName || 'Your School System';
 
   const [passes, setPasses] = useState([]);
   const [loading, setLoading] = useState(false);

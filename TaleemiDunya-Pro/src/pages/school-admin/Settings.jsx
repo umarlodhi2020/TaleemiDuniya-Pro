@@ -98,15 +98,7 @@ const SchoolSettings = () => {
       if (userData?.schoolId) {
         st = await getRecords('students', userData.schoolId);
       }
-      if (st.length === 0) {
-        st = [
-          { id: 'st-101', rollNo: 'ROLL-101', name: 'Ali Raza', className: 'Class 10 - A', phone: '0300-1234567', feeStatus: 'Paid' },
-          { id: 'st-102', rollNo: 'ROLL-102', name: 'Zainab Ahmed', className: 'Class 9 - B', phone: '0333-7654321', feeStatus: 'Pending' },
-          { id: 'st-103', rollNo: 'ROLL-103', name: 'Hamza Khan', className: 'Class 8 - A', phone: '0321-9876543', feeStatus: 'Paid' },
-          { id: 'st-104', rollNo: 'ROLL-104', name: 'Sara Tariq', className: 'Class 10 - A', phone: '0345-5556667', feeStatus: 'Defaulter' }
-        ];
-      }
-      setStudentsList(st);
+      setStudentsList(st || []);
     } catch (e) {
       console.error(e);
     }

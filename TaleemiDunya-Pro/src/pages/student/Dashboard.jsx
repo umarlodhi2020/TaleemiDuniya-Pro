@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
 import { useAuth } from '../../context/AuthContext';
-import { collection, getDocs, query, where, addDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const StudentDashboard = () => {
@@ -22,107 +22,12 @@ const StudentDashboard = () => {
 
   useEffect(() => { fetchAll(); }, [userData]);
 
-  const seedStudentData = async () => {
-    try {
-      // 1. Seed Student profile record in 'students'
-      await setDoc(doc(db, 'students', studentId), {
-        id: studentId,
-        name: userData?.name || 'LODHI STUDENT',
-        fatherName: 'Lodhi Senior',
-        dob: '2010-06-15',
-        gender: 'Male',
-        rollNumber: userData?.rollNo || 'LODHI-101',
-        class: userData?.class || '10',
-        section: 'A',
-        phone: '+92 300 1234567',
-        address: 'Lodhi School Campus, Lahore',
-        status: 'Active',
-        feeStatus: 'Pending',
-        schoolId: schoolId,
-        createdAt: new Date()
-      });
-
-      // 2. Seed Subjects
-      const subjectsToSeed = [
-        { name: 'Computer Science', teacher: 'Prof. Farooq Lodhi', progress: 85, schoolId },
-        { name: 'Mathematics', teacher: 'Sir Imran Khan', progress: 92, schoolId },
-        { name: 'English Literature', teacher: 'Miss Sarah Ali', progress: 78, schoolId },
-        { name: 'Chemistry', teacher: 'Dr. Yasmin Raza', progress: 60, schoolId }
-      ];
-      for (const sub of subjectsToSeed) {
-        await addDoc(collection(db, 'subjects'), sub);
-      }
-
-      // 3. Seed Attendance Log
-      const attendanceToSeed = [
-        { studentId, studentName: userData?.name || 'LODHI STUDENT', rollNumber: userData?.rollNo || 'LODHI-101', class: userData?.class || '10', date: '2026-05-12', status: 'present', schoolId },
-        { studentId, studentName: userData?.name || 'LODHI STUDENT', rollNumber: userData?.rollNo || 'LODHI-101', class: userData?.class || '10', date: '2026-05-13', status: 'present', schoolId },
-        { studentId, studentName: userData?.name || 'LODHI STUDENT', rollNumber: userData?.rollNo || 'LODHI-101', class: userData?.class || '10', date: '2026-05-14', status: 'present', schoolId },
-        { studentId, studentName: userData?.name || 'LODHI STUDENT', rollNumber: userData?.rollNo || 'LODHI-101', class: userData?.class || '10', date: '2026-05-15', status: 'late', schoolId },
-        { studentId, studentName: userData?.name || 'LODHI STUDENT', rollNumber: userData?.rollNo || 'LODHI-101', class: userData?.class || '10', date: '2026-05-16', status: 'absent', schoolId }
-      ];
-      for (const att of attendanceToSeed) {
-        await addDoc(collection(db, 'attendance'), att);
-      }
-
-      // 4. Seed Results
-      const resultsToSeed = [
-        { studentId, exam: 'Mid-Term Board Exam', subject: 'Computer Science', obtainedMarks: 94, totalMarks: 100, grade: 'A+', schoolId },
-        { studentId, exam: 'Mid-Term Board Exam', subject: 'Mathematics', obtainedMarks: 91, totalMarks: 100, grade: 'A+', schoolId },
-        { studentId, exam: 'Mid-Term Board Exam', subject: 'English Literature', obtainedMarks: 82, totalMarks: 100, grade: 'A', schoolId },
-        { studentId, exam: 'Mid-Term Board Exam', subject: 'Chemistry', obtainedMarks: 74, totalMarks: 100, grade: 'B', schoolId }
-      ];
-      for (const res of resultsToSeed) {
-        await addDoc(collection(db, 'results'), res);
-      }
-
-      // 5. Seed Homework Tasks
-      const homeworkToSeed = [
-        { task: 'Complete Exercise 4.2 in Mathematics notebook.', subject: 'Mathematics', due: 'Tomorrow', status: 'Pending', schoolId },
-        { task: 'Prepare chapter 2 summary for Computer Science test.', subject: 'Computer Science', due: 'Next Monday', status: 'Pending', schoolId },
-        { task: 'Write character sketch of Macbeth in English diary.', subject: 'English Literature', due: 'Completed', status: 'Done', schoolId }
-      ];
-      for (const hw of homeworkToSeed) {
-        await addDoc(collection(db, 'homework'), hw);
-      }
-
-      // 6. Seed Upcoming Exams
-      const examsToSeed = [
-        { title: 'Final Term Theory Exam', status: 'Upcoming', schoolId },
-        { title: 'Chemistry Lab Practical Viva', status: 'Scheduled', schoolId }
-      ];
-      for (const ex of examsToSeed) {
-        await addDoc(collection(db, 'exams'), ex);
-      }
-
-      // 7. Seed Unpaid Fee Challan
-      await addDoc(collection(db, 'vouchers'), {
-        studentId,
-        studentName: userData?.name || 'LODHI STUDENT',
-        rollNumber: userData?.rollNo || 'LODHI-101',
-        class: userData?.class || '10',
-        month: 'May 2026',
-        totalAmount: 4500,
-        status: 'Unpaid',
-        dueDate: '2026-05-25',
-        schoolId
-      });
-    } catch (e) {
-      console.error('Error seeding data:', e);
-    }
-  };
 
   const fetchAll = async () => {
     setLoading(true);
     try {
       // 1. Fetch Attendance
       let attSnap = await getDocs(query(collection(db, 'attendance'), where('schoolId', '==', schoolId), where('studentId', '==', studentId)));
-      
-      // Auto-Seed if no data found
-      if (attSnap.empty && studentId) {
-        await seedStudentData();
-        attSnap = await getDocs(query(collection(db, 'attendance'), where('schoolId', '==', schoolId), where('studentId', '==', studentId)));
-      }
 
       const attList = attSnap.docs.map(d => d.data());
       setAttendance({ present: attList.filter(a => a.status === 'present').length, total: attList.length });

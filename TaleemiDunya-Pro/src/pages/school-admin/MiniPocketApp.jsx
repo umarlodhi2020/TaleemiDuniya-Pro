@@ -50,7 +50,7 @@ const MiniPocketApp = () => {
   const { classesList } = useSchool();
   const navigate = useNavigate();
   const schoolId = userData?.schoolId || 'default-school';
-  const schoolName = userData?.schoolName || 'Lodhi School System';
+  const schoolName = userData?.schoolName || 'Your School System';
 
   // Determine logged in role
   const actualRole = (userData?.role || 'school-admin').toLowerCase();
@@ -152,13 +152,7 @@ const MiniPocketApp = () => {
       if (list && list.length > 0) {
         setStudents(list);
       } else {
-        setStudents([
-          { id: '101', name: 'Daniyal Lodhi', rollNumber: '101', class: '10', parentPhone: '03009876543', feeStatus: 'Paid', overdue: 0 },
-          { id: '102', name: 'Mahnoor Fatima', rollNumber: '102', class: '10', parentPhone: '03211234567', feeStatus: 'Defaulter', overdue: 4500 },
-          { id: '103', name: 'Ayan Ali Raza', rollNumber: '103', class: '10', parentPhone: '03337654321', feeStatus: 'Paid', overdue: 0 },
-          { id: '104', name: 'Zainab Ahmed', rollNumber: '104', class: '9', parentPhone: '03129988776', feeStatus: 'Defaulter', overdue: 6000 },
-          { id: '105', name: 'Hamza Khan', rollNumber: '105', class: '8', parentPhone: '03014455667', feeStatus: 'Paid', overdue: 0 }
-        ]);
+        setStudents([]);
       }
     } catch (e) {
       console.error(e);
@@ -499,7 +493,7 @@ const MiniPocketApp = () => {
                       <span className="text-[9px] font-black uppercase text-green-400 tracking-wider">Staff Attendance</span>
                       <UserCheck size={16} className="text-green-400" />
                     </div>
-                    <span className="text-2xl font-black text-green-400">96%</span>
+                    <span className="text-2xl font-black text-green-400">100%</span>
                     <span className="text-[10px] text-gray-400 block mt-1">Present Today</span>
                   </div>
                 </div>
@@ -934,8 +928,8 @@ const MiniPocketApp = () => {
                   <CreditCard size={36} className="mx-auto text-yellow-400" />
                   <div>
                     <span className="text-[10px] uppercase font-black text-gray-400 block">Current Fee Status</span>
-                    <span className="text-2xl font-black text-yellow-400 mt-0.5 block">Rs. 4,500 OVERDUE</span>
-                    <p className="text-xs text-gray-400 mt-1">Due date was 10th of July 2026.</p>
+                    <span className="text-2xl font-black text-green-400 mt-0.5 block">ALL DUES CLEARED</span>
+                    <p className="text-xs text-gray-400 mt-1">No pending dues on account.</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 pt-2">
@@ -979,7 +973,7 @@ const MiniPocketApp = () => {
                     <div className="p-3.5 rounded-xl bg-[#151926] border border-white/10 text-center space-y-2">
                       <span className="text-[10px] font-bold text-gray-400 block uppercase">Send exact amount Rs. 4,500 to:</span>
                       <span className="text-lg font-mono font-black text-white block tracking-wider">
-                        {selectedPayMethod === 'JAZZCASH' ? '0300-9876543 (Lodhi School)' : selectedPayMethod === 'EASYPAISA' ? '0345-1234567 (Lodhi School)' : 'PK36MEZN000012345678910'}
+                        {selectedPayMethod === 'JAZZCASH' ? '0300-0000000 (School Accounts)' : selectedPayMethod === 'EASYPAISA' ? '0345-0000000 (School Accounts)' : 'PK00XXXX0000000000000000'}
                       </span>
                       <div className="w-28 h-28 mx-auto bg-white p-2 rounded-xl flex items-center justify-center my-2 shadow-inner">
                         <QrCode size={90} className="text-black" />

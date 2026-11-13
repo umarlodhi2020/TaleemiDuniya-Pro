@@ -74,24 +74,7 @@ const ParentFees = () => {
     setLoading(true);
     try {
       const data = await getRecords('vouchers', schoolId);
-      let childChallans = data ? data.filter(c => c.studentName === selectedChild || c.childName === selectedChild) : [];
-      
-      if (childChallans.length === 0) {
-        // Fallback realistic challans so parent portal always works smoothly right out of the box
-        if (selectedChild.includes('Sara')) {
-          childChallans = [
-            { id: 'ch-sara-1', challanNo: 'CH-2026-0504', month: 'May 2026', amount: 4500, dueDate: '2026-05-25', status: 'Unpaid', studentName: 'Sara Khan', class: '7th-B' },
-            { id: 'ch-sara-2', challanNo: 'CH-2026-0404', month: 'April 2026', amount: 4500, dueDate: '2026-04-25', status: 'Paid', studentName: 'Sara Khan', class: '7th-B', paidOn: '2026-04-22' },
-            { id: 'ch-sara-3', challanNo: 'CH-2026-0304', month: 'March 2026', amount: 4500, dueDate: '2026-03-25', status: 'Paid', studentName: 'Sara Khan', class: '7th-B', paidOn: '2026-03-20' },
-          ];
-        } else {
-          childChallans = [
-            { id: 'ch-ahmad-1', challanNo: 'CH-2026-0501', month: 'May 2026', amount: 5500, dueDate: '2026-05-25', status: 'Paid', studentName: 'Ahmad Khan', class: '10th-A', paidOn: '2026-05-18' },
-            { id: 'ch-ahmad-2', challanNo: 'CH-2026-0401', month: 'April 2026', amount: 5500, dueDate: '2026-04-25', status: 'Paid', studentName: 'Ahmad Khan', class: '10th-A', paidOn: '2026-04-19' },
-            { id: 'ch-ahmad-3', challanNo: 'CH-2026-0301', month: 'March 2026', amount: 5500, dueDate: '2026-03-25', status: 'Paid', studentName: 'Ahmad Khan', class: '10th-A', paidOn: '2026-03-21' },
-          ];
-        }
-      }
+      const childChallans = data ? data.filter(c => c.studentName === selectedChild || c.childName === selectedChild) : [];
       setChallans(childChallans);
     } catch (e) {
       console.warn('Error fetching challans:', e);

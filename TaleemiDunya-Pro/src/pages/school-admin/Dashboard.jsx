@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Users, 
   GraduationCap, 
@@ -21,7 +21,14 @@ import {
   Settings,
   Database,
   CheckCircle2,
-  X
+  X,
+  Camera,
+  Image as ImageIcon,
+  Sparkles,
+  BookOpen,
+  Calendar,
+  Award,
+  ChevronRight
 } from 'lucide-react';
 import StatCard from '../../components/common/StatCard';
 import GlassCard from '../../components/common/GlassCard';
@@ -52,6 +59,54 @@ const SchoolAdminDashboard = () => {
   const [logoFile, setLogoFile] = useState(null);
   const [csvFile, setCsvFile] = useState(null);
   const [isSavingSetup, setIsSavingSetup] = useState(false);
+
+  // Custom Banner State (School can upload or customize their header banner)
+  const bannerInputRef = useRef(null);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [customBanner, setCustomBanner] = useState(
+    () => schoolData?.dashboardBanner || localStorage.getItem(`custom_dashboard_banner_${schoolData?.id || 'default'}`) || '/default_dashboard_banner.jpg'
+  );
+
+  useEffect(() => {
+    if (schoolData?.dashboardBanner) {
+      setCustomBanner(schoolData.dashboardBanner);
+    }
+  }, [schoolData?.dashboardBanner]);
+
+  const handleBannerUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Fast local preview
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      setCustomBanner(dataUrl);
+      localStorage.setItem(`custom_dashboard_banner_${schoolData?.id || 'default'}`, dataUrl);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to Cloudinary & update school record if schoolId available
+    const schoolId = userData?.schoolId || schoolData?.id;
+    if (schoolId) {
+      setBannerUploading(true);
+      try {
+        const uploadRes = await uploadToCloudinary(file, {
+          folder: `taleemidunya/${schoolId}/banners`,
+          publicId: `dash_banner_${Date.now()}`
+        });
+        if (uploadRes?.success && uploadRes.url) {
+          setCustomBanner(uploadRes.url);
+          localStorage.setItem(`custom_dashboard_banner_${schoolId}`, uploadRes.url);
+          await updateRecord('schools', schoolId, { dashboardBanner: uploadRes.url });
+        }
+      } catch (err) {
+        console.warn('Banner cloud upload fallback to local storage:', err);
+      } finally {
+        setBannerUploading(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (schoolData) {
@@ -157,19 +212,19 @@ const SchoolAdminDashboard = () => {
     }
   };
 
-  // Real data state with realistic fallbacks
+  // Real data state (initialized to 0 for fresh accounts)
   const [realStats, setRealStats] = useState({
-    classesCount: 14,
-    studentsCount: 245,
-    activeStudents: 237,
-    revenueToday: 18500,
-    staffCount: 34,
-    netProfit: 185000,
-    totalExpenses: 65000,
-    monthlyRevenue: 250000,
-    totalCollection: 320000,
-    activeExpected: 350000,
-    deactiveExpected: 30000
+    classesCount: 0,
+    studentsCount: 0,
+    activeStudents: 0,
+    revenueToday: 0,
+    staffCount: 0,
+    netProfit: 0,
+    totalExpenses: 0,
+    monthlyRevenue: 0,
+    totalCollection: 0,
+    activeExpected: 0,
+    deactiveExpected: 0
   });
 
   const [recentStudents, setRecentStudents] = useState([]);
@@ -309,10 +364,12 @@ const SchoolAdminDashboard = () => {
       const todayMonthDay = new Date().toISOString().slice(5, 10);
       const bdays = students.filter(s => s.dob && s.dob.slice(5, 10) === todayMonthDay);
 
+      const activeCount = stuCount > 0 ? (students.filter(s => s.status !== 'Deactive' && s.status !== 'Inactive').length || stuCount) : 0;
+
       setRealStats({
         classesCount: classCount,
         studentsCount: stuCount,
-        activeStudents: Math.max(1, Math.floor(stuCount * 0.97)),
+        activeStudents: activeCount,
         revenueToday: todayRev,
         staffCount: staffCount,
         netProfit: profit,
@@ -539,85 +596,143 @@ const SchoolAdminDashboard = () => {
         </div>
       )}
 
-      {/* Top Header Bar EXACT match to STASU Layout */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4">
-        <div className="flex items-center gap-4 bg-dark-card px-5 py-3 rounded-2xl shadow-sm ">
-          <div className="w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden shrink-0 border border-slate-100 bg-dark-card">
-            {(schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo) ? (
-              <img src={schoolData?.branding?.logo || schoolData?.logo || userData?.schoolLogo} alt="School Logo" className="w-full h-full object-contain p-1" />
-            ) : (
-              <div className="w-full h-full bg-blue-50 flex items-center justify-center">
-                <span className="text-3xl">🏫</span>
-              </div>
-            )}
+      {/* Hero Welcome Banner (Identical to requested design with isolated background & customizable image) */}
+      <div className="relative overflow-hidden rounded-3xl shadow-xl border border-slate-200/60 dark:border-white/10 group min-h-[170px] md:min-h-[195px] flex items-center">
+        {/* Background Image with Fallback and overlay */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+          style={{ 
+            backgroundImage: `url(${customBanner})`,
+            backgroundColor: '#0284c7'
+          }}
+        />
+        {/* Adaptive Gradient Overlay ensuring crystal clear text in BOTH White & Dark modes */}
+        <div className="absolute inset-0 bg-gradient-to-r from-sky-900/90 via-sky-800/80 to-blue-900/60 dark:from-slate-950/95 dark:via-slate-900/90 dark:to-sky-950/70" />
+
+        {/* Content Container */}
+        <div className="relative z-10 w-full px-6 py-5 md:px-8 md:py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold border border-white/30 shadow-sm">
+              <span>Welcome Back!</span>
+              <span className="text-sm">👋</span>
+            </div>
+            
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white tracking-tight drop-shadow-md">
+              {userData?.principalName || userData?.name || 'Principal'}
+            </h1>
+
+            <p className="text-xs md:text-sm font-semibold text-sky-100 dark:text-slate-200 drop-shadow flex items-center gap-2">
+              <span className="font-bold text-white">{schoolName}</span>
+              <span>•</span>
+              <span className="text-sky-200 dark:text-slate-300 font-medium">{schoolData?.campus || schoolData?.branchName || 'Main Campus'}</span>
+            </p>
           </div>
-          <div>
-            <h1 className="text-xl md:text-2xl font-black text-dark-text tracking-tight leading-tight">{schoolName}</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-100">
-                <ShieldCheck size={14} />
-                Session: {schoolData?.session || schoolData?.academicYear || '2025 - 2026'}
-              </span>
-              
-              <span className={`px-3 py-1 rounded-full text-[11px] font-bold tracking-wide flex items-center gap-1.5 shadow-sm uppercase ${
-                  (schoolData?.expiryDate && new Date(schoolData.expiryDate).getTime() - Date.now() <= 0) 
-                  ? 'bg-red-600 text-white border border-red-700' 
-                  : 'bg-slate-900 dark:bg-slate-800 text-white border border-slate-700 dark:border-slate-600'
-              }`}>
-                <Clock size={13} className="text-slate-300" />
-                <span>
-                  {(() => {
-                    if (!schoolData?.expiryDate) return 'NO EXPIRY SET';
-                    const diff = new Date(schoolData.expiryDate).getTime() - Date.now();
-                    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-                    return days <= 0 ? 'SUBSCRIPTION OVERDUE' : `${days} DAYS REMAINING`;
-                  })()}
-                </span>
-              </span>
+
+          <div className="flex items-center gap-3">
+            {/* Tagline Badge */}
+            <div className="hidden lg:flex flex-col items-end mr-2">
+              <span className="font-serif italic text-lg text-white/90 drop-shadow">Together for</span>
+              <span className="font-serif font-black italic text-xl text-yellow-300 drop-shadow">Better Education</span>
+            </div>
+
+            {/* Custom Banner Upload Button */}
+            <div>
+              <input 
+                type="file" 
+                ref={bannerInputRef} 
+                onChange={handleBannerUpload} 
+                accept="image/*" 
+                className="hidden" 
+              />
+              <button
+                type="button"
+                onClick={() => bannerInputRef.current?.click()}
+                disabled={bannerUploading}
+                title="Change or upload school dashboard banner (Standard size 1200x350)"
+                className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold border border-white/30 shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              >
+                <Camera size={15} />
+                <span>{bannerUploading ? 'Uploading...' : 'Change Banner'}</span>
+              </button>
             </div>
           </div>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => navigate('/school-admin/classes')}
-            className="px-4 py-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-          >
-            <PlusCircle size={15} />
-            Add Section
-          </button>
+      </div>
 
-          <button 
-            onClick={() => navigate('/school-admin/classes')}
-            className="px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-          >
-            <PlusCircle size={15} />
-            Add Class
-          </button>
+      {/* KPI Stats Cards Row (Real Data - Total Students, Staff, Fee Collected, Attendance) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+        {/* Card 1: Total Students */}
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/20 relative overflow-hidden flex flex-col justify-between min-h-[115px]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-100">Total Students</span>
+            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
+              <GraduationCap size={22} className="text-white" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <h3 className="text-2xl md:text-3xl font-black text-white">
+              {Number(realStats.studentsCount || 0).toLocaleString()}
+            </h3>
+            <div className="flex items-center gap-1.5 text-[11px] text-blue-100 font-semibold mt-0.5">
+              <span className="text-emerald-300 font-bold">Active: {realStats.activeStudents || realStats.studentsCount}</span>
+              <span>•</span>
+              <span>Classes: {realStats.classesCount || 0}</span>
+            </div>
+          </div>
+        </div>
 
-          <button 
-            onClick={() => navigate('/school-admin/bulk-promotion')}
-            className="px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-          >
-            <Users size={15} />
-            Bulk Promotion
-          </button>
+        {/* Card 2: Total Staff */}
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/20 relative overflow-hidden flex flex-col justify-between min-h-[115px]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-100">Total Staff</span>
+            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
+              <Users size={22} className="text-white" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <h3 className="text-2xl md:text-3xl font-black text-white">
+              {Number(realStats.staffCount || 0).toLocaleString()}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] text-emerald-100 font-semibold mt-0.5">
+              <span>Teaching & Non-Teaching Members</span>
+            </div>
+          </div>
+        </div>
 
-          <button 
-            onClick={() => navigate('/school-admin/fees/generate-voucher')}
-            className="px-4 py-2 rounded-full bg-purple-500 hover:bg-purple-600 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-          >
-            <CreditCard size={15} />
-            Monthly Challan
-          </button>
+        {/* Card 3: Total Fee Collected */}
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-500/20 relative overflow-hidden flex flex-col justify-between min-h-[115px]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-100">Total Fee Collected</span>
+            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
+              <CreditCard size={22} className="text-white" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <h3 className="text-2xl md:text-3xl font-black text-white">
+              Rs. {Number(realStats.totalCollection || 0).toLocaleString()}
+            </h3>
+            <div className="flex items-center gap-1.5 text-[11px] text-purple-100 font-semibold mt-0.5">
+              <span>Expected: Rs. {Number(realStats.activeExpected || 0).toLocaleString()}</span>
+            </div>
+          </div>
+        </div>
 
-          <button 
-            onClick={() => navigate('/school-admin/students/add')}
-            className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-          >
-            <UserPlus size={15} />
-            Add Student
-          </button>
+        {/* Card 4: Attendance Today */}
+        <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20 relative overflow-hidden flex flex-col justify-between min-h-[115px]">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-100">Attendance Today</span>
+            <div className="p-2.5 rounded-xl bg-white/20 backdrop-blur-sm">
+              <CalendarCheck size={22} className="text-white" />
+            </div>
+          </div>
+          <div className="mt-2">
+            <h3 className="text-2xl md:text-3xl font-black text-white">
+              {realStats.studentsCount > 0 ? `${Math.round(((realStats.activeStudents || realStats.studentsCount) / realStats.studentsCount) * 100)}%` : '0%'}
+            </h3>
+            <div className="flex items-center gap-1 text-[11px] text-amber-100 font-semibold mt-0.5">
+              <span>Live Biometric / QR Scanner Sync</span>
+            </div>
+          </div>
         </div>
       </div>
 

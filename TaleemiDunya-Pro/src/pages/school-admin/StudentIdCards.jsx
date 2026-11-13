@@ -244,7 +244,7 @@ const StudentIdCards = () => {
 
   // ID Card customizations - pre-fill from school profile
   const [schoolName, setSchoolName] = useState(
-    () => schoolData?.name || schoolData?.schoolName || userData?.schoolName || 'The Knowledge Home School System'
+    () => schoolData?.name || schoolData?.schoolName || userData?.schoolName || 'Your School Name'
   );
   const [cardSubtitle, setCardSubtitle] = useState('Student Identity Card');
   const [cardTheme, setCardTheme] = useState('blue');

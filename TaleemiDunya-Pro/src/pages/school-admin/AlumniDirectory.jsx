@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   GraduationCap,
   Search,
@@ -97,7 +97,7 @@ export default function AlumniDirectory() {
       industry: newAlumni.industry,
       location: newAlumni.location || 'Pakistan',
       avatar: `https://images.unsplash.com/photo-${1534528741775 + Math.floor(Math.random() * 50)}?w=150&auto=format&fit=crop&q=80`,
-      quote: newAlumni.quote || 'Proud alumnus of TaleemiDunya Institute.',
+      quote: newAlumni.quote || `Proud alumnus of ${schoolData?.name || 'our school'}.`,
       badges: ['Mentorship Volunteer'],
       phone: newAlumni.phone || '+92 300 0000000',
       email: newAlumni.email || 'alumni@school.edu.pk',
@@ -121,7 +121,8 @@ export default function AlumniDirectory() {
   };
 
   const copyShareLink = (alumnus) => {
-    const text = `🌟 Proud Alumni Spotlight from TaleemiDunya!\n\nMeet ${alumnus.name} (Batch ${alumnus.batch})\nCurrent Role: ${alumnus.currentRole} at ${alumnus.organization}.\n\n"${alumnus.quote}"\n\nAdmissions Open at TaleemiDunya Pro! Join the leaders of tomorrow.`;
+    const schoolDisplayName = schoolData?.name || userData?.schoolName || 'our school';
+    const text = `🌟 Proud Alumni Spotlight from ${schoolDisplayName}!\n\nMeet ${alumnus.name} (Batch ${alumnus.batch})\nCurrent Role: ${alumnus.currentRole} at ${alumnus.organization}.\n\n"${alumnus.quote}"\n\nAdmissions Open at ${schoolDisplayName}! Join the leaders of tomorrow.`;
     navigator.clipboard.writeText(text);
     setCopiedId(alumnus.id);
     setTimeout(() => setCopiedId(null), 2500);

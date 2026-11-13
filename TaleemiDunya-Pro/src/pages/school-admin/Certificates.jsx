@@ -154,7 +154,7 @@ const Certificates = () => {
                 </div>
                 <div className="text-center border-t border-slate-400 pt-2 w-48">
                   <span className="text-slate-500 text-xs font-bold uppercase tracking-widest">Principal Signature</span>
-                  <p className="text-slate-800 font-serif italic text-sm mt-1">LODHI SCHOOL</p>
+                  <p className="text-slate-800 font-serif italic text-sm mt-1">{schoolData?.name || userData?.schoolName || 'Principal'}</p>
                 </div>
               </div>
             </div>

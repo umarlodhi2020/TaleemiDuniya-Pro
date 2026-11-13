@@ -51,8 +51,8 @@ const PrintFee = () => {
  const isBlankMode = location.state?.blankMode;
  if (isBlankMode) {
  const count = location.state?.count || 1;
- // Generate dummy blank records
- const dummyRecords = Array(count).fill({
+ // Generate blank printable records
+ const blankRecords = Array(count).fill({
  _isBlank: true,
  status: 'Unpaid',
  month: new Date().toISOString().slice(0, 7),
@@ -65,7 +65,7 @@ const PrintFee = () => {
  { name: '', class: '', admNo: '', fee: 0, arrears: 0 }
  ]
  });
- setRecords(dummyRecords);
+ setRecords(blankRecords);
  return; // Skip fetching from DB
  }
  const voucherIds = location.state?.voucherIds || [];

@@ -16,9 +16,15 @@
       (function() {
         // Auto-redirect deep paths into HashRouter to prevent blank page when entered without #
         try {
+          // Normalize double slashes in hash e.g. #//apply/ -> #/apply/
+          if (window.location.hash && window.location.hash.indexOf('#//') === 0) {
+            window.location.replace(window.location.pathname + window.location.search + '#/' + window.location.hash.replace(/^#\/+/, ''));
+            return;
+          }
+
           var p = window.location.pathname;
           if (p && p !== '/' && p !== '/index.html' && !window.location.hash) {
-            window.location.replace('/#' + p + window.location.search);
+            window.location.replace('/#' + p.replace(/\/+/g, '/') + window.location.search);
             return;
           }
         } catch (e) {}

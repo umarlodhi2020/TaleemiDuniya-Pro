@@ -65,30 +65,8 @@ const ParentAttendance = () => {
     setLoading(true);
     try {
       const data = await getRecords('attendance', schoolId);
-      // Filter records or provide realistic simulated records for active child if Firestore lacks specific child logs
-      let childLogs = data ? data.filter(r => (r.studentName === selectedChild || r.childName === selectedChild)) : [];
-      
-      if (childLogs.length === 0) {
-        // Fallback realistic logs for Ahmad vs Sara so parent portal demo is always full & alive
-        if (selectedChild.includes('Sara')) {
-          childLogs = [
-            { date: '2026-05-22', status: 'Present', remarks: 'On time, active participation', checkIn: '07:55 AM' },
-            { date: '2026-05-21', status: 'Present', remarks: 'Good classroom conduct', checkIn: '08:02 AM' },
-            { date: '2026-05-20', status: 'Absent', remarks: 'Medical leave informed by parent', checkIn: '-' },
-            { date: '2026-05-19', status: 'Present', remarks: 'On time', checkIn: '07:50 AM' },
-            { date: '2026-05-18', status: 'Present', remarks: 'On time', checkIn: '07:58 AM' },
-          ];
-        } else {
-          childLogs = [
-            { date: '2026-05-22', status: 'Present', remarks: 'Excellent physics lab performance', checkIn: '07:48 AM' },
-            { date: '2026-05-21', status: 'Present', remarks: 'On time', checkIn: '07:52 AM' },
-            { date: '2026-05-20', status: 'Present', remarks: 'On time', checkIn: '07:45 AM' },
-            { date: '2026-05-19', status: 'Present', remarks: 'Submitted assignment', checkIn: '07:50 AM' },
-            { date: '2026-05-18', status: 'Late', remarks: 'Arrived 10 mins late due to transport', checkIn: '08:15 AM' },
-            { date: '2026-05-15', status: 'Present', remarks: 'On time', checkIn: '07:55 AM' },
-          ];
-        }
-      }
+      // Filter records for selected child only
+      const childLogs = data ? data.filter(r => (r.studentName === selectedChild || r.childName === selectedChild)) : [];
       setAttendanceData(childLogs);
     } catch (e) {
       console.warn('Error fetching parent attendance:', e);

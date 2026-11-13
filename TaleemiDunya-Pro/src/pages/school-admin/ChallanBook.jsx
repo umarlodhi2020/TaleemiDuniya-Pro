@@ -33,9 +33,9 @@ const ChallanBook = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-10`;
   });
-  const [bankName, setBankName] = useState(schoolData?.bankName || 'Allied Bank Limited');
-  const [bankBranch, setBankBranch] = useState(schoolData?.bankBranch || 'Main Branch');
-  const [accountNo, setAccountNo] = useState(schoolData?.accountNumber || '01-100-3942-01');
+  const [bankName, setBankName] = useState(schoolData?.bankName || '');
+  const [bankBranch, setBankBranch] = useState(schoolData?.bankBranch || '');
+  const [accountNo, setAccountNo] = useState(schoolData?.accountNumber || '');
   const [challanPrefix, setChallanPrefix] = useState((schoolData?.name || 'SCH').substring(0, 3).toUpperCase() + '-');
 
   // Dynamic Fee structure items

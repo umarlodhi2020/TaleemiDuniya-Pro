@@ -56,7 +56,7 @@ const Exams = () => {
     showGpa: true,
     showRemarks: true,
     showSignatures: true,
-    customSchoolName: userData?.schoolName || 'Lodhi School System',
+    customSchoolName: userData?.schoolName || 'Your School System',
     customSubtitle: 'Official Academic Report Card & Student Ledger',
     layoutStyle: 'modern', // 'modern' | 'classic'
   });

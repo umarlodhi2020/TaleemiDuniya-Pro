@@ -63,23 +63,19 @@ const RolesManager = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Clean up legacy shared staff permissions from local storage if present
+      localStorage.removeItem('staff_permissions_list');
+
       let staffData = [];
       if (userData?.schoolId) {
         staffData = await getRecords('staff', userData.schoolId);
       }
 
-      // Check local storage fallback or default staff list if empty
-      const localStaff = JSON.parse(localStorage.getItem('staff_permissions_list') || '[]');
+      // Check local storage fallback scoped to this specific school only
+      const storageKey = `staff_permissions_${userData?.schoolId || 'default'}`;
+      const localStaff = JSON.parse(localStorage.getItem(storageKey) || '[]');
       if (staffData.length === 0 && localStaff.length > 0) {
         staffData = localStaff;
-      } else if (staffData.length === 0) {
-        staffData = [
-          { id: 'st-1', name: 'Sir Asif Khan', email: 'asif.principal@smartangels.edu.pk', role: 'Principal', permissions: { manageAdmissions: true, collectFees: true, markAttendance: true, editExams: true, systemSettings: true } },
-          { id: 'st-2', name: 'Madam Ayesha Siddiqui', email: 'ayesha.coord@smartangels.edu.pk', role: 'Admin', permissions: { manageAdmissions: true, collectFees: false, markAttendance: true, editExams: true, systemSettings: false } },
-          { id: 'st-3', name: 'Muhammad Tariq', email: 'tariq.accounts@smartangels.edu.pk', role: 'Accountant', permissions: { manageAdmissions: false, collectFees: true, markAttendance: false, editExams: false, systemSettings: false } },
-          { id: 'st-4', name: 'Bilal Ahmed', email: 'bilal.teacher@smartangels.edu.pk', role: 'Teacher', permissions: { manageAdmissions: false, collectFees: false, markAttendance: true, editExams: true, systemSettings: false } }
-        ];
-        localStorage.setItem('staff_permissions_list', JSON.stringify(staffData));
       }
       setStaff(staffData);
 
@@ -94,7 +90,8 @@ const RolesManager = () => {
       }
     } catch (error) {
       console.error('Error fetching staff/users:', error);
-      const localStaff = JSON.parse(localStorage.getItem('staff_permissions_list') || '[]');
+      const storageKey = `staff_permissions_${userData?.schoolId || 'default'}`;
+      const localStaff = JSON.parse(localStorage.getItem(storageKey) || '[]');
       if (localStaff.length > 0) setStaff(localStaff);
     } finally {
       setLoading(false);
@@ -139,7 +136,7 @@ const RolesManager = () => {
     // Update local state and localStorage instantly
     const updatedStaffList = staff.map(m => m.id === selectedMember.id ? updatedMember : m);
     setStaff(updatedStaffList);
-    localStorage.setItem('staff_permissions_list', JSON.stringify(updatedStaffList));
+    localStorage.setItem(`staff_permissions_${userData?.schoolId || 'default'}`, JSON.stringify(updatedStaffList));
 
     try {
       if (!selectedMember.id.toString().startsWith('st-')) {

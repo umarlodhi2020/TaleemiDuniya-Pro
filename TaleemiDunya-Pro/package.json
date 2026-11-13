@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "date-fns": "^4.1.0",
+    "edge-tts": "^1.0.1",
     "express": "^5.2.1",
     "firebase": "^12.13.0",
     "firebase-admin": "^14.1.0",

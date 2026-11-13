@@ -7,7 +7,7 @@ import {
   CheckCircle, Clock, Users, Download, UserCheck, Loader2, Send
 } from 'lucide-react';
 import GlassCard from '../../components/common/GlassCard';
-import { getRecords, addRecord } from '../../services/db';
+import { getRecords, addRecord, updateRecord, getStudentAttendanceHistory } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { useNavigate as useNav } from 'react-router-dom';
@@ -25,6 +25,16 @@ const SingleStudent360 = () => {
   const [loading, setLoading] = useState(true);
   const [waSending, setWaSending] = useState(false);
   const [customMsg, setCustomMsg] = useState('');
+
+  // Dynamic Attendance & Finance states
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [vouchers, setVouchers] = useState([]);
+  const [vouchersLoading, setVouchersLoading] = useState(false);
+  const [collectAmount, setCollectAmount] = useState('');
+  const [collectMonth, setCollectMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [collectMethod, setCollectMethod] = useState('Cash at Counter');
+  const [isCollectingFee, setIsCollectingFee] = useState(false);
 
   // Auto-Send WhatsApp Notice via Bot Engine (Background)
   const handleSendWhatsAppNotice = async (overrideText = null) => {
@@ -108,6 +118,100 @@ const SingleStudent360 = () => {
     fetchStudentsList();
   }, [userData, id]);
 
+  const fetchStudentRelatedData = async (studentId) => {
+    if (!studentId) return;
+    const sId = userData?.schoolId || schoolData?.id || 'default-school';
+    setAttendanceLoading(true);
+    setVouchersLoading(true);
+
+    try {
+      // 1. Fetch real attendance history
+      const attDocs = await getStudentAttendanceHistory(sId, studentId);
+      // Sort newest dates first
+      const sortedAtt = (attDocs || []).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      setAttendanceRecords(sortedAtt);
+    } catch (err) {
+      console.error('Error fetching student attendance:', err);
+      setAttendanceRecords([]);
+    } finally {
+      setAttendanceLoading(false);
+    }
+
+    try {
+      // 2. Fetch real vouchers
+      const allVouchers = await getRecords('vouchers', sId);
+      const sVouchers = (allVouchers || []).filter(v => 
+        String(v.studentId) === String(studentId) ||
+        String(v.student_id) === String(studentId) ||
+        (Array.isArray(v.childrenIds) && v.childrenIds.includes(studentId)) ||
+        (v.rollNumber && String(v.rollNumber) === String(selectedStudent?.rollNumber) && v.class === selectedStudent?.class)
+      );
+      sVouchers.sort((a, b) => new Date(b.createdAt || b.paidAt || b.dueDate || 0) - new Date(a.createdAt || a.paidAt || a.dueDate || 0));
+      setVouchers(sVouchers);
+    } catch (err) {
+      console.error('Error fetching student vouchers:', err);
+      setVouchers([]);
+    } finally {
+      setVouchersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedStudent?.id) {
+      setCollectAmount(selectedStudent.monthlyFee || 0);
+      fetchStudentRelatedData(selectedStudent.id);
+    }
+  }, [selectedStudent?.id, userData?.schoolId]);
+
+  const handleCollectFeeSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedStudent) return;
+    const amountNum = Number(collectAmount) || 0;
+    if (amountNum <= 0) {
+      alert('براہ کرم فیس کی درست رقم درج کریں۔');
+      return;
+    }
+
+    setIsCollectingFee(true);
+    try {
+      const sId = userData?.schoolId || schoolData?.id || 'default-school';
+      const voucherNo = `${Date.now().toString().slice(-6)}`;
+      const voucherData = {
+        voucherNo,
+        schoolId: sId,
+        studentId: selectedStudent.id,
+        studentName: selectedStudent.name || '',
+        rollNumber: selectedStudent.rollNumber || '',
+        class: selectedStudent.class || '',
+        section: selectedStudent.section || '',
+        fatherName: selectedStudent.fatherName || '',
+        month: collectMonth,
+        totalAmount: amountNum,
+        paidAmount: amountNum,
+        status: 'Paid',
+        paymentMethod: collectMethod,
+        paidAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+
+      await addRecord('vouchers', voucherData, sId);
+
+      const currBal = Number(selectedStudent.balance) || 0;
+      const newBal = Math.max(0, currBal - amountNum);
+      await updateRecord('students', selectedStudent.id, { balance: newBal });
+      setSelectedStudent(prev => ({ ...prev, balance: newBal }));
+
+      alert(`✅ فیس کامیابی سے وصول ہو گئی! رسید نمبر #${voucherNo}`);
+      await fetchStudentRelatedData(selectedStudent.id);
+      switchTab('payment');
+    } catch (err) {
+      console.error('Error saving fee payment:', err);
+      alert('فیس جمع کرتے وقت مسئلہ آیا: ' + err.message);
+    } finally {
+      setIsCollectingFee(false);
+    }
+  };
+
   const switchTab = (tabId) => {
     setSearchParams({ tab: tabId });
   };
@@ -116,6 +220,13 @@ const SingleStudent360 = () => {
     if (status === 'Active') return 'bg-green-500/20 text-green-400 border border-green-500/30';
     return 'bg-red-500/20 text-red-400 border border-red-500/30';
   };
+
+  const totalDays = attendanceRecords.length;
+  const presentDays = attendanceRecords.filter(r => ['present', 'late'].includes((r.status || '').toLowerCase())).length;
+  const absentDays = attendanceRecords.filter(r => (r.status || '').toLowerCase() === 'absent').length;
+  const leaveDays = attendanceRecords.filter(r => (r.status || '').toLowerCase() === 'leave').length;
+  const presentPct = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+  const paidVouchers = vouchers.filter(v => v.status === 'Paid' || Number(v.paidAmount) > 0);
 
   if (loading) {
     return (
@@ -346,29 +457,76 @@ const SingleStudent360 = () => {
             {/* COLLECT FEE TAB */}
             {activeTab === 'collect-fee' && (
               <GlassCard className="p-6 animate-fade-in">
-                <h2 className="text-xl font-bold text-white border-b border-dark-border pb-3 mb-5 flex items-center justify-between">
-                  <span className="flex items-center gap-2"><DollarSign size={20} className="text-green-400" /> Collect Fee</span>
-                  <span className="text-xs font-mono text-green-400">Monthly: Rs. {selectedStudent.monthlyFee || 0}</span>
-                </h2>
-                <form onSubmit={(e) => { e.preventDefault(); alert(`Fee collected for ${selectedStudent.name}!`); }} className="space-y-4 max-w-lg">
+                <div className="flex items-center justify-between border-b border-dark-border pb-3 mb-5">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <DollarSign size={20} className="text-green-400" /> Collect Fee
+                  </h2>
+                  <button 
+                    type="button" 
+                    onClick={() => navigate('/school-admin/collect-fee')}
+                    className="text-xs text-primary-400 font-bold hover:underline flex items-center gap-1"
+                  >
+                    Open Full Fee Collection Desk &rarr;
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 rounded-xl bg-dark-hover/30 border border-dark-border">
+                    <p className="text-[10px] uppercase font-black text-dark-muted">Monthly Tuition Fee</p>
+                    <p className="text-xl font-black text-white mt-1">Rs. {Number(selectedStudent.monthlyFee || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-dark-hover/30 border border-dark-border">
+                    <p className="text-[10px] uppercase font-black text-dark-muted">Current Outstanding</p>
+                    <p className="text-xl font-black text-red-400 mt-1">Rs. {Number(selectedStudent.balance || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-dark-hover/30 border border-dark-border">
+                    <p className="text-[10px] uppercase font-black text-dark-muted">Class & Roll No</p>
+                    <p className="text-sm font-bold text-white mt-1">{selectedStudent.class || 'N/A'} (Roll: {selectedStudent.rollNumber || 'N/A'})</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleCollectFeeSubmit} className="space-y-4 max-w-lg">
                   <div>
                     <label className="block text-xs font-bold uppercase mb-1">Fee Month</label>
-                    <input type="month" defaultValue={new Date().toISOString().slice(0, 7)} className="w-full premium-input text-sm" />
+                    <input 
+                      type="month" 
+                      value={collectMonth} 
+                      onChange={(e) => setCollectMonth(e.target.value)} 
+                      className="w-full premium-input text-sm" 
+                      required 
+                    />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold uppercase mb-1">Amount (Rs.)</label>
-                    <input type="number" defaultValue={selectedStudent.monthlyFee || 3500} className="w-full premium-input font-mono text-base font-bold text-green-400" />
+                    <label className="block text-xs font-bold uppercase mb-1">Amount to Collect (Rs.)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      value={collectAmount} 
+                      onChange={(e) => setCollectAmount(e.target.value)} 
+                      className="w-full premium-input font-mono text-base font-bold text-green-400" 
+                      required 
+                    />
                   </div>
                   <div>
                     <label className="block text-xs font-bold uppercase mb-1">Payment Method</label>
-                    <select className="w-full premium-input text-sm">
-                      <option>Cash at Counter</option>
-                      <option>Bank Transfer / JazzCash</option>
-                      <option>Online Card</option>
+                    <select 
+                      value={collectMethod} 
+                      onChange={(e) => setCollectMethod(e.target.value)} 
+                      className="w-full premium-input text-sm"
+                    >
+                      <option value="Cash at Counter">Cash at Counter</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="JazzCash / EasyPaisa">JazzCash / EasyPaisa</option>
+                      <option value="Online Card">Online Card</option>
                     </select>
                   </div>
-                  <button type="submit" className="premium-button-primary w-full justify-center py-3">
-                    <DollarSign size={18} /> Confirm & Generate Receipt
+                  <button 
+                    type="submit" 
+                    disabled={isCollectingFee} 
+                    className="premium-button-primary w-full justify-center py-3 disabled:opacity-50"
+                  >
+                    {isCollectingFee ? <Loader2 size={18} className="animate-spin" /> : <DollarSign size={18} />}
+                    {isCollectingFee ? 'Saving Payment...' : 'Confirm & Collect Fee'}
                   </button>
                 </form>
               </GlassCard>
@@ -376,79 +534,241 @@ const SingleStudent360 = () => {
 
             {/* VOUCHERS TAB */}
             {activeTab === 'voucher' && (
-              <GlassCard className="p-6 animate-fade-in text-center py-14">
-                <Receipt size={48} className="mx-auto text-primary-400 mb-4" />
-                <h3 className="text-2xl font-bold text-white mb-2">Fee Voucher / Challan</h3>
-                <p className="text-xs text-dark-muted max-w-md mx-auto mb-6">
-                  Generate and print customized fee challan vouchers for {selectedStudent.name} (Roll: {selectedStudent.rollNumber || 'N/A'}).
-                </p>
-                <div className="flex justify-center gap-3">
-                  <button onClick={() => alert('Voucher Generated!')} className="premium-button-primary">Generate Monthly Challan</button>
-                  <button onClick={() => window.print()} className="premium-button-secondary"><Printer size={16} /> Print Voucher</button>
+              <GlassCard className="p-6 animate-fade-in">
+                <div className="flex items-center justify-between border-b border-dark-border pb-3 mb-5">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Receipt size={20} className="text-primary-400" /> Fee Vouchers & Challans
+                  </h2>
+                  <button 
+                    onClick={() => navigate('/school-admin/fee-manager')}
+                    className="premium-button-secondary text-xs"
+                  >
+                    Fee Manager &rarr;
+                  </button>
                 </div>
+
+                {vouchersLoading ? (
+                  <div className="py-12 text-center text-dark-muted font-bold text-xs">
+                    <Loader2 size={24} className="animate-spin mx-auto mb-2 text-primary-500" />
+                    Loading vouchers...
+                  </div>
+                ) : vouchers.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Receipt size={44} className="mx-auto text-dark-muted mb-3 opacity-40" />
+                    <h3 className="text-base font-bold text-white mb-1">No Fee Vouchers Generated Yet</h3>
+                    <p className="text-xs text-dark-muted max-w-sm mx-auto mb-5">
+                      Is student ke liye abhi tak koi monthly challan generate nahi hua. Fee Manager se challan issue karein ya Collect Fee se adaigi karein.
+                    </p>
+                    <div className="flex justify-center gap-3">
+                      <button onClick={() => switchTab('collect-fee')} className="premium-button-primary text-xs">
+                        <DollarSign size={14} /> Collect Fee Now
+                      </button>
+                      <button onClick={() => navigate('/school-admin/fee-manager')} className="premium-button-secondary text-xs">
+                        Open Fee Manager
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-dark-border rounded-xl">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-dark-hover/60 text-dark-muted uppercase font-black">
+                        <tr>
+                          <th className="p-3">Voucher #</th>
+                          <th className="p-3">Month</th>
+                          <th className="p-3">Due Date</th>
+                          <th className="p-3 text-right">Total (Rs.)</th>
+                          <th className="p-3 text-right">Paid (Rs.)</th>
+                          <th className="p-3 text-center">Status</th>
+                          <th className="p-3 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-dark-border font-mono">
+                        {vouchers.map((v, i) => {
+                          const isPaid = v.status === 'Paid';
+                          return (
+                            <tr key={v.id || i} className="hover:bg-dark-hover/40 transition-colors">
+                              <td className="p-3 text-white font-bold">{v.voucherNo || v.id?.slice(0, 8)}</td>
+                              <td className="p-3 font-sans text-dark-muted">{v.month || 'Monthly'}</td>
+                              <td className="p-3 text-dark-muted">{v.dueDate || '-'}</td>
+                              <td className="p-3 text-right text-white font-bold">{Number(v.totalAmount || 0).toLocaleString()}</td>
+                              <td className="p-3 text-right text-green-400 font-bold">{Number(v.paidAmount || 0).toLocaleString()}</td>
+                              <td className="p-3 text-center">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                  isPaid ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                }`}>
+                                  {v.status || 'Unpaid'}
+                                </span>
+                              </td>
+                              <td className="p-3 text-center font-sans">
+                                <button onClick={() => window.print()} className="text-[10px] text-primary-400 font-bold hover:underline flex items-center justify-center gap-1 mx-auto">
+                                  <Printer size={12} /> Print
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </GlassCard>
             )}
 
             {/* LEDGER TAB */}
             {activeTab === 'ledger' && (
               <GlassCard className="p-6 animate-fade-in">
-                <h2 className="text-xl font-bold text-white border-b border-dark-border pb-3 mb-5 flex items-center justify-between">
-                  <span className="flex items-center gap-2"><FileText size={20} className="text-blue-400" /> Student Ledger</span>
-                  <button onClick={() => window.print()} className="premium-button-secondary text-xs"><Printer size={14} /> Print</button>
-                </h2>
-                <table className="w-full text-left text-xs border border-dark-border rounded-xl overflow-hidden">
-                  <thead className="bg-dark-hover/60 text-dark-muted uppercase font-black">
-                    <tr>
-                      <th className="p-3">Date</th>
-                      <th className="p-3">Description</th>
-                      <th className="p-3 text-right">Debit (Rs.)</th>
-                      <th className="p-3 text-right">Credit (Rs.)</th>
-                      <th className="p-3 text-right">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-dark-border font-mono">
-                    <tr>
-                      <td className="p-3">01/07/2026</td>
-                      <td className="p-3 font-sans">July 2026 Monthly Fee</td>
-                      <td className="p-3 text-right text-red-400">{selectedStudent.monthlyFee || 3500}</td>
-                      <td className="p-3 text-right">0</td>
-                      <td className="p-3 text-right font-bold">{selectedStudent.monthlyFee || 3500}</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3">05/07/2026</td>
-                      <td className="p-3 font-sans">Cash Payment at Counter</td>
-                      <td className="p-3 text-right">0</td>
-                      <td className="p-3 text-right text-green-400">{selectedStudent.monthlyFee || 3500}</td>
-                      <td className="p-3 text-right font-bold">0</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div className="flex items-center justify-between border-b border-dark-border pb-3 mb-5">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <FileText size={20} className="text-blue-400" /> Student Financial Ledger
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-dark-muted">Current Balance:</span>
+                    <span className="text-xs font-mono font-bold text-red-400">Rs. {Number(selectedStudent.balance || 0).toLocaleString()}</span>
+                    <button onClick={() => window.print()} className="premium-button-secondary text-xs ml-2">
+                      <Printer size={14} /> Print Ledger
+                    </button>
+                  </div>
+                </div>
+
+                {vouchersLoading ? (
+                  <div className="py-12 text-center text-dark-muted font-bold text-xs">
+                    <Loader2 size={24} className="animate-spin mx-auto mb-2 text-primary-500" />
+                    Loading ledger...
+                  </div>
+                ) : vouchers.length === 0 ? (
+                  <div className="text-center py-10 bg-dark-hover/20 rounded-xl border border-dark-border">
+                    <FileText size={40} className="mx-auto text-dark-muted mb-2 opacity-40" />
+                    <p className="text-sm font-bold text-white">No Financial Transactions</p>
+                    <p className="text-xs text-dark-muted mt-1">Is student ke khate mein abhi tak koi fees ya receipts enter nahi hui.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-dark-border rounded-xl">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-dark-hover/60 text-dark-muted uppercase font-black">
+                        <tr>
+                          <th className="p-3">Date</th>
+                          <th className="p-3">Description</th>
+                          <th className="p-3 text-right">Debit / Charge (Rs.)</th>
+                          <th className="p-3 text-right">Credit / Paid (Rs.)</th>
+                          <th className="p-3 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-dark-border font-mono">
+                        {vouchers.map((v, idx) => (
+                          <tr key={v.id || idx} className="hover:bg-dark-hover/30 transition-colors">
+                            <td className="p-3 text-dark-muted font-mono">{v.paidAt ? new Date(v.paidAt).toLocaleDateString() : (v.createdAt ? new Date(v.createdAt).toLocaleDateString() : v.dueDate || '-')}</td>
+                            <td className="p-3 font-sans text-white">
+                              {v.month ? `${v.month} Fee Challan` : 'Fee Voucher'} #{v.voucherNo || v.id?.slice(0, 6)}
+                              {v.paymentMethod && <span className="text-[10px] text-dark-muted block">Method: {v.paymentMethod}</span>}
+                            </td>
+                            <td className="p-3 text-right text-red-400">{Number(v.totalAmount || 0).toLocaleString()}</td>
+                            <td className="p-3 text-right text-green-400">{Number(v.paidAmount || 0).toLocaleString()}</td>
+                            <td className="p-3 text-center font-sans">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                v.status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                              }`}>
+                                {v.status || 'Unpaid'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </GlassCard>
             )}
 
             {/* ATTENDANCE TAB */}
             {activeTab === 'attendance' && (
               <GlassCard className="p-6 animate-fade-in">
-                <h2 className="text-xl font-bold text-white border-b border-dark-border pb-3 mb-5 flex items-center gap-2">
-                  <CalendarCheck size={20} className="text-green-400" /> Attendance Summary
-                </h2>
+                <div className="flex items-center justify-between border-b border-dark-border pb-3 mb-5">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <CalendarCheck size={20} className="text-green-400" /> Attendance Summary
+                  </h2>
+                  <button 
+                    onClick={() => navigate('/school-admin/attendance')} 
+                    className="text-xs text-primary-400 font-bold hover:underline flex items-center gap-1"
+                  >
+                    Open Daily Register &rarr;
+                  </button>
+                </div>
+
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                   <div className="p-5 rounded-xl bg-green-500/10 border border-green-500/20">
-                    <p className="text-3xl font-black text-green-400">96%</p>
+                    <p className="text-3xl font-black text-green-400">{presentPct}%</p>
                     <p className="text-[10px] uppercase font-bold text-dark-muted mt-1">Present</p>
                   </div>
                   <div className="p-5 rounded-xl bg-red-500/10 border border-red-500/20">
-                    <p className="text-3xl font-black text-red-400">1</p>
+                    <p className="text-3xl font-black text-red-400">{absentDays}</p>
                     <p className="text-[10px] uppercase font-bold text-dark-muted mt-1">Absent</p>
                   </div>
                   <div className="p-5 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                    <p className="text-3xl font-black text-yellow-400">0</p>
+                    <p className="text-3xl font-black text-yellow-400">{leaveDays}</p>
                     <p className="text-[10px] uppercase font-bold text-dark-muted mt-1">Leaves</p>
                   </div>
                   <div className="p-5 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                    <p className="text-3xl font-black text-blue-400">25</p>
+                    <p className="text-3xl font-black text-blue-400">{totalDays}</p>
                     <p className="text-[10px] uppercase font-bold text-dark-muted mt-1">Total Days</p>
                   </div>
+                </div>
+
+                {/* REAL ATTENDANCE LOGS TABLE / EMPTY STATE */}
+                <div className="mt-6">
+                  <h3 className="text-xs font-black uppercase text-dark-muted tracking-wider mb-3">Attendance History</h3>
+                  {attendanceLoading ? (
+                    <div className="py-8 text-center text-dark-muted text-xs font-bold">
+                      <Loader2 size={20} className="animate-spin mx-auto mb-2 text-primary-500" />
+                      Loading attendance records...
+                    </div>
+                  ) : attendanceRecords.length === 0 ? (
+                    <div className="p-6 rounded-xl bg-dark-hover/30 border border-dark-border text-center">
+                      <p className="text-sm font-bold text-white mb-1">No Attendance Records Found</p>
+                      <p className="text-xs text-dark-muted mb-4">
+                        Is student ki abhi tak koi attendance register mein mark nahi hui.
+                      </p>
+                      <button 
+                        onClick={() => navigate('/school-admin/attendance')}
+                        className="premium-button-secondary text-xs"
+                      >
+                        <CalendarCheck size={14} /> Mark Attendance Now
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto border border-dark-border rounded-xl">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-dark-hover/60 text-dark-muted uppercase font-black">
+                          <tr>
+                            <th className="p-3">Date</th>
+                            <th className="p-3">Status</th>
+                            <th className="p-3">Time</th>
+                            <th className="p-3">Marked By</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-dark-border">
+                          {attendanceRecords.slice(0, 30).map((rec, idx) => {
+                            const st = (rec.status || 'present').toLowerCase();
+                            const stBadge = st === 'present' ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                              : st === 'absent' ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                              : st === 'leave' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                              : 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                            return (
+                              <tr key={idx} className="hover:bg-dark-hover/40 transition-colors">
+                                <td className="p-3 font-mono text-white">{rec.date || 'N/A'}</td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase border ${stBadge}`}>
+                                    {rec.status || 'Present'}
+                                  </span>
+                                </td>
+                                <td className="p-3 font-mono text-dark-muted">{rec.time || rec.timeIn || '-'}</td>
+                                <td className="p-3 text-dark-muted">{rec.markedBy || 'Staff'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </GlassCard>
             )}
@@ -456,21 +776,50 @@ const SingleStudent360 = () => {
             {/* PAYMENTS TAB */}
             {activeTab === 'payment' && (
               <GlassCard className="p-6 animate-fade-in">
-                <h2 className="text-xl font-bold text-white border-b border-dark-border pb-3 mb-5 flex items-center gap-2">
-                  <History size={20} className="text-blue-400" /> Payment History & Receipts
-                </h2>
-                <div className="space-y-3">
-                  <div className="p-4 rounded-2xl bg-dark-hover/30 border border-dark-border flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-sm text-white">Receipt #REC-2026-004</p>
-                      <p className="text-xs text-dark-muted font-mono">Paid on 05 July 2026 via Cash</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-green-400 font-mono font-bold">Rs. {selectedStudent.monthlyFee || 3500}</p>
-                      <button onClick={() => window.print()} className="text-[10px] text-primary-400 font-bold hover:underline">Download PDF</button>
-                    </div>
-                  </div>
+                <div className="flex items-center justify-between border-b border-dark-border pb-3 mb-5">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <History size={20} className="text-blue-400" /> Payment History & Receipts
+                  </h2>
+                  <button 
+                    onClick={() => switchTab('collect-fee')}
+                    className="premium-button-primary text-xs"
+                  >
+                    <DollarSign size={14} /> Collect Fee
+                  </button>
                 </div>
+
+                {vouchersLoading ? (
+                  <div className="py-12 text-center text-dark-muted font-bold text-xs">
+                    <Loader2 size={24} className="animate-spin mx-auto mb-2 text-primary-500" />
+                    Loading payment receipts...
+                  </div>
+                ) : paidVouchers.length === 0 ? (
+                  <div className="text-center py-10 bg-dark-hover/20 rounded-xl border border-dark-border">
+                    <History size={40} className="mx-auto text-dark-muted mb-2 opacity-40" />
+                    <p className="text-sm font-bold text-white">No Payment Receipts Found</p>
+                    <p className="text-xs text-dark-muted mt-1">Is student ki koi fee receipt record nahi hui.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {paidVouchers.map((p, idx) => (
+                      <div key={p.id || idx} className="p-4 rounded-2xl bg-dark-hover/30 border border-dark-border flex items-center justify-between">
+                        <div>
+                          <p className="font-bold text-sm text-white">Receipt #{p.voucherNo || p.id?.slice(0, 8)}</p>
+                          <p className="text-xs text-dark-muted font-mono mt-0.5">
+                            Paid on {p.paidAt ? new Date(p.paidAt).toLocaleDateString() : 'Paid'} via {p.paymentMethod || 'Cash'}
+                            {p.month && ` • Month: ${p.month}`}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-green-400 font-mono font-bold text-base">Rs. {Number(p.paidAmount || p.totalAmount || 0).toLocaleString()}</p>
+                          <button onClick={() => window.print()} className="text-[10px] text-primary-400 font-bold hover:underline flex items-center justify-end gap-1 mt-1">
+                            <Printer size={12} /> Print Receipt
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </GlassCard>
             )}
 
@@ -482,7 +831,7 @@ const SingleStudent360 = () => {
                 <p className="text-xs text-dark-muted max-w-md mx-auto mb-6">
                   Front and back PVC ID card with QR scanner for {selectedStudent.name}.
                 </p>
-                <button onClick={() => navigate(`/school-admin/id-cards-student`)} className="premium-button-primary">
+                <button onClick={() => navigate('/school-admin/students/id-cards')} className="premium-button-primary">
                   <Printer size={16} /> Generate & Print ID Card
                 </button>
               </GlassCard>

@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 
 const VoucherCopy = ({ copyType, student, schoolData }) => {
   const { userData } = useAuth();
-  const schoolName = userData?.schoolName || schoolData?.name || 'TaleemiDunya School';
+  const schoolName = userData?.schoolName || schoolData?.name || 'Your School';
   const date = new Date();
   const issueDate = date.toLocaleDateString('en-GB');
   date.setDate(date.getDate() + 10);
@@ -84,7 +84,7 @@ const VoucherCopy = ({ copyType, student, schoolData }) => {
         <tbody className="font-bold">
           <tr className="border-b border-gray-200">
             <td className="py-2">Monthly Tuition Fee</td>
-            <td className="py-2 text-right">{student?.monthlyFee || 3500}</td>
+            <td className="py-2 text-right">{student?.monthlyFee || 0}</td>
           </tr>
           <tr className="border-b border-gray-200">
             <td className="py-2">Arrears / Balance</td>
@@ -96,7 +96,7 @@ const VoucherCopy = ({ copyType, student, schoolData }) => {
           <tr className="border-t-2 text-sm font-black" style={{ borderColor: themeColor, color: themeColor }}>
             <td className="py-2">TOTAL PAYABLE</td>
             <td className="py-2 text-right text-lg">
-              {(Number(student?.monthlyFee || 3500) + Number(student?.balance || 0)).toLocaleString()}
+              {(Number(student?.monthlyFee || 0) + Number(student?.balance || 0)).toLocaleString()}
             </td>
           </tr>
         </tfoot>

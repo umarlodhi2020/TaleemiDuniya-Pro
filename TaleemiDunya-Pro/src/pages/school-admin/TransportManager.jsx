@@ -5,7 +5,7 @@ import {
   Phone, CheckCircle2, AlertCircle, RefreshCw, Save, X, Navigation
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const TransportManager = () => {
@@ -26,7 +26,7 @@ const TransportManager = () => {
     driverPhone: '',
     capacity: '18',
     monthlyFee: '2500',
-    stops: 'Model Town, DHA, Kalma Chowk'
+    stops: ''
   });
 
   useEffect(() => {
@@ -43,8 +43,8 @@ const TransportManager = () => {
 
       setVans(list);
 
-      // Fetch students for allocation view
-      const stSnap = await getDocs(collection(db, 'students'));
+      // Fetch students for allocation view (scoped to this school only)
+      const stSnap = await getDocs(query(collection(db, 'students'), where('schoolId', '==', schoolId)));
       setStudents(stSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error(e);

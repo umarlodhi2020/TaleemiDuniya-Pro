@@ -291,30 +291,7 @@ const SMSPanel = () => {
   const fetchHistory = async () => {
     try {
       const data = await getRecords('sms_history', userData?.schoolId || 'default-school');
-      if (!data || data.length === 0) {
-        setHistory([
-          {
-            id: 'seed-1',
-            message: '[Free QR Gateway] Dear Parent, tomorrow will be a school holiday due to heavy rain forecast. - TaleemiDunya Pro AI Bot',
-            target: 'students',
-            status: 'Sent (Free QR Bot)',
-            sentAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-            count: 145,
-            cost: '$0.00'
-          },
-          {
-            id: 'seed-2',
-            message: 'Annual Exam Schedule has been published. Please check the student portal for detailed datesheets. - TaleemiDunya Pro',
-            target: 'all',
-            status: 'Sent (API Gateway)',
-            sentAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-            count: 150,
-            cost: '150 Credits'
-          }
-        ]);
-      } else {
-        setHistory(data);
-      }
+      setHistory(data && data.length > 0 ? data : []);
     } catch (e) {
       console.error("Error fetching SMS logs:", e);
     }

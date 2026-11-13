@@ -33,7 +33,7 @@ const AdmissionCRM = () => {
   const { classesList } = useSchool();
   const navigate = useNavigate();
   const schoolId = userData?.schoolId || 'default-school';
-  const schoolName = userData?.schoolName || 'Lodhi School System';
+  const schoolName = userData?.schoolName || 'Your School System';
 
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -128,7 +128,10 @@ const AdmissionCRM = () => {
     }
   };
 
-  const publicFormUrl = `https://taleemidunya-pro-ed44e.web.app/#/apply/${schoolId}`;
+  const baseUrl = (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
+    ? 'https://taleemidunya-pro-ed44e.web.app'
+    : window.location.origin).replace(/\/+$/, '');
+  const publicFormUrl = `${baseUrl}/#/apply/${(schoolId || '').toString().trim()}`;
 
   return (
     <div className="space-y-6 animate-fade-in p-4 md:p-6 min-h-screen bg-dark-bg text-dark-text select-none">

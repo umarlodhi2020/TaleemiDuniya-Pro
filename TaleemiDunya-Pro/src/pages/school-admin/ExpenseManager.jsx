@@ -32,7 +32,7 @@ const CATEGORIES = {
 const ExpenseManager = () => {
   const { userData } = useAuth();
   const schoolId = userData?.schoolId || 'default-school';
-  const schoolName = userData?.schoolName || 'Lodhi School System';
+  const schoolName = userData?.schoolName || 'Your School System';
 
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(false);

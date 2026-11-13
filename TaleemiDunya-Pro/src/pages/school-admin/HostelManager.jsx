@@ -5,7 +5,7 @@ import {
   Utensils, CheckCircle2, AlertCircle, RefreshCw, Save, X, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const HostelManager = () => {
@@ -24,7 +24,7 @@ const HostelManager = () => {
     totalBeds: '4',
     roomFeeMonthly: '4000',
     messFeeMonthly: '6500',
-    wardenName: 'Sir Rizwan'
+    wardenName: ''
   });
 
   useEffect(() => {
@@ -41,7 +41,7 @@ const HostelManager = () => {
 
       setRooms(list);
 
-      const stSnap = await getDocs(collection(db, 'students'));
+      const stSnap = await getDocs(query(collection(db, 'students'), where('schoolId', '==', schoolId)));
       setStudents(stSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     } catch (e) {
       console.error(e);

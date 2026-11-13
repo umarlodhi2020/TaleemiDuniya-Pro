@@ -423,9 +423,9 @@ const ParentDashboard = () => {
                     className="w-full bg-dark-hover border border-dark-border rounded-xl p-3 text-sm text-white focus:border-primary-500 outline-none transition-colors"
                   >
                     <option value="Principal Office">Principal Office</option>
-                    <option value="Class Teacher (Ahmad Khan - 10th-A)">Class Teacher (Ahmad Khan - 10th-A)</option>
-                    <option value="Class Teacher (Sara Khan - 7th-B)">Class Teacher (Sara Khan - 7th-B)</option>
+                    <option value="Class Teacher">Class Teacher</option>
                     <option value="Accounts / Fee Department">Accounts / Fee Department</option>
+                    <option value="Academic Coordinator">Academic Coordinator</option>
                   </select>
                 </div>
 

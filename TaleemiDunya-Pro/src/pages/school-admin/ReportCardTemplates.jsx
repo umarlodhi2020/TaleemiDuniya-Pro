@@ -106,12 +106,12 @@ const ReportCardTemplates = () => {
   });
 
   const [customizer, setCustomizer] = useState({
-    schoolName: userData?.schoolName || 'The Knowledge Home School System',
+    schoolName: userData?.schoolName || schoolData?.name || 'Your School Name',
     schoolSubtitle: 'Official Academic Transcript & Report Card',
     sessionTerm: 'Academic Session 2026',
     teacherRemarks: 'Outstanding progress in all academic subjects. Extremely disciplined, creative, and participates enthusiastically in co-curricular activities.',
-    teacherName: 'Miss Ayesha Lodhi',
-    principalName: 'Principal Umar Hayat',
+    teacherName: schoolData?.signatureSettings?.teacherName || 'Class Teacher',
+    principalName: schoolData?.signatureSettings?.principalName || 'Principal',
     logoStyle: 'shield',
     customLogoUrl: '',
     doubleBorderColor: '#312e81', // indigo-900
@@ -205,12 +205,12 @@ const ReportCardTemplates = () => {
     }
   };
 
-  // Mock Student marks list for rendering previews
+  // Mock Student marks list for rendering template preview layout
   const previewStudent = {
-    name: 'Muhammad Umar Lodhi',
-    fatherName: 'Iftikhar Ahmad',
+    name: 'Sample Student',
+    fatherName: 'Father Name',
     class: '9th Grade',
-    rollNo: 'TD-2026-904',
+    rollNo: 'STD-101',
     marks: {
       'English': { obtained: 92, total: 100 },
       'Urdu': { obtained: 86, total: 100 },
@@ -607,7 +607,7 @@ const ReportCardTemplates = () => {
                         </g>
                         <text fill="#ffffff" fontSize="5.2" fontWeight="bold" fontFamily="sans-serif" letterSpacing="0.2">
                           <textPath href="#crestCirclePath" startOffset="50%" textAnchor="middle">
-                            THE KNOWLEDGE HOME SCHOOL SYSTEM
+                            {(customizer.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}
                           </textPath>
                         </text>
                       </svg>

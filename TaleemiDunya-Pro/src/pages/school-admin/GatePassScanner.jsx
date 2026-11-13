@@ -30,7 +30,8 @@ const GatePassScanner = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const snap = await getDocs(collection(db, 'students'));
+      const stuQ = query(collection(db, 'students'), where('schoolId', '==', schoolId));
+      const snap = await getDocs(stuQ);
       const stList = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setStudents(stList);
 

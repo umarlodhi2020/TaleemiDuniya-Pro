@@ -42,7 +42,7 @@ const TEMPLATES = {
     icon: CreditCard,
     collection: 'fees',
     sampleHeaders: ['rollNumber', 'studentName', 'month', 'amount', 'dueDate', 'status'],
-    sampleRow: ['101', 'Ali Khan', 'July 2026', '8500', '2026-07-10', 'Pending'],
+    sampleRow: ['101', 'Ali Khan', 'Monthly Fee', '5000', new Date().toISOString().slice(0, 10), 'Pending'],
     instructions: 'Import past pending fee balances or monthly challan data.'
   },
   library: {

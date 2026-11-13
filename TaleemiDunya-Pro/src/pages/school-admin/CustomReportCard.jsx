@@ -39,7 +39,7 @@ const CustomReportCard = () => {
 
   // Customizer state
   const [academicTerm, setAcademicTerm] = useState('Academic First Session');
-  const [schoolName, setSchoolName] = useState('The Knowledge Home School System');
+  const [schoolName, setSchoolName] = useState(schoolData?.name || userData?.schoolName || 'Your School Name');
   const [teacherRemarks, setTeacherRemarks] = useState('Imama has shown outstanding progress in all subjects. She is highly attentive in class and participates actively in school projects.');
   const [logoStyle, setLogoStyle] = useState('shield');
   const [teacherName, setTeacherName] = useState('School Teacher');
@@ -98,7 +98,7 @@ const CustomReportCard = () => {
           setClassAssignments(data.classAssignments);
         }
         if (data.customizer) {
-          setSchoolName(data.customizer.schoolName || 'The Knowledge Home School System');
+          setSchoolName(data.customizer.schoolName || schoolData?.name || 'Your School Name');
           setAcademicTerm(data.customizer.sessionTerm || 'Academic First Session');
           setLogoStyle(data.customizer.logoStyle || 'shield');
           setTeacherName(data.customizer.teacherName || 'School Teacher');
@@ -536,7 +536,7 @@ const CustomReportCard = () => {
                         </g>
                         <text fill="#ffffff" fontSize="5.2" fontWeight="bold" fontFamily="sans-serif" letterSpacing="0.2">
                           <textPath href="#crestCirclePath" startOffset="50%" textAnchor="middle">
-                            THE KNOWLEDGE HOME SCHOOL SYSTEM
+                            {schoolName.toUpperCase()}
                           </textPath>
                         </text>
                       </svg>

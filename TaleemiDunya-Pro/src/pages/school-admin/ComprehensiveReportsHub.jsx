@@ -203,12 +203,8 @@ const ComprehensiveReportsHub = () => {
             };
           });
         } else {
-          inflow = 450000;
-          computedRows = [
-            { id: 1, particulars: 'Challan #CH-101 — Ali Khan (Grade 8)', category: 'Tuition Fee', date: new Date().toISOString().split('T')[0], debit: null, credit: 4500, balance: 4500 },
-            { id: 2, particulars: 'Challan #CH-102 — Ayesha Ahmed (Grade 10)', category: 'Tuition Fee', date: new Date().toISOString().split('T')[0], debit: null, credit: 5500, balance: 10000 },
-            { id: 3, particulars: 'Challan #CH-103 — Bilal Lodhi (Grade 5)', category: 'Tuition Fee', date: new Date().toISOString().split('T')[0], debit: null, credit: 3800, balance: 13800 }
-          ];
+          inflow = 0;
+          computedRows = [];
         }
         break;
 

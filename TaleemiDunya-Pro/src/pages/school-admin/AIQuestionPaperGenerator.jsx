@@ -192,7 +192,7 @@ const CLASSES = ['Playgroup', 'Nursery', 'Prep', 'Class 1', 'Class 2', 'Class 3'
 const AIQuestionPaperGenerator = () => {
   const { userData } = useAuth();
   const { schoolData } = useSchool();
-  const schoolName = schoolData?.name || userData?.schoolName || 'TaleemiDunya Model School System';
+  const schoolName = schoolData?.name || userData?.schoolName || 'Your School';
   const schoolLogo = schoolData?.logo || '';
   const schoolCampus = schoolData?.campus || 'Main Campus';
 

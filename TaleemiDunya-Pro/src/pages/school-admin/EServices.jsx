@@ -60,30 +60,17 @@ const EServices = () => {
     phoneNumber: schoolData?.phone || '0300-1234567'
   };
 
-  const virtualClasses = eServices.virtualClasses || [
-    { id: '1', grade: '9', subject: 'Physics', time: '10:00 AM - 11:00 AM', link: 'https://zoom.us/j/9082384218' },
-    { id: '2', grade: '10', subject: 'Mathematics', time: '11:30 AM - 12:30 PM', link: 'https://meet.google.com/abc-defg-hij' }
-  ];
+  const virtualClasses = eServices.virtualClasses || [];
 
-  const libraryBooks = eServices.libraryBooks || [
-    { id: '1', name: 'Oxford Progressive English', grade: '5', subject: 'English', fileUrl: 'https://taleemi.edu/books/english5.pdf' },
-    { id: '2', name: 'Mathematics Grade 9 Sindh Board', grade: '9', subject: 'Mathematics', fileUrl: 'https://taleemi.edu/books/maths9.pdf' }
-  ];
+  const libraryBooks = eServices.libraryBooks || [];
 
   const admissions = eServices.admissions || {
     isAccepting: true,
-    applications: [
-      { id: 'app1', name: 'Fatima Lodhi', fatherName: 'Umar Hayat', grade: '5', phone: '03001234567', status: 'Pending', date: '2026-05-15' },
-      { id: 'app2', name: 'Muhammad Ali', fatherName: 'Sajid Ali', grade: '8', phone: '03129876543', status: 'Pending', date: '2026-05-16' },
-      { id: 'app3', name: 'Ayesha Khan', fatherName: 'Tariq Khan', grade: '2', phone: '03214567890', status: 'Approved', date: '2026-05-14' }
-    ]
+    applications: []
   };
 
   const parentPortal = eServices.parentPortal || {
-    pins: {
-      'std1': '4829',
-      'std2': '9012'
-    }
+    pins: {}
   };
 
   const serviceStates = {
@@ -835,8 +822,6 @@ const EServices = () => {
                       className="w-full premium-input"
                     >
                       <option value="">Select a student...</option>
-                      <option value="std1">Fatima Lodhi (Class 5 - Roll 109)</option>
-                      <option value="std2">Muhammad Ali (Class 8 - Roll 205)</option>
                     </select>
                   </div>
                   <button 
@@ -860,34 +845,32 @@ const EServices = () => {
               {/* ACTIVE PIN MANAGER */}
               <GlassCard className="p-8 space-y-6 lg:col-span-2 overflow-x-auto">
                 <h3 className="text-lg font-bold">Parent Access Codes</h3>
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-dark-border text-dark-muted font-black tracking-widest uppercase">
-                      <th className="pb-3">Student Name</th>
-                      <th className="pb-3">Registration ID</th>
-                      <th className="pb-3">Portal login Pin</th>
-                      <th className="pb-3">Platform link</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-dark-border/40">
-                      <td className="py-3.5 font-bold flex items-center gap-2">
-                        <User className="text-primary-500" size={14} /> Fatima Lodhi
-                      </td>
-                      <td className="py-3.5 font-mono text-[10px]">std1</td>
-                      <td className="py-3.5 text-green-400 font-bold font-mono tracking-wider">{parentPortal.pins['std1'] || 'Not Set'}</td>
-                      <td className="py-3.5 text-blue-400 hover:underline cursor-pointer">taleemidunya-pro.vercel.app/#/parent-portal</td>
-                    </tr>
-                    <tr className="border-b border-dark-border/40">
-                      <td className="py-3.5 font-bold flex items-center gap-2">
-                        <User className="text-primary-500" size={14} /> Muhammad Ali
-                      </td>
-                      <td className="py-3.5 font-mono text-[10px]">std2</td>
-                      <td className="py-3.5 text-green-400 font-bold font-mono tracking-wider">{parentPortal.pins['std2'] || 'Not Set'}</td>
-                      <td className="py-3.5 text-blue-400 hover:underline cursor-pointer">taleemidunya-pro.vercel.app/#/parent-portal</td>
-                    </tr>
-                  </tbody>
-                </table>
+                {Object.keys(parentPortal.pins || {}).length === 0 ? (
+                  <p className="text-xs text-dark-muted py-6 text-center">No parent access PINs generated yet.</p>
+                ) : (
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-dark-border text-dark-muted font-black tracking-widest uppercase">
+                        <th className="pb-3">Student Name</th>
+                        <th className="pb-3">Registration ID</th>
+                        <th className="pb-3">Portal login Pin</th>
+                        <th className="pb-3">Platform link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(parentPortal.pins).map(([stdId, pin]) => (
+                        <tr key={stdId} className="border-b border-dark-border/40">
+                          <td className="py-3.5 font-bold flex items-center gap-2">
+                            <User className="text-primary-500" size={14} /> Student ({stdId})
+                          </td>
+                          <td className="py-3.5 font-mono text-[10px]">{stdId}</td>
+                          <td className="py-3.5 text-green-400 font-bold font-mono tracking-wider">{pin}</td>
+                          <td className="py-3.5 text-blue-400 hover:underline cursor-pointer">taleemidunya-pro.vercel.app/#/parent-portal</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </GlassCard>
             </div>
           )}

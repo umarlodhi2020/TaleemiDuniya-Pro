@@ -529,8 +529,8 @@ const Academics = () => {
                 </div>
                 <div className="flex flex-col items-end justify-end">
                   <div className="w-40 border-b border-dark-border/60 text-center pb-1 print:border-gray-400">
-                    {/* Mock Sign */}
-                    <span className="font-serif text-sm italic text-primary-400/50 print:text-black/50">Umar Lodhi</span>
+                    {/* Principal Signature line */}
+                    <span className="font-serif text-sm italic text-primary-400/50 print:text-black/50">Principal</span>
                   </div>
                   <p className="mt-1 text-[9px] uppercase tracking-wider text-right w-40 text-center font-bold">Principal Seal / Sign</p>
                 </div>

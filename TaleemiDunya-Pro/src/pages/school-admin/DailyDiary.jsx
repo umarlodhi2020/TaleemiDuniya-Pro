@@ -35,7 +35,7 @@ const DailyDiary = () => {
   const { schoolClasses } = useSchool();
   const navigate = useNavigate();
   const schoolId = userData?.schoolId || 'default-school';
-  const schoolName = userData?.schoolName || 'Lodhi School System';
+  const schoolName = userData?.schoolName || 'Your School System';
 
   const [selectedClass, setSelectedClass] = useState('10');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
