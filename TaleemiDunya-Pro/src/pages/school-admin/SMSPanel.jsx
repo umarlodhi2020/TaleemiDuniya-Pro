@@ -65,31 +65,33 @@ const SMSPanel = () => {
   const [isSimulatingScan, setIsSimulatingScan] = useState(false);
   const isDisconnectingRef = useRef(false);
 
-  // AI Auto-Reply Rules
+  // AI Auto-Reply Rules — loaded from Firestore per school (no fake trigger counts for real schools)
+  const isDemo = userData?.email === 'demo_admin@taleemidunya.com';
+  const [rulesLoaded, setRulesLoaded] = useState(false);
   const [rules, setRules] = useState([
     {
       id: 'rule-1',
       keywords: 'challan, fee, bqaya, due, balance, paise',
       title: 'Automated Fee Balance Inquiry',
-      response: 'Assalam-o-Alaikum! Student {student_name} (Grade {grade}) ka remaining fee balance Rs. 4,500 hai. Due Date: 10th of this month. Pay online via portal link.',
+      response: 'Assalam-o-Alaikum! Student {student_name} (Grade {grade}) ka remaining fee balance Rs. {fee_balance} hai. Due Date: 10th of this month. Pay online via portal link.',
       active: true,
-      triggerCount: 142
+      triggerCount: 0
     },
     {
       id: 'rule-2',
       keywords: 'attendance, hazri, present, absent, school aya',
       title: 'Instant Daily Attendance Check',
-      response: 'Attendance Status for {student_name}: PRESENT ✅ (Checked in at 07:45 AM today via Smart Biometric/SaaS Portal). Thank you!',
+      response: 'Attendance Status for {student_name}: PRESENT ✅ (Checked in via Smart Biometric/SaaS Portal). Thank you!',
       active: true,
-      triggerCount: 318
+      triggerCount: 0
     },
     {
       id: 'rule-3',
       keywords: 'admission, dakhla, form, fee structure, new student',
       title: 'New Admission Form & Prospectus',
-      response: `Welcome to ${schoolData?.name || 'TaleemiDunya Pro'} School System! 🎓 Click here to fill our 24/7 online admission form: ${window.location.origin}/#/admission-form/${schoolData?.id || 'demo'}`,
+      response: `Welcome to our School System! 🎓 Click here to fill our 24/7 online admission form: ${window.location.origin}/#/admission-form/${schoolData?.id || ''}`,
       active: true,
-      triggerCount: 89
+      triggerCount: 0
     },
     {
       id: 'rule-4',
@@ -97,7 +99,7 @@ const SMSPanel = () => {
       title: 'Exams & Holidays Announcement',
       response: 'Annual Exam Schedule has been published on the student dashboard. School timings are 8:00 AM to 1:30 PM. For urgent queries, contact school office.',
       active: true,
-      triggerCount: 205
+      triggerCount: 0
     }
   ]);
 
@@ -105,10 +107,38 @@ const SMSPanel = () => {
   const [newRuleTitle, setNewRuleTitle] = useState('');
   const [newRuleResponse, setNewRuleResponse] = useState('');
 
+  // Load rules from Firestore (school-specific, real trigger counts)
+  useEffect(() => {
+    const loadRulesFromFirestore = async () => {
+      if (!userData?.schoolId || rulesLoaded) return;
+      try {
+        const { getDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('../../services/firebase');
+        const docSnap = await getDoc(doc(db, 'schools', userData.schoolId));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.whatsappRules && Array.isArray(data.whatsappRules) && data.whatsappRules.length > 0) {
+            setRules(data.whatsappRules);
+          } else {
+            // Update admission rule with real school name and ID
+            setRules(prev => prev.map(r => r.id === 'rule-3' ? {
+              ...r,
+              response: `Welcome to ${data.name || 'Our School'}! 🎓 Click here to fill our 24/7 online admission form: ${window.location.origin}/#/admission-form/${userData.schoolId}`
+            } : r));
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load WhatsApp rules from Firestore:', e.message);
+      }
+      setRulesLoaded(true);
+    };
+    loadRulesFromFirestore();
+  }, [userData?.schoolId]);
+
   // Live WhatsApp Chat Testing Simulator
   const [chatMessages, setChatMessages] = useState([
-    { id: 1, sender: 'parent', text: 'Assalam-o-Alaikum! Ali ka fee challan aur bqaya bata dein?', time: '10:14 AM' },
-    { id: 2, sender: 'bot', text: 'Assalam-o-Alaikum! Student Ali (Grade 8) ka remaining fee balance Rs. 4,500 hai. Due Date: 10th of this month. Pay online via portal link.', time: '10:14 AM' }
+    { id: 1, sender: 'parent', text: 'Assalam-o-Alaikum! Mera beta ka fee challan aur bqaya bata dein?', time: '10:14 AM' },
+    { id: 2, sender: 'bot', text: `Assalam-o-Alaikum! Student (Grade ?) ka fee balance check karne ke liye apna registered number verify karein ya school portal visit karein.`, time: '10:14 AM' }
   ]);
   const [testInput, setTestInput] = useState('');
   const [isBotTyping, setIsBotTyping] = useState(false);
@@ -239,22 +269,13 @@ const SMSPanel = () => {
             setIsMasterGateway(false);
             if (data.qrDataUrl) setLiveQrDataUrl(data.qrDataUrl);
           } else {
-            // Disconnected for this school
+            // Disconnected — this school has NO active session
             setIsQrLinked(false);
+            setIsMasterGateway(false); // ✅ FIX: Never show another school's connection as "master gateway"
             setLiveQrDataUrl(null);
-
-            // Check if universal master gateway is running in background as fallback
-            if (schoolId !== 'default_school') {
-              try {
-                const masterRes = await fetch(`${WA_SERVER}/api/session/status?schoolId=default_school`);
-                if (masterRes.ok) {
-                  const masterData = await masterRes.json();
-                  if (masterData.status === 'CONNECTED') {
-                    setIsMasterGateway(true);
-                  }
-                }
-              } catch(e) {}
-            }
+            // NOTE: We intentionally do NOT fallback to default_school master gateway
+            // because that would show Smart Angels (or any other school's) WhatsApp as connected
+            // Every school must pair their OWN phone number via QR for security isolation
           }
         } else {
           setIsLiveServerConnected(false);
@@ -341,14 +362,24 @@ const SMSPanel = () => {
     }
   };
 
-  // Sync custom rules with live backend
+  // Sync custom rules with live backend AND Firestore (school-isolated)
   const syncRulesToBackend = async (updatedRules) => {
-    if (isLiveServerConnected) {
+    const schoolId = userData?.schoolId;
+    // 1. Save to Firestore under this school's document
+    if (schoolId) {
+      try {
+        await updateRecord('schools', schoolId, { whatsappRules: updatedRules });
+      } catch (e) {
+        console.warn('Could not save rules to Firestore:', e.message);
+      }
+    }
+    // 2. Also notify backend bot server with schoolId for real-time update
+    if (isLiveServerConnected && schoolId) {
       try {
         await fetch(`${WA_SERVER}/api/rules/update`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ schoolId: userData?.schoolId || 'default_school', rules: updatedRules })
+          body: JSON.stringify({ schoolId, rules: updatedRules })
         });
       } catch (e) {}
     }
@@ -684,6 +715,22 @@ const SMSPanel = () => {
       {/* TAB 1: WHATSAPP AI BOT & QR GATEWAY ($0 FREE MODE) */}
       {activeTab === 'bot_gateway' && (
         <div className="space-y-8 animate-fade-in">
+
+          {/* ✅ School-Isolated Pairing Info Banner */}
+          <div className="p-4 rounded-2xl border border-blue-500/30 bg-blue-500/8 flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 shrink-0 mt-0.5">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-blue-300">📱 Apne School ka Phone Pair Karein — Fully Isolated Session</h4>
+              <p className="text-xs text-blue-200/80 mt-1 leading-relaxed">
+                Yeh WhatsApp Bot sirf <strong className="text-white">{schoolData?.name || userData?.schoolName || 'Aapke School'}</strong> ke liye kaam karega.
+                Har school ka alag isolated session hota hai — kisi aur school ka WhatsApp yahan nazar nahi aata.
+                Apna school phone scan karein QR se, taka parents ko direct is number se replies milein.
+              </p>
+            </div>
+          </div>
+
           {/* Status Alert */}
           <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
             isQrLinked 

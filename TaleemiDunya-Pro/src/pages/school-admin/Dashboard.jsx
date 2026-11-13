@@ -62,11 +62,9 @@ const SchoolAdminDashboard = () => {
   const [csvFile, setCsvFile] = useState(null);
   const [isSavingSetup, setIsSavingSetup] = useState(false);
 
-  // Custom Banner State (School can upload or customize their header banner)
-  const bannerInputRef = useRef(null);
-  const [bannerUploading, setBannerUploading] = useState(false);
+  // Custom Dashboard Header Banner (Configured via School Settings > Branding)
   const [customBanner, setCustomBanner] = useState(
-    () => schoolData?.dashboardBanner || localStorage.getItem(`custom_dashboard_banner_${schoolData?.id || 'default'}`) || '/default_dashboard_banner.jpg'
+    () => schoolData?.dashboardBanner || localStorage.getItem(`custom_dashboard_banner_${schoolData?.id || userData?.schoolId || 'default'}`) || '/default_dashboard_banner.jpg'
   );
 
   useEffect(() => {
@@ -74,41 +72,6 @@ const SchoolAdminDashboard = () => {
       setCustomBanner(schoolData.dashboardBanner);
     }
   }, [schoolData?.dashboardBanner]);
-
-  const handleBannerUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Fast local preview
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
-      setCustomBanner(dataUrl);
-      localStorage.setItem(`custom_dashboard_banner_${schoolData?.id || 'default'}`, dataUrl);
-    };
-    reader.readAsDataURL(file);
-
-    // Upload to Cloudinary & update school record if schoolId available
-    const schoolId = userData?.schoolId || schoolData?.id;
-    if (schoolId) {
-      setBannerUploading(true);
-      try {
-        const uploadRes = await uploadToCloudinary(file, {
-          folder: `taleemidunya/${schoolId}/banners`,
-          publicId: `dash_banner_${Date.now()}`
-        });
-        if (uploadRes?.success && uploadRes.url) {
-          setCustomBanner(uploadRes.url);
-          localStorage.setItem(`custom_dashboard_banner_${schoolId}`, uploadRes.url);
-          await updateRecord('schools', schoolId, { dashboardBanner: uploadRes.url });
-        }
-      } catch (err) {
-        console.warn('Banner cloud upload fallback to local storage:', err);
-      } finally {
-        setBannerUploading(false);
-      }
-    }
-  };
 
   useEffect(() => {
     if (schoolData) {
@@ -702,9 +665,9 @@ const SchoolAdminDashboard = () => {
         </div>
       )}
 
-      {/* Hero Welcome Banner (Ultra HD Panorama design with isolated background & customizable image) */}
-      <div className="relative overflow-hidden rounded-3xl shadow-xl border border-slate-200/60 dark:border-white/10 group min-h-[180px] md:min-h-[210px] flex items-center">
-        {/* Background Image with Fallback and overlay */}
+      {/* Hero Welcome Banner (Ultra HD Panorama design - Clear, bright & vibrant) */}
+      <div className="relative overflow-hidden rounded-3xl shadow-xl border border-slate-200/60 dark:border-white/10 group min-h-[195px] md:min-h-[220px] lg:min-h-[235px] flex items-center">
+        {/* Background Image with Fallback */}
         <div 
           className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
           style={{ 
@@ -712,69 +675,52 @@ const SchoolAdminDashboard = () => {
             backgroundColor: '#0284c7'
           }}
         />
-        {/* Soft, clean gradient overlay on left to keep text ultra-crisp while letting the school & students shine */}
-        <div className="absolute inset-0 bg-gradient-to-r from-sky-950/85 via-sky-900/40 to-transparent dark:from-slate-950/90 dark:via-slate-950/50 dark:to-transparent" />
+        {/* Very soft, delicate fade strictly on the left text area - keeps the rest of the school, trees & students 100% bright & crystal clear */}
+        <div className="absolute inset-y-0 left-0 w-full sm:w-2/3 md:w-1/2 bg-gradient-to-r from-black/45 via-black/15 to-transparent pointer-events-none" />
 
         {/* Content Container */}
         <div className="relative z-10 w-full px-6 py-5 md:px-8 md:py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs font-bold border border-white/30 shadow-sm">
+          <div className="space-y-2 max-w-xl">
+            {/* Welcome text - Big, Dark White, without background box */}
+            <div className="text-white text-base md:text-lg font-black tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)] flex items-center gap-1.5">
               <span>Welcome Back!</span>
-              <span className="text-sm">👋</span>
+              <span className="text-xl">👋</span>
             </div>
             
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white tracking-tight drop-shadow-lg">
-                {(() => {
-                  const principalName = schoolData?.principalName || userData?.principalName;
-                  const principalTitle = schoolData?.principalTitle || userData?.principalTitle || 'Mr.';
-                  if (principalName && principalName.trim()) {
-                    const lower = principalName.trim().toLowerCase();
-                    if (lower.startsWith('mr.') || lower.startsWith('miss') || lower.startsWith('mrs.') || lower.startsWith('dr.') || lower.startsWith('prof.')) {
-                      return principalName;
-                    }
-                    return `${principalTitle} ${principalName.trim()}`;
-                  }
-                  return `${principalTitle} Principal`;
-                })()}
-              </h1>
-              <button 
-                onClick={() => navigate('/school-admin/settings')} 
-                title="Configure Principal Name and Salutation (Mr./Miss) in School Settings"
-                className="text-[11px] font-bold text-sky-100 hover:text-white bg-white/20 hover:bg-white/35 backdrop-blur-md px-2.5 py-1 rounded-full transition-all flex items-center gap-1 shadow-sm border border-white/25 cursor-pointer active:scale-95"
-              >
-                <span>✎ Settings</span>
-              </button>
-            </div>
+            {/* Principal Name - Beautiful executive colors & normal elegant text size */}
+            {(() => {
+              const rawName = schoolData?.principalName || userData?.principalName;
+              const principalTitle = schoolData?.principalTitle || userData?.principalTitle || 'Mr.';
+              let displayName = 'Principal';
+              let displayTitle = principalTitle;
 
-            <p className="text-xs md:text-sm font-semibold text-sky-100 dark:text-slate-200 drop-shadow flex items-center gap-2">
-              <span className="font-bold text-white drop-shadow">{schoolName}</span>
-              <span>•</span>
-              <span className="text-sky-200 dark:text-slate-300 font-medium drop-shadow">{schoolData?.campus || schoolData?.branchName || 'Main Campus'}</span>
+              if (rawName && rawName.trim()) {
+                const trimmed = rawName.trim();
+                const lower = trimmed.toLowerCase();
+                if (lower.startsWith('mr.') || lower.startsWith('miss') || lower.startsWith('mrs.') || lower.startsWith('dr.') || lower.startsWith('prof.')) {
+                  // If title is already in string, split cleanly
+                  const parts = trimmed.split(' ');
+                  displayTitle = parts[0];
+                  displayName = parts.slice(1).join(' ') || parts[0];
+                } else {
+                  displayName = trimmed;
+                }
+              }
+
+              return (
+                <h1 className="text-xl md:text-2xl font-black tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] flex flex-wrap items-center gap-1.5">
+                  <span className="text-sky-200 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">{displayTitle}</span>
+                  <span className="text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.95)]">{displayName}</span>
+                </h1>
+              );
+            })()}
+
+            {/* School Name & Campus - Normal elegant size & high contrast */}
+            <p className="text-xs md:text-sm font-semibold text-white/95 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)] flex items-center gap-2">
+              <span className="font-bold text-white">{schoolName}</span>
+              <span className="text-white/70">•</span>
+              <span className="text-sky-100 font-medium">{schoolData?.campus || schoolData?.branchName || 'Main Campus'}</span>
             </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* Custom Banner Upload Button */}
-            <div>
-              <input 
-                type="file" 
-                ref={bannerInputRef} 
-                onChange={handleBannerUpload} 
-                accept="image/*" 
-                className="hidden" 
-              />
-              <button
-                type="button"
-                onClick={() => bannerInputRef.current?.click()}
-                disabled={bannerUploading}
-                title="Change or upload school dashboard banner (Standard size 1200x350)"
-                className="px-3.5 py-2 rounded-xl bg-white/25 hover:bg-white/40 backdrop-blur-md text-white text-xs font-bold border border-white/40 shadow-lg flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-              >
-                <Camera size={15} />
-                <span>{bannerUploading ? 'Uploading...' : 'Change Banner'}</span>
-              </button>
-            </div>
           </div>
         </div>
       </div>

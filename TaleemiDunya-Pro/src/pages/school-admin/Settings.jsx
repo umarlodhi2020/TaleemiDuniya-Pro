@@ -196,7 +196,9 @@ const SchoolSettings = () => {
   const [branding, setBranding] = useState({
     logo: '',
     primaryColor: '#8b5cf6',
+    dashboardBanner: '',
   });
+  const [bannerUploading, setBannerUploading] = useState(false);
 
   // Face Scan Login state
   const [faceScan, setFaceScan] = useState({
@@ -348,6 +350,7 @@ const SchoolSettings = () => {
           setBranding({
             logo: data.logo || '',
             primaryColor: data.primaryColor || '#8b5cf6',
+            dashboardBanner: data.dashboardBanner || '',
           });
           setDomain({
             customDomain: data.customDomain || '',
@@ -457,6 +460,7 @@ const SchoolSettings = () => {
         principalName: (profile.principalName || '').trim(),
         logo: branding.logo,
         primaryColor: branding.primaryColor,
+        dashboardBanner: branding.dashboardBanner || '',
         customDomain: domain.customDomain.trim(),
         domainVerified: domain.isVerified,
         notificationSettings: notifications,
@@ -1001,6 +1005,103 @@ const SchoolSettings = () => {
                         <span className="text-[10px] text-dark-text font-bold uppercase tracking-wider">{color.name}</span>
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Dashboard Header Banner Upload & Customization */}
+                <div className="pt-8 border-t border-dark-border">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <h4 className="font-bold flex items-center gap-2">
+                        <ImageIcon size={18} className="text-primary-500" />
+                        Dashboard Welcome Banner (Ultra HD Panorama)
+                      </h4>
+                      <p className="text-xs text-dark-muted mt-0.5">
+                        Upload your custom school panorama photo for the main Dashboard header (Standard size: 1200 x 300 or 16:9).
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Banner Live Preview */}
+                  <div className="my-4 relative rounded-2xl overflow-hidden border border-dark-border shadow-md h-36 bg-slate-900 group">
+                    <img 
+                      src={branding.dashboardBanner || '/default_dashboard_banner.jpg'} 
+                      alt="Dashboard Banner Preview" 
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent flex items-center p-5">
+                      <div className="text-white">
+                        <span className="text-[11px] font-bold text-sky-200">Welcome Back! 👋</span>
+                        <h4 className="text-lg font-black text-white">{profile.principalTitle || 'Mr.'} {profile.principalName || 'Principal Name'}</h4>
+                        <p className="text-[10px] text-white/80">{profile.name || 'School Name'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Upload and URL input */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="premium-button-secondary cursor-pointer shrink-0 text-xs px-4 py-2.5 flex items-center gap-2">
+                      <Upload size={15} />
+                      <span>{bannerUploading ? 'Uploading Banner...' : 'Upload Banner Image'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        disabled={bannerUploading}
+                        className="hidden" 
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setBannerUploading(true);
+                          try {
+                            showToast('info', 'Uploading dashboard banner...');
+                            const schoolId = userData?.schoolId || 'default';
+                            const response = await uploadToCloudinary(file, {
+                              folder: `taleemidunya/${schoolId}/banners`,
+                              publicId: `dash_banner_${Date.now()}`
+                            });
+                            if (response?.success && response.url) {
+                              setBranding({ ...branding, dashboardBanner: response.url });
+                              localStorage.setItem(`custom_dashboard_banner_${schoolId}`, response.url);
+                              showToast('success', 'Banner uploaded! Click "Save Changes" to apply.');
+                            } else {
+                              throw new Error('Upload failed - No URL returned');
+                            }
+                          } catch (err) {
+                            console.error('Banner upload error:', err);
+                            showToast('error', 'Failed to upload banner: ' + err.message);
+                          } finally {
+                            setBannerUploading(false);
+                          }
+                        }} 
+                      />
+                    </label>
+
+                    <span className="text-xs text-dark-muted font-bold">OR</span>
+
+                    <input 
+                      type="text" 
+                      placeholder="Paste image URL (https://...)" 
+                      value={branding.dashboardBanner} 
+                      onChange={(e) => setBranding({ ...branding, dashboardBanner: e.target.value })}
+                      className="premium-input text-xs flex-1 min-w-[200px]"
+                    />
+
+                    {branding.dashboardBanner && (
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setBranding({ ...branding, dashboardBanner: '' });
+                          const schoolId = userData?.schoolId || 'default';
+                          localStorage.removeItem(`custom_dashboard_banner_${schoolId}`);
+                          showToast('info', 'Restored default banner. Save settings to apply.');
+                        }} 
+                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg shrink-0 text-xs font-bold flex items-center gap-1 border border-red-500/20"
+                        title="Restore Default Banner"
+                      >
+                        <Trash2 size={15} />
+                        <span>Reset Default</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
