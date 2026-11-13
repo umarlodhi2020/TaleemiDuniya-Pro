@@ -177,14 +177,46 @@ const FamilyTree = () => {
   };
 
   const families = useMemo(() => {
-    const groupMap = new Map();
-    students.forEach((st) => {
-      const cnicKey = st.fatherCnic ? st.fatherCnic.replace(/[^0-9]/g, '') : null;
-      const phoneKey = st.parentPhone || st.fatherPhone || st.phone;
-      const cleanPhone = phoneKey ? phoneKey.replace(/[^0-9]/g, '') : null;
-      const nameKey = st.fatherName ? st.fatherName.trim().toLowerCase() : 'unknown_father';
+    // ─────────────────────────────────────────────────────────────────────
+    // FAMILY GROUPING RULE (FINAL):
+    //  PRIMARY: If BOTH fatherName AND fatherCnic match → ONE family
+    //           (familyId stored on students is just a display label,
+    //            NOT used as grouping key — it was auto-generated per-student
+    //            so different students can have different familyIds even
+    //            though they belong to the same real family)
+    //  SECONDARY: Only fatherCnic available (no name) → group by CNIC
+    //  TERTIARY: Only fatherName available (no CNIC)  → group by name
+    //  FALLBACK: No info → isolate individually
+    // ─────────────────────────────────────────────────────────────────────
 
-      const familyKey = st.familyId || cnicKey || cleanPhone || `name_${nameKey}`;
+    const norm = (s) => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const cleanCnic = (c) => (c || '').replace(/[^0-9]/g, '');
+
+    const groupMap = new Map();
+
+    students.forEach((st) => {
+      const cnic = cleanCnic(st.fatherCnic);
+      const name = norm(st.fatherName || '');
+      const hasCnic = cnic.length >= 7;
+      const hasName = name.length > 0 && name !== 'unknown father';
+
+      let familyKey;
+
+      if (hasCnic && hasName) {
+        // ✅ PRIMARY RULE: Both CNIC + Father Name must be same → one family
+        // familyId (F-134, F-136 etc.) is IGNORED here because those are
+        // auto-generated per-student and do NOT indicate different families
+        familyKey = `cnic_${cnic}__name_${name}`;
+      } else if (hasCnic) {
+        // Has CNIC but no father name → group by CNIC alone
+        familyKey = `cnic_${cnic}`;
+      } else if (hasName) {
+        // No CNIC → fallback to father name
+        familyKey = `name_${name}`;
+      } else {
+        // No info → isolate
+        familyKey = `solo_${st.id}`;
+      }
 
       if (!groupMap.has(familyKey)) {
         groupMap.set(familyKey, {
@@ -201,9 +233,13 @@ const FamilyTree = () => {
 
       const grp = groupMap.get(familyKey);
       grp.children.push(st);
+      // Fill in missing fields from later children
       if (grp.fatherCnic === '-' && st.fatherCnic) grp.fatherCnic = st.fatherCnic;
       if (grp.motherName === '-' && st.motherName) grp.motherName = st.motherName;
-      if (grp.phone === '-' && (st.parentPhone || st.fatherPhone)) grp.phone = st.parentPhone || st.fatherPhone;
+      if (grp.phone === '-' && (st.parentPhone || st.fatherPhone || st.phone)) {
+        grp.phone = st.parentPhone || st.fatherPhone || st.phone;
+      }
+      if (grp.familyId === '-' && st.familyId) grp.familyId = st.familyId;
     });
 
     const list = Array.from(groupMap.values());

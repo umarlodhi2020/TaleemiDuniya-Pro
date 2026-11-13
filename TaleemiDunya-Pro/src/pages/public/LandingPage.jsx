@@ -7,7 +7,8 @@ import { motion } from 'framer-motion';
 import { 
   CheckCircle, Play, Monitor, Users, BookOpen, 
   Shield, Zap, ArrowRight, BarChart3, Clock,
-  Smartphone, Database, MessageSquare, XCircle
+  Smartphone, Database, MessageSquare, XCircle,
+  Volume2, VolumeX
 } from 'lucide-react';
 
 const featureCategories = [
@@ -112,6 +113,16 @@ const LandingPage = () => {
   const [plans, setPlans] = useState([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const navigate = useNavigate();
+
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = React.useRef(null);
+
+  const toggleSound = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    }
+  };
 
   const [showDemoForm, setShowDemoForm] = useState(false);
   const [demoFormData, setDemoFormData] = useState({ name: '', whatsapp: '', schoolName: '', email: '' });
@@ -395,15 +406,47 @@ const LandingPage = () => {
               </div>
             </div>
             <div className="mt-12 lg:mt-0">
-              <div className="bg-indigo-900/50 p-2 rounded-2xl border border-indigo-800 backdrop-blur-sm shadow-2xl">
-                <div className="bg-gray-900 rounded-xl overflow-hidden shadow-inner aspect-[4/3] flex items-center justify-center relative group">
-                  {/* Mockup UI or Video placeholder */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-900 flex flex-col items-center justify-center">
-                    <Monitor className="w-20 h-20 text-indigo-500 mb-6 group-hover:scale-110 transition-transform duration-500" />
-                    <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md group-hover:bg-indigo-600 transition-colors cursor-pointer" onClick={() => setShowDemoForm(true)}>
-                      <Play className="w-6 h-6 text-white fill-white ml-1" />
-                    </div>
+              <div className="bg-indigo-900/40 p-2.5 rounded-3xl border border-indigo-700/80 backdrop-blur-md shadow-2xl relative group">
+                <div className="bg-slate-950 rounded-2xl overflow-hidden shadow-2xl aspect-[16/10] sm:aspect-[16/9] relative flex items-center justify-center border border-indigo-950">
+                  
+                  {/* HTML5 Auto-Playing Promotion Video */}
+                  <video
+                    ref={videoRef}
+                    src="/taleemidunya_promo.mp4"
+                    autoPlay
+                    loop
+                    muted={isMuted}
+                    playsInline
+                    className="w-full h-full object-cover rounded-2xl"
+                  />
+
+                  {/* Top Live Badge */}
+                  <div className="absolute top-3 left-3 px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/10 text-white font-mono text-[11px] font-bold flex items-center gap-2 shadow-lg pointer-events-none">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>LIVE SOFTWARE DEMO</span>
                   </div>
+
+                  {/* Sound Toggle Button */}
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2 z-20">
+                    <button
+                      onClick={toggleSound}
+                      className="px-3.5 py-2 rounded-full bg-slate-900/85 hover:bg-indigo-600 backdrop-blur-md border border-white/20 text-white font-bold text-xs flex items-center gap-2 shadow-xl transition-all cursor-pointer group/btn"
+                      title={isMuted ? "Unmute for Urdu Voiceover" : "Mute Video"}
+                    >
+                      {isMuted ? (
+                        <>
+                          <VolumeX className="w-4 h-4 text-amber-400 animate-pulse" />
+                          <span className="hidden sm:inline">Unmute Urdu Voice</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-4 h-4 text-emerald-400" />
+                          <span className="hidden sm:inline">Mute Audio</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
                 </div>
               </div>
             </div>

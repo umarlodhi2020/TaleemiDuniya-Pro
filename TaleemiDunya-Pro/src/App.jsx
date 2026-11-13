@@ -13,6 +13,9 @@ const PrivacyPolicy = React.lazy(() => import('./pages/public/PrivacyPolicy'));
 const TermsOfService = React.lazy(() => import('./pages/public/TermsOfService'));
 const PublicFamilyUpdate = React.lazy(() => import('./pages/public/PublicFamilyUpdate'));
 const MobilePhotoCapture = React.lazy(() => import('./pages/public/MobilePhotoCapture'));
+const PublicApply = React.lazy(() => import('./pages/public/PublicApply'));
+const PublicVoucher = React.lazy(() => import('./pages/public/PublicVoucher'));
+const SchoolWebsiteTemplate = React.lazy(() => import('./pages/public/SchoolWebsiteTemplate'));
 const Login = React.lazy(() => import('./pages/auth/Login'));
 const SuperAdminSetup = React.lazy(() => import('./pages/auth/SuperAdminSetup'));
 const SuperAdminDashboard = React.lazy(() => import('./pages/super-admin/Dashboard'));
@@ -260,6 +263,25 @@ const AppRoutes = () => {
       <Route path="/parent-quick-view" element={<ParentQuickPortal />} />
       <Route path="/p/:studentId" element={<ParentQuickPortal />} />
       <Route path="/p" element={<ParentQuickPortal />} />
+
+      {/* Public Online Admission Application Routes (with wildcard & multiple slash fallbacks) */}
+      <Route path="/apply/:schoolId" element={<PublicApply />} />
+      <Route path="/apply" element={<PublicApply />} />
+      <Route path="/apply/*" element={<PublicApply />} />
+      <Route path="//apply/:schoolId" element={<PublicApply />} />
+      <Route path="//apply" element={<PublicApply />} />
+      <Route path="//apply/*" element={<PublicApply />} />
+      <Route path="/admission/:schoolId" element={<PublicApply />} />
+      <Route path="/admission" element={<PublicApply />} />
+      <Route path="/admission/*" element={<PublicApply />} />
+      <Route path="//admission/:schoolId" element={<PublicApply />} />
+      <Route path="//admission" element={<PublicApply />} />
+      <Route path="//admission/*" element={<PublicApply />} />
+
+      {/* Public School Website & Fee Voucher Routes */}
+      <Route path="/school/:schoolSlug" element={<SchoolWebsiteTemplate />} />
+      <Route path="/v/:schoolId/:type/:id" element={<PublicVoucher />} />
+      <Route path="/voucher/:schoolId/:type/:id" element={<PublicVoucher />} />
 
       {/* Super Admin Routes */}
       <Route
@@ -531,8 +553,26 @@ import { ThemeProvider } from './context/ThemeContext';
 import NetworkStatusBar from './components/common/NetworkStatusBar';
 
 function App() {
-  if (window.location.pathname.includes('/family-update/')) {
-    window.location.href = '/#' + window.location.pathname;
+  // Normalize double slashes in hash e.g. #//apply/ -> #/apply/
+  try {
+    if (window.location.hash && window.location.hash.startsWith('#//')) {
+      const fixedHash = '#' + window.location.hash.replace(/^#\/+/, '/');
+      window.location.replace(window.location.pathname + window.location.search + fixedHash);
+      return null;
+    }
+  } catch (e) {}
+
+  const p = window.location.pathname;
+  if (
+    p.includes('/family-update/') ||
+    p.includes('/apply') ||
+    p.includes('/admission') ||
+    p.includes('/school/') ||
+    p.includes('/voucher/') ||
+    p.includes('/v/')
+  ) {
+    const cleanPath = p.replace(/\/+/g, '/');
+    window.location.replace('/#' + cleanPath + window.location.search);
     return null;
   }
   return (
