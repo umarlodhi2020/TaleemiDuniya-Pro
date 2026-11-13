@@ -239,6 +239,7 @@ const Sidebar = ({ role, isOpen, setIsOpen }) => {
             categoryKey: 'Core',
             links: [
               { name: 'Executive Dashboard', icon: LayoutDashboard, path: '/school-admin/dashboard', featureKey: 'executive-dashboard' },
+              { name: 'Live Analytics & Reports', icon: BarChart3, path: '/school-admin/live-analytics', featureKey: 'live-analytics' },
               { name: 'Multi-Branch Hub', icon: Building2, path: '/school-admin/branches', featureKey: 'multi-branch' },
               { name: 'Franchise Network Management', icon: Globe, path: '/school-admin/franchise-manager', featureKey: 'franchise-manager' },
               { name: 'AI School Copilot', icon: Bot, path: '/school-admin/copilot', featureKey: 'ai-copilot' },

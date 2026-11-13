@@ -188,6 +188,8 @@ const SchoolSettings = () => {
     city: '',
     website: '',
     plan: '',
+    principalTitle: 'Mr.',
+    principalName: '',
   });
 
   // Branding state
@@ -340,6 +342,8 @@ const SchoolSettings = () => {
             city: data.city || '',
             website: data.website || '',
             plan: data.plan || 'Premium',
+            principalTitle: data.principalTitle || 'Mr.',
+            principalName: data.principalName || '',
           });
           setBranding({
             logo: data.logo || '',
@@ -449,6 +453,8 @@ const SchoolSettings = () => {
         address: profile.address.trim(),
         city: profile.city.trim(),
         website: profile.website.trim(),
+        principalTitle: profile.principalTitle || 'Mr.',
+        principalName: (profile.principalName || '').trim(),
         logo: branding.logo,
         primaryColor: branding.primaryColor,
         customDomain: domain.customDomain.trim(),
@@ -611,6 +617,35 @@ const SchoolSettings = () => {
                 <div className="md:col-span-2">
                   <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">School Name *</label>
                   <input name="name" className="w-full premium-input" value={profile.name} onChange={handleProfileChange} required placeholder="Enter school name" />
+                </div>
+
+                {/* Principal / Head Details */}
+                <div>
+                  <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">Principal Title / Salutation</label>
+                  <select
+                    name="principalTitle"
+                    value={profile.principalTitle || 'Mr.'}
+                    onChange={handleProfileChange}
+                    className="w-full premium-input"
+                  >
+                    <option value="Mr.">Mr. (Sir)</option>
+                    <option value="Miss">Miss (Madam)</option>
+                    <option value="Mrs.">Mrs.</option>
+                    <option value="Dr.">Dr.</option>
+                    <option value="Prof.">Prof.</option>
+                    <option value="Engr.">Engr.</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">Principal / Headmaster Name</label>
+                  <input 
+                    name="principalName" 
+                    className="w-full premium-input" 
+                    value={profile.principalName || ''} 
+                    onChange={handleProfileChange} 
+                    placeholder="e.g. Muhammad Ahmad" 
+                  />
+                  <p className="text-[10px] text-dark-muted mt-1">This name will appear on the Dashboard Welcome Banner and official circulars.</p>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-dark-muted uppercase tracking-widest mb-1.5">Admin Email *</label>
