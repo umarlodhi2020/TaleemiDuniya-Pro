@@ -198,146 +198,71 @@ const SchoolAdminDashboard = () => {
     }
   };
 
-  // Real data state (initialized to 0 for fresh accounts)
-  const [realStats, setRealStats] = useState({
-    classesCount: 0,
-    studentsCount: 0,
-    activeStudents: 0,
-    revenueToday: 0,
-    staffCount: 0,
-    netProfit: 0,
-    totalExpenses: 0,
-    monthlyRevenue: 0,
-    totalCollection: 0,
-    activeExpected: 0,
-    deactiveExpected: 0
+  // Instant hydration from cache to eliminate flash of 0s on page refresh
+  const currentSchoolId = schoolData?.id || userData?.schoolId || 'default_school';
+
+  const [realStats, setRealStats] = useState(() => {
+    try {
+      const cached = localStorage.getItem(`cached_dashboard_stats_${currentSchoolId}`);
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return {
+      classesCount: 0,
+      studentsCount: 0,
+      activeStudents: 0,
+      revenueToday: 0,
+      staffCount: 0,
+      netProfit: 0,
+      totalExpenses: 0,
+      monthlyRevenue: 0,
+      totalCollection: 0,
+      activeExpected: 0,
+      deactiveExpected: 0
+    };
   });
 
   const [recentStudents, setRecentStudents] = useState([]);
   const [birthdaysList, setBirthdaysList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Core Analytics States (Matching Photo 2)
   const [academicOverviewRange, setAcademicOverviewRange] = useState('This Month');
-  const [classDistribution, setClassDistribution] = useState({
-    c1_5: 28,
-    c6_8: 32,
-    c9_10: 26,
-    c11_12: 14,
-    total: 0
+  const [classDistribution, setClassDistribution] = useState(() => {
+    try {
+      const cached = localStorage.getItem(`cached_dashboard_dist_${currentSchoolId}`);
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return {
+      c1_5: 28,
+      c6_8: 32,
+      c9_10: 26,
+      c11_12: 14,
+      total: 0
+    };
   });
-  const [recentActivities, setRecentActivities] = useState([]);
+  const [recentActivities, setRecentActivities] = useState(() => {
+    try {
+      const cached = localStorage.getItem(`cached_dashboard_acts_${currentSchoolId}`);
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return [];
+  });
   const [upcomingEvents, setUpcomingEvents] = useState([]);
 
   useEffect(() => {
     const fetchRealData = async () => {
       if (!userData) return;
       const schoolId = userData.schoolId || 'default_school';
-      // Fetch actual data instead of trying to hack the expiry date client-side
-      const students = await getRecords('students', schoolId);
-      const staff = await getRecords('staff', schoolId);
-      
-      // ONE-TIME SCRIPT TO FIX CAPITALIZATION, CNIC, and PHONE
-      if (!localStorage.getItem('fixed_names_caps_cnic_phone_5')) {
-        const toTitleCase = (str) => {
-          if (!str) return '';
-          return str.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        };
-        const formatCNIC = (val) => {
-          if (!val) return '';
-          let digits = val.replace(/\D/g, '');
-          if (!digits) return '';
-          if (digits.length > 13) digits = digits.substring(0, 13);
-          let formatted = digits;
-          if (digits.length > 5 && digits.length <= 12) {
-              formatted = digits.replace(/(\d{5})(\d+)/, '$1-$2');
-          } else if (digits.length > 12) {
-              formatted = digits.replace(/(\d{5})(\d{7})(\d+)/, '$1-$2-$3');
-          }
-          return formatted;
-        };
-        const formatPhone = (val) => {
-          if (!val) return '';
-          let digits = val.replace(/\D/g, '');
-          if (!digits) return '';
-          if (digits.length > 11) digits = digits.substring(0, 11);
-          return digits;
-        };
 
-        try {
-          for (const s of students) {
-            const newName = toTitleCase(s.name);
-            const newFName = toTitleCase(s.fatherName);
-            const updates = {};
-            
-            if (s.name !== newName) updates.name = newName;
-            if (s.fatherName !== newFName) updates.fatherName = newFName;
-            
-            const oldFatherCnic = s.fatherCnic;
-            if (oldFatherCnic !== undefined) {
-                const newFatherCnic = formatCNIC(oldFatherCnic);
-                if (oldFatherCnic !== newFatherCnic && (oldFatherCnic || newFatherCnic)) updates.fatherCnic = newFatherCnic;
-            }
-
-            const oldCnic = s.cnic;
-            if (oldCnic !== undefined) {
-                const newCnic = formatCNIC(oldCnic);
-                if (oldCnic !== newCnic && (oldCnic || newCnic)) updates.cnic = newCnic;
-            }
-
-            const oldPhone = s.phone;
-            if (oldPhone !== undefined) {
-                const newPhone = formatPhone(oldPhone);
-                if (oldPhone !== newPhone && (oldPhone || newPhone)) updates.phone = newPhone;
-            }
-            
-            const oldContact = s.contact;
-            if (oldContact !== undefined) {
-                const newContact = formatPhone(oldContact);
-                if (oldContact !== newContact && (oldContact || newContact)) updates.contact = newContact;
-            }
-            
-            if (Object.keys(updates).length > 0) {
-              await updateRecord('students', s.id, { ...updates, schoolId });
-            }
-          }
-          for (const st of staff) {
-            const newName = toTitleCase(st.name);
-            const updates = {};
-            if (st.name !== newName) updates.name = newName;
-
-            const oldCnic = st.cnic;
-            if (oldCnic !== undefined) {
-                const newCnic = formatCNIC(oldCnic);
-                if (oldCnic !== newCnic && (oldCnic || newCnic)) updates.cnic = newCnic;
-            }
-
-            const oldPhone = st.phone;
-            if (oldPhone !== undefined) {
-               const newPhone = formatPhone(oldPhone);
-               if (oldPhone !== newPhone && (oldPhone || newPhone)) updates.phone = newPhone;
-            }
-
-            const oldContact = st.contact;
-            if (oldContact !== undefined) {
-               const newContact = formatPhone(oldContact);
-               if (oldContact !== newContact && (oldContact || newContact)) updates.contact = newContact;
-            }
-            
-            if (Object.keys(updates).length > 0) {
-              await updateRecord('staff', st.id, { ...updates, schoolId });
-            }
-          }
-          localStorage.setItem('fixed_names_caps_cnic_phone_5', 'true');
-        } catch (e) {
-          console.error('Error fixing caps:', e);
-        }
-      }
-
-      const classes = await getRecords('classes', schoolId);
-      const challans = await getRecords('vouchers', schoolId);
-      const expenses = await getRecords('expenses', schoolId);
-      const otherIncome = await getRecords('other_income', schoolId);
+      // Fetch all collections simultaneously in parallel with Promise.all (Lightning-Fast)
+      const [students, staff, classes, challans, expenses, otherIncome] = await Promise.all([
+        getRecords('students', schoolId),
+        getRecords('staff', schoolId),
+        getRecords('classes', schoolId),
+        getRecords('vouchers', schoolId),
+        getRecords('expenses', schoolId),
+        getRecords('other_income', schoolId)
+      ]);
 
       const isDemo = userData.email === 'demo_admin@taleemidunya.com';
 
@@ -364,7 +289,7 @@ const SchoolAdminDashboard = () => {
 
       const activeCount = stuCount > 0 ? (students.filter(s => s.status !== 'Deactive' && s.status !== 'Inactive').length || stuCount) : 0;
 
-      setRealStats({
+      const computedStats = {
         classesCount: classCount,
         studentsCount: stuCount,
         activeStudents: activeCount,
@@ -376,7 +301,9 @@ const SchoolAdminDashboard = () => {
         totalCollection: collection,
         activeExpected: expected,
         deactiveExpected: Math.max(0, expected - collection)
-      });
+      };
+
+      setRealStats(computedStats);
 
       // Compute Real Class-wise Student Distribution (Photo 2)
       let c1_5 = 0, c6_8 = 0, c9_10 = 0, c11_12 = 0;
@@ -396,15 +323,15 @@ const SchoolAdminDashboard = () => {
         }
       });
       const totalSt = students.length || 0;
+      let computedDist = { c1_5: 28, c6_8: 32, c9_10: 26, c11_12: 14, total: 0 };
       if (totalSt > 0) {
         const p1 = Math.round((c1_5 / totalSt) * 100);
         const p2 = Math.round((c6_8 / totalSt) * 100);
         const p3 = Math.round((c9_10 / totalSt) * 100);
         const p4 = Math.max(0, 100 - (p1 + p2 + p3));
-        setClassDistribution({ c1_5: p1, c6_8: p2, c9_10: p3, c11_12: p4, total: totalSt });
-      } else {
-        setClassDistribution({ c1_5: 28, c6_8: 32, c9_10: 26, c11_12: 14, total: 0 });
+        computedDist = { c1_5: p1, c6_8: p2, c9_10: p3, c11_12: p4, total: totalSt };
       }
+      setClassDistribution(computedDist);
 
       // Compute Real Recent Activities (Photo 2)
       const acts = [];
@@ -473,6 +400,13 @@ const SchoolAdminDashboard = () => {
       setRecentStudents(students.slice(0, 4));
       setBirthdaysList(bdays);
       setLoading(false);
+
+      // Save to instant-load local cache to eliminate flash of 0s
+      try {
+        localStorage.setItem(`cached_dashboard_stats_${schoolId}`, JSON.stringify(computedStats));
+        localStorage.setItem(`cached_dashboard_dist_${schoolId}`, JSON.stringify(computedDist));
+        localStorage.setItem(`cached_dashboard_acts_${schoolId}`, JSON.stringify(acts.slice(0, 4)));
+      } catch (e) {}
     };
     fetchRealData();
   }, [userData, schoolData]);
@@ -706,7 +640,7 @@ const SchoolAdminDashboard = () => {
           {(() => {
             const rawName = schoolData?.principalName || userData?.principalName;
             const principalTitle = schoolData?.principalTitle || userData?.principalTitle || 'Mr.';
-            let displayName = 'Muhammad Ahmad';
+            let displayName = rawName ? rawName : (schoolData?.name ? `${schoolData.name} Admin` : 'Administrator');
             let displayTitle = principalTitle;
 
             if (rawName && rawName.trim()) {
@@ -751,7 +685,7 @@ const SchoolAdminDashboard = () => {
           {/* 3. School Name & Campus - Pure White, Split Multi-line Without Cutoffs */}
           {(() => {
             const campusName = schoolData?.campus || schoolData?.branchName || 'Main Campus';
-            const rawSchoolName = schoolName || 'Smart Angels Grammar School';
+            const rawSchoolName = schoolName || schoolData?.name || userData?.schoolName || 'Your School';
             let line1 = rawSchoolName;
             let line2 = campusName;
 
