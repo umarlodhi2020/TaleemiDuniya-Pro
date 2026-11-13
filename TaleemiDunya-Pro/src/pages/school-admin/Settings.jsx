@@ -27,6 +27,7 @@ import {
   Key,
   Upload,
   Scan,
+  RotateCcw,
   Tv
 } from 'lucide-react';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -347,10 +348,20 @@ const SchoolSettings = () => {
             principalTitle: data.principalTitle || 'Mr.',
             principalName: data.principalName || '',
           });
+          // Clean up any accidental analytics screenshot banner or invalid banner URL
+          let cleanBanner = data.dashboardBanner || '';
+          if (cleanBanner.includes('1794605042162') || cleanBanner.includes('default_dashboard_banner')) {
+            cleanBanner = '';
+            try {
+              updateDoc(doc(db, 'schools', schoolId), { dashboardBanner: '' }).catch(console.error);
+            } catch (e) {}
+            localStorage.removeItem(`custom_dashboard_banner_${schoolId}`);
+          }
+
           setBranding({
             logo: data.logo || '',
             primaryColor: data.primaryColor || '#8b5cf6',
-            dashboardBanner: data.dashboardBanner || '',
+            dashboardBanner: cleanBanner,
           });
           setDomain({
             customDomain: data.customDomain || '',
@@ -1017,7 +1028,7 @@ const SchoolSettings = () => {
                         Dashboard Welcome Banner (Ultra HD Panorama)
                       </h4>
                       <p className="text-xs text-dark-muted mt-0.5">
-                        Upload your custom school panorama photo for the main Dashboard header (Standard size: 1200 x 300 or 16:9).
+                        School building & students panorama header (Standard size: 1200 x 300 or 16:9).
                       </p>
                     </div>
                   </div>
@@ -1025,11 +1036,18 @@ const SchoolSettings = () => {
                   {/* Banner Live Preview */}
                   <div className="my-4 relative rounded-2xl overflow-hidden border border-dark-border shadow-md h-36 bg-slate-900 group">
                     <img 
-                      src={branding.dashboardBanner || '/default_dashboard_banner.jpg'} 
+                      src={branding.dashboardBanner || '/default_dashboard_banner.jpg?v=20261114'} 
                       alt="Dashboard Banner Preview" 
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent flex items-center p-5">
+
+                    {/* Banner status pill */}
+                    <div className="absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold backdrop-blur-md border shadow-sm flex items-center gap-1.5 bg-black/60 text-white border-white/20">
+                      <span className={`w-2 h-2 rounded-full ${branding.dashboardBanner ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
+                      <span>{branding.dashboardBanner ? 'Custom School Banner' : 'Official Default Panorama (Active)'}</span>
+                    </div>
+
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/20 to-transparent flex items-center p-5">
                       <div className="text-white">
                         <span className="text-[11px] font-bold text-sky-200">Welcome Back! 👋</span>
                         <h4 className="text-lg font-black text-white">{profile.principalTitle || 'Mr.'} {profile.principalName || 'Principal Name'}</h4>
@@ -1038,7 +1056,7 @@ const SchoolSettings = () => {
                     </div>
                   </div>
 
-                  {/* Upload and URL input */}
+                  {/* Upload, Reset, and URL input */}
                   <div className="flex flex-wrap items-center gap-3">
                     <label className="premium-button-secondary cursor-pointer shrink-0 text-xs px-4 py-2.5 flex items-center gap-2">
                       <Upload size={15} />
@@ -1076,6 +1094,28 @@ const SchoolSettings = () => {
                       />
                     </label>
 
+                    <button 
+                      type="button"
+                      onClick={async () => {
+                        setBranding(prev => ({ ...prev, dashboardBanner: '' }));
+                        const schoolId = userData?.schoolId || 'default';
+                        localStorage.removeItem(`custom_dashboard_banner_${schoolId}`);
+                        try {
+                          if (userData?.schoolId) {
+                            await updateDoc(doc(db, 'schools', userData.schoolId), { dashboardBanner: '' });
+                          }
+                          showToast('success', 'Pehle wala original default banner active ho gaya!');
+                        } catch (e) {
+                          showToast('info', 'Default banner restored. Save settings to apply.');
+                        }
+                      }} 
+                      className="premium-button-secondary text-xs px-3.5 py-2.5 text-rose-500 hover:bg-rose-500/10 flex items-center gap-1.5 border border-rose-500/30 font-bold shrink-0"
+                      title="Restore Original School Banner"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Pehle Wala Default Banner Lagao</span>
+                    </button>
+
                     <span className="text-xs text-dark-muted font-bold">OR</span>
 
                     <input 
@@ -1085,23 +1125,6 @@ const SchoolSettings = () => {
                       onChange={(e) => setBranding({ ...branding, dashboardBanner: e.target.value })}
                       className="premium-input text-xs flex-1 min-w-[200px]"
                     />
-
-                    {branding.dashboardBanner && (
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          setBranding({ ...branding, dashboardBanner: '' });
-                          const schoolId = userData?.schoolId || 'default';
-                          localStorage.removeItem(`custom_dashboard_banner_${schoolId}`);
-                          showToast('info', 'Restored default banner. Save settings to apply.');
-                        }} 
-                        className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg shrink-0 text-xs font-bold flex items-center gap-1 border border-red-500/20"
-                        title="Restore Default Banner"
-                      >
-                        <Trash2 size={15} />
-                        <span>Reset Default</span>
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>

@@ -41,7 +41,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSchool } from '../../context/SchoolContext';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../services/firebase';
-import { writeBatch, doc, collection } from 'firebase/firestore';
+import { writeBatch, doc, collection, updateDoc } from 'firebase/firestore';
 
 const SchoolAdminDashboard = () => {
   const { userData } = useAuth();
@@ -63,15 +63,36 @@ const SchoolAdminDashboard = () => {
   const [isSavingSetup, setIsSavingSetup] = useState(false);
 
   // Custom Dashboard Header Banner (Configured via School Settings > Branding)
-  const [customBanner, setCustomBanner] = useState(
-    () => schoolData?.dashboardBanner || localStorage.getItem(`custom_dashboard_banner_${schoolData?.id || userData?.schoolId || 'default'}`) || '/default_dashboard_banner.jpg'
-  );
+  const [customBanner, setCustomBanner] = useState(() => {
+    const schoolId = schoolData?.id || userData?.schoolId || 'default';
+    const local = localStorage.getItem(`custom_dashboard_banner_${schoolId}`);
+    const banner = schoolData?.dashboardBanner || local || '';
+    if (banner && !banner.includes('1794605042162') && !banner.includes('default_dashboard_banner')) {
+      return banner;
+    }
+    if (local && (local.includes('1794605042162') || local.includes('default_dashboard_banner'))) {
+      localStorage.removeItem(`custom_dashboard_banner_${schoolId}`);
+    }
+    return '/default_dashboard_banner.jpg?v=20261114';
+  });
 
   useEffect(() => {
+    const schoolId = schoolData?.id || userData?.schoolId;
     if (schoolData?.dashboardBanner) {
-      setCustomBanner(schoolData.dashboardBanner);
+      if (schoolData.dashboardBanner.includes('1794605042162') || schoolData.dashboardBanner.includes('default_dashboard_banner')) {
+        // Auto-clean the accidental screenshot banner from Firestore & localStorage
+        if (schoolId) {
+          updateDoc(doc(db, 'schools', schoolId), { dashboardBanner: '' }).catch(console.error);
+          localStorage.removeItem(`custom_dashboard_banner_${schoolId}`);
+        }
+        setCustomBanner('/default_dashboard_banner.jpg?v=20261114');
+      } else {
+        setCustomBanner(schoolData.dashboardBanner);
+      }
+    } else {
+      setCustomBanner('/default_dashboard_banner.jpg?v=20261114');
     }
-  }, [schoolData?.dashboardBanner]);
+  }, [schoolData?.dashboardBanner, schoolData?.id, userData?.schoolId]);
 
   useEffect(() => {
     if (schoolData) {
