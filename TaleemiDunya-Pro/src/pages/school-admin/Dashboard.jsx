@@ -596,8 +596,8 @@ const SchoolAdminDashboard = () => {
         </div>
       )}
 
-      {/* Hero Welcome Banner (Identical to requested design with isolated background & customizable image) */}
-      <div className="relative overflow-hidden rounded-3xl shadow-xl border border-slate-200/60 dark:border-white/10 group min-h-[170px] md:min-h-[195px] flex items-center">
+      {/* Hero Welcome Banner (Ultra HD Panorama design with isolated background & customizable image) */}
+      <div className="relative overflow-hidden rounded-3xl shadow-xl border border-slate-200/60 dark:border-white/10 group min-h-[180px] md:min-h-[210px] flex items-center">
         {/* Background Image with Fallback and overlay */}
         <div 
           className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
@@ -606,8 +606,8 @@ const SchoolAdminDashboard = () => {
             backgroundColor: '#0284c7'
           }}
         />
-        {/* Adaptive Gradient Overlay ensuring crystal clear text in BOTH White & Dark modes */}
-        <div className="absolute inset-0 bg-gradient-to-r from-sky-900/90 via-sky-800/80 to-blue-900/60 dark:from-slate-950/95 dark:via-slate-900/90 dark:to-sky-950/70" />
+        {/* Soft, clean gradient overlay on left to keep text ultra-crisp while letting the school & students shine */}
+        <div className="absolute inset-0 bg-gradient-to-r from-sky-950/85 via-sky-900/40 to-transparent dark:from-slate-950/90 dark:via-slate-950/50 dark:to-transparent" />
 
         {/* Content Container */}
         <div className="relative z-10 w-full px-6 py-5 md:px-8 md:py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -617,24 +617,18 @@ const SchoolAdminDashboard = () => {
               <span className="text-sm">👋</span>
             </div>
             
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white tracking-tight drop-shadow-md">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-black text-white tracking-tight drop-shadow-lg">
               {userData?.principalName || userData?.name || 'Principal'}
             </h1>
 
             <p className="text-xs md:text-sm font-semibold text-sky-100 dark:text-slate-200 drop-shadow flex items-center gap-2">
-              <span className="font-bold text-white">{schoolName}</span>
+              <span className="font-bold text-white drop-shadow">{schoolName}</span>
               <span>•</span>
-              <span className="text-sky-200 dark:text-slate-300 font-medium">{schoolData?.campus || schoolData?.branchName || 'Main Campus'}</span>
+              <span className="text-sky-200 dark:text-slate-300 font-medium drop-shadow">{schoolData?.campus || schoolData?.branchName || 'Main Campus'}</span>
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Tagline Badge */}
-            <div className="hidden lg:flex flex-col items-end mr-2">
-              <span className="font-serif italic text-lg text-white/90 drop-shadow">Together for</span>
-              <span className="font-serif font-black italic text-xl text-yellow-300 drop-shadow">Better Education</span>
-            </div>
-
             {/* Custom Banner Upload Button */}
             <div>
               <input 
@@ -649,7 +643,7 @@ const SchoolAdminDashboard = () => {
                 onClick={() => bannerInputRef.current?.click()}
                 disabled={bannerUploading}
                 title="Change or upload school dashboard banner (Standard size 1200x350)"
-                className="px-3.5 py-2 rounded-xl bg-white/20 hover:bg-white/30 backdrop-blur-md text-white text-xs font-bold border border-white/30 shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                className="px-3.5 py-2 rounded-xl bg-white/25 hover:bg-white/40 backdrop-blur-md text-white text-xs font-bold border border-white/40 shadow-lg flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
               >
                 <Camera size={15} />
                 <span>{bannerUploading ? 'Uploading...' : 'Change Banner'}</span>
