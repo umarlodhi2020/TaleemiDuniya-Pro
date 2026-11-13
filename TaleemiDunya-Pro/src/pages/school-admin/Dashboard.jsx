@@ -702,13 +702,7 @@ const SchoolAdminDashboard = () => {
 
         {/* Content Container on LEFT SIDE (Matching Photo 3) */}
         <div className="relative z-10 w-full max-w-xl px-6 py-5 md:px-10 md:py-7 flex flex-col items-start justify-center text-left">
-          {/* 1. Welcome Back! Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs md:text-sm font-bold border border-white/30 shadow-sm mb-2">
-            <span>Welcome Back!</span>
-            <span className="text-base">👋</span>
-          </div>
-
-          {/* 2. Principal Name (Dynamic Title & Name - Pure crisp white with radiant title) */}
+          {/* 1. Welcome Back Principal Pill - Bold & Large */}
           {(() => {
             const rawName = schoolData?.principalName || userData?.principalName;
             const principalTitle = schoolData?.principalTitle || userData?.principalTitle || 'Mr.';
@@ -728,13 +722,23 @@ const SchoolAdminDashboard = () => {
             }
 
             return (
-              <h1 
-                className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight drop-shadow-[0_2px_5px_rgba(0,0,0,0.85)] flex items-center gap-2 mb-1.5"
-                style={{ color: '#ffffff' }}
-              >
-                <span className="text-sky-200 drop-shadow">{displayTitle}</span>
-                <span className="text-white drop-shadow">{displayName}</span>
-              </h1>
+              <>
+                {/* Welcome Back Principal Pill — Bigger, Bold */}
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/25 backdrop-blur-md text-white text-sm md:text-base lg:text-lg font-black border border-white/40 shadow-md mb-2.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]">
+                  <span>Welcome Back</span>
+                  <span className="text-sky-200 font-black">{displayTitle} {displayName}</span>
+                  <span className="text-lg md:text-xl">👋</span>
+                </div>
+
+                {/* 2. Principal Name (Large Bold Title underneath) */}
+                <h1 
+                  className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight drop-shadow-[0_2px_5px_rgba(0,0,0,0.85)] flex items-center gap-2 mb-1.5"
+                  style={{ color: '#ffffff' }}
+                >
+                  <span className="text-sky-200 drop-shadow">{displayTitle}</span>
+                  <span className="text-white drop-shadow">{displayName}</span>
+                </h1>
+              </>
             );
           })()}
 
@@ -999,16 +1003,16 @@ const SchoolAdminDashboard = () => {
         </div>
 
         {/* Widget 2: Fee Collection Progress (Span 3) */}
-        <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200/80 dark:border-white/10 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-3 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-white/10 shadow-sm flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-black text-slate-800 dark:text-white">₨</span>
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Fee Collection Progress</h3>
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base font-black text-sky-600 dark:text-sky-400 shrink-0">₨</span>
+                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">Fee Collection<br/><span className="text-sky-600 dark:text-sky-400">Progress</span></h3>
               </div>
               <button 
                 onClick={() => navigate('/school-admin/fees/record')}
-                className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+                className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-0.5 cursor-pointer shrink-0"
               >
                 View Details <ArrowUpRight size={13} />
               </button>
@@ -1025,22 +1029,22 @@ const SchoolAdminDashboard = () => {
               const offset = circ - (pct / 100) * circ;
 
               return (
-                <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-5 pt-2">
+                <div className="space-y-3">
+                  <div className="flex flex-col items-center justify-center gap-3 pt-1">
                     {/* Donut Circle */}
-                    <div className="relative w-32 h-32 flex items-center justify-center">
-                      <svg className="w-32 h-32 transform -rotate-90">
+                    <div className="relative w-28 h-28 flex items-center justify-center">
+                      <svg className="w-28 h-28 transform -rotate-90">
                         <circle
-                          cx="64"
-                          cy="64"
+                          cx="56"
+                          cy="56"
                           r={radius}
                           stroke="currentColor"
                           strokeWidth="12"
                           className="text-slate-100 dark:text-slate-800 fill-none"
                         />
                         <circle
-                          cx="64"
-                          cy="64"
+                          cx="56"
+                          cy="56"
                           r={radius}
                           stroke="#0284c7"
                           strokeWidth="12"
@@ -1051,54 +1055,54 @@ const SchoolAdminDashboard = () => {
                         />
                       </svg>
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                        <span className="text-2xl font-black text-slate-900 dark:text-white">{pct}%</span>
-                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Target Achieved</span>
+                        <span className="text-xl font-black text-slate-900 dark:text-white">{pct}%</span>
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Achieved</span>
                       </div>
                     </div>
 
-                    {/* Breakdown items */}
-                    <div className="space-y-2 text-left w-full sm:w-auto">
-                      <div>
+                    {/* Breakdown items - Horizontal compact */}
+                    <div className="w-full space-y-2">
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-sky-50 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800/30">
                         <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-sky-500"></span>
+                          <span className="w-2 h-2 rounded-full bg-sky-500 shrink-0"></span>
                           <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Collected</span>
                         </div>
-                        <p className="text-sm font-black text-slate-900 dark:text-white pl-3.5">
+                        <span className="text-xs font-black text-sky-700 dark:text-sky-300">
                           Rs. {collected.toLocaleString()}
-                        </p>
+                        </span>
                       </div>
 
-                      <div>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/30">
                         <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600"></span>
-                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Target</span>
+                          <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Total Target</span>
                         </div>
-                        <p className="text-sm font-black text-slate-900 dark:text-white pl-3.5">
+                        <span className="text-xs font-black text-slate-700 dark:text-slate-200">
                           Rs. {target.toLocaleString()}
-                        </p>
+                        </span>
                       </div>
 
-                      <div>
+                      <div className="flex items-center justify-between p-2 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30">
                         <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Remaining</span>
+                          <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0"></span>
+                          <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Unpaid</span>
                         </div>
-                        <p className="text-sm font-black text-emerald-600 dark:text-emerald-400 pl-3.5">
+                        <span className="text-xs font-black text-orange-600 dark:text-orange-400">
                           Rs. {remaining.toLocaleString()}
-                        </p>
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Encouraging Trophy Badge */}
-                  <div className="mt-3 p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-500/20 flex items-center gap-2">
-                    <span className="text-lg">🏆</span>
-                    <p className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+                  <div className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-500/20 flex items-center gap-2">
+                    <span className="text-base">🏆</span>
+                    <p className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">
                       {pct >= 75 
-                        ? 'Great! You are on track to meet your target!' 
+                        ? 'Great! On track to meet target!' 
                         : pct >= 40 
-                        ? 'Steady progress! Active collections underway.' 
-                        : 'Target in progress. Send reminder SMS to defaulters!'}
+                        ? 'Steady progress! Collections underway.' 
+                        : 'Send SMS reminders to defaulters!'}
                     </p>
                   </div>
                 </div>
