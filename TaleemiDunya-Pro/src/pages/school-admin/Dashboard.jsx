@@ -665,8 +665,8 @@ const SchoolAdminDashboard = () => {
         </div>
       )}
 
-      {/* Hero Welcome Banner (Ultra HD Graphical Panorama - 1:1 Matching Mockup Design) */}
-      <div className="relative overflow-hidden rounded-3xl shadow-xl border border-slate-200/60 dark:border-white/10 group min-h-[220px] sm:min-h-[250px] md:min-h-[270px] lg:min-h-[285px] flex items-center justify-center">
+      {/* Hero Welcome Banner (Ultra HD Panorama - 1:1 Matching Photo 3 on LEFT side) */}
+      <div className="relative overflow-hidden rounded-3xl shadow-xl border border-slate-200/60 dark:border-white/10 group min-h-[195px] md:min-h-[220px] lg:min-h-[240px] flex items-center justify-start">
         {/* Background Image with Fallback */}
         <div 
           className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
@@ -676,45 +676,18 @@ const SchoolAdminDashboard = () => {
           }}
         />
 
-        {/* Center Graphical Branding Block (Dynamic for each school) */}
-        <div className="relative z-10 w-full px-4 py-4 sm:py-5 flex flex-col items-center justify-center text-center select-none">
-          {/* 1. Academic Sun & Open Book Emblem */}
-          <div className="flex items-center justify-center mb-0.5">
-            <div className="relative flex items-center justify-center">
-              {/* Golden Sun */}
-              <div className="absolute -top-3 w-8 h-8 flex items-center justify-center">
-                <svg viewBox="0 0 24 24" className="w-7 h-7 text-amber-400 fill-amber-400 drop-shadow-sm">
-                  <circle cx="12" cy="12" r="4" />
-                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </div>
-              {/* Open Book Outline */}
-              <div className="pt-2">
-                <svg viewBox="0 0 40 24" className="w-10 h-6 text-[#0a2558] fill-white drop-shadow-sm">
-                  <path d="M 2 4 Q 10 7, 20 5 Q 30 7, 38 4 L 38 18 Q 30 21, 20 19 Q 10 21, 2 18 Z" stroke="#0a2558" strokeWidth="2.2" strokeLinejoin="round" fill="white" />
-                  <line x1="20" y1="5" x2="20" y2="19" stroke="#0a2558" strokeWidth="2" />
-                  <path d="M 5 8 Q 12 10, 18 9" stroke="#0a2558" strokeWidth="1.2" strokeLinecap="round" />
-                  <path d="M 5 12 Q 12 14, 18 13" stroke="#0a2558" strokeWidth="1.2" strokeLinecap="round" />
-                  <path d="M 22 9 Q 28 10, 35 8" stroke="#0a2558" strokeWidth="1.2" strokeLinecap="round" />
-                  <path d="M 22 13 Q 28 14, 35 12" stroke="#0a2558" strokeWidth="1.2" strokeLinecap="round" />
-                </svg>
-              </div>
-            </div>
+        {/* Soft, clean gradient strictly on the left to make pure white text 100% crisp without darkening the school/students */}
+        <div className="absolute inset-y-0 left-0 w-full sm:w-2/3 md:w-1/2 bg-gradient-to-r from-sky-950/80 via-sky-900/40 to-transparent pointer-events-none" />
+
+        {/* Content Container on LEFT SIDE (Matching Photo 3) */}
+        <div className="relative z-10 w-full max-w-xl px-6 py-5 md:px-10 md:py-7 flex flex-col items-start justify-center text-left">
+          {/* 1. Welcome Back! Pill */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-white text-xs md:text-sm font-bold border border-white/30 shadow-sm mb-2">
+            <span>Welcome Back!</span>
+            <span className="text-base">👋</span>
           </div>
 
-          {/* 2. Welcome Back! Calligraphy Script with Golden Brush Stroke */}
-          <div className="flex flex-col items-center">
-            <h1 
-              style={{ fontFamily: "'Playfair Display', 'Georgia', 'Brush Script MT', cursive, serif" }}
-              className="font-serif italic font-black text-2xl sm:text-3xl md:text-4xl lg:text-5xl text-[#09224f] tracking-tight drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] leading-tight"
-            >
-              Welcome Back!
-            </h1>
-            {/* Golden Brush Underline */}
-            <div className="w-44 sm:w-56 md:w-64 h-1.5 md:h-2 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 rounded-full mx-auto -mt-1 shadow-sm" />
-          </div>
-
-          {/* 3. Principal Badge - Dynamic Title & Name (Dark Blue Pill) */}
+          {/* 2. Principal Name (Dynamic Title & Name - Pure crisp white with radiant title) */}
           {(() => {
             const rawName = schoolData?.principalName || userData?.principalName;
             const principalTitle = schoolData?.principalTitle || userData?.principalTitle || 'Mr.';
@@ -734,33 +707,52 @@ const SchoolAdminDashboard = () => {
             }
 
             return (
-              <div className="mt-2.5 inline-flex flex-col items-center justify-center px-6 py-1 rounded-full bg-[#0a2352] text-white shadow-md border border-white/40">
-                <span className="text-xs sm:text-sm md:text-base font-extrabold tracking-wide text-white drop-shadow-sm">
-                  {displayTitle} {displayName}
-                </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-sky-200 tracking-wider -mt-0.5 opacity-90">
-                  (Principal)
-                </span>
-              </div>
+              <h1 
+                className="text-2xl md:text-3xl lg:text-4xl font-black tracking-tight drop-shadow-[0_2px_5px_rgba(0,0,0,0.85)] flex items-center gap-2 mb-1.5"
+                style={{ color: '#ffffff' }}
+              >
+                <span className="text-sky-200 drop-shadow">{displayTitle}</span>
+                <span className="text-white drop-shadow">{displayName}</span>
+              </h1>
             );
           })()}
 
-          {/* 4. School Name Badge - Deep Blue Card with Decorative Lines */}
-          <div className="mt-2 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg px-6 sm:px-8 py-1.5 sm:py-2 rounded-2xl bg-gradient-to-r from-[#092049] via-[#0d2f69] to-[#092049] text-white shadow-xl border-2 border-white/40 text-center">
-            <h2 className="text-sm sm:text-base md:text-xl lg:text-2xl font-black text-white tracking-wide uppercase drop-shadow-md truncate">
-              {schoolName}
-            </h2>
-            <div className="flex items-center justify-center gap-2 text-[9px] sm:text-[11px] font-bold text-sky-200 tracking-widest uppercase mt-0.5">
-              <span className="w-5 sm:w-8 h-px bg-sky-300/60"></span>
-              <span className="truncate">{schoolData?.campus || schoolData?.branchName || 'School & College'}</span>
-              <span className="w-5 sm:w-8 h-px bg-sky-300/60"></span>
-            </div>
-          </div>
+          {/* 3. School Name & Campus - Pure White, Split Multi-line Without Cutoffs */}
+          {(() => {
+            const campusName = schoolData?.campus || schoolData?.branchName || 'Main Campus';
+            const rawSchoolName = schoolName || 'Smart Angels Grammar School';
+            let line1 = rawSchoolName;
+            let line2 = campusName;
 
-          {/* 5. Motto: Learn • Grow • Excel */}
-          <p className="text-xs sm:text-sm font-black italic tracking-widest text-[#0a2352] mt-1 drop-shadow-[0_1px_2px_rgba(255,255,255,0.9)] font-serif">
-            Learn • Grow • Excel
-          </p>
+            const lower = rawSchoolName.toLowerCase();
+            if (lower.endsWith(' grammar school')) {
+              line1 = rawSchoolName.slice(0, -15).trim() + ' Grammar';
+              line2 = `School • ${campusName}`;
+            } else if (lower.endsWith(' school')) {
+              line1 = rawSchoolName.slice(0, -7).trim();
+              line2 = `School • ${campusName}`;
+            } else if (lower.endsWith(' school & college')) {
+              line1 = rawSchoolName.slice(0, -17).trim();
+              line2 = `School & College • ${campusName}`;
+            }
+
+            return (
+              <div className="space-y-0.5 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                <div 
+                  className="text-base md:text-lg lg:text-xl font-black tracking-wide uppercase"
+                  style={{ color: '#ffffff' }}
+                >
+                  {line1}
+                </div>
+                <div 
+                  className="text-xs md:text-sm font-semibold tracking-wide text-sky-100 flex items-center gap-1.5"
+                  style={{ color: '#f0f9ff' }}
+                >
+                  <span>{line2}</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
